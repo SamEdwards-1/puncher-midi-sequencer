@@ -1,8 +1,10 @@
 import styled from "@emotion/styled"
 import { FC } from "react"
-import { useMobxGetter } from "../../hooks/useMobxSelector"
+import { useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
 import { Localized } from "../../localize/useLocalization"
+import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
+import { TransportControls } from "../TransportPanel/TransportControls"
 
 const Bar = styled.header`
   display: flex;
@@ -25,9 +27,16 @@ const PatchName = styled.div`
   color: var(--color-text-secondary);
 `
 
+const Spacer = styled.div`
+  flex-grow: 1;
+`
+
 export const TopBar: FC = () => {
   const { sequencerStore } = useStores()
-  const name = useMobxGetter(sequencerStore, "name")
+  const name = useMobxSelector(
+    () => sequencerStore.patch.name,
+    [sequencerStore],
+  )
 
   return (
     <Bar>
@@ -37,6 +46,9 @@ export const TopBar: FC = () => {
       <PatchName>
         {name.length > 0 ? name : <Localized name="sequencer-untitled" />}
       </PatchName>
+      <Spacer />
+      <TransportControls />
+      <OutputRoutingMenu />
     </Bar>
   )
 }

@@ -140,9 +140,13 @@ packages/core/
 - **Engine:** pure TypeScript, no MobX. `render(toBeat)` returns timestamped
   events in floating-point beats (so golden paces stay exact); all mutable
   state lives in a runtime object and randomness is seeded.
-- **Timing:** the player ticks every 25–50 ms with ~100 ms lookahead, converts
+- **Timing:** the player ticks every 25 ms with ~100 ms lookahead, converts
   beats to `performance.now()` timestamps and calls `port.send(bytes, ts)`.
-  Stop clears queued messages, releases held notes and sends All Notes Off.
+  The tick comes from a Web Worker, because browsers throttle main-thread
+  timers in background tabs and midiseq usually sits behind Signal. Stop
+  clears queued messages, releases held notes and sends All Notes Off both
+  immediately and after the last scheduled message (not every browser can
+  cancel queued MIDI).
 - **State split:** patch = MobX (undoable, saved); view state = jotai; engine
   runtime and transport = service observables, playhead throttled to animation
   frames.

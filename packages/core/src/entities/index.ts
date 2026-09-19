@@ -1,4 +1,5 @@
 export * from "./defaults"
+export * from "./demoPatch"
 export * from "./noteName"
 export * from "./paces"
 export * from "./schema"

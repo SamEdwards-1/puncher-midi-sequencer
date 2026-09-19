@@ -441,6 +441,17 @@ export class Engine {
       const tie = hit === 0 && patternStep.articulation === "tie"
       const previous = runtime.activeNote
 
+      // Tying into the note that is already sounding just extends it
+      if (
+        tie &&
+        previous !== null &&
+        previous.note === note &&
+        previous.channel === voice.channel
+      ) {
+        previous.offBeat = offBeat
+        continue
+      }
+
       if (previous !== null && !tie) {
         events.push({
           type: "noteOff",
