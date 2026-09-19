@@ -1,0 +1,8 @@
+node_modules
+dist
+.vscode
+docs
+.turbo
+coverage
+*.log
+.DS_Store

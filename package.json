@@ -1,0 +1,27 @@
+{
+  "name": "midiseq",
+  "version": "0.0.1",
+  "description": "Browser MIDI step sequencer with jumps and decoupled voices, built to work alongside Signal.",
+  "private": true,
+  "scripts": {
+    "start": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check ."
+  },
+  "workspaces": [
+    "app",
+    "packages/*"
+  ],
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.4",
+    "turbo": "^2.8.10"
+  }
+}
