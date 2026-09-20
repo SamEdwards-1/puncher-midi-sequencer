@@ -4,8 +4,8 @@ import {
   EngineEvent,
   NoteOffEvent,
   PatchJSON,
+  paceBeats,
   StepIndex,
-  VoiceIndex,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
@@ -21,8 +21,9 @@ export interface SequencerPlayerOptions {
 
 const TICK_MS = 25
 const LOOKAHEAD_MS = 100
-// how long a step sounds when clicked in the grid
-const PREVIEW_MS = 400
+// upper bound on how long a clicked step sounds
+const PREVIEW_MAX_MS = 2000
+const BEAT_EPSILON = 1e-9
 // gives the first events time to be scheduled before they are due
 const START_DELAY_MS = 50
 
@@ -89,48 +90,54 @@ export class SequencerPlayer {
   }
 
   /**
-   * Sounds a step's notes so it can be heard while editing, then releases
-   * them. The note-offs are timestamped rather than timed by a timer, so the
-   * browser releases them even if the tab is busy.
+   * Sounds one step the way the sequencer would play it: the voices read it
+   * at their own paces, patterns and rules for the length of a sequencer
+   * step. Everything is timestamped rather than timed by a timer, so it lands
+   * even if the tab is busy.
    */
-  previewStep = (step: number, durationMs = PREVIEW_MS) => {
+  previewStep = (step: number) => {
     const patch = this.patch
-    const notes = patch.steps[step]?.notes.slice(0, patch.maxNotesPerStep)
-    if (notes === undefined || notes.length === 0) {
+    const source = patch.steps[step]
+    if (source === undefined) {
       return
     }
-    const voiceIndex = Math.max(
-      0,
-      patch.voices.findIndex((voice) => voice.enabled),
-    ) as VoiceIndex
-    const voice = patch.voices[voiceIndex]
-    const now = this.now()
-    const until = now + durationMs
 
-    for (const note of notes) {
-      this.router.route(
-        {
-          type: "noteOn",
-          beat: 0,
-          voice: voiceIndex,
-          note,
-          velocity: voice.velocity,
-          channel: voice.channel,
-        },
-        now,
-      )
-      this.router.route(
-        {
-          type: "noteOff",
-          beat: 0,
-          voice: voiceIndex,
-          note,
-          channel: voice.channel,
-        },
-        until,
-      )
+    // A one-step patch, so the sequencer stays on this step and the voices
+    // start together as they would on landing.
+    const previewPatch: PatchJSON = {
+      ...patch,
+      loop: { mode: "custom", end: 0 },
+      steps: patch.steps.map((existing, index) =>
+        index === 0
+          ? {
+              ...source,
+              jump: { rule: { kind: "always" }, dest: null, normal: null },
+            }
+          : existing,
+      ),
     }
-    this.lastScheduledTime = Math.max(this.lastScheduledTime, until)
+
+    const engine = new Engine(previewPatch, {
+      seed: Math.floor(Math.random() * 2 ** 32),
+    })
+    engine.start(0)
+    const msPerBeat = 60000 / patch.tempo
+    // a slow sequencer pace would otherwise run for a long time
+    const beats = Math.min(paceBeats(patch.pace), PREVIEW_MAX_MS / msPerBeat)
+    const events = [
+      ...engine.render(beats - BEAT_EPSILON),
+      ...engine.stop(beats),
+    ]
+
+    const now = this.now()
+    for (const event of events) {
+      if (event.type === "step") {
+        continue
+      }
+      const time = now + event.beat * msPerBeat
+      this.router.route(event, time)
+      this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
+    }
   }
 
   play = () => {
