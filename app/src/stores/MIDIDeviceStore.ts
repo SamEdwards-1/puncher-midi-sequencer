@@ -12,6 +12,8 @@ export interface OutputNames {
 }
 
 export type RequestMIDIAccess = () => Promise<MIDIAccess>
+export type QueryMIDIPermission = () => Promise<PermissionStatus>
+export type MIDIPermission = "granted" | "denied" | "prompt" | "unknown"
 
 const STORAGE_KEY = "midiseq.midiOutputs"
 
@@ -19,6 +21,16 @@ const defaultRequestAccess = (): RequestMIDIAccess | null =>
   typeof navigator !== "undefined" &&
   typeof navigator.requestMIDIAccess === "function"
     ? () => navigator.requestMIDIAccess({ sysex: false })
+    : null
+
+const defaultQueryPermission = (): QueryMIDIPermission | null =>
+  typeof navigator !== "undefined" && navigator.permissions !== undefined
+    ? () =>
+        navigator.permissions.query({
+          name: "midi",
+          sysex: false,
+          // "midi" is a valid permission name but missing from the DOM types
+        } as unknown as PermissionDescriptor)
     : null
 
 const defaultStorage = (): Storage | null => {
@@ -58,15 +70,21 @@ export class MIDIDeviceStore {
   inputs: MIDIInput[] = []
   isLoading = false
   requestError: Error | null = null
+  // true once the browser has handed over MIDI access
+  hasAccess = false
+  permission: MIDIPermission = "unknown"
   outputNames: OutputNames
 
   private readonly requestAccess: RequestMIDIAccess | null
+  private readonly queryPermission: QueryMIDIPermission | null
 
   constructor(
     requestAccess: RequestMIDIAccess | null = defaultRequestAccess(),
     storage: Storage | null = defaultStorage(),
+    queryPermission: QueryMIDIPermission | null = defaultQueryPermission(),
   ) {
     this.requestAccess = requestAccess
+    this.queryPermission = queryPermission
     this.outputNames = loadOutputNames(storage)
 
     makeObservable(this, {
@@ -74,6 +92,8 @@ export class MIDIDeviceStore {
       inputs: observable.ref,
       isLoading: observable,
       requestError: observable,
+      hasAccess: observable,
+      permission: observable,
       outputNames: observable.ref,
       // keepAlive caches the value between reads outside a reaction, so React
       // gets the same array back until the ports actually change
@@ -97,6 +117,35 @@ export class MIDIDeviceStore {
     return this.requestAccess !== null
   }
 
+  /**
+   * Reconnects on startup only when permission was granted earlier. Browsers
+   * tie the MIDI permission prompt to a user action, so asking during page
+   * load can be dismissed without ever showing a dialog.
+   */
+  connectIfAllowed = async () => {
+    await this.refreshPermission()
+    if (this.permission === "granted") {
+      await this.requestMIDIAccess()
+    }
+  }
+
+  refreshPermission = async () => {
+    if (this.queryPermission === null) {
+      return
+    }
+    try {
+      const status = await this.queryPermission()
+      this.permission = status.state as MIDIPermission
+      status.onchange = () => {
+        this.permission = status.state as MIDIPermission
+      }
+    } catch {
+      // Firefox and Safari don't answer for "midi"
+      this.permission = "unknown"
+    }
+  }
+
+  // Call this from a click so the browser can show its permission prompt.
   requestMIDIAccess = async () => {
     if (this.requestAccess === null) {
       return
@@ -107,11 +156,13 @@ export class MIDIDeviceStore {
       const access = await this.requestAccess()
       this.updatePorts(access)
       access.onstatechange = () => this.updatePorts(access)
+      this.hasAccess = true
     } catch (error) {
       this.requestError =
         error instanceof Error ? error : new Error(String(error))
     } finally {
       this.isLoading = false
+      await this.refreshPermission()
     }
   }
 

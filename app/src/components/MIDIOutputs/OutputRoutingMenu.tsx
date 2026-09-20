@@ -56,6 +56,8 @@ export const OutputRoutingMenu: FC = () => {
   const localized = useLocalization()
   const {
     isSupported,
+    hasAccess,
+    permission,
     requestError,
     outputNames,
     connectedOutputNames,
@@ -84,21 +86,36 @@ export const OutputRoutingMenu: FC = () => {
         </Message>
       )
     }
-    if (requestError !== null) {
+
+    // The browser only shows its permission prompt in response to a click,
+    // so access is asked for here rather than on page load.
+    if (!hasAccess) {
+      const blocked = permission === "denied" || requestError !== null
       return (
         <>
+          {requestError !== null && (
+            <Message>
+              <Localized name="sequencer-midi-error" /> {requestError.message}
+            </Message>
+          )}
           <Message>
-            <Localized name="sequencer-midi-error" /> {requestError.message}
-          </Message>
-          <Message>
-            <Localized name="sequencer-midi-permission-hint" />
+            {blocked ? (
+              <Localized name="sequencer-midi-permission-hint" />
+            ) : (
+              <Localized name="sequencer-midi-enable-hint" />
+            )}
           </Message>
           <Button type="button" onClick={requestMIDIAccess}>
-            <Localized name="sequencer-midi-retry" />
+            {blocked ? (
+              <Localized name="sequencer-midi-retry" />
+            ) : (
+              <Localized name="sequencer-midi-enable" />
+            )}
           </Button>
         </>
       )
     }
+
     return (
       <>
         {connectedOutputNames.length === 0 && (

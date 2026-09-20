@@ -25,8 +25,11 @@ export default {
       "This browser doesn't support Web MIDI. Use Chrome or Edge.",
     "sequencer-midi-error": "Couldn't access MIDI:",
     "sequencer-midi-permission-hint":
-      "If the browser blocked it, allow MIDI devices in this site's settings, then try again.",
+      "The browser blocked MIDI. Allow MIDI devices in this site's settings (the icon at the left of the address bar), then try again.",
     "sequencer-midi-retry": "Try again",
+    "sequencer-midi-enable": "Enable MIDI",
+    "sequencer-midi-enable-hint":
+      "midiseq needs your permission to use MIDI devices.",
     "sequencer-midi-no-outputs":
       "No MIDI outputs found. On Windows, create a port in loopMIDI.",
   },

@@ -9,6 +9,12 @@ export function useMIDIDevice() {
     get isLoading() {
       return useMobxGetter(midiDeviceStore, "isLoading")
     },
+    get hasAccess() {
+      return useMobxGetter(midiDeviceStore, "hasAccess")
+    },
+    get permission() {
+      return useMobxGetter(midiDeviceStore, "permission")
+    },
     get requestError() {
       return useMobxGetter(midiDeviceStore, "requestError")
     },

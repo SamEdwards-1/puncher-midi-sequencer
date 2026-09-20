@@ -78,6 +78,41 @@ describe("MIDIDeviceStore", () => {
     expect(second.outputNames.voices[2]).toBe("Synth")
   })
 
+  it("reconnects on startup only when permission was already granted", async () => {
+    const permission = (state: string) => async () =>
+      ({ state, onchange: null }) as unknown as PermissionStatus
+
+    let granted = 0
+    const grantedStore = new MIDIDeviceStore(
+      async () => {
+        granted++
+        return fakeAccess([
+          fakeOutput("a", "midiseq out"),
+        ]) as unknown as MIDIAccess
+      },
+      memoryStorage(),
+      permission("granted"),
+    )
+    await grantedStore.connectIfAllowed()
+    expect(granted).toBe(1)
+    expect(grantedStore.hasAccess).toBe(true)
+
+    let prompted = 0
+    const promptStore = new MIDIDeviceStore(
+      async () => {
+        prompted++
+        return fakeAccess([]) as unknown as MIDIAccess
+      },
+      memoryStorage(),
+      permission("prompt"),
+    )
+    await promptStore.connectIfAllowed()
+    // waits for a click so the browser can show its prompt
+    expect(prompted).toBe(0)
+    expect(promptStore.hasAccess).toBe(false)
+    expect(promptStore.permission).toBe("prompt")
+  })
+
   it("reports when Web MIDI is missing or refused", async () => {
     expect(new MIDIDeviceStore(null, memoryStorage()).isSupported).toBe(false)
 

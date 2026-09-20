@@ -45,7 +45,7 @@ describe("App", () => {
     expect(rootStore.player.isPlaying).toBe(false)
   })
 
-  it("offers to retry when MIDI access is refused", async () => {
+  it("asks for MIDI access on a click, not on load", async () => {
     let attempts = 0
     const rootStore = new RootStore({
       ticker: new ManualTicker(),
@@ -57,10 +57,21 @@ describe("App", () => {
     await act(async () => {
       rootStore.init()
     })
-    render(<App rootStore={rootStore} />)
+    // nothing is requested while the page loads
+    expect(attempts).toBe(0)
 
+    render(<App rootStore={rootStore} />)
     fireEvent.click(screen.getByRole("button", { name: "MIDI Outputs" }))
+    expect(
+      screen.getByText(/midiseq needs your permission/),
+    ).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Enable MIDI" }))
+    })
+    expect(attempts).toBe(1)
     expect(screen.getByText(/Permission denied/)).toBeInTheDocument()
+
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Try again" }))
     })

@@ -32,6 +32,6 @@ export default class RootStore {
   }
 
   init() {
-    void this.midiDeviceStore.requestMIDIAccess()
+    void this.midiDeviceStore.connectIfAllowed()
   }
 }
