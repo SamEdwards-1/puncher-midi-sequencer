@@ -112,7 +112,7 @@ export default {
     "sequencer-midi-enable": "Enable MIDI",
     "sequencer-midi-enable-hint":
       "midiseq needs your permission to use MIDI devices.",
-    "sequencer-synth-loading": "Starting the built-in sound…",
+    "sequencer-synth-loading": "Starting the built-in soundâ€¦",
     "sequencer-synth-error": "The built-in sound didn't start:",
     "sequencer-midi-no-outputs":
       "No MIDI outputs found. On Windows, create a port in loopMIDI.",

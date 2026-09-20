@@ -124,7 +124,7 @@ few seconds, so a crash doesn't lose it.
 
 - `packages/core` — the sequencer itself: entities, the engine, patch
   commands and the file format. No React, no MobX, fully unit-tested.
-- `app` — the React app: MobX for the patch, jotai for view state, Emotion
+- `app` — the React app: MobX for the patch, jotai for view state, Tailwind
   for styling, and the services that talk to Web MIDI.
 
 The engine works in floating-point beats and hands the player timestamped

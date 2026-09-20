@@ -1,32 +1,16 @@
-import styled from "@emotion/styled"
 import { FC } from "react"
 import { SequenceGrid } from "../SequenceGrid/SequenceGrid"
 import { SequencerPanel } from "../SequencerPanel/SequencerPanel"
 import { TopBar } from "../TopBar/TopBar"
 import { VoicePanel } from "../VoicePanel/VoicePanel"
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  min-height: 0;
-  background: var(--color-background);
-`
-
-const Body = styled.div`
-  display: grid;
-  grid-template-columns: minmax(16rem, 20rem) 1fr minmax(18rem, 22rem);
-  flex-grow: 1;
-  min-height: 0;
-`
-
 export const SequencerEditor: FC = () => (
-  <Container>
+  <div className="flex min-h-0 grow flex-col bg-background">
     <TopBar />
-    <Body>
+    <div className="grid min-h-0 grow grid-cols-[minmax(16rem,20rem)_1fr_minmax(18rem,22rem)]">
       <SequencerPanel />
       <SequenceGrid />
       <VoicePanel />
-    </Body>
-  </Container>
+    </div>
+  </div>
 )

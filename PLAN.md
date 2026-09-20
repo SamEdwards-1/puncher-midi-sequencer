@@ -203,7 +203,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
 | 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | ✅ |
-| 11 | Tailwind | Every component styled with utilities; Emotion gone | |
+| 11 | Tailwind | Every component styled with utilities; Emotion gone | ✅ |
 | 12 | Custom themes | A theme can be authored, saved, exported and re-imported | |
 
 ---
@@ -255,13 +255,15 @@ importing just the `theme` and `utilities` layers leaves Preflight out, so
 Tailwind's reset never touches Signal's own elements. Utilities generated for
 the sequencer are inert wherever they aren't used.
 
-**The theme stays where it is.** `GlobalCSS` already publishes every `Theme`
-field as a `--color-*` variable, and Tailwind v4 takes its tokens from CSS
-variables, so utilities map straight onto the variables already there:
-`bg-background`, `text-secondary`, `border-divider`. Switching themes stays a
-runtime swap needing no rebuild, and becomes a `data-theme` attribute on
-`<html>` in place of Emotion's `ThemeProvider`. `Theme.ts` stays the source of
-truth for the values TS reads — `jumpColors` above all.
+**The theme moves into the stylesheet.** Every `Theme` field was already
+published as a CSS variable, and Tailwind v4 takes its tokens from CSS
+variables, so the palette itself becomes the source: raw values as
+`--midiseq-*`, with Tailwind's tokens aliased to them so a utility resolves
+through the live value. Switching themes stays a runtime swap needing no
+rebuild, and becomes a `data-theme` attribute on `<html>` in place of Emotion's
+`ThemeProvider`. Nothing in TS needs a colour any more, not even `jumpColors`:
+a jump's dot is given `var(--midiseq-jump-N)`, so `Theme.ts` keeps only the
+names of the themes that exist.
 
 **Values known only at runtime** — a jump's colour, a popup's position — can't
 be class names. They keep the pattern the grid already uses: a custom property
@@ -270,9 +272,9 @@ set in `style={{}}`, read by a utility such as `bg-[var(--jump-source-color)]`.
 **The awkward parts**, in order: `VoicePanel`'s pattern dots, whose `::before`
 tails and `::after` corner marks carry real meaning; `SequenceGrid`'s 2000px
 breakpoint, which becomes a `--breakpoint-*` token; the scrollbar rules, which
-stay hand-written CSS in the global stylesheet; and `Slider`, `Toggle` and
-`Stepper`, whose native-control pseudo-elements read better as CSS than as
-`[&::-webkit-slider-thumb]:` utilities.
+stay hand-written CSS in the global stylesheet; and `Slider`, whose track and
+thumb are vendor pseudo-elements no utility can name, so they stay CSS too.
+`Toggle` does go to utilities, its knob driven by `peer-checked:`.
 
 **Shape of the work:** add `@tailwindcss/vite` and a `styles.css` holding the
 layer imports, the theme tokens and what stays hand-written; convert

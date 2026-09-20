@@ -1,16 +1,8 @@
-import styled from "@emotion/styled"
 import { FC, useEffect } from "react"
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { useStores } from "../../hooks/useStores"
 import { SequencerEditor } from "../SequencerEditor/SequencerEditor"
 import { SequencerProvider } from "../SequencerEditor/SequencerProvider"
-
-const Container = styled.div`
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-`
 
 // Standalone shell. Inside Signal, the provider + editor pair becomes a route.
 export const RootView: FC = () => {
@@ -28,11 +20,13 @@ export const RootView: FC = () => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload)
   }, [sequencerStore])
 
+  // The stylesheet scopes its own resets to midiseq, so they stop at the
+  // sequencer and leave a host page's elements alone.
   return (
-    <Container>
+    <div className="midiseq flex h-full flex-col overflow-hidden">
       <SequencerProvider>
         <SequencerEditor />
       </SequencerProvider>
-    </Container>
+    </div>
   )
 }

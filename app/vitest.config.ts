@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vitest/config"
 
 export default defineConfig({
-  plugins: [react({ jsxImportSource: "@emotion/react" })],
+  plugins: [react()],
   test: {
     globals: true,
     environment: "jsdom",

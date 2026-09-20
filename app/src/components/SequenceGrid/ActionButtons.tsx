@@ -1,50 +1,11 @@
-import styled from "@emotion/styled"
 import { EngineActions } from "@midiseq/core"
 import { FC, useEffect } from "react"
 import { useActions, useLatchActions } from "../../hooks/useActions"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { cn } from "../ui/cn"
 import { Toggle } from "../ui/Toggle"
 
-const Bar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid var(--color-divider);
-`
-
-const ActionButton = styled.button`
-  min-width: 5rem;
-  height: 2rem;
-  border: none;
-  border-radius: 1rem;
-  background: var(--color-background-secondary);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-  touch-action: none;
-
-  &:hover {
-    background: var(--color-highlight);
-  }
-
-  &[data-held="true"] {
-    background: var(--color-theme);
-    color: var(--color-on-surface);
-  }
-`
-
-// a div, not a label: a label wrapping the switch would double-fire clicks
-const Latch = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-`
+const ACTION_BUTTON = "h-8 min-w-20 touch-none rounded-2xl text-body"
 
 const ACTIONS: { action: keyof EngineActions; key: string }[] = [
   { action: "hang", key: "KeyH" },
@@ -106,18 +67,26 @@ export const ActionButtons: FC = () => {
   })
 
   return (
-    <Bar>
+    <div className="flex items-center justify-center gap-2 border-t border-divider px-4 py-3">
       {ACTIONS.map(({ action }) => (
-        <ActionButton
+        <button
           key={action}
           type="button"
           data-held={actions[action]}
+          className={cn(
+            ACTION_BUTTON,
+            actions[action]
+              ? "bg-theme text-on-surface"
+              : "bg-background-secondary text-fg hover:bg-highlight",
+          )}
           {...held(action)}
         >
           <Localized name={`sequencer-action-${action}`} />
-        </ActionButton>
+        </button>
       ))}
-      <Latch>
+      {/* a div, not a label: a label wrapping the switch would double-fire
+          clicks */}
+      <div className="ml-2 flex items-center gap-[0.4rem] text-small text-fg-secondary">
         <Toggle
           label={localized["sequencer-action-latch"]}
           checked={latch}
@@ -132,7 +101,7 @@ export const ActionButtons: FC = () => {
           }}
         />
         <Localized name="sequencer-action-latch" />
-      </Latch>
-    </Bar>
+      </div>
+    </div>
   )
 }

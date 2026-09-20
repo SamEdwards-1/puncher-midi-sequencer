@@ -1,69 +1,36 @@
-import styled from "@emotion/styled"
 import { VoiceIndex } from "@midiseq/core"
-import { FC, useState } from "react"
+import { FC, ReactNode, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { OutputSlot } from "../../stores/MIDIDeviceStore"
 import { Button, ToolbarButton } from "../ui/Button"
+import { cn } from "../ui/cn"
+import { Select } from "../ui/Select"
 
-const Wrapper = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-`
+const MESSAGE = "text-body text-fg-secondary"
 
-const Popup = styled.div`
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.25rem);
-  z-index: 10;
-  width: 20rem;
-  padding: 0.75rem;
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-popup-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 1rem 3rem var(--color-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`
+const SectionTitle: FC<{ divided?: boolean; children: ReactNode }> = ({
+  divided = false,
+  children,
+}) => (
+  <div
+    className={cn(
+      "mt-1 text-small font-semibold text-fg",
+      divided && "border-t border-divider pt-2",
+    )}
+  >
+    {children}
+  </div>
+)
 
-const SectionTitle = styled.div`
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 0.25rem;
-
-  &:not(:first-of-type) {
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--color-divider);
-  }
-`
-
-const Row = styled.label`
-  display: grid;
-  grid-template-columns: 5rem 1fr;
-  align-items: center;
-  font-size: 0.8rem;
-`
-
-const Select = styled.select`
-  height: 2rem;
-  padding: 0 0.5rem;
-  border: 1px solid var(--color-divider);
-  border-radius: 0.25rem;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-`
-
-const Message = styled.div`
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-`
+const Row: FC<{ children: ReactNode }> = ({ children }) => (
+  // biome-ignore lint/a11y/noLabelWithoutControl: every row is given a select
+  <label className="grid grid-cols-[5rem_1fr] items-center text-body">
+    {children}
+  </label>
+)
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 const CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
@@ -125,9 +92,9 @@ export const OutputRoutingMenu: FC = () => {
   const access = () => {
     if (!isSupported) {
       return (
-        <Message>
+        <div className={MESSAGE}>
           <Localized name="sequencer-midi-unsupported" />
-        </Message>
+        </div>
       )
     }
     if (hasAccess) {
@@ -138,17 +105,17 @@ export const OutputRoutingMenu: FC = () => {
     return (
       <>
         {requestError !== null && (
-          <Message>
+          <div className={MESSAGE}>
             <Localized name="sequencer-midi-error" /> {requestError.message}
-          </Message>
+          </div>
         )}
-        <Message>
+        <div className={MESSAGE}>
           {blocked ? (
             <Localized name="sequencer-midi-permission-hint" />
           ) : (
             <Localized name="sequencer-midi-enable-hint" />
           )}
-        </Message>
+        </div>
         <Button type="button" onClick={requestMIDIAccess}>
           {blocked ? (
             <Localized name="sequencer-midi-retry" />
@@ -168,9 +135,9 @@ export const OutputRoutingMenu: FC = () => {
           <Localized name="sequencer-midi-input-section" />
         </SectionTitle>
         {connectedInputNames.length === 0 && (
-          <Message>
+          <div className={MESSAGE}>
             <Localized name="sequencer-midi-no-inputs" />
-          </Message>
+          </div>
         )}
         <Row>
           {localized["sequencer-midi-input"]}
@@ -207,23 +174,23 @@ export const OutputRoutingMenu: FC = () => {
           </Select>
         </Row>
 
-        <SectionTitle>
+        <SectionTitle divided>
           <Localized name="sequencer-midi-outputs-section" />
         </SectionTitle>
         {synthState === "loading" && (
-          <Message>
+          <div className={MESSAGE}>
             <Localized name="sequencer-synth-loading" />
-          </Message>
+          </div>
         )}
         {synthState === "error" && (
-          <Message>
+          <div className={MESSAGE}>
             <Localized name="sequencer-synth-error" /> {synthError}
-          </Message>
+          </div>
         )}
         {connectedOutputNames.length === 0 && (
-          <Message>
+          <div className={MESSAGE}>
             <Localized name="sequencer-midi-no-outputs" />
-          </Message>
+          </div>
         )}
         {slots.map(({ slot, label, name }) => (
           <Row key={String(slot)}>
@@ -247,20 +214,24 @@ export const OutputRoutingMenu: FC = () => {
   }
 
   return (
-    <Wrapper>
+    <div className="relative flex items-center">
       <ToolbarButton
         type="button"
         aria-expanded={open}
-        data-active={open}
+        active={open}
         onClick={() => setOpen(!open)}
       >
         <Localized name="sequencer-midi-outputs" />
       </ToolbarButton>
       {open && (
-        <Popup role="dialog" aria-label={localized["sequencer-midi-outputs"]}>
+        <div
+          role="dialog"
+          aria-label={localized["sequencer-midi-outputs"]}
+          className="absolute top-[calc(100%+0.25rem)] right-0 z-10 flex w-80 flex-col gap-2 rounded-lg border border-popup-border bg-background-secondary p-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)]"
+        >
           {body()}
-        </Popup>
+        </div>
       )}
-    </Wrapper>
+    </div>
   )
 }

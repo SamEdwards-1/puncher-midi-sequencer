@@ -1,5 +1,3 @@
-import { useTheme } from "@emotion/react"
-import styled from "@emotion/styled"
 import { gridWidth, stepCount } from "@midiseq/core"
 import { CSSProperties, FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
@@ -12,159 +10,23 @@ import {
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
+import { cn } from "../ui/cn"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
 import { ActionButtons } from "./ActionButtons"
 
-// The centre column never scrolls as a whole: the grid shrinks to fit and
-// the step editor scrolls on its own.
-const CentrePanel = styled(Panel)`
-  overflow: hidden;
-`
+const STEP =
+  "relative aspect-square min-w-[1.25rem] rounded-full border-2 font-mono text-[clamp(0.6rem,1.1vmin,0.85rem)]"
 
-/* Below the grid on a normal window; beside it once there is room, so the
-   grid can use the full height. */
-const Content = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+/* A jump shows as a pair sharing a colour: the source is marked at the
+   north-east, its destination at the south-west. */
+const SOURCE_MARK =
+  "after:absolute after:top-[10%] after:right-[10%] after:h-[0.32rem] after:w-[0.32rem] after:rounded-full after:bg-[var(--jump-source-color)] after:content-['']"
 
-  @media (min-width: 2000px) {
-    flex-direction: row;
-  }
-`
+const DEST_MARK =
+  "before:absolute before:bottom-[10%] before:left-[10%] before:h-[0.32rem] before:w-[0.32rem] before:rounded-full before:bg-[var(--jump-dest-color)] before:content-['']"
 
-const GridColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-`
-
-const GridArea = styled.div`
-  flex: 1 1 auto;
-  min-height: 6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1rem;
-  overflow: hidden;
-`
-
-// A square that takes the smaller of the space's width and height, so the
-// whole grid is always visible and the cells stay round.
-const Grid = styled.div<{ columns: number }>`
-  display: grid;
-  grid-template-columns: repeat(${({ columns }) => columns}, minmax(0, 1fr));
-  grid-template-rows: repeat(${({ columns }) => columns}, minmax(0, 1fr));
-  gap: 0.4rem;
-  aspect-ratio: 1;
-  height: 100%;
-  max-height: 100%;
-  max-width: 100%;
-`
-
-const StepEditorArea = styled.div`
-  flex: 0 0 auto;
-  /* never more than it needs, so the grid keeps the rest */
-  max-height: min(45%, 24rem);
-  overflow-y: auto;
-  border-top: 1px solid var(--color-divider);
-
-  @media (min-width: 2000px) {
-    width: 24rem;
-    max-height: none;
-    border-top: none;
-    border-left: 1px solid var(--color-divider);
-  }
-`
-
-const GridHeader = styled(PanelHeader)`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`
-
-const HeaderTitle = styled.span`
-  flex-grow: 1;
-`
-
-const PreviewToggle = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--color-text-secondary);
-`
-
-const Step = styled.button`
-  position: relative;
-  aspect-ratio: 1;
-  min-width: 1.25rem;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  background: var(--color-step);
-  color: var(--color-text-secondary);
-  font-family: var(--font-mono);
-  /* grows a little with the grid, without ever dominating the cell */
-  font-size: clamp(0.6rem, 1.1vmin, 0.85rem);
-  cursor: pointer;
-
-  &[data-has-notes="true"] {
-    background: var(--color-background-secondary);
-    color: var(--color-text);
-  }
-
-  &[data-active="true"] {
-    background: var(--color-theme);
-    color: var(--color-on-surface);
-  }
-
-  &[data-selected="true"] {
-    border-color: var(--color-text-secondary);
-  }
-
-  &[data-target="true"] {
-    border-color: var(--color-record);
-  }
-
-  &[data-state="rest"] {
-    background: var(--color-step-rest);
-  }
-
-  &[data-state="skip"] {
-    background: var(--color-step-skip);
-    color: var(--color-text-tertiary);
-  }
-
-  /* A jump shows as a pair sharing a colour: the source is marked at the
-     north-east, its destination at the south-west. */
-  &[data-jump-source]::after {
-    content: "";
-    position: absolute;
-    right: 10%;
-    top: 10%;
-    width: 0.32rem;
-    height: 0.32rem;
-    border-radius: 50%;
-    background: var(--jump-source-color);
-  }
-
-  &[data-jump-dest]::before {
-    content: "";
-    position: absolute;
-    left: 10%;
-    bottom: 10%;
-    width: 0.32rem;
-    height: 0.32rem;
-    border-radius: 50%;
-    background: var(--jump-dest-color);
-  }
-`
+const JUMP_COLOURS = 8
 
 export const SequenceGrid: FC = () => {
   const { sequencerStore, player, recorder } = useStores()
@@ -172,7 +34,6 @@ export const SequenceGrid: FC = () => {
   const { editJump, editStepState } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const [preview, setPreview] = usePreviewOnClick()
-  const theme = useTheme()
 
   const size = useMobxSelector(
     () => sequencerStore.patch.size,
@@ -207,10 +68,10 @@ export const SequenceGrid: FC = () => {
       .join(",")
   }, [sequencerStore]).split(",")
 
+  // which of the palette's colours the mark stands for, if any
   const jumpColour = (mark: string) =>
-    mark === "-"
-      ? undefined
-      : theme.jumpColors[Number(mark) % theme.jumpColors.length]
+    mark === "-" ? undefined : Number(mark) % JUMP_COLOURS
+
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
@@ -243,68 +104,113 @@ export const SequenceGrid: FC = () => {
     recorder.setTarget(index)
   }
 
+  const columns = gridWidth(size)
+
   return (
-    <CentrePanel aria-label={localized["sequencer-grid"]}>
-      <GridHeader>
-        <HeaderTitle>
+    // The centre column never scrolls as a whole: the grid shrinks to fit and
+    // the step editor scrolls on its own.
+    <Panel aria-label={localized["sequencer-grid"]} className="overflow-hidden">
+      <PanelHeader className="flex items-center gap-2">
+        <span className="grow">
           <Localized name="sequencer-grid" />
-        </HeaderTitle>
-        <PreviewToggle>
+        </span>
+        <span className="flex items-center gap-[0.4rem] text-small font-normal text-fg-secondary">
           <Localized name="sequencer-preview" />
           <Toggle
             label={localized["sequencer-preview"]}
             checked={preview}
             onChange={setPreview}
           />
-        </PreviewToggle>
-      </GridHeader>
-      <Content>
-        <GridColumn>
-          <GridArea>
-            <Grid columns={gridWidth(size)}>
+        </span>
+      </PanelHeader>
+      {/* Below the grid on a normal window; beside it once there is room, so
+          the grid can use the full height. */}
+      <div className="flex min-h-0 flex-1 flex-col wide:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex min-h-[6rem] flex-1 items-center justify-center overflow-hidden px-4 py-3">
+            {/* A square that takes the smaller of the space's width and
+                height, so the whole grid is always visible and the cells stay
+                round. */}
+            <div
+              className="grid aspect-square h-full max-h-full max-w-full gap-[0.4rem]"
+              style={{
+                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${columns}, minmax(0, 1fr))`,
+              }}
+            >
               {Array.from({ length: stepCount(size) }, (_, index) => {
                 const mark = marks[index]
-                const sourceColour = jumpColour(mark[2])
-                const destColour = jumpColour(mark[3])
+                const source = jumpColour(mark[2])
+                const dest = jumpColour(mark[3])
+                const state =
+                  mark[1] === "r" ? "rest" : mark[1] === "s" ? "skip" : "normal"
+                const hasNotes = mark[0] === "n"
+                const active = position === index
                 return (
-                  <Step
+                  <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
                     key={index}
                     type="button"
                     aria-label={`${localized["sequencer-step"]} ${index + 1}`}
-                    data-has-notes={mark[0] === "n"}
-                    data-state={
-                      mark[1] === "r"
-                        ? "rest"
-                        : mark[1] === "s"
-                          ? "skip"
-                          : "normal"
-                    }
-                    data-jump-source={sourceColour}
-                    data-jump-dest={destColour}
-                    data-active={position === index}
+                    data-has-notes={hasNotes}
+                    data-state={state}
+                    data-jump-source={source}
+                    data-jump-dest={dest}
+                    data-active={active}
                     data-selected={selected === index}
                     data-target={isRecording && target === index}
+                    className={cn(
+                      STEP,
+                      state === "skip"
+                        ? "bg-step-skip text-fg-tertiary"
+                        : cn(
+                            state === "rest"
+                              ? "bg-step-rest"
+                              : active
+                                ? "bg-theme"
+                                : hasNotes
+                                  ? "bg-background-secondary"
+                                  : "bg-step",
+                            active
+                              ? "text-on-surface"
+                              : hasNotes
+                                ? "text-fg"
+                                : "text-fg-secondary",
+                          ),
+                      isRecording && target === index
+                        ? "border-record"
+                        : selected === index
+                          ? "border-fg-secondary"
+                          : "border-transparent",
+                      source !== undefined && SOURCE_MARK,
+                      dest !== undefined && DEST_MARK,
+                    )}
                     style={
                       {
-                        "--jump-source-color": sourceColour,
-                        "--jump-dest-color": destColour,
+                        "--jump-source-color":
+                          source === undefined
+                            ? undefined
+                            : `var(--midiseq-jump-${source})`,
+                        "--jump-dest-color":
+                          dest === undefined
+                            ? undefined
+                            : `var(--midiseq-jump-${dest})`,
                       } as CSSProperties
                     }
                     onClick={() => onStepClick(index)}
                   >
                     {index + 1}
-                  </Step>
+                  </button>
                 )
               })}
-            </Grid>
-          </GridArea>
+            </div>
+          </div>
           <ActionButtons />
-        </GridColumn>
-        <StepEditorArea>
+        </div>
+        <div className="max-h-[min(45%,24rem)] flex-none overflow-y-auto border-t border-divider wide:max-h-none wide:w-96 wide:border-t-0 wide:border-l">
           <StepEditor />
-        </StepEditorArea>
-      </Content>
-    </CentrePanel>
+        </div>
+      </div>
+    </Panel>
   )
 }

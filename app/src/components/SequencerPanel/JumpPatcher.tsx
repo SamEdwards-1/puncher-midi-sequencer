@@ -1,4 +1,3 @@
-import styled from "@emotion/styled"
 import { JumpRule } from "@midiseq/core"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
@@ -10,34 +9,7 @@ import { ButtonField, Field, Fields } from "../ui/Field"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 
-const Target = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-`
-
-const Value = styled.span`
-  flex-grow: 1;
-  font-family: var(--font-mono);
-  color: var(--color-text);
-`
-
-const SmallButton = styled(Button)`
-  height: 1.7rem;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
-
-  &[data-active="true"] {
-    background: var(--color-theme);
-    color: var(--color-on-surface);
-  }
-`
-
-const Hint = styled.div`
-  padding: 0 1rem 0.75rem;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-`
+const VALUE = "grow font-mono text-fg"
 
 // The rules a jump can follow, flattened for a select.
 const RULES: { value: string; label: string }[] = [
@@ -103,24 +75,26 @@ export const JumpPatcher: FC = () => {
     value: number | null,
     emptyLabel: string,
   ) => (
-    <Target>
-      <Value>{value === null ? emptyLabel : value + 1}</Value>
-      <SmallButton
+    <div className="flex items-center gap-[0.4rem]">
+      <span className={VALUE}>{value === null ? emptyLabel : value + 1}</span>
+      <Button
         type="button"
-        data-active={mode === kind}
+        size="sm"
+        active={mode === kind}
         onClick={() => setMode(mode === kind ? null : kind)}
       >
         <Localized name="sequencer-jump-pick" />
-      </SmallButton>
-      <SmallButton
+      </Button>
+      <Button
         type="button"
+        size="sm"
         aria-label={`${localized["sequencer-jump-clear"]} ${kind}`}
         disabled={value === null}
         onClick={() => editJump(selected, { [kind]: null })}
       >
         ×
-      </SmallButton>
-    </Target>
+      </Button>
+    </div>
   )
 
   return (
@@ -130,7 +104,7 @@ export const JumpPatcher: FC = () => {
       </PanelHeader>
       <Fields>
         <ButtonField label={localized["sequencer-jump-source"]}>
-          <Value>{selected + 1}</Value>
+          <span className={VALUE}>{selected + 1}</span>
         </ButtonField>
 
         <Field label={localized["sequencer-jump-rule"]}>
@@ -158,9 +132,9 @@ export const JumpPatcher: FC = () => {
       </Fields>
 
       {(mode === "dest" || mode === "normal") && (
-        <Hint>
+        <div className="px-4 pb-3 text-small text-fg-secondary">
           <Localized name="sequencer-jump-hint" />
-        </Hint>
+        </div>
       )}
     </>
   )

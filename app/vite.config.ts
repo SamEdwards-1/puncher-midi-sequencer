@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
@@ -7,7 +8,7 @@ declare const process: { env: Record<string, string | undefined> }
 const port = process.env.PORT ? Number(process.env.PORT) : 3000
 
 export default defineConfig({
-  plugins: [react({ jsxImportSource: "@emotion/react" })],
+  plugins: [react(), tailwindcss()],
   build: {
     sourcemap: true,
   },
