@@ -30,6 +30,10 @@ export interface Theme {
   // translucent so scrollbars float over the content, macOS style
   scrollbarColor: string
   scrollbarHoverColor: string
+  // one per jump, so a source and its destination share a colour. They keep
+  // clear of the theme blue and the record red, and stay apart from each
+  // other in hue.
+  jumpColors: string[]
 }
 
 const darkTheme: Theme = {
@@ -60,6 +64,16 @@ const darkTheme: Theme = {
   stepSkipColor: "hsl(228, 10%, 20%)",
   scrollbarColor: "rgba(255, 255, 255, 0.22)",
   scrollbarHoverColor: "rgba(255, 255, 255, 0.4)",
+  jumpColors: [
+    "#e0a33a", // amber
+    "#34c2b3", // teal
+    "#e3719c", // pink
+    "#6cc45a", // green
+    "#e2794a", // orange
+    "#a583f0", // violet
+    "#c3d24a", // lime
+    "#4fc3f7", // cyan
+  ],
 }
 
 const lightTheme: Theme = {
@@ -90,6 +104,16 @@ const lightTheme: Theme = {
   stepSkipColor: "hsl(228, 20%, 95%)",
   scrollbarColor: "rgba(0, 0, 0, 0.25)",
   scrollbarHoverColor: "rgba(0, 0, 0, 0.45)",
+  jumpColors: [
+    "#b07c1f", // amber
+    "#17897d", // teal
+    "#c2447a", // pink
+    "#3f9a30", // green
+    "#c1541f", // orange
+    "#7a52c7", // violet
+    "#8a9a1f", // lime
+    "#1b86b8", // cyan
+  ],
 }
 
 export const themes = {

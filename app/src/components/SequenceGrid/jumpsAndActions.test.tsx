@@ -51,6 +51,46 @@ describe("jumps", () => {
     expect(patch().steps[0].jump.normal).toBeNull()
   })
 
+  it("marks a jump's source and destination in one colour", () => {
+    setup()
+    fireEvent.click(
+      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
+    )
+    click("Step 5")
+
+    const source = screen.getByRole("button", { name: "Step 1" })
+    const dest = screen.getByRole("button", { name: "Step 5" })
+    const colour = source.getAttribute("data-jump-source")
+
+    expect(colour).toBeTruthy()
+    // the pair shares its colour, and each marks its own corner
+    expect(dest.getAttribute("data-jump-dest")).toBe(colour)
+    expect(source.getAttribute("data-jump-dest")).toBeNull()
+    expect(dest.getAttribute("data-jump-source")).toBeNull()
+  })
+
+  it("gives each jump its own colour", () => {
+    setup()
+    fireEvent.click(
+      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
+    )
+    click("Step 5")
+
+    click("Step 2")
+    fireEvent.click(
+      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
+    )
+    click("Step 6")
+
+    const first = screen
+      .getByRole("button", { name: "Step 1" })
+      .getAttribute("data-jump-source")
+    const second = screen
+      .getByRole("button", { name: "Step 2" })
+      .getAttribute("data-jump-source")
+    expect(first).not.toBe(second)
+  })
+
   it("changes the jump rule", () => {
     setup()
     fireEvent.change(sequencerPanel().getByLabelText("Rule"), {

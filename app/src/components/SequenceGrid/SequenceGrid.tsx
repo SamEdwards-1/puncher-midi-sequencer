@@ -1,6 +1,7 @@
+import { useTheme } from "@emotion/react"
 import styled from "@emotion/styled"
 import { gridWidth, stepCount } from "@midiseq/core"
-import { FC } from "react"
+import { CSSProperties, FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
@@ -116,16 +117,28 @@ const Step = styled.button`
     color: var(--color-text-tertiary);
   }
 
-  /* a step that jumps somewhere carries a small mark */
-  &[data-jump="true"]::after {
+  /* A jump shows as a pair sharing a colour: the source is marked at the
+     north-east, its destination at the south-west. */
+  &[data-jump-source]::after {
     content: "";
     position: absolute;
-    right: 12%;
-    top: 12%;
-    width: 0.3rem;
-    height: 0.3rem;
+    right: 10%;
+    top: 10%;
+    width: 0.32rem;
+    height: 0.32rem;
     border-radius: 50%;
-    background: var(--color-yellow);
+    background: var(--jump-source-color);
+  }
+
+  &[data-jump-dest]::before {
+    content: "";
+    position: absolute;
+    left: 10%;
+    bottom: 10%;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: var(--jump-dest-color);
   }
 `
 
@@ -134,25 +147,45 @@ export const SequenceGrid: FC = () => {
   const localized = useLocalization()
   const { editJump, editStepState } = usePatchEditor()
   const [mode, setMode] = useGridMode()
+  const theme = useTheme()
 
   const size = useMobxSelector(
     () => sequencerStore.patch.size,
     [sequencerStore],
   )
-  // a compact signature, so the grid only re-renders when what it draws
-  // actually changes: notes, state and whether a step has a jump
-  const marks = useMobxSelector(
-    () =>
-      sequencerStore.patch.steps
-        .map(
-          (step) =>
-            `${step.notes.length > 0 ? "n" : "-"}${step.state[0]}${
-              step.jump.dest === null ? "-" : "j"
-            }`,
-        )
-        .join(","),
-    [sequencerStore],
-  ).split(",")
+  /**
+   * What each cell draws, as a compact signature so the grid only re-renders
+   * when it changes. Each jump takes the next colour in the palette, and its
+   * source and destination both carry it. A step targeted by several jumps
+   * shows the first one's colour.
+   */
+  const marks = useMobxSelector(() => {
+    const steps = sequencerStore.patch.steps
+    const source: (number | null)[] = steps.map(() => null)
+    const dest: (number | null)[] = steps.map(() => null)
+    let next = 0
+    steps.forEach((step, index) => {
+      if (step.jump.dest === null) {
+        return
+      }
+      const colour = next++
+      source[index] = colour
+      dest[step.jump.dest] ??= colour
+    })
+    return steps
+      .map(
+        (step, index) =>
+          `${step.notes.length > 0 ? "n" : "-"}${step.state[0]}${
+            source[index] ?? "-"
+          }${dest[index] ?? "-"}`,
+      )
+      .join(",")
+  }, [sequencerStore]).split(",")
+
+  const jumpColour = (mark: string) =>
+    mark === "-"
+      ? undefined
+      : theme.jumpColors[Number(mark) % theme.jumpColors.length]
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
@@ -193,29 +226,41 @@ export const SequenceGrid: FC = () => {
         <GridColumn>
           <GridArea>
             <Grid columns={gridWidth(size)}>
-              {Array.from({ length: stepCount(size) }, (_, index) => (
-                <Step
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
-                  key={index}
-                  type="button"
-                  aria-label={`${localized["sequencer-step"]} ${index + 1}`}
-                  data-has-notes={marks[index][0] === "n"}
-                  data-state={
-                    marks[index][1] === "r"
-                      ? "rest"
-                      : marks[index][1] === "s"
-                        ? "skip"
-                        : "normal"
-                  }
-                  data-jump={marks[index][2] === "j"}
-                  data-active={position === index}
-                  data-selected={selected === index}
-                  data-target={isRecording && target === index}
-                  onClick={() => onStepClick(index)}
-                >
-                  {index + 1}
-                </Step>
-              ))}
+              {Array.from({ length: stepCount(size) }, (_, index) => {
+                const mark = marks[index]
+                const sourceColour = jumpColour(mark[2])
+                const destColour = jumpColour(mark[3])
+                return (
+                  <Step
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
+                    key={index}
+                    type="button"
+                    aria-label={`${localized["sequencer-step"]} ${index + 1}`}
+                    data-has-notes={mark[0] === "n"}
+                    data-state={
+                      mark[1] === "r"
+                        ? "rest"
+                        : mark[1] === "s"
+                          ? "skip"
+                          : "normal"
+                    }
+                    data-jump-source={sourceColour}
+                    data-jump-dest={destColour}
+                    data-active={position === index}
+                    data-selected={selected === index}
+                    data-target={isRecording && target === index}
+                    style={
+                      {
+                        "--jump-source-color": sourceColour,
+                        "--jump-dest-color": destColour,
+                      } as CSSProperties
+                    }
+                    onClick={() => onStepClick(index)}
+                  >
+                    {index + 1}
+                  </Step>
+                )
+              })}
             </Grid>
           </GridArea>
           <ActionButtons />
