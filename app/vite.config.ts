@@ -18,4 +18,9 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
   },
+  optimizeDeps: {
+    // the core package is workspace source; pre-bundling it serves stale
+    // copies after it changes
+    exclude: ["@midiseq/core"],
+  },
 })

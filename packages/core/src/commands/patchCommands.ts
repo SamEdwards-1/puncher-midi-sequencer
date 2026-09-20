@@ -1,5 +1,7 @@
 import {
+  CCEventJSON,
   JumpJSON,
+  MAX_NOTES_PER_STEP,
   ModOutJSON,
   ModSource,
   PatchJSON,
@@ -9,6 +11,8 @@ import {
   StepState,
   VoiceJSON,
 } from "../entities/types"
+
+const clampNote = (note: number) => Math.min(127, Math.max(0, Math.round(note)))
 
 /**
  * Edits to a patch. Each returns a new patch and leaves the old one untouched,
@@ -63,16 +67,118 @@ export const setStep = (
   ),
 })
 
-// Notes are stored sorted and unique, and never exceed the patch's limit.
+/**
+ * Notes are stored sorted and unique. Storage is capped at 16; the patch's
+ * own Max Notes per Step only decides how many the engine reads, so lowering
+ * it never destroys notes.
+ */
 export const setStepNotes = (
   patch: PatchJSON,
   index: StepIndex,
   notes: number[],
 ): PatchJSON =>
   setStep(patch, index, {
-    notes: [...new Set(notes)]
+    notes: [...new Set(notes.map(clampNote))]
       .sort((a, b) => a - b)
-      .slice(0, patch.maxNotesPerStep),
+      .slice(0, MAX_NOTES_PER_STEP),
+  })
+
+export const addStepNote = (
+  patch: PatchJSON,
+  index: StepIndex,
+  note: number,
+): PatchJSON => setStepNotes(patch, index, [...patch.steps[index].notes, note])
+
+export const setStepNote = (
+  patch: PatchJSON,
+  index: StepIndex,
+  position: number,
+  note: number,
+): PatchJSON =>
+  setStepNotes(
+    patch,
+    index,
+    patch.steps[index].notes.map((existing, current) =>
+      current === position ? note : existing,
+    ),
+  )
+
+export const removeStepNote = (
+  patch: PatchJSON,
+  index: StepIndex,
+  position: number,
+): PatchJSON =>
+  setStepNotes(
+    patch,
+    index,
+    patch.steps[index].notes.filter((_, current) => current !== position),
+  )
+
+export const transposeStep = (
+  patch: PatchJSON,
+  index: StepIndex,
+  semitones: number,
+): PatchJSON =>
+  setStepNotes(
+    patch,
+    index,
+    patch.steps[index].notes.map((note) => note + semitones),
+  )
+
+const nextCCId = (patch: PatchJSON): number =>
+  patch.steps.reduce(
+    (highest, step) =>
+      step.ccs.reduce((id, cc) => Math.max(id, cc.id), highest),
+    0,
+  ) + 1
+
+export const addStepCC = (
+  patch: PatchJSON,
+  index: StepIndex,
+  cc: Omit<CCEventJSON, "id">,
+): PatchJSON =>
+  setStep(patch, index, {
+    ccs: [...patch.steps[index].ccs, { ...cc, id: nextCCId(patch) }],
+  })
+
+export const updateStepCC = (
+  patch: PatchJSON,
+  index: StepIndex,
+  id: number,
+  changes: Partial<Omit<CCEventJSON, "id">>,
+): PatchJSON =>
+  setStep(patch, index, {
+    ccs: patch.steps[index].ccs.map((cc) =>
+      cc.id === id ? { ...cc, ...changes } : cc,
+    ),
+  })
+
+export const removeStepCC = (
+  patch: PatchJSON,
+  index: StepIndex,
+  id: number,
+): PatchJSON =>
+  setStep(patch, index, {
+    ccs: patch.steps[index].ccs.filter((cc) => cc.id !== id),
+  })
+
+export const clearStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
+  setStep(patch, index, { notes: [], ccs: [] })
+
+// Copies notes, CCs, state and jump onto another step.
+export const pasteStep = (
+  patch: PatchJSON,
+  index: StepIndex,
+  source: StepJSON,
+): PatchJSON =>
+  setStep(patch, index, {
+    notes: [...source.notes],
+    ccs: source.ccs.map((cc, offset) => ({
+      ...cc,
+      id: nextCCId(patch) + offset,
+    })),
+    state: source.state,
+    jump: { ...source.jump },
   })
 
 export const setStepState = (
