@@ -25,11 +25,17 @@ const Track = styled.span`
   }
 `
 
+// Covers the whole switch rather than hiding in a corner, so a click on the
+// track reaches it without needing a label around the pair.
 const Input = styled.input`
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
-  width: 0;
-  height: 0;
+  cursor: pointer;
+  z-index: 1;
 
   &:checked + span {
     background: var(--color-theme);
@@ -49,6 +55,7 @@ const Input = styled.input`
 const Wrapper = styled.span`
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   cursor: pointer;
 `
