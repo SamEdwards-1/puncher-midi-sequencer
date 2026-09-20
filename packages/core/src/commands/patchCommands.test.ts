@@ -1,15 +1,24 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import {
+  addStepCC,
+  addStepNote,
+  clearStep,
+  pasteStep,
+  removeStepCC,
+  removeStepNote,
   setJump,
   setModOut,
   setPatternStep,
   setSequencer,
+  setStepNote,
   setStepNotes,
   setStepState,
   setVoice,
   togglePatternStep,
+  transposeStep,
   trimStepsToLimit,
+  updateStepCC,
 } from "./patchCommands"
 
 describe("patch commands", () => {
@@ -42,11 +51,87 @@ describe("patch commands", () => {
     expect(togglePatternStep(toggled, 0, 3).voices[0].pattern[3].on).toBe(true)
   })
 
-  it("sort, de-duplicate and cap a step's notes", () => {
+  it("sort and de-duplicate a step's notes, keeping them past the limit", () => {
     const patch = { ...createDefaultPatch(), maxNotesPerStep: 3 }
     const next = setStepNotes(patch, 2, [67, 60, 60, 64, 72])
 
-    expect(next.steps[2].notes).toEqual([60, 64, 67])
+    // the limit decides what the engine reads, not what is stored
+    expect(next.steps[2].notes).toEqual([60, 64, 67, 72])
+  })
+
+  it("add, edit, remove and transpose notes", () => {
+    const patch = createDefaultPatch()
+    const added = addStepNote(addStepNote(patch, 0, 64), 0, 60)
+    expect(added.steps[0].notes).toEqual([60, 64])
+
+    const edited = setStepNote(added, 0, 0, 62)
+    expect(edited.steps[0].notes).toEqual([62, 64])
+
+    expect(removeStepNote(edited, 0, 1).steps[0].notes).toEqual([62])
+    expect(transposeStep(edited, 0, 12).steps[0].notes).toEqual([74, 76])
+  })
+
+  it("keep notes inside the MIDI range and the 16-note store", () => {
+    const patch = createDefaultPatch()
+    const high = setStepNotes(patch, 0, [120, 125])
+    expect(transposeStep(high, 0, 12).steps[0].notes).toEqual([127])
+
+    const many = setStepNotes(
+      patch,
+      0,
+      Array.from({ length: 20 }, (_, i) => i),
+    )
+    expect(many.steps[0].notes).toHaveLength(16)
+  })
+
+  it("add, edit and remove step CCs", () => {
+    const patch = createDefaultPatch()
+    const withCC = addStepCC(patch, 3, {
+      cc: 74,
+      value: 100,
+      channel: 1,
+      output: "all",
+    })
+    const [cc] = withCC.steps[3].ccs
+    expect(cc).toMatchObject({ cc: 74, value: 100 })
+
+    const updated = updateStepCC(withCC, 3, cc.id, { value: 20 })
+    expect(updated.steps[3].ccs[0].value).toBe(20)
+    expect(removeStepCC(updated, 3, cc.id).steps[3].ccs).toEqual([])
+  })
+
+  it("give each CC its own id", () => {
+    const patch = createDefaultPatch()
+    const event = {
+      cc: 1,
+      value: 0,
+      channel: 1 as const,
+      output: "all" as const,
+    }
+    const twice = addStepCC(addStepCC(patch, 0, event), 0, event)
+
+    const [first, second] = twice.steps[0].ccs
+    expect(first.id).not.toBe(second.id)
+  })
+
+  it("copy a step onto another and clear one", () => {
+    const source = addStepCC(
+      setStepState(setStepNotes(createDefaultPatch(), 0, [60, 64]), 0, "rest"),
+      0,
+      { cc: 74, value: 100, channel: 1, output: "all" },
+    )
+    const pasted = pasteStep(source, 5, source.steps[0])
+
+    expect(pasted.steps[5].notes).toEqual([60, 64])
+    expect(pasted.steps[5].state).toBe("rest")
+    expect(pasted.steps[5].ccs[0]).toMatchObject({ cc: 74, value: 100 })
+    // the copy has its own id, so the two CCs stay separate
+    expect(pasted.steps[5].ccs[0].id).not.toBe(source.steps[0].ccs[0].id)
+
+    const cleared = clearStep(pasted, 5)
+    expect(cleared.steps[5]).toMatchObject({ notes: [], ccs: [] })
+    // clearing leaves the state and jump alone
+    expect(cleared.steps[5].state).toBe("rest")
   })
 
   it("set a step's state and jump", () => {

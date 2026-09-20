@@ -2,9 +2,11 @@ import styled from "@emotion/styled"
 import { gridWidth, stepCount } from "@midiseq/core"
 import { FC } from "react"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
+import { useSelectedStep } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Panel, PanelBody, PanelHeader } from "../ui/Panel"
+import { StepEditor } from "../StepEditor/StepEditor"
+import { Panel, PanelHeader } from "../ui/Panel"
 
 const Grid = styled.div<{ columns: number }>`
   display: grid;
@@ -32,6 +34,10 @@ const Step = styled.button`
   &[data-active="true"] {
     background: var(--color-theme);
     color: var(--color-on-surface);
+  }
+
+  &[data-selected="true"] {
+    border-color: var(--color-text-secondary);
   }
 
   &[data-target="true"] {
@@ -90,9 +96,12 @@ export const SequenceGrid: FC = () => {
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
+  const [selected, setSelected] = useSelectedStep()
 
   const onStepClick = (index: number) => {
-    // a click always sounds the step, so it can be heard while editing
+    // a click always selects the step and sounds it, so it can be seen and
+    // heard while editing
+    setSelected(index)
     player.previewStep(index)
     // while playing, it also queues the step; otherwise it moves the record
     // target
@@ -117,6 +126,7 @@ export const SequenceGrid: FC = () => {
             aria-label={`${localized["sequencer-step"]} ${index + 1}`}
             data-has-notes={filled[index] === "1"}
             data-active={position === index}
+            data-selected={selected === index}
             data-target={isRecording && target === index}
             onClick={() => onStepClick(index)}
           >
@@ -124,10 +134,7 @@ export const SequenceGrid: FC = () => {
           </Step>
         ))}
       </Grid>
-      <PanelHeader>
-        <Localized name="sequencer-step-editor" />
-      </PanelHeader>
-      <PanelBody />
+      <StepEditor />
       <Actions>
         {actions.map((action) => (
           <ActionButton key={action} type="button">

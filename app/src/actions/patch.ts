@@ -1,10 +1,24 @@
 import {
+  addStepCC,
+  addStepNote,
+  CCEventJSON,
+  clearStep,
   PatchJSON,
   PatternStepJSON,
+  pasteStep,
+  removeStepCC,
+  removeStepNote,
+  StepJSON,
+  StepState,
   setPatternStep,
   setSequencer,
+  setStepNote,
+  setStepState,
   setVoice,
   togglePatternStep,
+  transposeStep,
+  trimStepsToLimit,
+  updateStepCC,
   VoiceJSON,
 } from "@midiseq/core"
 import { useCallback } from "react"
@@ -52,6 +66,68 @@ export function usePatchEditor() {
     togglePatternDot: useCallback(
       (voiceIndex: number, dotIndex: number) =>
         apply(togglePatternStep(sequencerStore.patch, voiceIndex, dotIndex)),
+      [apply, sequencerStore],
+    ),
+    editStepState: useCallback(
+      (step: number, state: StepState) =>
+        apply(setStepState(sequencerStore.patch, step, state)),
+      [apply, sequencerStore],
+    ),
+    addNote: useCallback(
+      (step: number, note: number) =>
+        apply(addStepNote(sequencerStore.patch, step, note)),
+      [apply, sequencerStore],
+    ),
+    editNote: useCallback(
+      (step: number, position: number, note: number) =>
+        apply(
+          setStepNote(sequencerStore.patch, step, position, note),
+          `note-${step}-${position}`,
+        ),
+      [apply, sequencerStore],
+    ),
+    removeNote: useCallback(
+      (step: number, position: number) =>
+        apply(removeStepNote(sequencerStore.patch, step, position)),
+      [apply, sequencerStore],
+    ),
+    transpose: useCallback(
+      (step: number, semitones: number) =>
+        apply(
+          transposeStep(sequencerStore.patch, step, semitones),
+          `transpose-${step}`,
+        ),
+      [apply, sequencerStore],
+    ),
+    addCC: useCallback(
+      (step: number, cc: Omit<CCEventJSON, "id">) =>
+        apply(addStepCC(sequencerStore.patch, step, cc)),
+      [apply, sequencerStore],
+    ),
+    editCC: useCallback(
+      (step: number, id: number, changes: Partial<Omit<CCEventJSON, "id">>) =>
+        apply(
+          updateStepCC(sequencerStore.patch, step, id, changes),
+          `cc-${step}-${id}`,
+        ),
+      [apply, sequencerStore],
+    ),
+    removeCC: useCallback(
+      (step: number, id: number) =>
+        apply(removeStepCC(sequencerStore.patch, step, id)),
+      [apply, sequencerStore],
+    ),
+    clearStepContent: useCallback(
+      (step: number) => apply(clearStep(sequencerStore.patch, step)),
+      [apply, sequencerStore],
+    ),
+    paste: useCallback(
+      (step: number, source: StepJSON) =>
+        apply(pasteStep(sequencerStore.patch, step, source)),
+      [apply, sequencerStore],
+    ),
+    trimToLimit: useCallback(
+      () => apply(trimStepsToLimit(sequencerStore.patch)),
       [apply, sequencerStore],
     ),
   }
