@@ -79,6 +79,11 @@ export const TransportControls: FC = () => {
           min={20}
           max={400}
           format={(value) => `${value} ${localized["sequencer-bpm"]}`}
+          // typing "96", "96 BPM" or "96.4" all mean the same thing
+          parse={(text) => {
+            const number = Number.parseFloat(text.replace(/[^0-9.]/g, ""))
+            return Number.isFinite(number) ? Math.round(number) : null
+          }}
           onChange={(tempo) => editSequencer({ tempo }, "tempo")}
         />
       </Tempo>
