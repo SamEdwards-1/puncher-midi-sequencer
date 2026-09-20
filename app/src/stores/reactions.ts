@@ -26,6 +26,10 @@ export const registerReactions = (rootStore: RootStore) => {
 
   reaction(
     () => sequencerStore.patch,
-    (patch) => player.setPatch(patch),
+    (patch) => {
+      player.setPatch(patch)
+      // any edit means the file on disk is behind
+      sequencerStore.isSaved = false
+    },
   )
 }

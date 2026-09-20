@@ -1,3 +1,5 @@
+import { AutoSaveService } from "../services/AutoSaveService"
+import { FileService } from "../services/FileService"
 import { MIDIInput } from "../services/MIDIInput"
 import { MIDIRecorder } from "../services/MIDIRecorder"
 import { OutputRouter } from "../services/OutputRouter"
@@ -13,6 +15,8 @@ export interface RootStoreOptions {
   storage?: Storage | null
   ticker?: Ticker
   now?: () => number
+  fileService?: FileService
+  autoSave?: AutoSaveService
 }
 
 export default class RootStore {
@@ -23,6 +27,8 @@ export default class RootStore {
   readonly midiDeviceStore: MIDIDeviceStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
+  readonly fileService: FileService
+  readonly autoSave: AutoSaveService
 
   constructor(options: RootStoreOptions = {}) {
     this.midiDeviceStore = new MIDIDeviceStore(
@@ -41,10 +47,27 @@ export default class RootStore {
       this.outputRouter,
       { ticker: options.ticker, now: options.now },
     )
+    this.fileService = options.fileService ?? new FileService()
+    this.autoSave =
+      options.autoSave ??
+      new AutoSaveService(
+        () => this.sequencerStore.patch,
+        () => this.sequencerStore.isSaved,
+        options.storage,
+      )
     registerReactions(this)
   }
 
   init() {
     void this.midiDeviceStore.connectOnStart()
+
+    // A patch left behind by a crash or a closed tab comes back as unsaved
+    // work, rather than being lost.
+    const recovered = this.autoSave.restore()
+    if (recovered !== null) {
+      this.sequencerStore.patch = recovered
+      this.sequencerStore.isSaved = false
+    }
+    this.autoSave.start()
   }
 }
