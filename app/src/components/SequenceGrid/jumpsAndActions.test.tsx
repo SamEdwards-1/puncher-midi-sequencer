@@ -1,6 +1,6 @@
 import { createDefaultPatch } from "@midiseq/core"
 import { fireEvent, render, screen, within } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
@@ -102,6 +102,37 @@ describe("jumps", () => {
       target: { value: "chance:25" },
     })
     expect(patch().steps[0].jump.rule).toEqual({ kind: "chance", pct: 25 })
+  })
+})
+
+describe("preview on click", () => {
+  // preview is remembered between visits, so it is set explicitly
+  const setPreview = (on: boolean) => {
+    const toggle = screen.getByRole("switch", {
+      name: "Preview",
+    }) as HTMLInputElement
+    if (toggle.checked !== on) {
+      fireEvent.click(toggle)
+    }
+  }
+
+  it("sounds a clicked step while it is on", () => {
+    setup()
+    const preview = vi.spyOn(rootStore.player, "previewStep")
+    setPreview(true)
+
+    click("Step 4")
+    expect(preview).toHaveBeenCalledWith(3)
+  })
+
+  it("stays quiet while it is off, but still selects", () => {
+    setup()
+    const preview = vi.spyOn(rootStore.player, "previewStep")
+    setPreview(false)
+
+    click("Step 4")
+    expect(preview).not.toHaveBeenCalled()
+    expect(screen.getByText(/Step Editor 4/)).toBeInTheDocument()
   })
 })
 

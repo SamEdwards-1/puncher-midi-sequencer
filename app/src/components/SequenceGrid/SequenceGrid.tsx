@@ -4,11 +4,16 @@ import { gridWidth, stepCount } from "@midiseq/core"
 import { CSSProperties, FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
-import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
+import {
+  useGridMode,
+  usePreviewOnClick,
+  useSelectedStep,
+} from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { Panel, PanelHeader } from "../ui/Panel"
+import { Toggle } from "../ui/Toggle"
 import { ActionButtons } from "./ActionButtons"
 
 // The centre column never scrolls as a whole: the grid shrinks to fit and
@@ -74,6 +79,25 @@ const StepEditorArea = styled.div`
     border-top: none;
     border-left: 1px solid var(--color-divider);
   }
+`
+
+const GridHeader = styled(PanelHeader)`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const HeaderTitle = styled.span`
+  flex-grow: 1;
+`
+
+const PreviewToggle = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
 `
 
 const Step = styled.button`
@@ -147,6 +171,7 @@ export const SequenceGrid: FC = () => {
   const localized = useLocalization()
   const { editJump, editStepState } = usePatchEditor()
   const [mode, setMode] = useGridMode()
+  const [preview, setPreview] = usePreviewOnClick()
   const theme = useTheme()
 
   const size = useMobxSelector(
@@ -204,10 +229,11 @@ export const SequenceGrid: FC = () => {
       return
     }
 
-    // otherwise a click selects the step and sounds it, so it can be seen and
-    // heard while editing
+    // otherwise a click selects the step, and sounds it when preview is on
     setSelected(index)
-    player.previewStep(index)
+    if (preview) {
+      player.previewStep(index)
+    }
     // while playing, it also queues the step; otherwise it moves the record
     // target
     if (!isRecording && player.isPlaying) {
@@ -219,9 +245,19 @@ export const SequenceGrid: FC = () => {
 
   return (
     <CentrePanel aria-label={localized["sequencer-grid"]}>
-      <PanelHeader>
-        <Localized name="sequencer-grid" />
-      </PanelHeader>
+      <GridHeader>
+        <HeaderTitle>
+          <Localized name="sequencer-grid" />
+        </HeaderTitle>
+        <PreviewToggle>
+          <Localized name="sequencer-preview" />
+          <Toggle
+            label={localized["sequencer-preview"]}
+            checked={preview}
+            onChange={setPreview}
+          />
+        </PreviewToggle>
+      </GridHeader>
       <Content>
         <GridColumn>
           <GridArea>

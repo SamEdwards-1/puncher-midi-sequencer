@@ -1,5 +1,6 @@
 import { StepJSON, VoiceIndex } from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
+import { atomWithStorage } from "jotai/utils"
 
 // View state, kept out of the patch so it is never saved or undone.
 const selectedVoiceAtom = atom<VoiceIndex>(0)
@@ -16,6 +17,13 @@ const gridModeAtom = atom<GridMode | null>(null)
 
 export function useGridMode() {
   return useAtom(gridModeAtom)
+}
+
+// Whether clicking a step sounds it. Remembered between visits.
+const previewOnClickAtom = atomWithStorage("midiseq.previewOnClick", true)
+
+export function usePreviewOnClick() {
+  return useAtom(previewOnClickAtom)
 }
 
 export function useSelectedVoice() {
