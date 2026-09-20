@@ -35,7 +35,7 @@ export const ToolbarButton = styled.button`
   padding: 0 1rem;
   border: none;
   border-radius: 999px;
-  background: var(--color-background-secondary);
+  background: transparent;
   color: var(--color-text);
   font-family: inherit;
   font-size: 0.75rem;
