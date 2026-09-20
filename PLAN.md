@@ -91,7 +91,8 @@ Random. Each has enable, CC#, min/max and smoothing.
 - **Ableton Link** through a small local bridge (§3.5), so midiseq shares a
   tempo and beat grid with Live, Signal and other Link apps on the machine or
   LAN. Without the bridge running, everything else still works.
-- No built-in synth: listen through Signal or other instruments.
+- A **built-in sound** for playing on its own, so the app makes music with no
+  other software (§7). MIDI output stays the primary path.
 - MIDI access is requested when the app starts; browsers that block it show a
   hint and an Enable MIDI button that asks again from a click.
 
@@ -201,8 +202,42 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
+| 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | |
 
 ---
+
+## 5.1 Standalone sound (milestone 10)
+
+Today midiseq only sends MIDI, so it needs Signal, a DAW or hardware to be
+heard. A built-in sound makes it playable on its own — and makes the app
+demonstrable without setting up a port first.
+
+**Voiced the way Signal voices tracks.** Signal plays its tracks through a
+SoundFont synth on an AudioWorklet: one synth instance, notes addressed per
+MIDI channel, each channel set to a General MIDI program. We do the same, with
+a voice's channel deciding its instrument, so the four voices can be four
+different instruments.
+
+- **`SoundFontSynth`** — loads an `.sf2` file, renders on an AudioWorklet, and
+  takes the same messages a port does.
+- **It plugs in as another output.** `OutputRouter` already sends to anything
+  matching `MIDISink`, so the synth becomes a sink beside the MIDI ports:
+  **All**, a specific voice, or off. No change to the engine or the player,
+  and the same timestamps drive both, so internal and external stay together.
+- **Instrument per voice** — a General MIDI program picker per voice, saved in
+  the patch, sent as a program change when it changes.
+- **Loading the SoundFont** — bundle a small GM set, and let a local `.sf2`
+  be opened. It loads lazily, on the first note or when the synth is switched
+  on, so startup stays quick.
+- **Latency** — Web Audio adds output latency that a MIDI port doesn't. The
+  player already schedules by timestamp; the synth converts those to the audio
+  clock, with a small fixed offset so both paths line up.
+- **Levels** — a master volume, and mute per voice for quick A/B while
+  arranging.
+
+**Done when:** pressing Play with no MIDI port configured makes music, each
+voice can be given its own instrument, and playing to a port and to the
+built-in sound at once stays in time.
 
 ## 6. Decisions
 
@@ -215,4 +250,4 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | Step CC timing | Fires when the sequencer lands on the step |
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |
-| Built-in synth | None; MIDI output only |
+| Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |
