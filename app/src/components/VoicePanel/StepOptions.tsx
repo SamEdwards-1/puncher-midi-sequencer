@@ -1,4 +1,3 @@
-import styled from "@emotion/styled"
 import {
   Accent,
   Articulation,
@@ -14,24 +13,6 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
 import { Select } from "../ui/Select"
-
-const Popup = styled.div`
-  position: fixed;
-  z-index: 20;
-  width: 15rem;
-  padding: 0.25rem 0.75rem 0.75rem;
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-popup-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 1rem 3rem var(--color-shadow);
-`
-
-const Title = styled.div`
-  padding: 0.5rem 0 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text);
-`
 
 const ARTICULATIONS: Articulation[] = ["none", "hold", "tie"]
 const ACCENTS: Accent[] = ["none", "+", "-"]
@@ -114,15 +95,16 @@ export const StepOptions: FC<StepOptionsProps> = ({
     editPatternStep(voiceIndex, dotIndex, changes)
 
   return (
-    <Popup
+    <div
       ref={popup}
       role="dialog"
       aria-label={`${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+      className="fixed z-20 w-60 rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)]"
       style={{ left: at.x, top: at.y }}
     >
-      <Title>
+      <div className="pt-2 pb-1 text-small font-semibold text-fg">
         <Localized name="sequencer-voice-dot" /> {dotIndex + 1}
-      </Title>
+      </div>
       <Fields>
         <Field label={localized["sequencer-dot-articulation"]}>
           <Select
@@ -216,6 +198,6 @@ export const StepOptions: FC<StepOptionsProps> = ({
       >
         <Localized name="sequencer-dot-reset" />
       </Button>
-    </Popup>
+    </div>
   )
 }

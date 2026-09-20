@@ -1,0 +1,259 @@
+/* Tailwind without Preflight. Its reset restyles every element on the page,
+   which the sequencer has no business doing once it is a tab inside Signal —
+   Signal styles with Emotion and expects its own defaults. Only the theme and
+   utility layers come in; what a reset would have done for our own controls
+   is done in the base layer below, scoped to the sequencer's root. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The palette. Every colour is a variable, so switching themes is a swap of
+   values with no rebuild, and a custom theme is a matter of writing these.
+   Names follow Signal's Theme so the two stay comparable. */
+:root {
+  --midiseq-font: Inter, -apple-system, BlinkMacSystemFont, Avenir, Lato;
+  --midiseq-mono-font: "Roboto Mono", monospace;
+
+  --midiseq-theme: hsl(230, 70%, 55%);
+  --midiseq-on-surface: #ffffff;
+  --midiseq-fg: #ffffff;
+  --midiseq-fg-secondary: hsl(223, 12%, 60%);
+  --midiseq-fg-tertiary: #5a6173;
+  --midiseq-divider: hsl(224, 12%, 24%);
+  --midiseq-popup-border: hsl(228, 10%, 13%);
+  --midiseq-background: hsl(228, 10%, 16%);
+  --midiseq-background-secondary: hsl(227, 10%, 22%);
+  --midiseq-background-dark: hsl(228, 10%, 13%);
+  --midiseq-editor-background: hsl(228, 10%, 13%);
+  --midiseq-editor-grid: hsl(224, 12%, 26%);
+  --midiseq-editor-grid-secondary: hsl(224, 12%, 19%);
+  --midiseq-record: #dd3c3c;
+  --midiseq-shadow: rgba(0, 0, 0, 0.1);
+  --midiseq-highlight: #8388a51a;
+  --midiseq-green: #31de53;
+  --midiseq-red: #de5267;
+  --midiseq-yellow: #deb126;
+  --midiseq-step: hsl(224, 12%, 30%);
+  --midiseq-step-rest: hsl(210, 30%, 45%);
+  --midiseq-step-skip: hsl(228, 10%, 20%);
+
+  /* translucent, so scrollbars float over the content, macOS style */
+  --midiseq-scrollbar: rgba(255, 255, 255, 0.22);
+  --midiseq-scrollbar-hover: rgba(255, 255, 255, 0.4);
+
+  /* One per jump, so a source and its destination share a colour. They keep
+     clear of the theme blue and the record red, and stay apart from each
+     other in hue. */
+  --midiseq-jump-0: #e0a33a;
+  --midiseq-jump-1: #34c2b3;
+  --midiseq-jump-2: #e3719c;
+  --midiseq-jump-3: #6cc45a;
+  --midiseq-jump-4: #e2794a;
+  --midiseq-jump-5: #a583f0;
+  --midiseq-jump-6: #c3d24a;
+  --midiseq-jump-7: #4fc3f7;
+}
+
+:root[data-theme="light"] {
+  --midiseq-fg: #000000;
+  --midiseq-fg-secondary: hsl(223, 12%, 40%);
+  --midiseq-fg-tertiary: #7a7f8b;
+  --midiseq-divider: hsl(223, 12%, 80%);
+  --midiseq-popup-border: #e0e0e0;
+  --midiseq-background: #ffffff;
+  --midiseq-background-secondary: hsl(227, 20%, 95%);
+  --midiseq-background-dark: hsl(228, 20%, 95%);
+  --midiseq-editor-background: #ffffff;
+  --midiseq-editor-grid: hsl(223, 12%, 86%);
+  --midiseq-editor-grid-secondary: hsl(223, 12%, 92%);
+  --midiseq-record: #ee6a6a;
+  --midiseq-highlight: #f5f5fa;
+  --midiseq-green: #56de83;
+  --midiseq-red: #de8287;
+  --midiseq-yellow: #debe56;
+  --midiseq-step: hsl(223, 12%, 86%);
+  --midiseq-step-rest: hsl(210, 60%, 80%);
+  --midiseq-step-skip: hsl(228, 20%, 95%);
+  --midiseq-scrollbar: rgba(0, 0, 0, 0.25);
+  --midiseq-scrollbar-hover: rgba(0, 0, 0, 0.45);
+  --midiseq-jump-0: #b07c1f;
+  --midiseq-jump-1: #17897d;
+  --midiseq-jump-2: #c2447a;
+  --midiseq-jump-3: #3f9a30;
+  --midiseq-jump-4: #c1541f;
+  --midiseq-jump-5: #7a52c7;
+  --midiseq-jump-6: #8a9a1f;
+  --midiseq-jump-7: #1b86b8;
+}
+
+/* Tailwind's tokens point at those variables rather than copying them, so a
+   utility resolves through the live value and follows a theme change. */
+@theme inline {
+  --font-sans: var(--midiseq-font);
+  --font-mono: var(--midiseq-mono-font);
+
+  --text-micro: 0.55rem;
+  --text-tiny: 0.7rem;
+  --text-small: 0.75rem;
+  --text-body: 0.8rem;
+  --text-title: 0.9rem;
+
+  /* the step editor sits beside the grid rather than below it once there is
+     room for both */
+  --breakpoint-wide: 2000px;
+
+  --color-theme: var(--midiseq-theme);
+  --color-on-surface: var(--midiseq-on-surface);
+  --color-fg: var(--midiseq-fg);
+  --color-fg-secondary: var(--midiseq-fg-secondary);
+  --color-fg-tertiary: var(--midiseq-fg-tertiary);
+  --color-divider: var(--midiseq-divider);
+  --color-popup-border: var(--midiseq-popup-border);
+  --color-background: var(--midiseq-background);
+  --color-background-secondary: var(--midiseq-background-secondary);
+  --color-background-dark: var(--midiseq-background-dark);
+  --color-editor-background: var(--midiseq-editor-background);
+  --color-editor-grid: var(--midiseq-editor-grid);
+  --color-editor-grid-secondary: var(--midiseq-editor-grid-secondary);
+  --color-record: var(--midiseq-record);
+  --color-highlight: var(--midiseq-highlight);
+  --color-green: var(--midiseq-green);
+  --color-red: var(--midiseq-red);
+  --color-yellow: var(--midiseq-yellow);
+  --color-step: var(--midiseq-step);
+  --color-step-rest: var(--midiseq-step-rest);
+  --color-step-skip: var(--midiseq-step-skip);
+}
+
+@layer base {
+  /* The standalone shell. A host page brings its own. */
+  html {
+    font-size: 16px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+    color: var(--midiseq-fg);
+    background-color: var(--midiseq-background);
+    font-family: var(--midiseq-font);
+    overscroll-behavior: none;
+    overflow: hidden;
+  }
+
+  /* What Preflight would have done, for our controls only. Utilities sit in
+     a later layer, so they still win however specific these are. */
+
+  /* A border utility sets a width and leaves the style to the reset. */
+  .midiseq *,
+  .midiseq *::before,
+  .midiseq *::after {
+    border-width: 0;
+    border-style: solid;
+  }
+
+  .midiseq button,
+  .midiseq input,
+  .midiseq select {
+    font: inherit;
+    color: inherit;
+  }
+
+  .midiseq button {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .midiseq button:disabled {
+    cursor: default;
+  }
+
+  /* macOS-style overlay scrollbars: no track, a translucent thumb that
+     darkens on hover. Firefox gets the same look via scrollbar-color. */
+  .midiseq,
+  .midiseq * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--midiseq-scrollbar) transparent;
+  }
+
+  .midiseq ::-webkit-scrollbar {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .midiseq ::-webkit-scrollbar-track,
+  .midiseq ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .midiseq ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  .midiseq ::-webkit-scrollbar-thumb {
+    min-height: 2rem;
+    border: 0.25rem solid transparent;
+    border-radius: 999px;
+    background-color: var(--midiseq-scrollbar);
+    background-clip: content-box;
+  }
+
+  .midiseq ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--midiseq-scrollbar-hover);
+  }
+}
+
+@layer components {
+  /* A range input's track and thumb are reachable only through vendor
+     pseudo-elements, which utilities can't name. */
+  .slider {
+    appearance: none;
+    width: 100%;
+    height: 1.2rem;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .slider::-webkit-slider-runnable-track {
+    height: 0.2rem;
+    border-radius: 999px;
+    background: var(--midiseq-background-secondary);
+  }
+
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -0.35rem;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: var(--midiseq-fg);
+  }
+
+  .slider::-moz-range-track {
+    height: 0.2rem;
+    border-radius: 999px;
+    background: var(--midiseq-background-secondary);
+  }
+
+  .slider::-moz-range-thumb {
+    width: 0.9rem;
+    height: 0.9rem;
+    border: none;
+    border-radius: 50%;
+    background: var(--midiseq-fg);
+  }
+
+  .slider:focus-visible {
+    outline: 2px solid var(--midiseq-theme);
+    outline-offset: 2px;
+  }
+}

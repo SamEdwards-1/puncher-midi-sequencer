@@ -2,6 +2,7 @@ import { configure } from "mobx"
 import { createRoot } from "react-dom/client"
 import { App } from "./components/App/App"
 import RootStore from "./stores/RootStore"
+import "./styles.css"
 
 configure({
   enforceActions: "never",

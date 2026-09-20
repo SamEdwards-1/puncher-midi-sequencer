@@ -1,62 +1,9 @@
-import styled from "@emotion/styled"
 import { FC, useState } from "react"
 
-const Row = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`
+const STEP =
+  "h-[1.6rem] w-[1.6rem] rounded-sm bg-background-secondary text-title leading-none text-fg enabled:hover:bg-highlight disabled:text-fg-tertiary"
 
-const Step = styled.button`
-  width: 1.6rem;
-  height: 1.6rem;
-  border: none;
-  border-radius: 0.25rem;
-  background: var(--color-background-secondary);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.9rem;
-  line-height: 1;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--color-highlight);
-  }
-
-  &:disabled {
-    color: var(--color-text-tertiary);
-    cursor: default;
-  }
-`
-
-const Value = styled.span`
-  flex-grow: 1;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--color-text);
-`
-
-// Looks exactly like the plain value until it is focused, when it becomes an
-// ordinary text field.
-const ValueInput = styled.input`
-  flex-grow: 1;
-  width: 100%;
-  min-width: 0;
-  padding: 0.1rem 0;
-  border: none;
-  border-radius: 0.2rem;
-  background: transparent;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--color-text);
-
-  &:focus {
-    outline: 1px solid var(--color-theme);
-    background: var(--color-background);
-  }
-`
+const VALUE = "grow text-center font-mono text-body text-fg"
 
 export interface StepperProps {
   value: number
@@ -95,20 +42,26 @@ export const Stepper: FC<StepperProps> = ({
   }
 
   return (
-    <Row>
-      <Step
+    <div className="flex items-center gap-1">
+      <button
         type="button"
+        className={STEP}
         aria-label={`${label} down`}
         disabled={value <= min}
         onClick={() => onChange(clamp(value - step))}
       >
         −
-      </Step>
+      </button>
       {parse === undefined ? (
-        <Value>{format === undefined ? value : format(value)}</Value>
+        <span className={VALUE}>
+          {format === undefined ? value : format(value)}
+        </span>
       ) : (
-        <ValueInput
+        // Looks exactly like the plain value until it is focused, when it
+        // becomes an ordinary text field.
+        <input
           aria-label={label}
+          className="w-full min-w-0 grow rounded-[0.2rem] bg-transparent py-[0.1rem] text-center font-mono text-body text-fg focus:bg-background focus:outline-1 focus:outline-theme"
           value={
             draft ?? (format === undefined ? String(value) : format(value))
           }
@@ -137,14 +90,15 @@ export const Stepper: FC<StepperProps> = ({
           }}
         />
       )}
-      <Step
+      <button
         type="button"
+        className={STEP}
         aria-label={`${label} up`}
         disabled={value >= max}
         onClick={() => onChange(clamp(value + step))}
       >
         +
-      </Step>
-    </Row>
+      </button>
+    </div>
   )
 }

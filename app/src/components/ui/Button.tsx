@@ -1,59 +1,66 @@
-import styled from "@emotion/styled"
+import { ButtonHTMLAttributes, FC } from "react"
+import { cn } from "./cn"
 
-export const Button = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  height: 2rem;
-  padding: 0 0.75rem;
-  border: none;
-  border-radius: 0.25rem;
-  background: var(--color-background-secondary);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
+export type ButtonSize = "md" | "sm" | "field"
 
-  &:hover {
-    background: var(--color-highlight);
-  }
+const SIZES: Record<ButtonSize, string> = {
+  md: "h-8 px-3 text-body",
+  sm: "h-[1.7rem] px-[0.6rem] text-small",
+  // the height of a select, so it lines up inside a field row
+  field: "h-[1.9rem] px-[0.6rem] text-small",
+}
 
-  &[data-active="true"] {
-    background: var(--color-theme);
-    color: var(--color-on-surface);
-  }
-`
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  size?: ButtonSize
+  active?: boolean
+}
 
-// App-bar pill. It keeps its own height so it never reaches the top or
-// bottom edge of the bar.
-export const ToolbarButton = styled.button`
-  display: flex;
-  align-items: center;
-  align-self: center;
-  gap: 0.4rem;
-  height: 2rem;
-  padding: 0 1rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  cursor: pointer;
+export const Button: FC<ButtonProps> = ({
+  size = "md",
+  active = false,
+  className,
+  ...props
+}) => (
+  <button
+    data-active={active}
+    className={cn(
+      "flex items-center gap-[0.4rem] rounded-sm",
+      SIZES[size],
+      active
+        ? "bg-theme text-on-surface"
+        : "bg-background-secondary text-fg enabled:hover:bg-highlight",
+      className,
+    )}
+    {...props}
+  />
+)
 
-  &:disabled {
-    color: var(--color-text-tertiary);
-    background: transparent;
-    cursor: default;
-  }
+export interface ToolbarButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean
+  // record turns red rather than blue when it is on
+  accent?: "theme" | "record"
+}
 
-  &:hover {
-    background: var(--color-highlight);
-  }
-
-  &[data-active="true"] {
-    background: var(--color-theme);
-    color: var(--color-on-surface);
-  }
-`
+/**
+ * App-bar pill. It keeps its own height so it never reaches the top or
+ * bottom edge of the bar.
+ */
+export const ToolbarButton: FC<ToolbarButtonProps> = ({
+  active = false,
+  accent = "theme",
+  className,
+  ...props
+}) => (
+  <button
+    data-active={active}
+    className={cn(
+      "flex h-8 items-center gap-[0.4rem] self-center whitespace-nowrap rounded-full px-4 text-small",
+      active
+        ? cn(accent === "record" ? "bg-record" : "bg-theme", "text-on-surface")
+        : "bg-transparent text-fg disabled:text-fg-tertiary enabled:hover:bg-highlight",
+      className,
+    )}
+    {...props}
+  />
+)

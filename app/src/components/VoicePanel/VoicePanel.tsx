@@ -1,4 +1,3 @@
-import styled from "@emotion/styled"
 import {
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
@@ -14,6 +13,7 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
@@ -22,131 +22,19 @@ import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
 import { StepOptions } from "./StepOptions"
 
-const RightPanel = styled(Panel)`
-  border-left: 1px solid var(--color-divider);
-`
+const TAB =
+  "h-9 flex-1 border-b-[0.15rem] bg-transparent text-body hover:bg-highlight"
 
-const Tabs = styled.div`
-  display: flex;
-  border-bottom: 1px solid var(--color-divider);
-`
+const DOT =
+  "relative aspect-square rounded-full border-2 font-mono text-micro leading-none transition-transform duration-100"
 
-const Tab = styled.button`
-  flex: 1;
-  height: 2.25rem;
-  border: none;
-  border-bottom: 0.15rem solid transparent;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
+// a tail towards the next dot: solid for a hold, hollow for a tie
+const TAIL =
+  "before:absolute before:top-1/2 before:right-[-0.35rem] before:h-[0.16rem] before:w-[0.35rem] before:-translate-y-1/2 before:content-['']"
 
-  &:hover {
-    background: var(--color-highlight);
-  }
-
-  &[data-active="true"] {
-    color: var(--color-text);
-    border-bottom-color: var(--color-theme);
-  }
-
-  &[data-enabled="false"] {
-    opacity: 0.55;
-  }
-`
-
-const Dots = styled.div`
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 0.3rem;
-  padding: 0 1rem 1rem;
-`
-
-/**
- * A dot shows its own step options: a ratchet count sits inside it, an accent
- * makes it bigger or smaller, a probability below 100% hollows it out, a hold
- * or tie draws a tail towards the next dot, and a condition marks the corner.
- */
-const Dot = styled.button`
-  position: relative;
-  aspect-ratio: 1;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  background: var(--color-step);
-  color: var(--color-on-surface);
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform 0.1s ease;
-
-  &[data-on="true"] {
-    background: var(--color-theme);
-  }
-
-  &[data-beyond="true"] {
-    opacity: 0.25;
-  }
-
-  /* played only sometimes: hollow, so it reads as less certain */
-  &[data-chance="true"][data-on="true"] {
-    background: transparent;
-    border-color: var(--color-theme);
-    color: var(--color-text);
-  }
-
-  &[data-accent="+"] {
-    transform: scale(1.15);
-  }
-
-  &[data-accent="-"] {
-    transform: scale(0.8);
-  }
-
-  /* a tail towards the next dot: solid for a hold, hollow for a tie */
-  &[data-articulation="hold"]::before,
-  &[data-articulation="tie"]::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    right: -0.35rem;
-    width: 0.35rem;
-    height: 0.16rem;
-    transform: translateY(-50%);
-    background: var(--color-theme);
-  }
-
-  &[data-articulation="tie"]::before {
-    height: 0.16rem;
-    background: transparent;
-    border-top: 2px solid var(--color-theme);
-  }
-
-  /* the dot whose options are open */
-  &[data-editing="true"] {
-    outline: 2px solid var(--color-text);
-    outline-offset: 2px;
-  }
-
-  /* a condition is otherwise invisible, so it marks the corner */
-  &[data-condition="true"]::after {
-    content: "";
-    position: absolute;
-    right: -0.1rem;
-    top: -0.1rem;
-    width: 0.3rem;
-    height: 0.3rem;
-    border-radius: 50%;
-    background: var(--color-yellow);
-  }
-`
-
-const Hint = styled.div`
-  padding: 0 1rem 1rem;
-  font-size: 0.7rem;
-  color: var(--color-text-tertiary);
-`
+// a condition is otherwise invisible, so it marks the corner
+const CONDITION_MARK =
+  "after:absolute after:top-[-0.1rem] after:right-[-0.1rem] after:h-[0.3rem] after:w-[0.3rem] after:rounded-full after:bg-yellow after:content-['']"
 
 const RULES: { value: VoiceRule; label: string }[] = [
   { value: "nth", label: "Nth" },
@@ -186,6 +74,33 @@ const describe = (
   return parts.join(" · ")
 }
 
+/**
+ * A dot shows its own step options: a ratchet count sits inside it, an accent
+ * makes it bigger or smaller, a probability below 100% hollows it out, a hold
+ * or tie draws a tail towards the next dot, and a condition marks the corner.
+ */
+const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
+  const chance = dot.probability < 100
+  return cn(
+    DOT,
+    dot.on
+      ? // played only sometimes: hollow, so it reads as less certain
+        chance
+        ? "border-theme bg-transparent text-fg"
+        : "border-transparent bg-theme text-on-surface"
+      : "border-transparent bg-step text-on-surface",
+    beyond && "opacity-25",
+    dot.accent === "+" && "scale-[1.15]",
+    dot.accent === "-" && "scale-80",
+    // the dot whose options are open
+    editing && "outline-2 outline-offset-2 outline-fg",
+    dot.articulation === "hold" && cn(TAIL, "before:bg-theme"),
+    dot.articulation === "tie" &&
+      cn(TAIL, "before:border-t-2 before:border-theme before:bg-transparent"),
+    dot.condition !== "always" && CONDITION_MARK,
+  )
+}
+
 export const VoicePanel: FC = () => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
@@ -198,25 +113,35 @@ export const VoicePanel: FC = () => {
   const voice = patch.voices[selected]
 
   return (
-    <RightPanel aria-label={localized["sequencer-voices"]}>
+    <Panel
+      aria-label={localized["sequencer-voices"]}
+      className="overflow-y-auto border-l border-divider"
+    >
       <PanelHeader>
         <Localized name="sequencer-voices" />
       </PanelHeader>
 
-      <Tabs>
+      <div className="flex border-b border-divider">
         {VOICES.map((index) => (
-          <Tab
+          <button
             key={index}
             type="button"
             data-active={index === selected}
             data-enabled={patch.voices[index].enabled}
             aria-label={`${localized["sequencer-voice"]} ${index + 1}`}
+            className={cn(
+              TAB,
+              index === selected
+                ? "border-theme text-fg"
+                : "border-transparent text-fg-secondary",
+              !patch.voices[index].enabled && "opacity-55",
+            )}
             onClick={() => setSelected(index)}
           >
             {index + 1}
-          </Tab>
+          </button>
         ))}
-      </Tabs>
+      </div>
 
       <Fields>
         <Field label={localized["sequencer-voice-enable"]}>
@@ -244,7 +169,6 @@ export const VoicePanel: FC = () => {
 
         <Field label={localized["sequencer-voice-length"]}>
           <Slider
-            type="range"
             min={10}
             max={100}
             step={5}
@@ -339,9 +263,9 @@ export const VoicePanel: FC = () => {
         </Field>
       </Fields>
 
-      <Dots>
+      <div className="grid grid-cols-8 gap-[0.3rem] px-4 pb-4">
         {voice.pattern.map((dot, index) => (
-          <Dot
+          <button
             // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
             key={index}
             type="button"
@@ -353,6 +277,11 @@ export const VoicePanel: FC = () => {
             data-accent={dot.accent}
             data-chance={dot.probability < 100}
             data-condition={dot.condition !== "always"}
+            className={dotClass(
+              dot,
+              index >= voice.patternLength,
+              options?.dotIndex === index,
+            )}
             title={describe(dot, localized)}
             onClick={() => togglePatternDot(selected, index)}
             onContextMenu={(event) => {
@@ -364,12 +293,12 @@ export const VoicePanel: FC = () => {
             }}
           >
             {dot.ratchet > 1 ? dot.ratchet : ""}
-          </Dot>
+          </button>
         ))}
-      </Dots>
-      <Hint>
+      </div>
+      <div className="px-4 pb-4 text-tiny text-fg-tertiary">
         <Localized name="sequencer-dot-hint" />
-      </Hint>
+      </div>
 
       {options !== null && (
         <StepOptions
@@ -380,6 +309,6 @@ export const VoicePanel: FC = () => {
           onClose={() => setOptions(null)}
         />
       )}
-    </RightPanel>
+    </Panel>
   )
 }

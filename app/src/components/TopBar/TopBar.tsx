@@ -1,4 +1,3 @@
-import styled from "@emotion/styled"
 import { FC } from "react"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
@@ -6,39 +5,6 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
 import { TransportControls } from "../TransportPanel/TransportControls"
-
-const Bar = styled.header`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  height: 3rem;
-  flex-shrink: 0;
-  padding-right: 1rem;
-  box-sizing: border-box;
-  background: var(--color-background-dark);
-  border-bottom: 1px solid var(--color-divider);
-`
-
-const Title = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-left: 1rem;
-`
-
-const AppName = styled.div`
-  font-weight: 600;
-  font-size: 0.9rem;
-`
-
-const PatchName = styled.div`
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-`
-
-const Spacer = styled.div`
-  flex-grow: 1;
-`
 
 export const TopBar: FC = () => {
   const { sequencerStore } = useStores()
@@ -51,22 +17,22 @@ export const TopBar: FC = () => {
   const isSaved = useMobxGetter(sequencerStore, "isSaved")
 
   return (
-    <Bar>
-      <Title>
-        <AppName>
+    <header className="box-border flex h-12 flex-shrink-0 items-center gap-2 border-b border-divider bg-background-dark pr-4">
+      <div className="flex items-center gap-2 pl-4">
+        <div className="text-title font-semibold">
           <Localized name="sequencer-app-name" />
-        </AppName>
-        <PatchName>
+        </div>
+        <div className="text-body text-fg-secondary">
           {fileName ??
             (name.length > 0 ? name : localized["sequencer-untitled"])}
           {/* a dot while there are unsaved changes */}
           {isSaved ? "" : " •"}
-        </PatchName>
-      </Title>
+        </div>
+      </div>
       <FileMenu />
-      <Spacer />
+      <div className="grow" />
       <TransportControls />
       <OutputRoutingMenu />
-    </Bar>
+    </header>
   )
 }

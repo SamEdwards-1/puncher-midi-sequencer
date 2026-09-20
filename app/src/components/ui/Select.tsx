@@ -1,17 +1,15 @@
-import styled from "@emotion/styled"
+import { FC, SelectHTMLAttributes } from "react"
+import { cn } from "./cn"
 
-export const Select = styled.select`
-  height: 1.9rem;
-  padding: 0 0.4rem;
-  border: 1px solid var(--color-divider);
-  border-radius: 0.25rem;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-theme);
-  }
-`
+export const Select: FC<SelectHTMLAttributes<HTMLSelectElement>> = ({
+  className,
+  ...props
+}) => (
+  <select
+    className={cn(
+      "h-[1.9rem] rounded-sm border border-divider bg-background px-[0.4rem] text-body text-fg focus:border-theme focus:outline-none",
+      className,
+    )}
+    {...props}
+  />
+)

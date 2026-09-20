@@ -1,4 +1,3 @@
-import styled from "@emotion/styled"
 import {
   CCEventJSON,
   noteNumberToName,
@@ -6,68 +5,23 @@ import {
   StepState,
   VoiceIndex,
 } from "@midiseq/core"
-import { FC } from "react"
+import { FC, HTMLAttributes } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
+import { cn } from "../ui/cn"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 
-const Body = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem 1rem;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-`
+const HEADER = "flex items-center gap-2"
+const TITLE = "grow"
 
-const Header = styled(PanelHeader)`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`
-
-const Title = styled.span`
-  flex-grow: 1;
-`
-
-const SmallButton = styled(Button)`
-  height: 1.7rem;
-  padding: 0 0.6rem;
-  font-size: 0.75rem;
-`
-
-const Row = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`
-
-const NoteRow = styled(Row)`
-  &[data-beyond="true"] {
-    opacity: 0.45;
-  }
-`
-
-const RowLabel = styled.label`
-  width: 3rem;
-`
-
-const Grow = styled.div`
-  flex-grow: 1;
-`
-
-const Empty = styled.div`
-  color: var(--color-text-tertiary);
-`
-
-const Warning = styled.div`
-  color: var(--color-yellow);
-`
+const Row: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
+  <div className={cn("flex items-center gap-2", className)} {...props} />
+)
 
 const STATES: StepState[] = ["normal", "rest", "skip"]
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
@@ -97,30 +51,35 @@ export const StepEditor: FC = () => {
 
   return (
     <>
-      <Header>
-        <Title>
+      <PanelHeader className={HEADER}>
+        <span className={TITLE}>
           <Localized name="sequencer-step-editor" /> {selected + 1}
-        </Title>
-        <SmallButton type="button" onClick={() => setCopiedStep(step)}>
+        </span>
+        <Button type="button" size="sm" onClick={() => setCopiedStep(step)}>
           <Localized name="sequencer-step-copy" />
-        </SmallButton>
-        <SmallButton
+        </Button>
+        <Button
           type="button"
+          size="sm"
           disabled={copiedStep === null}
           onClick={() => copiedStep !== null && paste(selected, copiedStep)}
         >
           <Localized name="sequencer-step-paste" />
-        </SmallButton>
-        <SmallButton type="button" onClick={() => clearStepContent(selected)}>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => clearStepContent(selected)}
+        >
           <Localized name="sequencer-step-clear" />
-        </SmallButton>
-      </Header>
+        </Button>
+      </PanelHeader>
 
-      <Body>
+      <div className="flex flex-col gap-2 px-4 pt-2 pb-4 text-body text-fg-secondary">
         <Row>
-          <RowLabel htmlFor="step-state">
+          <label className="w-12" htmlFor="step-state">
             <Localized name="sequencer-step-state" />
-          </RowLabel>
+          </label>
           <Select
             id="step-state"
             value={step.state}
@@ -134,76 +93,87 @@ export const StepEditor: FC = () => {
               </option>
             ))}
           </Select>
-          <Grow />
+          <div className="grow" />
           {[-12, -1, 1, 12].map((semitones) => (
-            <SmallButton
+            <Button
               key={semitones}
               type="button"
+              size="sm"
               disabled={step.notes.length === 0}
               onClick={() => transpose(selected, semitones)}
             >
               {semitones > 0 ? `+${semitones}` : semitones}
-            </SmallButton>
+            </Button>
           ))}
         </Row>
 
         {step.notes.length === 0 && (
-          <Empty>
+          <div className="text-fg-tertiary">
             <Localized name="sequencer-step-no-notes" />
-          </Empty>
+          </div>
         )}
 
-        {step.notes.map((note, position) => (
-          <NoteRow key={note} data-beyond={position >= patch.maxNotesPerStep}>
-            <Grow>
-              <Stepper
-                label={`${localized["sequencer-step-note"]} ${position + 1}`}
-                value={note}
-                min={0}
-                max={127}
-                format={noteNumberToName}
-                onChange={(next) => editNote(selected, position, next)}
-              />
-            </Grow>
-            <SmallButton
-              type="button"
-              aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
-              onClick={() => removeNote(selected, position)}
+        {step.notes.map((note, position) => {
+          const beyond = position >= patch.maxNotesPerStep
+          return (
+            <Row
+              key={note}
+              className={cn(beyond && "opacity-45")}
+              data-beyond={beyond}
             >
-              ×
-            </SmallButton>
-          </NoteRow>
-        ))}
+              <div className="grow">
+                <Stepper
+                  label={`${localized["sequencer-step-note"]} ${position + 1}`}
+                  value={note}
+                  min={0}
+                  max={127}
+                  format={noteNumberToName}
+                  onChange={(next) => editNote(selected, position, next)}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
+                onClick={() => removeNote(selected, position)}
+              >
+                ×
+              </Button>
+            </Row>
+          )
+        })}
 
         {beyondLimit && (
           <Row>
-            <Warning>
+            <div className="text-yellow">
               <Localized name="sequencer-step-over-limit" />
-            </Warning>
-            <Grow />
-            <SmallButton type="button" onClick={trimToLimit}>
+            </div>
+            <div className="grow" />
+            <Button type="button" size="sm" onClick={trimToLimit}>
               <Localized name="sequencer-step-trim" />
-            </SmallButton>
+            </Button>
           </Row>
         )}
 
         <Row>
-          <SmallButton
+          <Button
             type="button"
+            size="sm"
             onClick={() =>
               addNote(selected, step.notes[step.notes.length - 1] ?? 60)
             }
           >
             <Localized name="sequencer-step-add-note" />
-          </SmallButton>
+          </Button>
         </Row>
 
-        <Header as="div">
-          <Title>
+        <PanelHeader as="div" className={HEADER}>
+          <span className={TITLE}>
             <Localized name="sequencer-step-ccs" />
-          </Title>
-          <SmallButton
+          </span>
+          <Button
             type="button"
+            size="sm"
             onClick={() =>
               addCC(selected, {
                 cc: 74,
@@ -214,13 +184,13 @@ export const StepEditor: FC = () => {
             }
           >
             <Localized name="sequencer-step-add-cc" />
-          </SmallButton>
-        </Header>
+          </Button>
+        </PanelHeader>
 
         {step.ccs.length === 0 && (
-          <Empty>
+          <div className="text-fg-tertiary">
             <Localized name="sequencer-step-no-ccs" />
-          </Empty>
+          </div>
         )}
 
         {step.ccs.map((cc) => (
@@ -231,7 +201,7 @@ export const StepEditor: FC = () => {
             onRemove={() => removeCC(selected, cc.id)}
           />
         ))}
-      </Body>
+      </div>
     </>
   )
 }
@@ -298,13 +268,14 @@ const CCRow: FC<{
           </option>
         ))}
       </Select>
-      <SmallButton
+      <Button
         type="button"
+        size="sm"
         aria-label={`${localized["sequencer-step-remove-cc"]} ${cc.id}`}
         onClick={onRemove}
       >
         ×
-      </SmallButton>
+      </Button>
     </Row>
   )
 }

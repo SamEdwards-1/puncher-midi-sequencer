@@ -1,25 +1,32 @@
-import styled from "@emotion/styled"
+import { FC, HTMLAttributes } from "react"
+import { cn } from "./cn"
 
-export const Panel = styled.section`
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  background: var(--color-background);
-`
+// Scrolling is left to each panel: two of them scroll as a whole, the middle
+// one holds a grid that shrinks instead.
+export const Panel: FC<HTMLAttributes<HTMLElement>> = ({
+  className,
+  ...props
+}) => (
+  <section
+    className={cn("flex min-h-0 flex-col bg-background", className)}
+    {...props}
+  />
+)
 
-export const PanelHeader = styled.h2`
-  margin: 0;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-divider);
-`
+export interface PanelHeaderProps extends HTMLAttributes<HTMLElement> {
+  as?: "h2" | "div"
+}
 
-export const PanelBody = styled.div`
-  flex-grow: 1;
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-`
+export const PanelHeader: FC<PanelHeaderProps> = ({
+  as: Tag = "h2",
+  className,
+  ...props
+}) => (
+  <Tag
+    className={cn(
+      "m-0 border-b border-divider px-4 py-3 text-title font-semibold text-fg",
+      className,
+    )}
+    {...props}
+  />
+)
