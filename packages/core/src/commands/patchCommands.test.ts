@@ -51,29 +51,59 @@ describe("patch commands", () => {
     expect(togglePatternStep(toggled, 0, 3).voices[0].pattern[3].on).toBe(true)
   })
 
-  it("sort and de-duplicate a step's notes, keeping them past the limit", () => {
+  it("de-duplicate a step's notes and keep the order they were entered", () => {
     const patch = { ...createDefaultPatch(), maxNotesPerStep: 3 }
     const next = setStepNotes(patch, 2, [67, 60, 60, 64, 72])
 
     // the limit decides what the engine reads, not what is stored
-    expect(next.steps[2].notes).toEqual([60, 64, 67, 72])
+    expect(next.steps[2].notes).toEqual([67, 60, 64, 72])
   })
 
   it("add, edit, remove and transpose notes", () => {
     const patch = createDefaultPatch()
     const added = addStepNote(addStepNote(patch, 0, 64), 0, 60)
-    expect(added.steps[0].notes).toEqual([60, 64])
+    expect(added.steps[0].notes).toEqual([64, 60])
 
     const edited = setStepNote(added, 0, 0, 62)
-    expect(edited.steps[0].notes).toEqual([62, 64])
+    expect(edited.steps[0].notes).toEqual([62, 60])
 
     expect(removeStepNote(edited, 0, 1).steps[0].notes).toEqual([62])
-    expect(transposeStep(edited, 0, 12).steps[0].notes).toEqual([74, 76])
+    expect(transposeStep(edited, 0, 12).steps[0].notes).toEqual([74, 72])
+  })
+
+  it("keep a note in place while it is edited", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [57, 60, 64])
+
+    // raising the first note past the second must not reorder the rows
+    const raised = setStepNote(patch, 0, 0, 62)
+    expect(raised.steps[0].notes).toEqual([62, 60, 64])
+  })
+
+  it("skip over a pitch the step already holds", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [59, 60])
+
+    // 59 + 1 lands on 60, which is taken, so it carries on to 61
+    expect(setStepNote(patch, 0, 0, 60).steps[0].notes).toEqual([61, 60])
+
+    // and downwards it carries on the other way
+    const upper = setStepNotes(createDefaultPatch(), 0, [61, 60])
+    expect(setStepNote(upper, 0, 0, 60).steps[0].notes).toEqual([59, 60])
+  })
+
+  it("leave a note alone when there is no free pitch that way", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [126, 127])
+    expect(setStepNote(patch, 0, 0, 127)).toBe(patch)
+  })
+
+  it("keep every note when transposing over a neighbour", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [59, 60])
+    expect(transposeStep(patch, 0, 1).steps[0].notes).toEqual([60, 61])
   })
 
   it("keep notes inside the MIDI range and the 16-note store", () => {
     const patch = createDefaultPatch()
     const high = setStepNotes(patch, 0, [120, 125])
+    // both hit the ceiling and merge into one
     expect(transposeStep(high, 0, 12).steps[0].notes).toEqual([127])
 
     const many = setStepNotes(
@@ -165,6 +195,7 @@ describe("patch commands", () => {
 
     // lowering the limit alone keeps the notes
     expect(lowered.steps[0].notes).toHaveLength(5)
+    // the lowest survive, since those are the ones the engine was playing
     expect(trimStepsToLimit(lowered).steps[0].notes).toEqual([48, 55])
   })
 })
