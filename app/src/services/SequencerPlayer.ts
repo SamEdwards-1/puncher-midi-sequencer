@@ -4,6 +4,7 @@ import {
   EngineEvent,
   NoteOffEvent,
   PatchJSON,
+  paceBeats,
   StepIndex,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
@@ -20,6 +21,9 @@ export interface SequencerPlayerOptions {
 
 const TICK_MS = 25
 const LOOKAHEAD_MS = 100
+// upper bound on how long a clicked step sounds
+const PREVIEW_MAX_MS = 2000
+const BEAT_EPSILON = 1e-9
 // gives the first events time to be scheduled before they are due
 const START_DELAY_MS = 50
 
@@ -83,6 +87,57 @@ export class SequencerPlayer {
   // The sequencer moves to this step the next time it advances.
   queueStep = (step: number) => {
     this.engine.queueStep(step)
+  }
+
+  /**
+   * Sounds one step the way the sequencer would play it: the voices read it
+   * at their own paces, patterns and rules for the length of a sequencer
+   * step. Everything is timestamped rather than timed by a timer, so it lands
+   * even if the tab is busy.
+   */
+  previewStep = (step: number) => {
+    const patch = this.patch
+    const source = patch.steps[step]
+    if (source === undefined) {
+      return
+    }
+
+    // A one-step patch, so the sequencer stays on this step and the voices
+    // start together as they would on landing.
+    const previewPatch: PatchJSON = {
+      ...patch,
+      loop: { mode: "custom", end: 0 },
+      steps: patch.steps.map((existing, index) =>
+        index === 0
+          ? {
+              ...source,
+              jump: { rule: { kind: "always" }, dest: null, normal: null },
+            }
+          : existing,
+      ),
+    }
+
+    const engine = new Engine(previewPatch, {
+      seed: Math.floor(Math.random() * 2 ** 32),
+    })
+    engine.start(0)
+    const msPerBeat = 60000 / patch.tempo
+    // a slow sequencer pace would otherwise run for a long time
+    const beats = Math.min(paceBeats(patch.pace), PREVIEW_MAX_MS / msPerBeat)
+    const events = [
+      ...engine.render(beats - BEAT_EPSILON),
+      ...engine.stop(beats),
+    ]
+
+    const now = this.now()
+    for (const event of events) {
+      if (event.type === "step") {
+        continue
+      }
+      const time = now + event.beat * msPerBeat
+      this.router.route(event, time)
+      this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
+    }
   }
 
   play = () => {

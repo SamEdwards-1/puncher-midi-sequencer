@@ -134,4 +134,85 @@ describe("SequencerPlayer", () => {
     expect(all.ofType(0xb0)).toHaveLength(32)
     expect(player.isPlaying).toBe(false)
   })
+
+  describe("previewStep", () => {
+    // one sequencer step is 1 beat (500 ms); the voice plays 8ths
+    const previewPatch = () => {
+      const patch = makePatch()
+      patch.steps[0].notes = [60, 64]
+      patch.voices[0] = {
+        ...patch.voices[0],
+        pace: "8th",
+        rule: "up",
+        velocity: 90,
+        channel: 4,
+      }
+      return patch
+    }
+
+    it("plays the step through the voices instead of as a chord", () => {
+      player.setPatch(previewPatch())
+      player.previewStep(0)
+
+      // the arpeggio steps through the notes rather than sounding together
+      expect(all.ofType(0x90)).toEqual([
+        { data: [0x93, 60, 90], time: 1000 },
+        { data: [0x93, 64, 90], time: 1250 },
+      ])
+      expect(all.ofType(0x80).map((message) => message.time)).toEqual([
+        1125, 1375,
+      ])
+    })
+
+    it("follows a voice's own rhythm pattern", () => {
+      const patch = previewPatch()
+      patch.voices[0] = {
+        ...patch.voices[0],
+        pace: "16th",
+        patternLength: 2,
+        pattern: patch.voices[0].pattern.map((dot, index) => ({
+          ...dot,
+          on: index % 2 === 0,
+        })),
+      }
+      player.setPatch(patch)
+      player.previewStep(0)
+
+      // every other 16th rests, so notes land on the beat and halfway
+      expect(all.ofType(0x90).map((message) => message.time)).toEqual([
+        1000, 1250,
+      ])
+    })
+
+    it("stays quiet on an empty step", () => {
+      player.setPatch(previewPatch())
+      player.previewStep(20)
+      expect(all.sent).toHaveLength(0)
+    })
+
+    it("keeps to the step's note limit", () => {
+      const patch = previewPatch()
+      patch.steps[0].notes = [48, 55, 60, 64]
+      patch.maxNotesPerStep = 2
+      patch.voices[0] = { ...patch.voices[0], pace: "16th" }
+      player.setPatch(patch)
+      player.previewStep(0)
+
+      // only the lowest two notes are in play, so the arpeggio repeats them
+      expect(all.ofType(0x90).map((message) => message.data[1])).toEqual([
+        48, 55, 48, 55,
+      ])
+    })
+
+    it("caps how long a slow step sounds", () => {
+      const patch = previewPatch()
+      // 4 bars would otherwise run for 8 seconds
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+
+      const last = Math.max(...all.sent.map((message) => message.time ?? 0))
+      expect(last).toBeLessThanOrEqual(1000 + 2000)
+    })
+  })
 })
