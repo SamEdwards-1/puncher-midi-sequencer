@@ -89,8 +89,11 @@ export const addStepNote = (
   note: number,
 ): PatchJSON => setStepNotes(patch, index, [...patch.steps[index].notes, note])
 
-// Moving a note onto a pitch the step already holds would merge the two, so
-// the edit is refused instead.
+/**
+ * Moving a note onto a pitch the step already holds would merge the two, so
+ * it carries on in the same direction to the next free pitch instead. With no
+ * free pitch left in that direction, the note stays where it is.
+ */
 export const setStepNote = (
   patch: PatchJSON,
   index: StepIndex,
@@ -98,20 +101,25 @@ export const setStepNote = (
   note: number,
 ): PatchJSON => {
   const notes = patch.steps[index].notes
-  const clamped = clampNote(note)
-  if (
+  const isTaken = (pitch: number) =>
     notes.some(
-      (existing, current) => current !== position && existing === clamped,
+      (existing, current) => current !== position && existing === pitch,
     )
-  ) {
-    return patch
+
+  const target = clampNote(note)
+  const step = target < notes[position] ? -1 : 1
+  let free = target
+  while (isTaken(free)) {
+    free += step
+    if (free < 0 || free > 127) {
+      return patch
+    }
   }
+
   return setStepNotes(
     patch,
     index,
-    notes.map((existing, current) =>
-      current === position ? clamped : existing,
-    ),
+    notes.map((existing, current) => (current === position ? free : existing)),
   )
 }
 

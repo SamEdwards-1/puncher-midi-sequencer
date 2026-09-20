@@ -79,15 +79,20 @@ describe("patch commands", () => {
     expect(raised.steps[0].notes).toEqual([62, 60, 64])
   })
 
-  it("refuse to move a note onto a pitch the step already holds", () => {
+  it("skip over a pitch the step already holds", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [59, 60])
 
-    // 59 + 1 would land on 60 and the two would merge, losing a note
-    const unchanged = setStepNote(patch, 0, 0, 60)
-    expect(unchanged).toBe(patch)
-    expect(unchanged.steps[0].notes).toEqual([59, 60])
+    // 59 + 1 lands on 60, which is taken, so it carries on to 61
+    expect(setStepNote(patch, 0, 0, 60).steps[0].notes).toEqual([61, 60])
 
-    expect(setStepNote(patch, 0, 0, 61).steps[0].notes).toEqual([61, 60])
+    // and downwards it carries on the other way
+    const upper = setStepNotes(createDefaultPatch(), 0, [61, 60])
+    expect(setStepNote(upper, 0, 0, 60).steps[0].notes).toEqual([59, 60])
+  })
+
+  it("leave a note alone when there is no free pitch that way", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [126, 127])
+    expect(setStepNote(patch, 0, 0, 127)).toBe(patch)
   })
 
   it("keep every note when transposing over a neighbour", () => {
