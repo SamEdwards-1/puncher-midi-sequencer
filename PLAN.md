@@ -108,7 +108,7 @@ Random. Each has enable, CC#, min/max and smoothing.
 | Domain state | MobX stores on a `RootStore`, bridged with `useMobxSelector` / `useMobxGetter` |
 | UI state | jotai atoms behind `useXxx()` hooks; settings via `atomWithStorage` (`midiseq.` keys) |
 | Mutations & undo | Action hooks record the patch for undo, then replace it with a command's result; history is a MobX store, since the patch itself is MobX. Patches are immutable, so a snapshot is just a reference |
-| Styling | Emotion + a `Theme` exposed as CSS variables. Controls are plain elements (select, range, checkbox) rather than Radix, which the current needs don't justify |
+| Styling | Tailwind v4 over a `Theme` exposed as CSS variables (§5.2; Signal itself uses Emotion). Controls are plain elements (select, range, checkbox) rather than Radix, which the current needs don't justify |
 | i18n | `use-l10n`, keys prefixed `sequencer-` |
 | MIDI | Web MIDI store with hot-plug and name-based port memory; `SynthOutput`-style outputs |
 
@@ -203,6 +203,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
 | 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | ✅ |
+| 11 | Tailwind | Every component styled with utilities; Emotion gone | |
 
 ---
 
@@ -239,6 +240,49 @@ different instruments.
 voice can be given its own instrument, and playing to a port and to the
 built-in sound at once stays in time.
 
+## 5.2 Tailwind (milestone 11)
+
+Emotion goes; every component is styled with Tailwind utilities. It runs
+before the UI milestones still open (3, 5, 7, 9) rather than after them, so
+their new UI gets written once in utilities instead of written in Emotion and
+converted a second time.
+
+**A divergence from Signal, deliberately.** Signal still styles with Emotion,
+so the Signal tab in §2.1 has to survive the difference — and it can. Tailwind
+v4 needs only its Vite plugin and one stylesheet import in the host, and
+importing just the `theme` and `utilities` layers leaves Preflight out, so
+Tailwind's reset never touches Signal's own elements. Utilities generated for
+the sequencer are inert wherever they aren't used.
+
+**The theme stays where it is.** `GlobalCSS` already publishes every `Theme`
+field as a `--color-*` variable, and Tailwind v4 takes its tokens from CSS
+variables, so utilities map straight onto the variables already there:
+`bg-background`, `text-secondary`, `border-divider`. Switching themes stays a
+runtime swap needing no rebuild, and becomes a `data-theme` attribute on
+`<html>` in place of Emotion's `ThemeProvider`. `Theme.ts` stays the source of
+truth for the values TS reads — `jumpColors` above all.
+
+**Values known only at runtime** — a jump's colour, a popup's position — can't
+be class names. They keep the pattern the grid already uses: a custom property
+set in `style={{}}`, read by a utility such as `bg-[var(--jump-source-color)]`.
+
+**The awkward parts**, in order: `VoicePanel`'s pattern dots, whose `::before`
+tails and `::after` corner marks carry real meaning; `SequenceGrid`'s 2000px
+breakpoint, which becomes a `--breakpoint-*` token; the scrollbar rules, which
+stay hand-written CSS in the global stylesheet; and `Slider`, `Toggle` and
+`Stepper`, whose native-control pseudo-elements read better as CSS than as
+`[&::-webkit-slider-thumb]:` utilities.
+
+**Shape of the work:** add `@tailwindcss/vite` and a `styles.css` holding the
+layer imports, the theme tokens and what stays hand-written; convert
+`components/ui/` first, since everything else is built on it; then a component
+per commit; drop `@emotion/*` and the `jsxImportSource` from the Vite config
+last.
+
+**Done when:** no `@emotion` import remains, the app looks as it does now in
+both themes, and the tests still pass — none of them assert on styles or class
+names, so they should go through untouched.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -251,3 +295,4 @@ built-in sound at once stays in time.
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |
 | Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |
+| Styling | Tailwind, though Signal uses Emotion. Utilities over the theme's CSS variables, with Preflight left out so the Signal tab stays safe (§5.2) |
