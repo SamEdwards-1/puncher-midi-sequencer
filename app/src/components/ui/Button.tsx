@@ -23,3 +23,30 @@ export const Button = styled.button`
     color: var(--color-on-surface);
   }
 `
+
+// Flat, full-height app-bar button in the same style as Signal's tabs: no
+// fill until hovered, and an accent line on top when active.
+export const ToolbarButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: stretch;
+  padding: 0 1rem;
+  border: none;
+  border-top: 0.1rem solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-highlight);
+  }
+
+  &[data-active="true"] {
+    color: var(--color-text);
+    background: var(--color-background);
+    border-top-color: var(--color-theme);
+  }
+`

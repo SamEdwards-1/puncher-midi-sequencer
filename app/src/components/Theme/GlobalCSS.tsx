@@ -30,6 +30,41 @@ export const GlobalCSS = () => {
           --color-step: ${theme.stepColor};
           --color-step-rest: ${theme.stepRestColor};
           --color-step-skip: ${theme.stepSkipColor};
+          --color-scrollbar: ${theme.scrollbarColor};
+          --color-scrollbar-hover: ${theme.scrollbarHoverColor};
+        }
+
+        /* macOS-style overlay scrollbars: no track, a translucent thumb that
+           darkens on hover. Firefox gets the same look via scrollbar-color. */
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: var(--color-scrollbar) transparent;
+        }
+
+        *::-webkit-scrollbar {
+          width: 0.75rem;
+          height: 0.75rem;
+        }
+
+        *::-webkit-scrollbar-track,
+        *::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+
+        *::-webkit-scrollbar-button {
+          display: none;
+        }
+
+        *::-webkit-scrollbar-thumb {
+          min-height: 2rem;
+          border: 0.25rem solid transparent;
+          border-radius: 999px;
+          background-color: var(--color-scrollbar);
+          background-clip: content-box;
+        }
+
+        *::-webkit-scrollbar-thumb:hover {
+          background-color: var(--color-scrollbar-hover);
         }
 
         html {

@@ -4,10 +4,12 @@ import { FC, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { OutputSlot } from "../../stores/MIDIDeviceStore"
-import { Button } from "../ui/Button"
+import { Button, ToolbarButton } from "../ui/Button"
 
 const Wrapper = styled.div`
   position: relative;
+  display: flex;
+  align-items: stretch;
 `
 
 const Popup = styled.div`
@@ -225,14 +227,14 @@ export const OutputRoutingMenu: FC = () => {
 
   return (
     <Wrapper>
-      <Button
+      <ToolbarButton
         type="button"
         aria-expanded={open}
         data-active={open}
         onClick={() => setOpen(!open)}
       >
         <Localized name="sequencer-midi-outputs" />
-      </Button>
+      </ToolbarButton>
       {open && (
         <Popup role="dialog" aria-label={localized["sequencer-midi-outputs"]}>
           {body()}

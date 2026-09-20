@@ -8,13 +8,19 @@ import { TransportControls } from "../TransportPanel/TransportControls"
 
 const Bar = styled.header`
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  align-items: stretch;
   height: 3rem;
-  padding: 0 1rem;
+  flex-shrink: 0;
   box-sizing: border-box;
   background: var(--color-background-dark);
   border-bottom: 1px solid var(--color-divider);
+`
+
+const Title = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
 `
 
 const AppName = styled.div`
@@ -40,12 +46,14 @@ export const TopBar: FC = () => {
 
   return (
     <Bar>
-      <AppName>
-        <Localized name="sequencer-app-name" />
-      </AppName>
-      <PatchName>
-        {name.length > 0 ? name : <Localized name="sequencer-untitled" />}
-      </PatchName>
+      <Title>
+        <AppName>
+          <Localized name="sequencer-app-name" />
+        </AppName>
+        <PatchName>
+          {name.length > 0 ? name : <Localized name="sequencer-untitled" />}
+        </PatchName>
+      </Title>
       <Spacer />
       <TransportControls />
       <OutputRoutingMenu />

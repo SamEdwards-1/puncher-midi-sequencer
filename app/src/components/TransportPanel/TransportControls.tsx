@@ -5,25 +5,26 @@ import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
 import { useStores } from "../../hooks/useStores"
 import { Localized } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
+import { ToolbarButton } from "../ui/Button"
 
 const Controls = styled.div`
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-self: stretch;
 `
 
-const RecordButton = styled(Button)`
+const RecordButton = styled(ToolbarButton)`
   &[data-active="true"] {
-    background: var(--color-record);
-    color: var(--color-on-surface);
+    color: var(--color-record);
+    border-top-color: var(--color-record);
   }
 `
 
 const Readout = styled.div`
-  min-width: 4.5rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
 `
 
@@ -38,7 +39,7 @@ export const TransportControls: FC = () => {
 
   return (
     <Controls>
-      <Button
+      <ToolbarButton
         type="button"
         data-active={isPlaying}
         onClick={isPlaying ? stop : play}
@@ -48,7 +49,7 @@ export const TransportControls: FC = () => {
         ) : (
           <Localized name="sequencer-play" />
         )}
-      </Button>
+      </ToolbarButton>
       <RecordButton
         type="button"
         data-active={isRecording}
@@ -56,9 +57,9 @@ export const TransportControls: FC = () => {
       >
         <Localized name="sequencer-record" />
       </RecordButton>
-      <Button type="button" onClick={panic}>
+      <ToolbarButton type="button" onClick={panic}>
         <Localized name="sequencer-panic" />
-      </Button>
+      </ToolbarButton>
       <Readout>
         {tempo} <Localized name="sequencer-bpm" />
       </Readout>
