@@ -78,6 +78,12 @@ const Dot = styled.button`
     opacity: 0.25;
   }
 
+  /* the dot whose options are open */
+  &[data-editing="true"] {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
+  }
+
   /* a dot carrying step options is marked, since they are easy to forget */
   &[data-options="true"]::after {
     content: "";
@@ -270,6 +276,7 @@ export const VoicePanel: FC = () => {
             data-on={dot.on}
             data-beyond={index >= voice.patternLength}
             data-options={hasOptions(dot)}
+            data-editing={options?.dotIndex === index}
             onClick={() => togglePatternDot(selected, index)}
             onContextMenu={(event) => {
               event.preventDefault()

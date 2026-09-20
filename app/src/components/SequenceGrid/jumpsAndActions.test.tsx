@@ -215,6 +215,22 @@ describe("step options", () => {
     expect(screen.queryByRole("dialog", { name: "Dot 2" })).toBeNull()
   })
 
+  it("marks the dot being edited", () => {
+    setup()
+    const dot = screen.getByRole("button", { name: "Dot 5" })
+    expect(dot).toHaveAttribute("data-editing", "false")
+
+    fireEvent.contextMenu(dot)
+    expect(dot).toHaveAttribute("data-editing", "true")
+    expect(screen.getByRole("button", { name: "Dot 6" })).toHaveAttribute(
+      "data-editing",
+      "false",
+    )
+
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(dot).toHaveAttribute("data-editing", "false")
+  })
+
   it("closes on Escape", () => {
     setup()
     fireEvent.contextMenu(screen.getByRole("button", { name: "Dot 1" }))

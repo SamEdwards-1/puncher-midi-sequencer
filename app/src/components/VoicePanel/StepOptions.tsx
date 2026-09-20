@@ -8,7 +8,7 @@ import {
   Probability,
   Ratchet,
 } from "@midiseq/core"
-import { FC, useEffect, useRef } from "react"
+import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
@@ -61,12 +61,34 @@ export const StepOptions: FC<StepOptionsProps> = ({
   voiceIndex,
   dotIndex,
   dot,
-  at,
+  at: requestedAt,
   onClose,
 }) => {
   const { editPatternStep } = usePatchEditor()
   const localized = useLocalization()
   const popup = useRef<HTMLDivElement>(null)
+  const [at, setAt] = useState(requestedAt)
+
+  // Opened from a right-click, so it can be asked for at the very edge of the
+  // window; it is nudged back inside once its size is known.
+  useLayoutEffect(() => {
+    const element = popup.current
+    if (element === null) {
+      return
+    }
+    const { width, height } = element.getBoundingClientRect()
+    const margin = 8
+    setAt({
+      x: Math.min(
+        Math.max(margin, requestedAt.x),
+        window.innerWidth - width - margin,
+      ),
+      y: Math.min(
+        Math.max(margin, requestedAt.y),
+        window.innerHeight - height - margin,
+      ),
+    })
+  }, [requestedAt])
 
   // closes on a click elsewhere or on Escape
   useEffect(() => {
