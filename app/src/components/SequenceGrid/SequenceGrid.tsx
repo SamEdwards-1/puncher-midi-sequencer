@@ -8,22 +8,82 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { Panel, PanelHeader } from "../ui/Panel"
 
+// The centre column never scrolls as a whole: the grid shrinks to fit and
+// the step editor scrolls on its own.
+const CentrePanel = styled(Panel)`
+  overflow: hidden;
+`
+
+/* Below the grid on a normal window; beside it once there is room, so the
+   grid can use the full height. */
+const Content = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+
+  @media (min-width: 1500px) {
+    flex-direction: row;
+  }
+`
+
+const GridColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+`
+
+const GridArea = styled.div`
+  flex: 1 1 auto;
+  min-height: 6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  overflow: hidden;
+`
+
+// A square that takes the smaller of the space's width and height, so the
+// whole grid is always visible and the cells stay round.
 const Grid = styled.div<{ columns: number }>`
   display: grid;
-  grid-template-columns: repeat(${({ columns }) => columns}, 1fr);
+  grid-template-columns: repeat(${({ columns }) => columns}, minmax(0, 1fr));
+  grid-template-rows: repeat(${({ columns }) => columns}, minmax(0, 1fr));
   gap: 0.4rem;
-  padding: 0.75rem 1rem;
+  aspect-ratio: 1;
+  height: 100%;
+  max-height: 100%;
+  max-width: 100%;
+`
+
+const StepEditorArea = styled.div`
+  flex: 0 0 auto;
+  /* never more than it needs, so the grid keeps the rest */
+  max-height: min(45%, 24rem);
+  overflow-y: auto;
+  border-top: 1px solid var(--color-divider);
+
+  @media (min-width: 1500px) {
+    width: 24rem;
+    max-height: none;
+    border-top: none;
+    border-left: 1px solid var(--color-divider);
+  }
 `
 
 const Step = styled.button`
   aspect-ratio: 1;
-  min-width: 1.5rem;
+  min-width: 1.25rem;
+  padding: 0;
   border: 2px solid transparent;
   border-radius: 50%;
   background: var(--color-step);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  /* grows a little with the grid, without ever dominating the cell */
+  font-size: clamp(0.6rem, 1.1vmin, 0.85rem);
   cursor: pointer;
 
   &[data-has-notes="true"] {
@@ -113,35 +173,43 @@ export const SequenceGrid: FC = () => {
   }
 
   return (
-    <Panel>
+    <CentrePanel aria-label={localized["sequencer-grid"]}>
       <PanelHeader>
         <Localized name="sequencer-grid" />
       </PanelHeader>
-      <Grid columns={gridWidth(size)}>
-        {Array.from({ length: stepCount(size) }, (_, index) => (
-          <Step
-            // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
-            key={index}
-            type="button"
-            aria-label={`${localized["sequencer-step"]} ${index + 1}`}
-            data-has-notes={filled[index] === "1"}
-            data-active={position === index}
-            data-selected={selected === index}
-            data-target={isRecording && target === index}
-            onClick={() => onStepClick(index)}
-          >
-            {index + 1}
-          </Step>
-        ))}
-      </Grid>
-      <StepEditor />
-      <Actions>
-        {actions.map((action) => (
-          <ActionButton key={action} type="button">
-            <Localized name={action} />
-          </ActionButton>
-        ))}
-      </Actions>
-    </Panel>
+      <Content>
+        <GridColumn>
+          <GridArea>
+            <Grid columns={gridWidth(size)}>
+              {Array.from({ length: stepCount(size) }, (_, index) => (
+                <Step
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
+                  key={index}
+                  type="button"
+                  aria-label={`${localized["sequencer-step"]} ${index + 1}`}
+                  data-has-notes={filled[index] === "1"}
+                  data-active={position === index}
+                  data-selected={selected === index}
+                  data-target={isRecording && target === index}
+                  onClick={() => onStepClick(index)}
+                >
+                  {index + 1}
+                </Step>
+              ))}
+            </Grid>
+          </GridArea>
+          <Actions>
+            {actions.map((action) => (
+              <ActionButton key={action} type="button">
+                <Localized name={action} />
+              </ActionButton>
+            ))}
+          </Actions>
+        </GridColumn>
+        <StepEditorArea>
+          <StepEditor />
+        </StepEditorArea>
+      </Content>
+    </CentrePanel>
   )
 }
