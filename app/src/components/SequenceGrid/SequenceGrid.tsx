@@ -22,7 +22,7 @@ const Content = styled.div`
   flex: 1 1 auto;
   min-height: 0;
 
-  @media (min-width: 1500px) {
+  @media (min-width: 2000px) {
     flex-direction: row;
   }
 `
@@ -65,7 +65,7 @@ const StepEditorArea = styled.div`
   overflow-y: auto;
   border-top: 1px solid var(--color-divider);
 
-  @media (min-width: 1500px) {
+  @media (min-width: 2000px) {
     width: 24rem;
     max-height: none;
     border-top: none;
