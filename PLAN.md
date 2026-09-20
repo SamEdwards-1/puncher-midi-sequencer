@@ -199,7 +199,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 5 | Step editor | Build a sequence by hand; CCs arrive on landing | |
 | 6 | Jumps, actions, step options | All jump and pattern-option rules usable from the UI | ✅ |
 | 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
-| 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | |
+| 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
 
 ---

@@ -26,7 +26,7 @@ describe("App", () => {
   it("shows the patch name from the sequencer store", () => {
     const rootStore = createStore()
     render(<App rootStore={rootStore} />)
-    expect(screen.getByText("Demo")).toBeInTheDocument()
+    expect(screen.getByText(/Demo/)).toBeInTheDocument()
 
     act(() => {
       rootStore.sequencerStore.patch = {
@@ -34,7 +34,7 @@ describe("App", () => {
         name: "Bassline",
       }
     })
-    expect(screen.getByText("Bassline")).toBeInTheDocument()
+    expect(screen.getByText(/Bassline/)).toBeInTheDocument()
   })
 
   it("toggles play and stop", () => {

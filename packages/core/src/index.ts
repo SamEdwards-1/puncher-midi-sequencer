@@ -1,4 +1,5 @@
 export * from "./commands"
 export * from "./engine"
 export * from "./entities"
+export * from "./file"
 export * from "./midi"

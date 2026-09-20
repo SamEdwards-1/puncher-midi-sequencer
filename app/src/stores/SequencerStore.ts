@@ -1,13 +1,17 @@
 import { createDemoPatch, PatchJSON } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 
-// Holds the patch. It starts as the demo patch until editing and files land.
 export class SequencerStore {
   patch: PatchJSON = createDemoPatch()
+  // the file this patch came from, and whether it has changed since
+  fileName: string | null = null
+  isSaved = true
 
   constructor() {
     makeObservable(this, {
       patch: observable.ref,
+      fileName: observable,
+      isSaved: observable,
     })
   }
 }

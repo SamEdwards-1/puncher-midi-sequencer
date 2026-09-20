@@ -1,8 +1,9 @@
 import styled from "@emotion/styled"
 import { FC } from "react"
-import { useMobxSelector } from "../../hooks/useMobxSelector"
+import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
-import { Localized } from "../../localize/useLocalization"
+import { Localized, useLocalization } from "../../localize/useLocalization"
+import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
 import { TransportControls } from "../TransportPanel/TransportControls"
 
@@ -41,10 +42,13 @@ const Spacer = styled.div`
 
 export const TopBar: FC = () => {
   const { sequencerStore } = useStores()
+  const localized = useLocalization()
   const name = useMobxSelector(
     () => sequencerStore.patch.name,
     [sequencerStore],
   )
+  const fileName = useMobxGetter(sequencerStore, "fileName")
+  const isSaved = useMobxGetter(sequencerStore, "isSaved")
 
   return (
     <Bar>
@@ -53,9 +57,13 @@ export const TopBar: FC = () => {
           <Localized name="sequencer-app-name" />
         </AppName>
         <PatchName>
-          {name.length > 0 ? name : <Localized name="sequencer-untitled" />}
+          {fileName ??
+            (name.length > 0 ? name : localized["sequencer-untitled"])}
+          {/* a dot while there are unsaved changes */}
+          {isSaved ? "" : " •"}
         </PatchName>
       </Title>
+      <FileMenu />
       <Spacer />
       <TransportControls />
       <OutputRoutingMenu />
