@@ -2,6 +2,7 @@ import styled from "@emotion/styled"
 import { FC } from "react"
 import { useMobxSelector } from "../../hooks/useMobxSelector"
 import { usePlayer } from "../../hooks/usePlayer"
+import { useRecorder } from "../../hooks/useRecorder"
 import { useStores } from "../../hooks/useStores"
 import { Localized } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
@@ -10,6 +11,13 @@ const Controls = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+`
+
+const RecordButton = styled(Button)`
+  &[data-active="true"] {
+    background: var(--color-record);
+    color: var(--color-on-surface);
+  }
 `
 
 const Readout = styled.div`
@@ -21,6 +29,7 @@ const Readout = styled.div`
 
 export const TransportControls: FC = () => {
   const { isPlaying, position, play, stop, panic } = usePlayer()
+  const { isRecording, target, toggleRecording } = useRecorder()
   const { sequencerStore } = useStores()
   const tempo = useMobxSelector(
     () => sequencerStore.patch.tempo,
@@ -40,6 +49,13 @@ export const TransportControls: FC = () => {
           <Localized name="sequencer-play" />
         )}
       </Button>
+      <RecordButton
+        type="button"
+        data-active={isRecording}
+        onClick={toggleRecording}
+      >
+        <Localized name="sequencer-record" />
+      </RecordButton>
       <Button type="button" onClick={panic}>
         <Localized name="sequencer-panic" />
       </Button>
@@ -48,7 +64,7 @@ export const TransportControls: FC = () => {
       </Readout>
       <Readout>
         <Localized name="sequencer-step" />{" "}
-        {position === null ? "–" : position + 1}
+        {isRecording ? target + 1 : position === null ? "–" : position + 1}
       </Readout>
     </Controls>
   )

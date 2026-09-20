@@ -1,5 +1,6 @@
 import { VOICE_COUNT, VoiceIndex } from "@midiseq/core"
 import { computed, makeObservable, observable, reaction } from "mobx"
+import type { ReceiveChannel } from "../services/MIDIRecorder"
 import { OutputAssignment } from "../services/OutputRouter"
 
 export type OutputSlot = "all" | VoiceIndex
@@ -16,6 +17,28 @@ export type QueryMIDIPermission = () => Promise<PermissionStatus>
 export type MIDIPermission = "granted" | "denied" | "prompt" | "unknown"
 
 const STORAGE_KEY = "midiseq.midiOutputs"
+const INPUT_STORAGE_KEY = "midiseq.midiInput"
+
+interface SavedInput {
+  name: string | null
+  channel: ReceiveChannel
+}
+
+const loadInput = (storage: Storage | null): SavedInput => {
+  try {
+    const saved = JSON.parse(storage?.getItem(INPUT_STORAGE_KEY) ?? "null")
+    if (
+      saved !== null &&
+      (typeof saved.name === "string" || saved.name === null) &&
+      (saved.channel === "omni" || typeof saved.channel === "number")
+    ) {
+      return saved as SavedInput
+    }
+  } catch {
+    // fall through to the defaults
+  }
+  return { name: null, channel: "omni" }
+}
 
 const defaultRequestAccess = (): RequestMIDIAccess | null =>
   typeof navigator !== "undefined" &&
@@ -74,6 +97,8 @@ export class MIDIDeviceStore {
   hasAccess = false
   permission: MIDIPermission = "unknown"
   outputNames: OutputNames
+  inputName: string | null
+  receiveChannel: ReceiveChannel
 
   private readonly requestAccess: RequestMIDIAccess | null
   private readonly queryPermission: QueryMIDIPermission | null
@@ -86,6 +111,9 @@ export class MIDIDeviceStore {
     this.requestAccess = requestAccess
     this.queryPermission = queryPermission
     this.outputNames = loadOutputNames(storage)
+    const savedInput = loadInput(storage)
+    this.inputName = savedInput.name
+    this.receiveChannel = savedInput.channel
 
     makeObservable(this, {
       outputs: observable.ref,
@@ -95,10 +123,14 @@ export class MIDIDeviceStore {
       hasAccess: observable,
       permission: observable,
       outputNames: observable.ref,
+      inputName: observable,
+      receiveChannel: observable,
       // keepAlive caches the value between reads outside a reaction, so React
       // gets the same array back until the ports actually change
       connectedOutputNames: computed({ keepAlive: true }),
+      connectedInputNames: computed({ keepAlive: true }),
       assignment: computed({ keepAlive: true }),
+      inputPort: computed({ keepAlive: true }),
     })
 
     reaction(
@@ -111,6 +143,17 @@ export class MIDIDeviceStore {
         }
       },
     )
+
+    reaction(
+      () => ({ name: this.inputName, channel: this.receiveChannel }),
+      (input) => {
+        try {
+          storage?.setItem(INPUT_STORAGE_KEY, JSON.stringify(input))
+        } catch {
+          // as above
+        }
+      },
+    )
   }
 
   get isSupported(): boolean {
@@ -118,13 +161,13 @@ export class MIDIDeviceStore {
   }
 
   /**
-   * Reconnects on startup only when permission was granted earlier. Browsers
-   * tie the MIDI permission prompt to a user action, so asking during page
-   * load can be dismissed without ever showing a dialog.
+   * Asks for MIDI access as the app starts, which is where the browser shows
+   * its permission prompt. A browser that already refused is left alone; the
+   * menu's Enable MIDI button asks again from a click.
    */
-  connectIfAllowed = async () => {
+  connectOnStart = async () => {
     await this.refreshPermission()
-    if (this.permission === "granted") {
+    if (this.permission !== "denied") {
       await this.requestMIDIAccess()
     }
   }
@@ -176,6 +219,37 @@ export class MIDIDeviceStore {
               index === slot ? name : current,
             ),
           }
+  }
+
+  setInputName = (name: string | null) => {
+    this.inputName = name
+  }
+
+  setReceiveChannel = (channel: ReceiveChannel) => {
+    this.receiveChannel = channel
+  }
+
+  get connectedInputNames(): string[] {
+    return [
+      ...new Set(
+        this.inputs
+          .filter((input) => input.state === "connected")
+          .map(portName),
+      ),
+    ]
+  }
+
+  // The chosen input, when it is connected.
+  get inputPort(): MIDIInput | null {
+    if (this.inputName === null) {
+      return null
+    }
+    return (
+      this.inputs.find(
+        (input) =>
+          input.state === "connected" && portName(input) === this.inputName,
+      ) ?? null
+    )
   }
 
   get connectedOutputNames(): string[] {

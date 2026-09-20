@@ -80,6 +80,11 @@ export class SequencerPlayer {
     this.router.setAssignment(assignment, this.now())
   }
 
+  // The sequencer moves to this step the next time it advances.
+  queueStep = (step: number) => {
+    this.engine.queueStep(step)
+  }
+
   play = () => {
     if (this.isPlaying) {
       return

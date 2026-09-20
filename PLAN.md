@@ -89,6 +89,8 @@ Random. Each has enable, CC#, min/max and smoothing.
   last voice releases.
 - Input port + channel (or omni) for recording. MIDI clock in and out.
 - No built-in synth: listen through Signal or other instruments.
+- MIDI access is requested when the app starts; browsers that block it show a
+  hint and an Enable MIDI button that asks again from a click.
 
 ---
 
@@ -188,10 +190,10 @@ localStorage autosave for crash recovery; presets stored in the same format.
 |---|---|---|---|
 | 0 | Scaffold | Themed layout runs; check and tests pass | ✅ |
 | 1 | Core engine | Every rule covered by tests; deterministic renders | ✅ |
-| 2 | Player + MIDI out | A fixture patch plays in time on a loopMIDI port | |
-| 3 | Core UI + commands + undo | Every setting editable, heard live, undoable | |
-| 4 | Step editor | Build a sequence by hand; CCs arrive on landing | |
-| 5 | Recording | Record and overdub from a hardware keyboard | |
+| 2 | Player + MIDI out | A fixture patch plays in time on a loopMIDI port | ✅ |
+| 3 | Recording + step grid | Record and overdub from a hardware keyboard | |
+| 4 | Core UI + commands + undo | Every setting editable, heard live, undoable | |
+| 5 | Step editor | Build a sequence by hand; CCs arrive on landing | |
 | 6 | Jumps, actions, step options | All jump and pattern-option rules usable from the UI | |
 | 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | |

@@ -26,6 +26,18 @@ const Popup = styled.div`
   gap: 0.5rem;
 `
 
+const SectionTitle = styled.div`
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 0.25rem;
+
+  &:not(:first-of-type) {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-divider);
+  }
+`
+
 const Row = styled.label`
   display: grid;
   grid-template-columns: 5rem 1fr;
@@ -50,6 +62,7 @@ const Message = styled.div`
 `
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
+const CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
 
 export const OutputRoutingMenu: FC = () => {
   const [open, setOpen] = useState(false)
@@ -62,6 +75,11 @@ export const OutputRoutingMenu: FC = () => {
     outputNames,
     connectedOutputNames,
     setOutputName,
+    inputName,
+    receiveChannel,
+    connectedInputNames,
+    setInputName,
+    setReceiveChannel,
     requestMIDIAccess,
   } = useMIDIDevice()
 
@@ -78,6 +96,21 @@ export const OutputRoutingMenu: FC = () => {
     })),
   ]
 
+  // a remembered port that isn't plugged in stays visible in its list
+  const withMissing = (names: string[], selected: string | null) =>
+    selected !== null && !names.includes(selected)
+      ? [...names, selected]
+      : names
+
+  const portOptions = (names: string[], selected: string | null) =>
+    withMissing(names, selected).map((name) => (
+      <option key={name} value={name}>
+        {names.includes(name)
+          ? name
+          : `${name} (${localized["sequencer-output-disconnected"]})`}
+      </option>
+    ))
+
   const body = () => {
     if (!isSupported) {
       return (
@@ -87,8 +120,8 @@ export const OutputRoutingMenu: FC = () => {
       )
     }
 
-    // The browser only shows its permission prompt in response to a click,
-    // so access is asked for here rather than on page load.
+    // the browser shows its permission prompt at startup; if it refused,
+    // asking again has to come from a click
     if (!hasAccess) {
       const blocked = permission === "denied" || requestError !== null
       return (
@@ -118,41 +151,74 @@ export const OutputRoutingMenu: FC = () => {
 
     return (
       <>
+        <SectionTitle>
+          <Localized name="sequencer-midi-input-section" />
+        </SectionTitle>
+        {connectedInputNames.length === 0 && (
+          <Message>
+            <Localized name="sequencer-midi-no-inputs" />
+          </Message>
+        )}
+        <Row>
+          {localized["sequencer-midi-input"]}
+          <Select
+            value={inputName ?? ""}
+            onChange={(event) =>
+              setInputName(
+                event.target.value === "" ? null : event.target.value,
+              )
+            }
+          >
+            <option value="">{localized["sequencer-output-none"]}</option>
+            {portOptions(connectedInputNames, inputName)}
+          </Select>
+        </Row>
+        <Row>
+          {localized["sequencer-midi-channel"]}
+          <Select
+            value={receiveChannel === "omni" ? "omni" : String(receiveChannel)}
+            onChange={(event) =>
+              setReceiveChannel(
+                event.target.value === "omni"
+                  ? "omni"
+                  : Number(event.target.value),
+              )
+            }
+          >
+            <option value="omni">{localized["sequencer-midi-omni"]}</option>
+            {CHANNELS.map((channel) => (
+              <option key={channel} value={channel}>
+                {channel}
+              </option>
+            ))}
+          </Select>
+        </Row>
+
+        <SectionTitle>
+          <Localized name="sequencer-midi-outputs-section" />
+        </SectionTitle>
         {connectedOutputNames.length === 0 && (
           <Message>
             <Localized name="sequencer-midi-no-outputs" />
           </Message>
         )}
-        {slots.map(({ slot, label, name }) => {
-          // keep a remembered but unplugged port visible in the list
-          const missing = name !== null && !connectedOutputNames.includes(name)
-          return (
-            <Row key={String(slot)}>
-              {label}
-              <Select
-                value={name ?? ""}
-                onChange={(event) =>
-                  setOutputName(
-                    slot,
-                    event.target.value === "" ? null : event.target.value,
-                  )
-                }
-              >
-                <option value="">{localized["sequencer-output-none"]}</option>
-                {connectedOutputNames.map((output) => (
-                  <option key={output} value={output}>
-                    {output}
-                  </option>
-                ))}
-                {missing && (
-                  <option value={name}>
-                    {name} ({localized["sequencer-output-disconnected"]})
-                  </option>
-                )}
-              </Select>
-            </Row>
-          )
-        })}
+        {slots.map(({ slot, label, name }) => (
+          <Row key={String(slot)}>
+            {label}
+            <Select
+              value={name ?? ""}
+              onChange={(event) =>
+                setOutputName(
+                  slot,
+                  event.target.value === "" ? null : event.target.value,
+                )
+              }
+            >
+              <option value="">{localized["sequencer-output-none"]}</option>
+              {portOptions(connectedOutputNames, name)}
+            </Select>
+          </Row>
+        ))}
       </>
     )
   }

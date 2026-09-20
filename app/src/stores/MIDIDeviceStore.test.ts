@@ -78,39 +78,64 @@ describe("MIDIDeviceStore", () => {
     expect(second.outputNames.voices[2]).toBe("Synth")
   })
 
-  it("reconnects on startup only when permission was already granted", async () => {
+  it("asks for access on startup unless the browser already refused", async () => {
     const permission = (state: string) => async () =>
       ({ state, onchange: null }) as unknown as PermissionStatus
-
-    let granted = 0
-    const grantedStore = new MIDIDeviceStore(
-      async () => {
-        granted++
-        return fakeAccess([
-          fakeOutput("a", "midiseq out"),
-        ]) as unknown as MIDIAccess
-      },
-      memoryStorage(),
-      permission("granted"),
-    )
-    await grantedStore.connectIfAllowed()
-    expect(granted).toBe(1)
-    expect(grantedStore.hasAccess).toBe(true)
 
     let prompted = 0
     const promptStore = new MIDIDeviceStore(
       async () => {
         prompted++
-        return fakeAccess([]) as unknown as MIDIAccess
+        return fakeAccess([
+          fakeOutput("a", "midiseq out"),
+        ]) as unknown as MIDIAccess
       },
       memoryStorage(),
       permission("prompt"),
     )
-    await promptStore.connectIfAllowed()
-    // waits for a click so the browser can show its prompt
-    expect(prompted).toBe(0)
-    expect(promptStore.hasAccess).toBe(false)
-    expect(promptStore.permission).toBe("prompt")
+    await promptStore.connectOnStart()
+    expect(prompted).toBe(1)
+    expect(promptStore.hasAccess).toBe(true)
+
+    let denied = 0
+    const deniedStore = new MIDIDeviceStore(
+      async () => {
+        denied++
+        return fakeAccess([]) as unknown as MIDIAccess
+      },
+      memoryStorage(),
+      permission("denied"),
+    )
+    await deniedStore.connectOnStart()
+    // asking again would do nothing; the menu offers a button instead
+    expect(denied).toBe(0)
+    expect(deniedStore.permission).toBe("denied")
+  })
+
+  it("resolves and remembers the input port and channel", async () => {
+    const keyboard = { id: "k", name: "Keystation", state: "connected" }
+    const access = {
+      outputs: new Map(),
+      inputs: new Map([["k", keyboard]]),
+      onstatechange: null as (() => void) | null,
+    }
+    const storage = memoryStorage()
+    const store = new MIDIDeviceStore(
+      async () => access as unknown as MIDIAccess,
+      storage,
+    )
+    await store.requestMIDIAccess()
+
+    expect(store.connectedInputNames).toEqual(["Keystation"])
+    expect(store.inputPort).toBeNull()
+
+    store.setInputName("Keystation")
+    store.setReceiveChannel(3)
+    expect(store.inputPort).toBe(keyboard)
+
+    const reopened = new MIDIDeviceStore(null, storage)
+    expect(reopened.inputName).toBe("Keystation")
+    expect(reopened.receiveChannel).toBe(3)
   })
 
   it("reports when Web MIDI is missing or refused", async () => {

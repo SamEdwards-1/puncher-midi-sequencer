@@ -19,6 +19,8 @@ describe("App", () => {
     for (const action of ["Hang", "Bump", "Flip", "Shift"]) {
       expect(screen.getByRole("button", { name: action })).toBeInTheDocument()
     }
+    // the large grid draws 64 steps
+    expect(screen.getByRole("button", { name: "Step 64" })).toBeInTheDocument()
   })
 
   it("shows the patch name from the sequencer store", () => {
@@ -45,7 +47,26 @@ describe("App", () => {
     expect(rootStore.player.isPlaying).toBe(false)
   })
 
-  it("asks for MIDI access on a click, not on load", async () => {
+  it("records what is played on the chosen step", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Record" }))
+    fireEvent.click(screen.getByRole("button", { name: "Step 3" }))
+
+    act(() => {
+      rootStore.midiInput.handleMessage([0x90, 60, 100])
+      rootStore.midiInput.handleMessage([0x90, 64, 100])
+      rootStore.midiInput.handleMessage([0x80, 60, 0])
+      rootStore.midiInput.handleMessage([0x80, 64, 0])
+    })
+
+    expect(rootStore.sequencerStore.patch.steps[2].notes).toEqual([60, 64])
+    // recording moves on to the next step
+    expect(rootStore.recorder.target).toBe(3)
+  })
+
+  it("asks for MIDI access when the app starts, and again on request", async () => {
     let attempts = 0
     const rootStore = new RootStore({
       ticker: new ManualTicker(),
@@ -57,19 +78,10 @@ describe("App", () => {
     await act(async () => {
       rootStore.init()
     })
-    // nothing is requested while the page loads
-    expect(attempts).toBe(0)
+    expect(attempts).toBe(1)
 
     render(<App rootStore={rootStore} />)
-    fireEvent.click(screen.getByRole("button", { name: "MIDI Outputs" }))
-    expect(
-      screen.getByText(/midiseq needs your permission/),
-    ).toBeInTheDocument()
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Enable MIDI" }))
-    })
-    expect(attempts).toBe(1)
+    fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(screen.getByText(/Permission denied/)).toBeInTheDocument()
 
     await act(async () => {
@@ -80,7 +92,7 @@ describe("App", () => {
 
   it("explains when Web MIDI is unavailable", () => {
     render(<App rootStore={createStore()} />)
-    fireEvent.click(screen.getByRole("button", { name: "MIDI Outputs" }))
+    fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(
       screen.getByText(/This browser doesn't support Web MIDI/),
     ).toBeInTheDocument()
