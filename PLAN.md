@@ -204,6 +204,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
 | 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | ✅ |
 | 11 | Tailwind | Every component styled with utilities; Emotion gone | |
+| 12 | Custom themes | A theme can be authored, saved, exported and re-imported | |
 
 ---
 
@@ -283,6 +284,48 @@ last.
 both themes, and the tests still pass — none of them assert on styles or class
 names, so they should go through untouched.
 
+## 5.3 Custom themes (milestone 12)
+
+Two themes ship today, hard-coded as TS objects. Milestone 11 leaves every
+colour as a CSS variable, which is most of what a theme editor needs: writing
+a new value onto the root recolours the app live, with no rebuild and no
+reload. This follows it for that reason.
+
+**Seeds, not 28 colour pickers.** `Theme` has 28 fields, and asking anyone to
+fill them all in is a way of making sure nobody does. A theme is authored from
+a few seeds — background, text, accent, and whether content sits light on dark
+— and the rest is derived, because the shipped themes are already derivations:
+the dark theme's three greys are one hue at 13%, 16% and 22% lightness. Derive
+in OKLCH rather than HSL, so a step in lightness looks like the same step at
+every hue; Tailwind v4 works in OKLCH already. Any derived token stays
+overridable on its own, for whoever does want all 28.
+
+**Jump colours are the exception** — eight hues that have to stay clear of each
+other, of the accent and of the record red. Generate them by rotating hue at
+even spacing with those two excluded, and let the set be edited by hand.
+
+**Warn, don't block.** A theme can be made unreadable. The editor reports the
+contrast of text on background, and of the accent's content colour on the
+accent, and says when a pair falls under the readable threshold — a warning,
+not a veto, since a deliberately dim theme is the author's business.
+
+**Stored with the settings, never in the patch.** A theme belongs to the
+person, not to a piece of music, so it lives under `midiseq.theme` in local
+storage beside `themeType` and never enters `.midiseq.json`: opening someone
+else's sequence must not repaint your app. Themes take the versioned envelope
+§4.3 already defines, so one can be exported and imported as
+`*.midiseqtheme.json`, validated with zod and migrated by version. The stored
+setting today is `{ themeType }`, so reading an older one has to keep working.
+
+**In the Signal tab**, the sequencer follows Signal's theme by default. A
+custom theme applies by writing its variables onto the sequencer's own root
+element rather than the document's, so it recolours the tab and leaves the
+rest of Signal alone.
+
+**Done when:** a theme can be made from a handful of colours, is seen live
+while being edited, survives a reload, exports and re-imports, and the
+built-in dark and light are still there untouched as the starting points.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -296,3 +339,4 @@ names, so they should go through untouched.
 | Ableton Link | Not possible in a browser |
 | Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |
 | Styling | Tailwind, though Signal uses Emotion. Utilities over the theme's CSS variables, with Preflight left out so the Signal tab stays safe (§5.2) |
+| Themes | Custom themes are authored from a few seeds and derived in OKLCH. They live with the settings, never in the patch file (§5.3) |
