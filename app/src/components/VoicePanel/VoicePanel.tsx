@@ -62,13 +62,23 @@ const Dots = styled.div`
   padding: 0 1rem 1rem;
 `
 
+/**
+ * A dot shows its own step options: a ratchet count sits inside it, an accent
+ * makes it bigger or smaller, a probability below 100% hollows it out, a hold
+ * or tie draws a tail towards the next dot, and a condition marks the corner.
+ */
 const Dot = styled.button`
   position: relative;
   aspect-ratio: 1;
-  border: none;
+  border: 2px solid transparent;
   border-radius: 50%;
   background: var(--color-step);
+  color: var(--color-on-surface);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  line-height: 1;
   cursor: pointer;
+  transition: transform 0.1s ease;
 
   &[data-on="true"] {
     background: var(--color-theme);
@@ -78,18 +88,52 @@ const Dot = styled.button`
     opacity: 0.25;
   }
 
+  /* played only sometimes: hollow, so it reads as less certain */
+  &[data-chance="true"][data-on="true"] {
+    background: transparent;
+    border-color: var(--color-theme);
+    color: var(--color-text);
+  }
+
+  &[data-accent="+"] {
+    transform: scale(1.15);
+  }
+
+  &[data-accent="-"] {
+    transform: scale(0.8);
+  }
+
+  /* a tail towards the next dot: solid for a hold, hollow for a tie */
+  &[data-articulation="hold"]::before,
+  &[data-articulation="tie"]::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -0.35rem;
+    width: 0.35rem;
+    height: 0.16rem;
+    transform: translateY(-50%);
+    background: var(--color-theme);
+  }
+
+  &[data-articulation="tie"]::before {
+    height: 0.16rem;
+    background: transparent;
+    border-top: 2px solid var(--color-theme);
+  }
+
   /* the dot whose options are open */
   &[data-editing="true"] {
     outline: 2px solid var(--color-text);
     outline-offset: 2px;
   }
 
-  /* a dot carrying step options is marked, since they are easy to forget */
-  &[data-options="true"]::after {
+  /* a condition is otherwise invisible, so it marks the corner */
+  &[data-condition="true"]::after {
     content: "";
     position: absolute;
-    right: 0;
-    top: 0;
+    right: -0.1rem;
+    top: -0.1rem;
     width: 0.3rem;
     height: 0.3rem;
     border-radius: 50%;
@@ -120,13 +164,26 @@ const RULES: { value: VoiceRule; label: string }[] = [
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
-// A dot with anything but its defaults carries a mark in the pattern.
-const hasOptions = (dot: PatternStepJSON) =>
-  dot.articulation !== "none" ||
-  dot.accent !== "none" ||
-  dot.ratchet !== 1 ||
-  dot.probability !== 100 ||
-  dot.condition !== "always"
+// Spells the options out on hover, since the marks are necessarily terse.
+const describe = (
+  dot: PatternStepJSON,
+  localized: Record<string, string>,
+): string => {
+  const parts = [
+    dot.articulation === "none"
+      ? null
+      : localized[`sequencer-dot-articulation-${dot.articulation}`],
+    dot.accent === "none"
+      ? null
+      : `${localized["sequencer-dot-accent"]} ${dot.accent}`,
+    dot.ratchet > 1
+      ? `${localized["sequencer-dot-ratchet"]} ${dot.ratchet}x`
+      : null,
+    dot.probability < 100 ? `${dot.probability}%` : null,
+    dot.condition === "always" ? null : dot.condition,
+  ].filter((part) => part !== null)
+  return parts.join(" · ")
+}
 
 export const VoicePanel: FC = () => {
   const patch = usePatch()
@@ -275,8 +332,12 @@ export const VoicePanel: FC = () => {
             aria-label={`${localized["sequencer-voice-dot"]} ${index + 1}`}
             data-on={dot.on}
             data-beyond={index >= voice.patternLength}
-            data-options={hasOptions(dot)}
             data-editing={options?.dotIndex === index}
+            data-articulation={dot.articulation}
+            data-accent={dot.accent}
+            data-chance={dot.probability < 100}
+            data-condition={dot.condition !== "always"}
+            title={describe(dot, localized)}
             onClick={() => togglePatternDot(selected, index)}
             onContextMenu={(event) => {
               event.preventDefault()
@@ -285,7 +346,9 @@ export const VoicePanel: FC = () => {
                 at: { x: event.clientX, y: event.clientY },
               })
             }}
-          />
+          >
+            {dot.ratchet > 1 ? dot.ratchet : ""}
+          </Dot>
         ))}
       </Dots>
       <Hint>

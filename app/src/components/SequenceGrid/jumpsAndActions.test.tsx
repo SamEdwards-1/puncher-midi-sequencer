@@ -246,6 +246,40 @@ describe("step options", () => {
     expect(screen.queryByRole("dialog", { name: "Dot 2" })).toBeNull()
   })
 
+  it("shows a dot's options on the dot itself", () => {
+    setup()
+    const dot = () => screen.getByRole("button", { name: "Dot 2" })
+    expect(dot()).toHaveAttribute("data-articulation", "none")
+    expect(dot()).toHaveAttribute("data-chance", "false")
+    expect(dot().textContent).toBe("")
+
+    fireEvent.contextMenu(dot())
+    const options = () => within(screen.getByRole("dialog", { name: "Dot 2" }))
+    fireEvent.change(options().getByLabelText("Ratchet"), {
+      target: { value: "3" },
+    })
+    fireEvent.change(options().getByLabelText("Articulation"), {
+      target: { value: "hold" },
+    })
+    fireEvent.change(options().getByLabelText("Accent"), {
+      target: { value: "+" },
+    })
+    fireEvent.change(options().getByLabelText("Probability"), {
+      target: { value: "50" },
+    })
+    fireEvent.change(options().getByLabelText("Condition"), {
+      target: { value: "2:2" },
+    })
+
+    // the ratchet count sits inside the dot, the rest show as marks
+    expect(dot().textContent).toBe("3")
+    expect(dot()).toHaveAttribute("data-articulation", "hold")
+    expect(dot()).toHaveAttribute("data-accent", "+")
+    expect(dot()).toHaveAttribute("data-chance", "true")
+    expect(dot()).toHaveAttribute("data-condition", "true")
+    expect(dot().title).toBe("Hold · Accent + · Ratchet 3x · 50% · 2:2")
+  })
+
   it("marks the dot being edited", () => {
     setup()
     const dot = screen.getByRole("button", { name: "Dot 5" })
