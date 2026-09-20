@@ -21,6 +21,8 @@ export class MIDIRecorder {
     private readonly sequencerStore: SequencerStore,
     input: MIDIInput,
     private readonly receiveChannel: () => ReceiveChannel,
+    // called once when a take starts, so the take is one undo entry
+    private readonly beforeTake: () => void = () => {},
   ) {
     makeObservable(this, {
       isRecording: observable,
@@ -33,8 +35,10 @@ export class MIDIRecorder {
     if (recording === this.isRecording) {
       return
     }
-    // finish anything still held when recording stops
-    if (!recording) {
+    if (recording) {
+      this.beforeTake()
+    } else {
+      // finish anything still held when recording stops
       this.commit()
     }
     this.held.clear()

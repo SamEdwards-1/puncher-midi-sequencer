@@ -1,11 +1,13 @@
 import styled from "@emotion/styled"
 import { FC } from "react"
-import { useMobxSelector } from "../../hooks/useMobxSelector"
+import { usePatchEditor } from "../../actions/patch"
+import { useHistory } from "../../hooks/useHistory"
+import { usePatch } from "../../hooks/usePatch"
 import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
-import { useStores } from "../../hooks/useStores"
-import { Localized } from "../../localize/useLocalization"
+import { Localized, useLocalization } from "../../localize/useLocalization"
 import { ToolbarButton } from "../ui/Button"
+import { Stepper } from "../ui/Stepper"
 
 const Controls = styled.div`
   display: flex;
@@ -20,6 +22,10 @@ const RecordButton = styled(ToolbarButton)`
   }
 `
 
+const Tempo = styled.div`
+  width: 8rem;
+`
+
 const Readout = styled.div`
   display: flex;
   align-items: center;
@@ -32,14 +38,19 @@ const Readout = styled.div`
 export const TransportControls: FC = () => {
   const { isPlaying, position, play, stop, panic } = usePlayer()
   const { isRecording, target, toggleRecording } = useRecorder()
-  const { sequencerStore } = useStores()
-  const tempo = useMobxSelector(
-    () => sequencerStore.patch.tempo,
-    [sequencerStore],
-  )
+  const { canUndo, canRedo, undo, redo } = useHistory()
+  const { editSequencer } = usePatchEditor()
+  const localized = useLocalization()
+  const patch = usePatch()
 
   return (
     <Controls>
+      <ToolbarButton type="button" disabled={!canUndo} onClick={undo}>
+        <Localized name="sequencer-undo" />
+      </ToolbarButton>
+      <ToolbarButton type="button" disabled={!canRedo} onClick={redo}>
+        <Localized name="sequencer-redo" />
+      </ToolbarButton>
       <ToolbarButton
         type="button"
         data-active={isPlaying}
@@ -61,9 +72,16 @@ export const TransportControls: FC = () => {
       <ToolbarButton type="button" onClick={panic}>
         <Localized name="sequencer-panic" />
       </ToolbarButton>
-      <Readout>
-        {tempo} <Localized name="sequencer-bpm" />
-      </Readout>
+      <Tempo>
+        <Stepper
+          label={localized["sequencer-tempo"]}
+          value={patch.tempo}
+          min={20}
+          max={400}
+          format={(value) => `${value} ${localized["sequencer-bpm"]}`}
+          onChange={(tempo) => editSequencer({ tempo }, "tempo")}
+        />
+      </Tempo>
       <Readout>
         <Localized name="sequencer-step" />{" "}
         {isRecording ? target + 1 : position === null ? "–" : position + 1}

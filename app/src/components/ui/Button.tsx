@@ -42,6 +42,12 @@ export const ToolbarButton = styled.button`
   white-space: nowrap;
   cursor: pointer;
 
+  &:disabled {
+    color: var(--color-text-tertiary);
+    background: transparent;
+    cursor: default;
+  }
+
   &:hover {
     background: var(--color-highlight);
   }

@@ -1,5 +1,6 @@
 import styled from "@emotion/styled"
 import { FC } from "react"
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { SequencerEditor } from "../SequencerEditor/SequencerEditor"
 import { SequencerProvider } from "../SequencerEditor/SequencerProvider"
 
@@ -11,10 +12,14 @@ const Container = styled.div`
 `
 
 // Standalone shell. Inside Signal, the provider + editor pair becomes a route.
-export const RootView: FC = () => (
-  <Container>
-    <SequencerProvider>
-      <SequencerEditor />
-    </SequencerProvider>
-  </Container>
-)
+export const RootView: FC = () => {
+  useKeyboardShortcuts()
+
+  return (
+    <Container>
+      <SequencerProvider>
+        <SequencerEditor />
+      </SequencerProvider>
+    </Container>
+  )
+}
