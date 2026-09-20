@@ -57,7 +57,7 @@ export default {
     "sequencer-step-cc-voice": "Voice ch",
     "sequencer-step-cc-output": "CC output",
     "sequencer-action-latch": "Latch",
-    "sequencer-preview": "Preview",
+    "sequencer-preview": "Audition step",
     "sequencer-mark": "Mark",
     "sequencer-jump-source": "Source",
     "sequencer-jump-rule": "Rule",

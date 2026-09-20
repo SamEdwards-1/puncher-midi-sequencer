@@ -109,7 +109,7 @@ describe("preview on click", () => {
   // preview is remembered between visits, so it is set explicitly
   const setPreview = (on: boolean) => {
     const toggle = screen.getByRole("switch", {
-      name: "Preview",
+      name: "Audition step",
     }) as HTMLInputElement
     if (toggle.checked !== on) {
       fireEvent.click(toggle)
