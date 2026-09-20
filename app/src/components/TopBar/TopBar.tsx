@@ -8,9 +8,11 @@ import { TransportControls } from "../TransportPanel/TransportControls"
 
 const Bar = styled.header`
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 0.5rem;
   height: 3rem;
   flex-shrink: 0;
+  padding-right: 1rem;
   box-sizing: border-box;
   background: var(--color-background-dark);
   border-bottom: 1px solid var(--color-divider);
@@ -20,7 +22,7 @@ const Title = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0 1rem;
+  padding-left: 1rem;
 `
 
 const AppName = styled.div`

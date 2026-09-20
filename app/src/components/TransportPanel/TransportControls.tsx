@@ -9,20 +9,21 @@ import { ToolbarButton } from "../ui/Button"
 
 const Controls = styled.div`
   display: flex;
-  align-self: stretch;
+  align-items: center;
+  gap: 0.5rem;
 `
 
 const RecordButton = styled(ToolbarButton)`
   &[data-active="true"] {
-    color: var(--color-record);
-    border-top-color: var(--color-record);
+    background: var(--color-record);
+    color: var(--color-on-surface);
   }
 `
 
 const Readout = styled.div`
   display: flex;
   align-items: center;
-  padding: 0 0.75rem;
+  padding: 0 0.25rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--color-text-secondary);

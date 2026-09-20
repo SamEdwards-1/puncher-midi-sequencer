@@ -9,7 +9,7 @@ import { Button, ToolbarButton } from "../ui/Button"
 const Wrapper = styled.div`
   position: relative;
   display: flex;
-  align-items: stretch;
+  align-items: center;
 `
 
 const Popup = styled.div`
