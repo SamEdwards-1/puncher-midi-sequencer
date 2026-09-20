@@ -5,6 +5,7 @@ import {
   NoteOffEvent,
   PatchJSON,
   StepIndex,
+  VoiceIndex,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
@@ -20,6 +21,8 @@ export interface SequencerPlayerOptions {
 
 const TICK_MS = 25
 const LOOKAHEAD_MS = 100
+// how long a step sounds when clicked in the grid
+const PREVIEW_MS = 400
 // gives the first events time to be scheduled before they are due
 const START_DELAY_MS = 50
 
@@ -83,6 +86,51 @@ export class SequencerPlayer {
   // The sequencer moves to this step the next time it advances.
   queueStep = (step: number) => {
     this.engine.queueStep(step)
+  }
+
+  /**
+   * Sounds a step's notes so it can be heard while editing, then releases
+   * them. The note-offs are timestamped rather than timed by a timer, so the
+   * browser releases them even if the tab is busy.
+   */
+  previewStep = (step: number, durationMs = PREVIEW_MS) => {
+    const patch = this.patch
+    const notes = patch.steps[step]?.notes.slice(0, patch.maxNotesPerStep)
+    if (notes === undefined || notes.length === 0) {
+      return
+    }
+    const voiceIndex = Math.max(
+      0,
+      patch.voices.findIndex((voice) => voice.enabled),
+    ) as VoiceIndex
+    const voice = patch.voices[voiceIndex]
+    const now = this.now()
+    const until = now + durationMs
+
+    for (const note of notes) {
+      this.router.route(
+        {
+          type: "noteOn",
+          beat: 0,
+          voice: voiceIndex,
+          note,
+          velocity: voice.velocity,
+          channel: voice.channel,
+        },
+        now,
+      )
+      this.router.route(
+        {
+          type: "noteOff",
+          beat: 0,
+          voice: voiceIndex,
+          note,
+          channel: voice.channel,
+        },
+        until,
+      )
+    }
+    this.lastScheduledTime = Math.max(this.lastScheduledTime, until)
   }
 
   play = () => {

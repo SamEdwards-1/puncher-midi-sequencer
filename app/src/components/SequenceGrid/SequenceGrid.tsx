@@ -92,7 +92,9 @@ export const SequenceGrid: FC = () => {
   const isRecording = useMobxGetter(recorder, "isRecording")
 
   const onStepClick = (index: number) => {
-    // while playing, a click queues the step; otherwise it moves the record
+    // a click always sounds the step, so it can be heard while editing
+    player.previewStep(index)
+    // while playing, it also queues the step; otherwise it moves the record
     // target
     if (!isRecording && player.isPlaying) {
       player.queueStep(index)

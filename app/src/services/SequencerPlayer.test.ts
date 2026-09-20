@@ -134,4 +134,53 @@ describe("SequencerPlayer", () => {
     expect(all.ofType(0xb0)).toHaveLength(32)
     expect(player.isPlaying).toBe(false)
   })
+
+  describe("previewStep", () => {
+    it("sounds a step's notes and releases them", () => {
+      const patch = makePatch()
+      patch.steps[0].notes = [60, 64]
+      patch.voices[0] = { ...patch.voices[0], velocity: 90, channel: 4 }
+      player.setPatch(patch)
+
+      player.previewStep(0, 400)
+
+      expect(all.ofType(0x90)).toEqual([
+        { data: [0x93, 60, 90], time: 1000 },
+        { data: [0x93, 64, 90], time: 1000 },
+      ])
+      // released by timestamp, so no timer is needed
+      expect(all.ofType(0x80)).toEqual([
+        { data: [0x83, 60, 0], time: 1400 },
+        { data: [0x83, 64, 0], time: 1400 },
+      ])
+    })
+
+    it("stays quiet on an empty step", () => {
+      player.previewStep(20)
+      expect(all.sent).toHaveLength(0)
+    })
+
+    it("uses the first enabled voice", () => {
+      const patch = makePatch()
+      patch.steps[0].notes = [60]
+      patch.voices[0] = { ...patch.voices[0], enabled: false }
+      patch.voices[2] = { ...patch.voices[2], enabled: true, channel: 7 }
+      player.setPatch(patch)
+
+      player.previewStep(0)
+      expect(all.ofType(0x90)[0].data[0]).toBe(0x96)
+    })
+
+    it("keeps to the step's note limit", () => {
+      const patch = makePatch()
+      patch.steps[0].notes = [48, 55, 60, 64]
+      patch.maxNotesPerStep = 2
+      player.setPatch(patch)
+
+      player.previewStep(0)
+      expect(all.ofType(0x90).map((message) => message.data[1])).toEqual([
+        48, 55,
+      ])
+    })
+  })
 })
