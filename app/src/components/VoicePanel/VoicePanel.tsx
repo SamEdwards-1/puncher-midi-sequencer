@@ -3,11 +3,12 @@ import {
   MAX_PATTERN_LENGTH,
   PACE_LABELS,
   PaceId,
+  PatternStepJSON,
   VOICE_PACES,
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
-import { FC } from "react"
+import { FC, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
@@ -18,6 +19,7 @@ import { Select } from "../ui/Select"
 import { Slider } from "../ui/Slider"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
+import { StepOptions } from "./StepOptions"
 
 const RightPanel = styled(Panel)`
   border-left: 1px solid var(--color-divider);
@@ -61,6 +63,7 @@ const Dots = styled.div`
 `
 
 const Dot = styled.button`
+  position: relative;
   aspect-ratio: 1;
   border: none;
   border-radius: 50%;
@@ -74,6 +77,24 @@ const Dot = styled.button`
   &[data-beyond="true"] {
     opacity: 0.25;
   }
+
+  /* a dot carrying step options is marked, since they are easy to forget */
+  &[data-options="true"]::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 0.3rem;
+    height: 0.3rem;
+    border-radius: 50%;
+    background: var(--color-yellow);
+  }
+`
+
+const Hint = styled.div`
+  padding: 0 1rem 1rem;
+  font-size: 0.7rem;
+  color: var(--color-text-tertiary);
 `
 
 const RULES: { value: VoiceRule; label: string }[] = [
@@ -93,11 +114,23 @@ const RULES: { value: VoiceRule; label: string }[] = [
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
+// A dot with anything but its defaults carries a mark in the pattern.
+const hasOptions = (dot: PatternStepJSON) =>
+  dot.articulation !== "none" ||
+  dot.accent !== "none" ||
+  dot.ratchet !== 1 ||
+  dot.probability !== 100 ||
+  dot.condition !== "always"
+
 export const VoicePanel: FC = () => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
   const { editVoice, togglePatternDot } = usePatchEditor()
   const localized = useLocalization()
+  const [options, setOptions] = useState<{
+    dotIndex: number
+    at: { x: number; y: number }
+  } | null>(null)
   const voice = patch.voices[selected]
 
   return (
@@ -236,10 +269,31 @@ export const VoicePanel: FC = () => {
             aria-label={`${localized["sequencer-voice-dot"]} ${index + 1}`}
             data-on={dot.on}
             data-beyond={index >= voice.patternLength}
+            data-options={hasOptions(dot)}
             onClick={() => togglePatternDot(selected, index)}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              setOptions({
+                dotIndex: index,
+                at: { x: event.clientX, y: event.clientY },
+              })
+            }}
           />
         ))}
       </Dots>
+      <Hint>
+        <Localized name="sequencer-dot-hint" />
+      </Hint>
+
+      {options !== null && (
+        <StepOptions
+          voiceIndex={selected}
+          dotIndex={options.dotIndex}
+          dot={voice.pattern[options.dotIndex]}
+          at={options.at}
+          onClose={() => setOptions(null)}
+        />
+      )}
     </RightPanel>
   )
 }

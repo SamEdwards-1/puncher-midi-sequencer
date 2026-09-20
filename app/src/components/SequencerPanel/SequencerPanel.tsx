@@ -11,15 +11,30 @@ import {
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
+import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Field, Fields } from "../ui/Field"
-import { Panel, PanelBody, PanelHeader } from "../ui/Panel"
+import { Button } from "../ui/Button"
+import { ButtonField, Field, Fields } from "../ui/Field"
+import { Panel, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
+import { JumpPatcher } from "./JumpPatcher"
 
 const LeftPanel = styled(Panel)`
   border-right: 1px solid var(--color-divider);
+`
+
+const Marks = styled.div`
+  display: flex;
+  gap: 0.4rem;
+`
+
+// Turns grid clicks into marking rests or skips until switched off again.
+const MarkButton = styled(Button)`
+  height: 1.9rem;
+  padding: 0 0.6rem;
+  font-size: 0.75rem;
 `
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
@@ -40,6 +55,7 @@ const LOOP_MODES: { value: LoopMode; label: string }[] = [
 export const SequencerPanel: FC = () => {
   const patch = usePatch()
   const { editSequencer } = usePatchEditor()
+  const [mode, setMode] = useGridMode()
   const localized = useLocalization()
 
   return (
@@ -153,12 +169,28 @@ export const SequencerPanel: FC = () => {
             }
           />
         </Field>
+
+        <ButtonField label={localized["sequencer-mark"]}>
+          <Marks>
+            <MarkButton
+              type="button"
+              data-active={mode === "rest"}
+              onClick={() => setMode(mode === "rest" ? null : "rest")}
+            >
+              <Localized name="sequencer-step-state-rest" />
+            </MarkButton>
+            <MarkButton
+              type="button"
+              data-active={mode === "skip"}
+              onClick={() => setMode(mode === "skip" ? null : "skip")}
+            >
+              <Localized name="sequencer-step-state-skip" />
+            </MarkButton>
+          </Marks>
+        </ButtonField>
       </Fields>
 
-      <PanelHeader>
-        <Localized name="sequencer-jumps" />
-      </PanelHeader>
-      <PanelBody />
+      <JumpPatcher />
     </LeftPanel>
   )
 }
