@@ -88,6 +88,9 @@ Random. Each has enable, CC#, min/max and smoothing.
   notes, a note-off before a retrigger, and the final note-off only when the
   last voice releases.
 - Input port + channel (or omni) for recording. MIDI clock in and out.
+- **Ableton Link** through a small local bridge (§3.5), so midiseq shares a
+  tempo and beat grid with Live, Signal and other Link apps on the machine or
+  LAN. Without the bridge running, everything else still works.
 - No built-in synth: listen through Signal or other instruments.
 - MIDI access is requested when the app starts; browsers that block it show a
   hint and an Enable MIDI button that asks again from a click.
@@ -103,8 +106,8 @@ Random. Each has enable, CC#, min/max and smoothing.
 | Lint / format | Biome with Signal's settings |
 | Domain state | MobX stores on a `RootStore`, bridged with `useMobxSelector` / `useMobxGetter` |
 | UI state | jotai atoms behind `useXxx()` hooks; settings via `atomWithStorage` (`midiseq.` keys) |
-| Mutations & undo | Action hooks call `pushHistory()` then a command; snapshot history in jotai |
-| Styling | Emotion + a `Theme` exposed as CSS variables; Radix primitives; `mdi-react` icons |
+| Mutations & undo | Action hooks record the patch for undo, then replace it with a command's result; history is a MobX store, since the patch itself is MobX. Patches are immutable, so a snapshot is just a reference |
+| Styling | Emotion + a `Theme` exposed as CSS variables. Controls are plain elements (select, range, checkbox) rather than Radix, which the current needs don't justify |
 | i18n | `use-l10n`, keys prefixed `sequencer-` |
 | MIDI | Web MIDI store with hot-plug and name-based port memory; `SynthOutput`-style outputs |
 
@@ -192,7 +195,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 1 | Core engine | Every rule covered by tests; deterministic renders | ✅ |
 | 2 | Player + MIDI out | A fixture patch plays in time on a loopMIDI port | ✅ |
 | 3 | Recording + step grid | Record and overdub from a hardware keyboard | |
-| 4 | Core UI + commands + undo | Every setting editable, heard live, undoable | |
+| 4 | Core UI + commands + undo | Every setting editable, heard live, undoable | ✅ |
 | 5 | Step editor | Build a sequence by hand; CCs arrive on landing | |
 | 6 | Jumps, actions, step options | All jump and pattern-option rules usable from the UI | |
 | 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
