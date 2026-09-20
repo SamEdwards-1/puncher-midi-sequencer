@@ -39,6 +39,7 @@ export default {
     "sequencer-voice-offset": "Offset",
     "sequencer-voice-velocity": "Velocity",
     "sequencer-voice-channel": "Channel",
+    "sequencer-voice-instrument": "Instrument",
     "sequencer-voice-pattern-length": "Pattern",
     "sequencer-voice-dot": "Dot",
     "sequencer-tempo": "Tempo",
@@ -111,6 +112,8 @@ export default {
     "sequencer-midi-enable": "Enable MIDI",
     "sequencer-midi-enable-hint":
       "midiseq needs your permission to use MIDI devices.",
+    "sequencer-synth-loading": "Starting the built-in sound…",
+    "sequencer-synth-error": "The built-in sound didn't start:",
     "sequencer-midi-no-outputs":
       "No MIDI outputs found. On Windows, create a port in loopMIDI.",
   },

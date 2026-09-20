@@ -1,5 +1,6 @@
 import styled from "@emotion/styled"
 import {
+  GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
   PACE_LABELS,
   PaceId,
@@ -308,6 +309,21 @@ export const VoicePanel: FC = () => {
               editVoice(selected, { channel }, `channel-${selected}`)
             }
           />
+        </Field>
+
+        <Field label={localized["sequencer-voice-instrument"]}>
+          <Select
+            value={String(voice.program)}
+            onChange={(event) =>
+              editVoice(selected, { program: Number(event.target.value) })
+            }
+          >
+            {GM_PROGRAMS.map((name, program) => (
+              <option key={name} value={program}>
+                {name}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <Field label={localized["sequencer-voice-pattern-length"]}>

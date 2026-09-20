@@ -202,7 +202,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
-| 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | |
+| 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | ✅ |
 
 ---
 

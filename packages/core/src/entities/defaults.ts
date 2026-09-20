@@ -42,6 +42,7 @@ export const createDefaultVoice = (index: number): VoiceJSON => ({
   pattern: Array.from({ length: 16 }, createDefaultPatternStep),
   velocity: 64,
   channel: index + 1,
+  program: 0,
 })
 
 const MOD_SOURCES: ModSource[] = [
