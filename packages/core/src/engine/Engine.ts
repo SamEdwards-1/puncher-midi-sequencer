@@ -391,7 +391,11 @@ export class Engine {
 
     const patternStep = voice.pattern[patternIndex]
     const step = this.currentStep()
-    const notes = step.notes.slice(0, this.patch.maxNotesPerStep)
+    // a step keeps its notes in the order they were entered; the rules read
+    // them lowest first
+    const notes = [...step.notes]
+      .sort((a, b) => a - b)
+      .slice(0, this.patch.maxNotesPerStep)
     if (!patternStep.on || step.state === "rest" || notes.length === 0) {
       return
     }

@@ -68,9 +68,11 @@ export const setStep = (
 })
 
 /**
- * Notes are stored sorted and unique. Storage is capped at 16; the patch's
- * own Max Notes per Step only decides how many the engine reads, so lowering
- * it never destroys notes.
+ * Notes keep the order they were put in, so editing one never shuffles the
+ * rows under the pointer; the engine sorts them when it reads a step. They
+ * are unique, clamped to the MIDI range, and capped at 16. The patch's own
+ * Max Notes per Step only decides how many the engine reads, so lowering it
+ * never destroys notes.
  */
 export const setStepNotes = (
   patch: PatchJSON,
@@ -78,9 +80,7 @@ export const setStepNotes = (
   notes: number[],
 ): PatchJSON =>
   setStep(patch, index, {
-    notes: [...new Set(notes.map(clampNote))]
-      .sort((a, b) => a - b)
-      .slice(0, MAX_NOTES_PER_STEP),
+    notes: [...new Set(notes.map(clampNote))].slice(0, MAX_NOTES_PER_STEP),
   })
 
 export const addStepNote = (
@@ -89,19 +89,31 @@ export const addStepNote = (
   note: number,
 ): PatchJSON => setStepNotes(patch, index, [...patch.steps[index].notes, note])
 
+// Moving a note onto a pitch the step already holds would merge the two, so
+// the edit is refused instead.
 export const setStepNote = (
   patch: PatchJSON,
   index: StepIndex,
   position: number,
   note: number,
-): PatchJSON =>
-  setStepNotes(
+): PatchJSON => {
+  const notes = patch.steps[index].notes
+  const clamped = clampNote(note)
+  if (
+    notes.some(
+      (existing, current) => current !== position && existing === clamped,
+    )
+  ) {
+    return patch
+  }
+  return setStepNotes(
     patch,
     index,
-    patch.steps[index].notes.map((existing, current) =>
-      current === position ? note : existing,
+    notes.map((existing, current) =>
+      current === position ? clamped : existing,
     ),
   )
+}
 
 export const removeStepNote = (
   patch: PatchJSON,
@@ -206,11 +218,22 @@ export const setModOut = (
 })
 
 // Drops notes above the limit for good, so lowering it can be made permanent.
+// It keeps the lowest ones, which are the notes the engine was playing.
 export const trimStepsToLimit = (patch: PatchJSON): PatchJSON => ({
   ...patch,
   steps: patch.steps.map((step) =>
     step.notes.length > patch.maxNotesPerStep
-      ? { ...step, notes: step.notes.slice(0, patch.maxNotesPerStep) }
+      ? {
+          ...step,
+          notes: step.notes
+            .filter((note) =>
+              [...step.notes]
+                .sort((a, b) => a - b)
+                .slice(0, patch.maxNotesPerStep)
+                .includes(note),
+            )
+            .slice(0, patch.maxNotesPerStep),
+        }
       : step,
   ),
 })

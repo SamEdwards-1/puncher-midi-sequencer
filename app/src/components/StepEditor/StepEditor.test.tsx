@@ -45,6 +45,20 @@ describe("step editor", () => {
     expect(patch().steps[0].notes).toEqual([])
   })
 
+  it("keeps every note while one is stepped up past another", () => {
+    setup([57, 60, 64])
+
+    // 57 -> 58 -> 59, then 60 is taken so the step refuses to merge them
+    for (let click = 0; click < 4; click++) {
+      fireEvent.click(screen.getByRole("button", { name: "Note 1 up" }))
+    }
+    expect(patch().steps[0].notes).toEqual([59, 60, 64])
+
+    // and the row stays where it is, so the same button keeps the same note
+    fireEvent.click(screen.getByRole("button", { name: "Note 2 up" }))
+    expect(patch().steps[0].notes).toEqual([59, 61, 64])
+  })
+
   it("transposes the whole step", () => {
     setup([60, 64])
     click("+12")
