@@ -75,6 +75,55 @@ describe("editing the sequencer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tempo up" }))
     expect(patch().tempo).toBe(121)
   })
+
+  describe("typing the tempo", () => {
+    const tempoField = () =>
+      screen.getByRole("textbox", { name: "Tempo" }) as HTMLInputElement
+
+    it("shows the units until it is focused", () => {
+      expect(tempoField().value).toBe("120 BPM")
+
+      fireEvent.focus(tempoField())
+      expect(tempoField().value).toBe("120")
+    })
+
+    it("takes a typed tempo on Enter", () => {
+      fireEvent.focus(tempoField())
+      fireEvent.change(tempoField(), { target: { value: "96" } })
+      fireEvent.keyDown(tempoField(), { key: "Enter" })
+
+      expect(patch().tempo).toBe(96)
+      expect(tempoField().value).toBe("96 BPM")
+    })
+
+    it("takes one on blur, and reads past the units", () => {
+      fireEvent.focus(tempoField())
+      fireEvent.change(tempoField(), { target: { value: "88 BPM" } })
+      fireEvent.blur(tempoField())
+      expect(patch().tempo).toBe(88)
+    })
+
+    it("keeps the tempo inside its range and ignores nonsense", () => {
+      fireEvent.focus(tempoField())
+      fireEvent.change(tempoField(), { target: { value: "900" } })
+      fireEvent.blur(tempoField())
+      expect(patch().tempo).toBe(400)
+
+      fireEvent.focus(tempoField())
+      fireEvent.change(tempoField(), { target: { value: "fast" } })
+      fireEvent.blur(tempoField())
+      expect(patch().tempo).toBe(400)
+    })
+
+    it("drops the edit on Escape", () => {
+      fireEvent.focus(tempoField())
+      fireEvent.change(tempoField(), { target: { value: "60" } })
+      fireEvent.keyDown(tempoField(), { key: "Escape" })
+
+      expect(patch().tempo).toBe(120)
+      expect(tempoField().value).toBe("120 BPM")
+    })
+  })
 })
 
 describe("undo and redo", () => {

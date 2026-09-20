@@ -1,4 +1,5 @@
 import {
+  createActions,
   Engine,
   EngineActions,
   EngineEvent,
@@ -35,6 +36,7 @@ const START_DELAY_MS = 50
 export class SequencerPlayer {
   isPlaying = false
   position: StepIndex | null = null
+  actions: EngineActions = createActions()
 
   private readonly engine: Engine
   private readonly now: () => number
@@ -68,6 +70,7 @@ export class SequencerPlayer {
     makeObservable(this, {
       isPlaying: observable,
       position: observable,
+      actions: observable.ref,
     })
   }
 
@@ -77,7 +80,13 @@ export class SequencerPlayer {
   }
 
   setActions(actions: Partial<EngineActions>) {
+    this.actions = { ...this.actions, ...actions }
     this.engine.setActions(actions)
+  }
+
+  // Hang, Bump, Flip and Shift, held or latched from the UI.
+  setAction = (action: keyof EngineActions, held: boolean) => {
+    this.setActions({ [action]: held })
   }
 
   setOutputs(assignment: OutputAssignment) {

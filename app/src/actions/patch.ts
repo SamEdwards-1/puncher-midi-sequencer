@@ -3,6 +3,7 @@ import {
   addStepNote,
   CCEventJSON,
   clearStep,
+  JumpJSON,
   PatchJSON,
   PatternStepJSON,
   pasteStep,
@@ -10,6 +11,7 @@ import {
   removeStepNote,
   StepJSON,
   StepState,
+  setJump,
   setPatternStep,
   setSequencer,
   setStepNote,
@@ -71,6 +73,11 @@ export function usePatchEditor() {
     editStepState: useCallback(
       (step: number, state: StepState) =>
         apply(setStepState(sequencerStore.patch, step, state)),
+      [apply, sequencerStore],
+    ),
+    editJump: useCallback(
+      (step: number, changes: Partial<JumpJSON>) =>
+        apply(setJump(sequencerStore.patch, step, changes)),
       [apply, sequencerStore],
     ),
     addNote: useCallback(

@@ -1,12 +1,20 @@
+import { useTheme } from "@emotion/react"
 import styled from "@emotion/styled"
 import { gridWidth, stepCount } from "@midiseq/core"
-import { FC } from "react"
+import { CSSProperties, FC } from "react"
+import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
-import { useSelectedStep } from "../../hooks/useSequencerView"
+import {
+  useGridMode,
+  usePreviewOnClick,
+  useSelectedStep,
+} from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { Panel, PanelHeader } from "../ui/Panel"
+import { Toggle } from "../ui/Toggle"
+import { ActionButtons } from "./ActionButtons"
 
 // The centre column never scrolls as a whole: the grid shrinks to fit and
 // the step editor scrolls on its own.
@@ -73,7 +81,27 @@ const StepEditorArea = styled.div`
   }
 `
 
+const GridHeader = styled(PanelHeader)`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const HeaderTitle = styled.span`
+  flex-grow: 1;
+`
+
+const PreviewToggle = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+`
+
 const Step = styled.button`
+  position: relative;
   aspect-ratio: 1;
   min-width: 1.25rem;
   padding: 0;
@@ -103,66 +131,109 @@ const Step = styled.button`
   &[data-target="true"] {
     border-color: var(--color-record);
   }
-`
 
-const Actions = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid var(--color-divider);
-`
+  &[data-state="rest"] {
+    background: var(--color-step-rest);
+  }
 
-const ActionButton = styled.button`
-  min-width: 5rem;
-  height: 2rem;
-  border: none;
-  border-radius: 1rem;
-  background: var(--color-background-secondary);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
+  &[data-state="skip"] {
+    background: var(--color-step-skip);
+    color: var(--color-text-tertiary);
+  }
 
-  &:hover {
-    background: var(--color-highlight);
+  /* A jump shows as a pair sharing a colour: the source is marked at the
+     north-east, its destination at the south-west. */
+  &[data-jump-source]::after {
+    content: "";
+    position: absolute;
+    right: 10%;
+    top: 10%;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: var(--jump-source-color);
+  }
+
+  &[data-jump-dest]::before {
+    content: "";
+    position: absolute;
+    left: 10%;
+    bottom: 10%;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: var(--jump-dest-color);
   }
 `
-
-const actions = [
-  "sequencer-action-hang",
-  "sequencer-action-bump",
-  "sequencer-action-flip",
-  "sequencer-action-shift",
-] as const
 
 export const SequenceGrid: FC = () => {
   const { sequencerStore, player, recorder } = useStores()
   const localized = useLocalization()
+  const { editJump, editStepState } = usePatchEditor()
+  const [mode, setMode] = useGridMode()
+  const [preview, setPreview] = usePreviewOnClick()
+  const theme = useTheme()
 
   const size = useMobxSelector(
     () => sequencerStore.patch.size,
     [sequencerStore],
   )
-  // a compact signature so the grid only re-renders when a step gains or
-  // loses notes
-  const filled = useMobxSelector(
-    () =>
-      sequencerStore.patch.steps
-        .map((step) => (step.notes.length > 0 ? "1" : "0"))
-        .join(""),
-    [sequencerStore],
-  )
+  /**
+   * What each cell draws, as a compact signature so the grid only re-renders
+   * when it changes. Each jump takes the next colour in the palette, and its
+   * source and destination both carry it. A step targeted by several jumps
+   * shows the first one's colour.
+   */
+  const marks = useMobxSelector(() => {
+    const steps = sequencerStore.patch.steps
+    const source: (number | null)[] = steps.map(() => null)
+    const dest: (number | null)[] = steps.map(() => null)
+    let next = 0
+    steps.forEach((step, index) => {
+      if (step.jump.dest === null) {
+        return
+      }
+      const colour = next++
+      source[index] = colour
+      dest[step.jump.dest] ??= colour
+    })
+    return steps
+      .map(
+        (step, index) =>
+          `${step.notes.length > 0 ? "n" : "-"}${step.state[0]}${
+            source[index] ?? "-"
+          }${dest[index] ?? "-"}`,
+      )
+      .join(",")
+  }, [sequencerStore]).split(",")
+
+  const jumpColour = (mark: string) =>
+    mark === "-"
+      ? undefined
+      : theme.jumpColors[Number(mark) % theme.jumpColors.length]
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
   const [selected, setSelected] = useSelectedStep()
 
   const onStepClick = (index: number) => {
-    // a click always selects the step and sounds it, so it can be seen and
-    // heard while editing
+    // a mode takes over the click: set a jump target, or mark rests and skips
+    if (mode === "dest" || mode === "normal") {
+      editJump(selected, { [mode]: index })
+      setMode(null)
+      return
+    }
+    if (mode === "rest" || mode === "skip") {
+      const current = sequencerStore.patch.steps[index].state
+      editStepState(index, current === mode ? "normal" : mode)
+      return
+    }
+
+    // otherwise a click selects the step, and sounds it when preview is on
     setSelected(index)
-    player.previewStep(index)
+    if (preview) {
+      player.previewStep(index)
+    }
     // while playing, it also queues the step; otherwise it moves the record
     // target
     if (!isRecording && player.isPlaying) {
@@ -174,37 +245,61 @@ export const SequenceGrid: FC = () => {
 
   return (
     <CentrePanel aria-label={localized["sequencer-grid"]}>
-      <PanelHeader>
-        <Localized name="sequencer-grid" />
-      </PanelHeader>
+      <GridHeader>
+        <HeaderTitle>
+          <Localized name="sequencer-grid" />
+        </HeaderTitle>
+        <PreviewToggle>
+          <Localized name="sequencer-preview" />
+          <Toggle
+            label={localized["sequencer-preview"]}
+            checked={preview}
+            onChange={setPreview}
+          />
+        </PreviewToggle>
+      </GridHeader>
       <Content>
         <GridColumn>
           <GridArea>
             <Grid columns={gridWidth(size)}>
-              {Array.from({ length: stepCount(size) }, (_, index) => (
-                <Step
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
-                  key={index}
-                  type="button"
-                  aria-label={`${localized["sequencer-step"]} ${index + 1}`}
-                  data-has-notes={filled[index] === "1"}
-                  data-active={position === index}
-                  data-selected={selected === index}
-                  data-target={isRecording && target === index}
-                  onClick={() => onStepClick(index)}
-                >
-                  {index + 1}
-                </Step>
-              ))}
+              {Array.from({ length: stepCount(size) }, (_, index) => {
+                const mark = marks[index]
+                const sourceColour = jumpColour(mark[2])
+                const destColour = jumpColour(mark[3])
+                return (
+                  <Step
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
+                    key={index}
+                    type="button"
+                    aria-label={`${localized["sequencer-step"]} ${index + 1}`}
+                    data-has-notes={mark[0] === "n"}
+                    data-state={
+                      mark[1] === "r"
+                        ? "rest"
+                        : mark[1] === "s"
+                          ? "skip"
+                          : "normal"
+                    }
+                    data-jump-source={sourceColour}
+                    data-jump-dest={destColour}
+                    data-active={position === index}
+                    data-selected={selected === index}
+                    data-target={isRecording && target === index}
+                    style={
+                      {
+                        "--jump-source-color": sourceColour,
+                        "--jump-dest-color": destColour,
+                      } as CSSProperties
+                    }
+                    onClick={() => onStepClick(index)}
+                  >
+                    {index + 1}
+                  </Step>
+                )
+              })}
             </Grid>
           </GridArea>
-          <Actions>
-            {actions.map((action) => (
-              <ActionButton key={action} type="button">
-                <Localized name={action} />
-              </ActionButton>
-            ))}
-          </Actions>
+          <ActionButtons />
         </GridColumn>
         <StepEditorArea>
           <StepEditor />

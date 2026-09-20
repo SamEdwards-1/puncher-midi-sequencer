@@ -1,11 +1,30 @@
 import { StepJSON, VoiceIndex } from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
+import { atomWithStorage } from "jotai/utils"
 
 // View state, kept out of the patch so it is never saved or undone.
 const selectedVoiceAtom = atom<VoiceIndex>(0)
 const selectedStepAtom = atom(0)
 // an in-app clipboard, so copying a step needs no clipboard permission
 const copiedStepAtom = atom<StepJSON | null>(null)
+
+/**
+ * What a click on the grid does. Normally it selects a step; a mode makes it
+ * set a jump target instead, or mark steps as rests or skips.
+ */
+export type GridMode = "dest" | "normal" | "rest" | "skip"
+const gridModeAtom = atom<GridMode | null>(null)
+
+export function useGridMode() {
+  return useAtom(gridModeAtom)
+}
+
+// Whether clicking a step sounds it. Remembered between visits.
+const previewOnClickAtom = atomWithStorage("midiseq.previewOnClick", true)
+
+export function usePreviewOnClick() {
+  return useAtom(previewOnClickAtom)
+}
 
 export function useSelectedVoice() {
   return useAtom(selectedVoiceAtom)
