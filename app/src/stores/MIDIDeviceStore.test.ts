@@ -42,7 +42,12 @@ describe("MIDIDeviceStore", () => {
     )
     await store.requestMIDIAccess()
 
-    expect(store.connectedOutputNames).toEqual(["midiseq out", "Synth"])
+    // the built-in sound is offered alongside the ports
+    expect(store.connectedOutputNames).toEqual([
+      "Built-in synth",
+      "midiseq out",
+      "Synth",
+    ])
     store.setOutputName("all", "midiseq out")
     store.setOutputName(1, "Synth")
     expect(store.assignment.all).toBe(loop)

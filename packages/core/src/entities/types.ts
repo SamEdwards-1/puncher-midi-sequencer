@@ -105,6 +105,8 @@ export interface VoiceJSON {
   pattern: PatternStepJSON[]
   velocity: number
   channel: number
+  // General MIDI program, used by the built-in sound
+  program: number
 }
 
 export type ModSource =

@@ -2,6 +2,8 @@ import styled from "@emotion/styled"
 import { VoiceIndex } from "@midiseq/core"
 import { FC, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { OutputSlot } from "../../stores/MIDIDeviceStore"
 import { Button, ToolbarButton } from "../ui/Button"
@@ -69,6 +71,9 @@ const CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
 export const OutputRoutingMenu: FC = () => {
   const [open, setOpen] = useState(false)
   const localized = useLocalization()
+  const { synthStore } = useStores()
+  const synthState = useMobxGetter(synthStore, "state")
+  const synthError = useMobxGetter(synthStore, "error")
   const {
     isSupported,
     hasAccess,
@@ -113,7 +118,11 @@ export const OutputRoutingMenu: FC = () => {
       </option>
     ))
 
-  const body = () => {
+  /**
+   * Shown when MIDI isn't available yet. The routing below stays visible
+   * regardless, since the built-in sound plays without any MIDI at all.
+   */
+  const access = () => {
     if (!isSupported) {
       return (
         <Message>
@@ -121,38 +130,40 @@ export const OutputRoutingMenu: FC = () => {
         </Message>
       )
     }
-
-    // the browser shows its permission prompt at startup; if it refused,
-    // asking again has to come from a click
-    if (!hasAccess) {
-      const blocked = permission === "denied" || requestError !== null
-      return (
-        <>
-          {requestError !== null && (
-            <Message>
-              <Localized name="sequencer-midi-error" /> {requestError.message}
-            </Message>
-          )}
-          <Message>
-            {blocked ? (
-              <Localized name="sequencer-midi-permission-hint" />
-            ) : (
-              <Localized name="sequencer-midi-enable-hint" />
-            )}
-          </Message>
-          <Button type="button" onClick={requestMIDIAccess}>
-            {blocked ? (
-              <Localized name="sequencer-midi-retry" />
-            ) : (
-              <Localized name="sequencer-midi-enable" />
-            )}
-          </Button>
-        </>
-      )
+    if (hasAccess) {
+      return null
     }
-
+    // the browser asks at startup; if it refused, asking again needs a click
+    const blocked = permission === "denied" || requestError !== null
     return (
       <>
+        {requestError !== null && (
+          <Message>
+            <Localized name="sequencer-midi-error" /> {requestError.message}
+          </Message>
+        )}
+        <Message>
+          {blocked ? (
+            <Localized name="sequencer-midi-permission-hint" />
+          ) : (
+            <Localized name="sequencer-midi-enable-hint" />
+          )}
+        </Message>
+        <Button type="button" onClick={requestMIDIAccess}>
+          {blocked ? (
+            <Localized name="sequencer-midi-retry" />
+          ) : (
+            <Localized name="sequencer-midi-enable" />
+          )}
+        </Button>
+      </>
+    )
+  }
+
+  const body = () => {
+    return (
+      <>
+        {access()}
         <SectionTitle>
           <Localized name="sequencer-midi-input-section" />
         </SectionTitle>
@@ -199,6 +210,16 @@ export const OutputRoutingMenu: FC = () => {
         <SectionTitle>
           <Localized name="sequencer-midi-outputs-section" />
         </SectionTitle>
+        {synthState === "loading" && (
+          <Message>
+            <Localized name="sequencer-synth-loading" />
+          </Message>
+        )}
+        {synthState === "error" && (
+          <Message>
+            <Localized name="sequencer-synth-error" /> {synthError}
+          </Message>
+        )}
         {connectedOutputNames.length === 0 && (
           <Message>
             <Localized name="sequencer-midi-no-outputs" />

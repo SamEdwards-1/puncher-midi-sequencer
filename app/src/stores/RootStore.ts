@@ -9,6 +9,7 @@ import { HistoryStore } from "./HistoryStore"
 import { MIDIDeviceStore, RequestMIDIAccess } from "./MIDIDeviceStore"
 import { registerReactions } from "./reactions"
 import { SequencerStore } from "./SequencerStore"
+import { SynthStore } from "./SynthStore"
 
 export interface RootStoreOptions {
   requestMIDIAccess?: RequestMIDIAccess | null
@@ -16,6 +17,7 @@ export interface RootStoreOptions {
   ticker?: Ticker
   now?: () => number
   fileService?: FileService
+  synthStore?: SynthStore
   autoSave?: AutoSaveService
 }
 
@@ -27,6 +29,7 @@ export default class RootStore {
   readonly midiDeviceStore: MIDIDeviceStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
+  readonly synthStore: SynthStore
   readonly fileService: FileService
   readonly autoSave: AutoSaveService
 
@@ -47,6 +50,7 @@ export default class RootStore {
       this.outputRouter,
       { ticker: options.ticker, now: options.now },
     )
+    this.synthStore = options.synthStore ?? new SynthStore()
     this.fileService = options.fileService ?? new FileService()
     this.autoSave =
       options.autoSave ??

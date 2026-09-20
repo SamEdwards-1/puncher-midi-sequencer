@@ -10,6 +10,11 @@ configure({
 const rootStore = new RootStore()
 rootStore.init()
 
+// a handle for poking at the app from the console while developing
+if (import.meta.env.DEV) {
+  ;(window as unknown as { midiseq: RootStore }).midiseq = rootStore
+}
+
 const container = document.querySelector("#root")
 if (container === null) {
   throw new Error("#root element not found")

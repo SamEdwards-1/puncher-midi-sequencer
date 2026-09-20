@@ -16,6 +16,9 @@ export type RequestMIDIAccess = () => Promise<MIDIAccess>
 export type QueryMIDIPermission = () => Promise<PermissionStatus>
 export type MIDIPermission = "granted" | "denied" | "prompt" | "unknown"
 
+// Chosen like a port, but resolved to the built-in synth rather than one
+export const BUILTIN_OUTPUT = "Built-in synth"
+
 const STORAGE_KEY = "midiseq.midiOutputs"
 const INPUT_STORAGE_KEY = "midiseq.midiInput"
 
@@ -254,6 +257,7 @@ export class MIDIDeviceStore {
 
   get connectedOutputNames(): string[] {
     return [
+      BUILTIN_OUTPUT,
       ...new Set(
         this.outputs
           .filter((output) => output.state === "connected")
@@ -265,7 +269,7 @@ export class MIDIDeviceStore {
   // The chosen ports that are currently connected.
   get assignment(): OutputAssignment {
     const resolve = (name: string | null) =>
-      name === null
+      name === null || name === BUILTIN_OUTPUT
         ? null
         : (this.outputs.find(
             (output) =>

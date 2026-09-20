@@ -100,6 +100,8 @@ export const VoiceSchema = z.object({
   pattern: z.array(PatternStepSchema).length(MAX_PATTERN_LENGTH),
   velocity: z.number().int().min(1).max(127),
   channel,
+  // older files predate the built-in sound
+  program: midiValue.default(0),
 })
 
 export const ModOutSchema = z.object({
