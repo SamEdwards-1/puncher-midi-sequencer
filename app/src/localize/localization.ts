@@ -11,5 +11,34 @@ export default {
     "sequencer-action-bump": "Bump",
     "sequencer-action-flip": "Flip",
     "sequencer-action-shift": "Shift",
+    "sequencer-play": "Play",
+    "sequencer-stop": "Stop",
+    "sequencer-panic": "Panic",
+    "sequencer-bpm": "BPM",
+    "sequencer-step": "Step",
+    "sequencer-record": "Record",
+    "sequencer-midi-outputs": "MIDI",
+    "sequencer-midi-outputs-section": "Outputs",
+    "sequencer-midi-input-section": "Input",
+    "sequencer-midi-input": "Port",
+    "sequencer-midi-channel": "Channel",
+    "sequencer-midi-omni": "Omni",
+    "sequencer-midi-no-inputs":
+      "No MIDI inputs found. Connect a keyboard, or use a loopMIDI port.",
+    "sequencer-output-all": "All",
+    "sequencer-output-voice": "Voice",
+    "sequencer-output-none": "None",
+    "sequencer-output-disconnected": "disconnected",
+    "sequencer-midi-unsupported":
+      "This browser doesn't support Web MIDI. Use Chrome or Edge.",
+    "sequencer-midi-error": "Couldn't access MIDI:",
+    "sequencer-midi-permission-hint":
+      "The browser blocked MIDI. Allow MIDI devices in this site's settings (the icon at the left of the address bar), then try again.",
+    "sequencer-midi-retry": "Try again",
+    "sequencer-midi-enable": "Enable MIDI",
+    "sequencer-midi-enable-hint":
+      "midiseq needs your permission to use MIDI devices.",
+    "sequencer-midi-no-outputs":
+      "No MIDI outputs found. On Windows, create a port in loopMIDI.",
   },
 }

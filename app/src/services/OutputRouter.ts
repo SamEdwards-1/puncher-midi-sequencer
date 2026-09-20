@@ -1,0 +1,158 @@
+import {
+  allNotesOffBytes,
+  controlChangeBytes,
+  EngineEvent,
+  NoteOffEvent,
+  noteOffBytes,
+  noteOnBytes,
+  VOICE_COUNT,
+} from "@midiseq/core"
+import { AllOutDedupe } from "./AllOutDedupe"
+import { MIDISink } from "./MIDISink"
+
+export interface OutputAssignment {
+  all: MIDISink | null
+  voices: (MIDISink | null)[]
+}
+
+export const emptyAssignment = (): OutputAssignment => ({
+  all: null,
+  voices: Array.from({ length: VOICE_COUNT }, () => null),
+})
+
+const MIDI_CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
+
+const sinksOf = (assignment: OutputAssignment): MIDISink[] => [
+  ...new Set(
+    [assignment.all, ...assignment.voices].filter(
+      (sink): sink is MIDISink => sink !== null,
+    ),
+  ),
+]
+
+// Sends engine events to the five outputs: every note goes to its voice's
+// port and, de-duplicated, to the All port. A port chosen for both only gets
+// the All stream.
+export class OutputRouter {
+  private assignment = emptyAssignment()
+  private readonly dedupe = new AllOutDedupe()
+
+  setAssignment(next: OutputAssignment, now: number) {
+    const previous = this.assignment
+    const nextSinks = sinksOf(next)
+    for (const sink of sinksOf(previous)) {
+      if (!nextSinks.includes(sink)) {
+        this.silence(sink, now)
+      }
+    }
+    if (previous.all !== null && previous.all !== next.all) {
+      for (const { channel, note } of this.dedupe.heldNotes()) {
+        previous.all.send(noteOffBytes(channel, note), now)
+      }
+    }
+    if (previous.all !== next.all) {
+      this.dedupe.reset()
+    }
+    this.assignment = next
+  }
+
+  route(event: EngineEvent, timestamp: number) {
+    const { all, voices } = this.assignment
+    switch (event.type) {
+      case "noteOn": {
+        const voiceSink = voices[event.voice]
+        if (voiceSink !== null && voiceSink !== all) {
+          voiceSink.send(
+            noteOnBytes(event.channel, event.note, event.velocity),
+            timestamp,
+          )
+        }
+        if (all !== null) {
+          const messages = this.dedupe.noteOn(
+            event.voice,
+            event.channel,
+            event.note,
+            event.velocity,
+            timestamp,
+          )
+          for (const message of messages) {
+            all.send(message, timestamp)
+          }
+        }
+        break
+      }
+      case "noteOff": {
+        const voiceSink = voices[event.voice]
+        if (voiceSink !== null && voiceSink !== all) {
+          voiceSink.send(noteOffBytes(event.channel, event.note), timestamp)
+        }
+        if (all !== null) {
+          const messages = this.dedupe.noteOff(
+            event.voice,
+            event.channel,
+            event.note,
+          )
+          for (const message of messages) {
+            all.send(message, timestamp)
+          }
+        }
+        break
+      }
+      case "cc": {
+        const sink = event.output === "all" ? all : voices[event.output]
+        sink?.send(
+          controlChangeBytes(event.channel, event.cc, event.value),
+          timestamp,
+        )
+        break
+      }
+      case "step":
+        break
+    }
+  }
+
+  // Silences every assigned port. Messages already queued with a future
+  // timestamp can't always be cancelled (not every browser implements
+  // MIDIOutput.clear), so the silencing is sent again at `horizon`, after the
+  // last message that was scheduled.
+  panic(now: number, horizon: number, sounding: NoteOffEvent[] = []) {
+    const { all, voices } = this.assignment
+    const sinks = sinksOf(this.assignment)
+    for (const sink of sinks) {
+      try {
+        sink.clear?.()
+      } catch {
+        // clear() is optional in some browsers
+      }
+    }
+    const held = this.dedupe.heldNotes()
+    this.dedupe.reset()
+
+    for (const time of [now, horizon]) {
+      if (all !== null) {
+        for (const { channel, note } of held) {
+          all.send(noteOffBytes(channel, note), time)
+        }
+      }
+      for (const off of sounding) {
+        const offBytes = noteOffBytes(off.channel, off.note)
+        all?.send(offBytes, time)
+        const voiceSink = voices[off.voice]
+        if (voiceSink !== null && voiceSink !== all) {
+          voiceSink.send(offBytes, time)
+        }
+      }
+      for (const sink of sinks) {
+        for (const channel of MIDI_CHANNELS) {
+          sink.send(allNotesOffBytes(channel), time)
+        }
+      }
+    }
+  }
+
+  private silence(sink: MIDISink, now: number) {
+    for (const channel of MIDI_CHANNELS) {
+      sink.send(allNotesOffBytes(channel), now)
+    }
+  }
+}

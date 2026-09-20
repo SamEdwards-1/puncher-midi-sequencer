@@ -27,6 +27,9 @@ export interface Theme {
   stepColor: string
   stepRestColor: string
   stepSkipColor: string
+  // translucent so scrollbars float over the content, macOS style
+  scrollbarColor: string
+  scrollbarHoverColor: string
 }
 
 const darkTheme: Theme = {
@@ -55,6 +58,8 @@ const darkTheme: Theme = {
   stepColor: "hsl(224, 12%, 30%)",
   stepRestColor: "hsl(210, 30%, 45%)",
   stepSkipColor: "hsl(228, 10%, 20%)",
+  scrollbarColor: "rgba(255, 255, 255, 0.22)",
+  scrollbarHoverColor: "rgba(255, 255, 255, 0.4)",
 }
 
 const lightTheme: Theme = {
@@ -83,6 +88,8 @@ const lightTheme: Theme = {
   stepColor: "hsl(223, 12%, 86%)",
   stepRestColor: "hsl(210, 60%, 80%)",
   stepSkipColor: "hsl(228, 20%, 95%)",
+  scrollbarColor: "rgba(0, 0, 0, 0.25)",
+  scrollbarHoverColor: "rgba(0, 0, 0, 0.45)",
 }
 
 export const themes = {
