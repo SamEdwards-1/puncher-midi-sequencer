@@ -4,6 +4,7 @@ import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
+import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { TransportControls } from "../TransportPanel/TransportControls"
 
 export const TopBar: FC = () => {
@@ -32,6 +33,7 @@ export const TopBar: FC = () => {
       <FileMenu />
       <div className="grow" />
       <TransportControls />
+      <OutputStatus />
       <OutputRoutingMenu />
     </header>
   )

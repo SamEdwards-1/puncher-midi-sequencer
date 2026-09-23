@@ -112,6 +112,8 @@ export default {
     "sequencer-midi-enable": "Enable MIDI",
     "sequencer-midi-enable-hint":
       "midiseq needs your permission to use MIDI devices.",
+    "sequencer-no-output":
+      "Nothing is routed — pick an output in MIDI to hear this",
     "sequencer-synth-loading": "Starting the built-in sound…",
     "sequencer-synth-error": "The built-in sound didn't start:",
     "sequencer-midi-no-outputs":
