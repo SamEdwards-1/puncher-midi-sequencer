@@ -2,6 +2,7 @@ import {
   addStepCC,
   addStepNote,
   CCEventJSON,
+  clearPatch,
   clearStep,
   JumpJSON,
   PatchJSON,
@@ -42,6 +43,10 @@ export function usePatchEditor() {
   )
 
   return {
+    clearAll: useCallback(
+      () => apply(clearPatch(sequencerStore.patch)),
+      [apply, sequencerStore],
+    ),
     editSequencer: useCallback(
       (changes: Partial<PatchJSON>, key?: string) =>
         apply(setSequencer(sequencerStore.patch, changes), key),

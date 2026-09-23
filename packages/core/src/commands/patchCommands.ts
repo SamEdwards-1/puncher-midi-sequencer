@@ -1,3 +1,4 @@
+import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
 import {
   CCEventJSON,
   JumpJSON,
@@ -189,6 +190,18 @@ export const removeStepCC = (
 
 export const clearStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
   setStep(patch, index, { notes: [], ccs: [] })
+
+/**
+ * Empties the sequence: every step back to no notes, no CCs, no jump and no
+ * rest or skip, and every voice back to its default settings and pattern.
+ * How the patch is played — size, pace, direction, loop, tempo — is left
+ * alone, since none of that is the music.
+ */
+export const clearPatch = (patch: PatchJSON): PatchJSON => ({
+  ...patch,
+  steps: patch.steps.map(() => createDefaultStep()),
+  voices: patch.voices.map((_, index) => createDefaultVoice(index)),
+})
 
 // Copies notes, CCs, state and jump onto another step.
 export const pasteStep = (
