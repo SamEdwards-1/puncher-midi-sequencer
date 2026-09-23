@@ -60,9 +60,10 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 
 ## Using it
 
-**Transport.** **Play** starts the sequencer, **Record** arms recording, and
-**Panic** silences everything if a note ever hangs. The tempo can be stepped
-or typed straight into.
+**Transport.** **Play** starts the sequencer and **Record** arms recording;
+stopping also silences anything still sounding. The tempo can be stepped or
+typed straight into. **Clear all**, **Undo** and **Redo** sit beside the File
+menu on the left.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
 A step takes four notes — one for each voice — and only then does the target

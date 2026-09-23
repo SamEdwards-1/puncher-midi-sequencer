@@ -68,6 +68,30 @@ describe("App", () => {
     expect(rootStore.recorder.target).toBe(3)
   })
 
+  it("clears the steps and the voices, in one undo", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+    const patch = () => rootStore.sequencerStore.patch
+    const before = patch()
+
+    // the demo patch starts with chords, jumps and three voices playing
+    expect(before.steps[0].notes.length).toBeGreaterThan(0)
+    expect(before.voices[1].enabled).toBe(true)
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }))
+
+    expect(patch().steps.every((step) => step.notes.length === 0)).toBe(true)
+    expect(patch().steps.every((step) => step.jump.dest === null)).toBe(true)
+    expect(patch().voices[0].rule).toBe("nth")
+    expect(patch().voices[1].enabled).toBe(false)
+    // the tempo and the rest of the sequencer are left alone
+    expect(patch().tempo).toBe(before.tempo)
+    expect(patch().pace).toBe(before.pace)
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }))
+    expect(patch()).toBe(before)
+  })
+
   it("asks for MIDI access when the app starts, and again on request", async () => {
     let attempts = 0
     const rootStore = new RootStore({

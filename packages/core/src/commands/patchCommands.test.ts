@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
+import { createDemoPatch } from "../entities/demoPatch"
 import {
   addStepCC,
   addStepNote,
+  clearPatch,
   clearStep,
   pasteStep,
   removeStepCC,
@@ -183,6 +185,28 @@ describe("patch commands", () => {
     const phase = next.modOuts.find((modOut) => modOut.source === "phase")
     expect(phase).toMatchObject({ enabled: true, cc: 30 })
     expect(next.modOuts[0]).toBe(patch.modOuts[0])
+  })
+
+  it("clear the whole sequence without touching how it plays", () => {
+    let patch = createDemoPatch()
+    patch = setVoice(patch, 1, { rule: "rise", patternLength: 3 })
+    patch = setPatternStep(patch, 1, 0, { ratchet: 4 })
+
+    const cleared = clearPatch(patch)
+
+    // nothing of the music is left
+    expect(cleared.steps.every((step) => step.notes.length === 0)).toBe(true)
+    expect(cleared.steps.every((step) => step.ccs.length === 0)).toBe(true)
+    expect(cleared.steps.every((step) => step.state === "normal")).toBe(true)
+    expect(cleared.steps.every((step) => step.jump.dest === null)).toBe(true)
+    expect(cleared.voices).toEqual(createDefaultPatch().voices)
+
+    // how it is played is not the music
+    expect(cleared.pace).toBe(patch.pace)
+    expect(cleared.tempo).toBe(patch.tempo)
+    expect(cleared.size).toBe(patch.size)
+    expect(cleared.loop).toEqual(patch.loop)
+    expect(cleared.name).toBe(patch.name)
   })
 
   it("trim the notes no voice can reach for good", () => {

@@ -1,4 +1,6 @@
 import { FC } from "react"
+import { usePatchEditor } from "../../actions/patch"
+import { useHistory } from "../../hooks/useHistory"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
@@ -6,10 +8,13 @@ import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
 import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { TransportControls } from "../TransportPanel/TransportControls"
+import { ToolbarButton } from "../ui/Button"
 
 export const TopBar: FC = () => {
   const { sequencerStore } = useStores()
   const localized = useLocalization()
+  const { clearAll } = usePatchEditor()
+  const { canUndo, canRedo, undo, redo } = useHistory()
   const name = useMobxSelector(
     () => sequencerStore.patch.name,
     [sequencerStore],
@@ -31,6 +36,16 @@ export const TopBar: FC = () => {
         </div>
       </div>
       <FileMenu />
+      {/* undoable in one go, so it asks nothing before emptying the patch */}
+      <ToolbarButton type="button" onClick={clearAll}>
+        <Localized name="sequencer-clear-all" />
+      </ToolbarButton>
+      <ToolbarButton type="button" disabled={!canUndo} onClick={undo}>
+        <Localized name="sequencer-undo" />
+      </ToolbarButton>
+      <ToolbarButton type="button" disabled={!canRedo} onClick={redo}>
+        <Localized name="sequencer-redo" />
+      </ToolbarButton>
       <div className="grow" />
       <TransportControls />
       <OutputStatus />

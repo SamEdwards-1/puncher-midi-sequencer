@@ -1,6 +1,5 @@
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { useHistory } from "../../hooks/useHistory"
 import { usePatch } from "../../hooks/usePatch"
 import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
@@ -9,21 +8,14 @@ import { ToolbarButton } from "../ui/Button"
 import { Stepper } from "../ui/Stepper"
 
 export const TransportControls: FC = () => {
-  const { isPlaying, position, play, stop, panic } = usePlayer()
+  const { isPlaying, position, play, stop } = usePlayer()
   const { isRecording, target, toggleRecording } = useRecorder()
-  const { canUndo, canRedo, undo, redo } = useHistory()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
   const patch = usePatch()
 
   return (
     <div className="flex items-center gap-2">
-      <ToolbarButton type="button" disabled={!canUndo} onClick={undo}>
-        <Localized name="sequencer-undo" />
-      </ToolbarButton>
-      <ToolbarButton type="button" disabled={!canRedo} onClick={redo}>
-        <Localized name="sequencer-redo" />
-      </ToolbarButton>
       <ToolbarButton
         type="button"
         active={isPlaying}
@@ -42,9 +34,6 @@ export const TransportControls: FC = () => {
         onClick={toggleRecording}
       >
         <Localized name="sequencer-record" />
-      </ToolbarButton>
-      <ToolbarButton type="button" onClick={panic}>
-        <Localized name="sequencer-panic" />
       </ToolbarButton>
       <div className="w-32">
         <Stepper

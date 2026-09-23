@@ -23,7 +23,7 @@ to another when a condition is met.
 ### Layout
 | Area | Contents |
 |---|---|
-| Top bar | File, Presets, Mod Outs, Keyboard · Undo/Redo · Clear, Record, Play, Tempo · MIDI devices, Settings |
+| Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, MIDI devices · later: Presets, Mod Outs, Keyboard, Settings |
 | Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip) and the Jump editor |
 | Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons |
 | Right | Voice tabs 1–4 |
