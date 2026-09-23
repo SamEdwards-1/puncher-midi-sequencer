@@ -130,7 +130,6 @@ export const PatchSchema = z.object({
     mode: z.enum(["recorded", "all", "custom"]),
     end: z.number().int().min(0).max(63),
   }),
-  maxNotesPerStep: z.number().int().min(1).max(MAX_NOTES_PER_STEP),
   syncVoices: z.boolean(),
   pace: PaceIdSchema,
   direction: z.enum(["fwd", "bwd", "fwdbwd", "bwdfwd", "random", "random+"]),

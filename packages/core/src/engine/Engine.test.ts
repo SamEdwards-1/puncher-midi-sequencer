@@ -67,16 +67,15 @@ describe("Engine", () => {
     expect(windowed).toEqual(whole.render(3.9))
   })
 
-  it("uses the lowest maxNotesPerStep notes", () => {
+  it("uses the lowest four notes, one for each voice", () => {
     patch.steps[0].notes = [48, 55, 60, 64, 72]
-    patch.maxNotesPerStep = 2
     patch.voices[0].rule = "up"
-    // stay on the chord so the rule only sees the truncated notes
+    // stay on the chord so the rule only sees the notes it can reach
     patch.loop = { mode: "custom", end: 0 }
 
     const engine = new Engine(patch)
     engine.start(0)
-    expect(notesOn(engine.render(3.9))).toEqual([48, 55, 48, 55])
+    expect(notesOn(engine.render(3.9))).toEqual([48, 55, 60, 64])
   })
 
   describe("step CCs", () => {

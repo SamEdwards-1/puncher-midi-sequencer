@@ -1,4 +1,4 @@
-import { stepCount } from "@midiseq/core"
+import { NOTES_PER_STEP, stepCount } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { SequencerStore } from "../stores/SequencerStore"
 import { MIDIInput, MIDINoteMessage } from "./MIDIInput"
@@ -6,10 +6,10 @@ import { MIDIInput, MIDINoteMessage } from "./MIDIInput"
 export type ReceiveChannel = number | "omni"
 
 /**
- * Records notes played on the MIDI input into the step grid. A step fills up
- * to Step Notes before the target moves on, so notes land as they are played
- * whether they arrive as a chord or one at a time, and anything over the
- * limit starts the next step rather than being lost.
+ * Records notes played on the MIDI input into the step grid. A step holds one
+ * note per voice, and it fills with all four before the target moves on — so
+ * notes land as they are played, whether they arrive as a chord or one at a
+ * time, and a fifth starts the next step rather than being lost.
  */
 export class MIDIRecorder {
   isRecording = false
@@ -66,17 +66,17 @@ export class MIDIRecorder {
   }
 
   private record(note: number) {
-    // A step holds each pitch once, so playing one it already has means that
-    // step is finished — which is how a repeated note records.
+    // A step keeps each pitch once, so playing one it already has adds
+    // nothing and leaves the step waiting for the rest of its notes.
     if (this.written?.includes(note) === true) {
-      this.advance()
+      return
     }
 
     const notes = [...(this.written ?? []), note]
     this.written = notes
     this.write(notes)
 
-    if (notes.length >= this.sequencerStore.patch.maxNotesPerStep) {
+    if (notes.length >= NOTES_PER_STEP) {
       this.advance()
     }
   }

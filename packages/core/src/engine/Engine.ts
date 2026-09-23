@@ -2,6 +2,7 @@ import { paceBeats } from "../entities/paces"
 import {
   CCEventJSON,
   ModSource,
+  NOTES_PER_STEP,
   PatchJSON,
   StepIndex,
   StepJSON,
@@ -393,9 +394,7 @@ export class Engine {
     const step = this.currentStep()
     // a step keeps its notes in the order they were entered; the rules read
     // them lowest first
-    const notes = [...step.notes]
-      .sort((a, b) => a - b)
-      .slice(0, this.patch.maxNotesPerStep)
+    const notes = [...step.notes].sort((a, b) => a - b).slice(0, NOTES_PER_STEP)
     if (!patternStep.on || step.state === "rest" || notes.length === 0) {
       return
     }

@@ -52,10 +52,10 @@ describe("patch commands", () => {
   })
 
   it("de-duplicate a step's notes and keep the order they were entered", () => {
-    const patch = { ...createDefaultPatch(), maxNotesPerStep: 3 }
+    const patch = createDefaultPatch()
     const next = setStepNotes(patch, 2, [67, 60, 60, 64, 72])
 
-    // the limit decides what the engine reads, not what is stored
+    // four is what the engine reads, not what may be stored
     expect(next.steps[2].notes).toEqual([67, 60, 64, 72])
   })
 
@@ -185,17 +185,13 @@ describe("patch commands", () => {
     expect(next.modOuts[0]).toBe(patch.modOuts[0])
   })
 
-  it("trim notes above the limit for good", () => {
-    const patch = setStepNotes(
-      { ...createDefaultPatch(), maxNotesPerStep: 16 },
-      0,
-      [48, 55, 60, 64, 72],
-    )
-    const lowered = { ...patch, maxNotesPerStep: 2 }
+  it("trim the notes no voice can reach for good", () => {
+    // a file from before the count was fixed can hold more than four
+    const patch = setStepNotes(createDefaultPatch(), 0, [48, 55, 60, 64, 72])
 
-    // lowering the limit alone keeps the notes
-    expect(lowered.steps[0].notes).toHaveLength(5)
+    // loading one keeps them all
+    expect(patch.steps[0].notes).toHaveLength(5)
     // the lowest survive, since those are the ones the engine was playing
-    expect(trimStepsToLimit(lowered).steps[0].notes).toEqual([48, 55])
+    expect(trimStepsToLimit(patch).steps[0].notes).toEqual([48, 55, 60, 64])
   })
 })

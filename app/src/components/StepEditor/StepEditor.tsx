@@ -1,5 +1,6 @@
 import {
   CCEventJSON,
+  NOTES_PER_STEP,
   noteNumberToName,
   OutputTarget,
   StepState,
@@ -47,7 +48,7 @@ export const StepEditor: FC = () => {
   } = usePatchEditor()
 
   const step = patch.steps[selected]
-  const beyondLimit = step.notes.length > patch.maxNotesPerStep
+  const beyondLimit = step.notes.length > NOTES_PER_STEP
 
   return (
     <>
@@ -114,7 +115,7 @@ export const StepEditor: FC = () => {
         )}
 
         {step.notes.map((note, position) => {
-          const beyond = position >= patch.maxNotesPerStep
+          const beyond = position >= NOTES_PER_STEP
           return (
             <Row
               key={note}

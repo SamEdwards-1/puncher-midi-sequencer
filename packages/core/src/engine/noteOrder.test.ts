@@ -25,11 +25,11 @@ describe("note order", () => {
     expect(played).toEqual([60, 64, 67])
   })
 
-  it("takes the lowest notes when a step holds more than the limit", () => {
+  it("takes the lowest four when a step holds more than a voice each", () => {
     const patch = createDefaultPatch()
     patch.pace = "1bar"
-    patch.maxNotesPerStep = 2
-    patch.steps[0].notes = [72, 48, 64, 55]
+    // a fifth note, as a file saved before the count was fixed may hold
+    patch.steps[0].notes = [72, 48, 64, 55, 50]
     patch.voices[0] = {
       ...patch.voices[0],
       enabled: true,
@@ -40,10 +40,11 @@ describe("note order", () => {
     const engine = new Engine(patch)
     engine.start(0)
     const played = engine
-      .render(1.9)
+      .render(3.9)
       .filter((event) => event.type === "noteOn")
       .map((event) => event.note)
 
-    expect(played).toEqual([48, 55])
+    // the highest is never reached, however long the arpeggio runs
+    expect(played).toEqual([48, 50, 55, 64])
   })
 })
