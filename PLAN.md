@@ -74,7 +74,9 @@ to another when a condition is met.
 - **Shift:** transposes new notes by Shift Amt.
 
 ### Step editor, recording, undo
-- **Step editor:** edit notes by hand (name ⇄ number, transpose ±1/±12) and a
+- **Step editor:** edit notes by hand (typed as a name or stepped, transpose
+  ±1/±12 — a bare letter keeps the octave, anything outside MIDI's range is
+  refused) and a
   CC list (cc, value, channel — each typed or stepped). A step's CC belongs to
   no voice, so it goes out on its own channel to every output. CCs fire when the
   sequencer lands on the step, before that beat's notes — including on rests,

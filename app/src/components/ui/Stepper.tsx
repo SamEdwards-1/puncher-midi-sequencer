@@ -16,6 +16,8 @@ export interface StepperProps {
   format?: (value: number) => string
   // supply this to let the value be typed in as well as stepped
   parse?: (text: string) => number | null
+  // narrows what can be typed, character by character
+  sanitize?: (text: string) => string
   onChange: (value: number) => void
 }
 
@@ -27,6 +29,7 @@ export const Stepper: FC<StepperProps> = ({
   label,
   format,
   parse,
+  sanitize,
   onChange,
 }) => {
   const clamp = (next: number) => Math.min(max, Math.max(min, next))
@@ -79,7 +82,9 @@ export const Stepper: FC<StepperProps> = ({
               }
             })
           }}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) =>
+            setDraft(sanitize?.(event.target.value) ?? event.target.value)
+          }
           onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === "Enter") {

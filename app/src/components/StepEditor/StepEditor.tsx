@@ -12,6 +12,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { CCRow } from "./CCRow"
+import { parseNoteText, sanitizeNoteText } from "./noteInput"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -123,6 +124,8 @@ export const StepEditor: FC = () => {
                   min={0}
                   max={127}
                   format={noteNumberToName}
+                  parse={(text) => parseNoteText(text, note)}
+                  sanitize={sanitizeNoteText}
                   onChange={(next) => editNote(selected, position, next)}
                 />
               </div>
