@@ -76,8 +76,10 @@ the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 
 **The step editor** lists the selected step's notes by name, so you can add,
-remove, retune or transpose them by hand, and add CC events that fire when the
-sequencer lands there. Steps can be copied and pasted.
+remove, retune or transpose them by hand. A note can be typed as well as
+stepped — `G#5`, or just `D` to stay in the octave it is already on — and so
+can a CC's number, value and channel. CCs fire when the sequencer lands on the
+step. Steps can be copied and pasted.
 
 **Voices.** Each of the four voices has its own pace, gate length, note-picking
 rule (up, down, random, highest, and so on), octave offset, velocity, channel

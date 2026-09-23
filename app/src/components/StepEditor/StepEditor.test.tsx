@@ -36,10 +36,12 @@ describe("step editor", () => {
 
     click("Add note")
     expect(patch().steps[0].notes).toEqual([60])
-    expect(screen.getByText("C4")).toBeInTheDocument()
+    // the field shows the name, and is one that can be typed into
+    expect(screen.getByLabelText("Note 1")).toHaveValue("C4")
 
     click("Note 1 up")
     expect(patch().steps[0].notes).toEqual([61])
+    expect(screen.getByLabelText("Note 1")).toHaveValue("C#4")
 
     click("Remove note 1")
     expect(patch().steps[0].notes).toEqual([])
@@ -57,6 +59,37 @@ describe("step editor", () => {
     // and the row stays where it is, so the same button keeps the same note
     fireEvent.click(screen.getByRole("button", { name: "Note 2 up" }))
     expect(patch().steps[0].notes).toEqual([62, 61, 64])
+  })
+
+  it("takes a note name typed into the field", () => {
+    setup([60])
+    const type = (text: string) => {
+      const field = screen.getByLabelText("Note 1")
+      fireEvent.focus(field)
+      fireEvent.change(field, { target: { value: text } })
+      fireEvent.keyDown(field, { key: "Enter" })
+    }
+
+    type("G#5")
+    expect(patch().steps[0].notes).toEqual([80])
+
+    // a bare letter stays in the octave the field is on
+    type("D")
+    expect(patch().steps[0].notes).toEqual([74])
+
+    // what isn't a note leaves it alone, as does an octave out of range
+    type("H4")
+    expect(patch().steps[0].notes).toEqual([74])
+    type("C10")
+    expect(patch().steps[0].notes).toEqual([74])
+
+    // and the field only ever holds note-name characters
+    const field = screen.getByLabelText("Note 1")
+    fireEvent.focus(field)
+    fireEvent.change(field, { target: { value: "x!F#2" } })
+    expect((field as HTMLInputElement).value).toBe("F#2")
+    fireEvent.keyDown(field, { key: "Escape" })
+    expect(patch().steps[0].notes).toEqual([74])
   })
 
   it("transposes the whole step", () => {
