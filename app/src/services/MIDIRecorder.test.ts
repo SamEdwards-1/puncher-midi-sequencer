@@ -28,7 +28,20 @@ describe("MIDIRecorder", () => {
     recorder.setRecording(true)
   })
 
-  it("records a chord onto one step and moves on", () => {
+  it("fills a step to the limit before moving on", () => {
+    play(noteOn(60), noteOff(60), noteOn(64), noteOff(64))
+
+    // two of the four are down, so the step is still the target
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+    expect(recorder.target).toBe(0)
+
+    play(noteOn(67), noteOff(67), noteOn(71), noteOff(71))
+
+    expect(store.patch.steps[0].notes).toEqual([60, 64, 67, 71])
+    expect(recorder.target).toBe(1)
+  })
+
+  it("takes a chord as the notes it holds", () => {
     play(
       noteOn(60),
       noteOn(64),
@@ -39,15 +52,32 @@ describe("MIDIRecorder", () => {
     )
 
     expect(store.patch.steps[0].notes).toEqual([60, 64, 67])
+    expect(recorder.target).toBe(0)
+  })
+
+  it("fills the step as each note is played, without waiting for release", () => {
+    play(noteOn(60))
+    expect(store.patch.steps[0].notes).toEqual([60])
+
+    play(noteOn(64))
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+  })
+
+  it("carries what won't fit onto the next step", () => {
+    store.patch = { ...store.patch, maxNotesPerStep: 2 }
+    play(noteOn(67), noteOn(60), noteOn(64))
+
+    expect(store.patch.steps[0].notes).toEqual([60, 67])
+    expect(store.patch.steps[1].notes).toEqual([64])
     expect(recorder.target).toBe(1)
   })
 
-  it("records single notes onto consecutive steps", () => {
-    play(noteOn(60), noteOff(60), noteOn(62), noteOff(62))
+  it("moves on when a pitch the step already has is played again", () => {
+    play(noteOn(60), noteOff(60), noteOn(60), noteOff(60))
 
     expect(store.patch.steps[0].notes).toEqual([60])
-    expect(store.patch.steps[1].notes).toEqual([62])
-    expect(recorder.target).toBe(2)
+    expect(store.patch.steps[1].notes).toEqual([60])
+    expect(recorder.target).toBe(1)
   })
 
   it("replaces the notes already on a step", () => {
@@ -61,18 +91,13 @@ describe("MIDIRecorder", () => {
     expect(store.patch.steps[0].notes).toEqual([60])
   })
 
-  it("keeps the first notes played when the chord is over the limit", () => {
-    store.patch = { ...store.patch, maxNotesPerStep: 2 }
-    play(
-      noteOn(67),
-      noteOn(60),
-      noteOn(64),
-      noteOff(67),
-      noteOff(60),
-      noteOff(64),
-    )
+  it("starts a fresh step after the take is stopped and armed again", () => {
+    play(noteOn(60), noteOff(60))
+    recorder.setRecording(false)
+    recorder.setRecording(true)
+    play(noteOn(64), noteOff(64))
 
-    expect(store.patch.steps[0].notes).toEqual([60, 67])
+    expect(store.patch.steps[0].notes).toEqual([64])
   })
 
   it("ignores other channels unless omni", () => {
@@ -91,22 +116,26 @@ describe("MIDIRecorder", () => {
   })
 
   it("records onto the step that was picked", () => {
+    store.patch = { ...store.patch, maxNotesPerStep: 1 }
     recorder.setTarget(5)
     play(noteOn(60), noteOff(60))
+
     expect(store.patch.steps[5].notes).toEqual([60])
     expect(recorder.target).toBe(6)
   })
 
   it("wraps around the end of the grid", () => {
-    store.patch = { ...store.patch, size: "small" }
+    store.patch = { ...store.patch, size: "small", maxNotesPerStep: 1 }
     recorder.setTarget(15)
     play(noteOn(60), noteOff(60))
+
     expect(recorder.target).toBe(0)
   })
 
   it("keeps a chord that was still held when recording stopped", () => {
     play(noteOn(60), noteOn(64))
     recorder.setRecording(false)
+
     expect(store.patch.steps[0].notes).toEqual([60, 64])
   })
 })

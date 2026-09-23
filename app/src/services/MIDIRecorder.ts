@@ -6,16 +6,18 @@ import { MIDIInput, MIDINoteMessage } from "./MIDIInput"
 export type ReceiveChannel = number | "omni"
 
 /**
- * Records notes played on the MIDI input into the step grid. Notes held
- * together land on one step, replacing whatever was there, and the target
- * then moves on, so playing a chord sequence fills consecutive steps.
+ * Records notes played on the MIDI input into the step grid. A step fills up
+ * to Step Notes before the target moves on, so notes land as they are played
+ * whether they arrive as a chord or one at a time, and anything over the
+ * limit starts the next step rather than being lost.
  */
 export class MIDIRecorder {
   isRecording = false
   target = 0
 
-  private readonly held = new Set<number>()
-  private chord: number[] = []
+  // What this take has put on the target step, in the order played. Null
+  // until the first note, which replaces whatever the step already held.
+  private written: number[] | null = null
 
   constructor(
     private readonly sequencerStore: SequencerStore,
@@ -37,12 +39,8 @@ export class MIDIRecorder {
     }
     if (recording) {
       this.beforeTake()
-    } else {
-      // finish anything still held when recording stops
-      this.commit()
     }
-    this.held.clear()
-    this.chord = []
+    this.written = null
     this.isRecording = recording
   }
 
@@ -52,48 +50,45 @@ export class MIDIRecorder {
 
   setTarget = (step: number) => {
     this.target = step
+    // a step picked by hand starts fresh
+    this.written = null
   }
 
   onMessage = (message: MIDINoteMessage) => {
-    if (!this.isRecording) {
+    if (!this.isRecording || message.type !== "noteOn") {
       return
     }
     const channel = this.receiveChannel()
     if (channel !== "omni" && channel !== message.channel) {
       return
     }
+    this.record(message.note)
+  }
 
-    if (message.type === "noteOn") {
-      this.held.add(message.note)
-      if (!this.chord.includes(message.note)) {
-        this.chord.push(message.note)
-      }
-      return
+  private record(note: number) {
+    // A step holds each pitch once, so playing one it already has means that
+    // step is finished — which is how a repeated note records.
+    if (this.written?.includes(note) === true) {
+      this.advance()
     }
 
-    this.held.delete(message.note)
-    // the chord is finished once every key is released
-    if (this.held.size === 0) {
-      this.commit()
+    const notes = [...(this.written ?? []), note]
+    this.written = notes
+    this.write(notes)
+
+    if (notes.length >= this.sequencerStore.patch.maxNotesPerStep) {
       this.advance()
     }
   }
 
-  private commit() {
-    if (this.chord.length === 0) {
-      return
-    }
+  private write(notes: number[]) {
     const patch = this.sequencerStore.patch
-    // keep the notes played first when the chord is larger than the limit
-    const notes = [...this.chord.slice(0, patch.maxNotesPerStep)].sort(
-      (a, b) => a - b,
-    )
-    this.chord = []
+    const sorted = [...notes].sort((a, b) => a - b)
     const target = this.target
     this.sequencerStore.patch = {
       ...patch,
       steps: patch.steps.map((step, index) =>
-        index === target ? { ...step, notes, state: "normal" } : step,
+        index === target ? { ...step, notes: sorted, state: "normal" } : step,
       ),
     }
   }
@@ -101,5 +96,6 @@ export class MIDIRecorder {
   private advance() {
     const size = this.sequencerStore.patch.size
     this.target = (this.target + 1) % stepCount(size)
+    this.written = null
   }
 }

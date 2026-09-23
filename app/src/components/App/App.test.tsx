@@ -55,14 +55,16 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 3" }))
 
     act(() => {
-      rootStore.midiInput.handleMessage([0x90, 60, 100])
-      rootStore.midiInput.handleMessage([0x90, 64, 100])
-      rootStore.midiInput.handleMessage([0x80, 60, 0])
-      rootStore.midiInput.handleMessage([0x80, 64, 0])
+      for (const note of [60, 64, 67, 71]) {
+        rootStore.midiInput.handleMessage([0x90, note, 100])
+        rootStore.midiInput.handleMessage([0x80, note, 0])
+      }
     })
 
-    expect(rootStore.sequencerStore.patch.steps[2].notes).toEqual([60, 64])
-    // recording moves on to the next step
+    expect(rootStore.sequencerStore.patch.steps[2].notes).toEqual([
+      60, 64, 67, 71,
+    ])
+    // the step is full, so recording moves on to the next one
     expect(rootStore.recorder.target).toBe(3)
   })
 

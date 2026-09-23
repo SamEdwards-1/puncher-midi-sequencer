@@ -29,11 +29,14 @@ to another when a condition is met.
 | Right | Voice tabs 1–4 |
 
 ### Sequencer
-- **Steps** hold up to *Max Notes per Step* notes (setting, default 4, range
-  1–16, saved in the file) plus any number of CC events.
+- **Steps** hold up to *Step Notes* notes (setting, default 4, range 1–16,
+  saved in the file) plus any number of CC events.
   - Lowering the limit never deletes notes; extras are dimmed and ignored until
     "Trim to limit" (undoable).
-  - A recorded chord larger than the limit keeps its first N note-ons.
+  - Recording fills a step to the limit before the target moves on, so notes
+    land as played whether they arrive together or one at a time. Whatever
+    doesn't fit starts the next step, and a pitch the step already holds
+    starts it too, which is how a repeated note records.
   - A step is `normal`, `rest` (visited, silent) or `skip` (never visited).
 - **Size:** Small 4×4 (steps 0–15) or Large 8×8 (0–63).
 - **Loop:** `Recorded` (up to the last step with notes, CCs or a rest), `All`,
@@ -74,7 +77,8 @@ to another when a condition is met.
   sequencer lands on the step, before that beat's notes — including on rests,
   never on skips, and not again while Hang holds. Copy/paste steps.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer
-  keyboard; chords go into one step; overdub while playing; rest & advance,
+  keyboard; a step fills to *Step Notes* before moving on; overdub while
+  playing; rest & advance,
   back & clear, octave, and a Clear menu.
 - **Undo/redo:** every patch change; a drag or a recording take is one entry.
 
@@ -335,7 +339,7 @@ built-in dark and light are still there untouched as the starting points.
 | Playable range | Loop setting: Recorded / All / Custom end step |
 | Hold vs Tie | Hold sustains with no retrigger; Tie overlaps into the new note |
 | Grid sizes | 4×4 and 8×8 only |
-| Notes per step | Max Notes per Step, default 4, range 1–16 |
+| Notes per step | Step Notes, default 4, range 1–16. Recording fills a step to it before advancing |
 | Step CC timing | Fires when the sequencer lands on the step |
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |
