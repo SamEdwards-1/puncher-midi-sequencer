@@ -80,9 +80,7 @@ describe("Engine", () => {
 
   describe("step CCs", () => {
     beforeEach(() => {
-      patch.steps[0].ccs = [
-        { id: 1, cc: 74, value: 100, channel: 3, output: "all" },
-      ]
+      patch.steps[0].ccs = [{ id: 1, cc: 74, value: 100, channel: 3 }]
     })
 
     it("fires on landing, before that beat's notes", () => {
@@ -126,16 +124,15 @@ describe("Engine", () => {
       expect(skipping.render(3.9).some((e) => e.type === "cc")).toBe(false)
     })
 
-    it("resolves a voice channel from the target voice", () => {
-      patch.steps[0].ccs = [
-        { id: 1, cc: 74, value: 10, channel: "voice", output: 2 },
-      ]
-      patch.voices[2].channel = 9
+    it("sends on its own channel, to every output", () => {
+      patch.steps[0].ccs = [{ id: 1, cc: 74, value: 10, channel: 9 }]
+      patch.voices[2].channel = 3
 
       const engine = new Engine(patch)
       engine.start(0)
       const cc = engine.render(0.1).find((e) => e.type === "cc")
-      expect(cc).toMatchObject({ channel: 9, output: 2 })
+      // the voices' own channels have nothing to do with it
+      expect(cc).toMatchObject({ channel: 9, output: "all" })
     })
   })
 

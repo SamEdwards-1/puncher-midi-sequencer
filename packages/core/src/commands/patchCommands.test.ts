@@ -118,12 +118,7 @@ describe("patch commands", () => {
 
   it("add, edit and remove step CCs", () => {
     const patch = createDefaultPatch()
-    const withCC = addStepCC(patch, 3, {
-      cc: 74,
-      value: 100,
-      channel: 1,
-      output: "all",
-    })
+    const withCC = addStepCC(patch, 3, { cc: 74, value: 100, channel: 1 })
     const [cc] = withCC.steps[3].ccs
     expect(cc).toMatchObject({ cc: 74, value: 100 })
 
@@ -150,7 +145,7 @@ describe("patch commands", () => {
     const source = addStepCC(
       setStepState(setStepNotes(createDefaultPatch(), 0, [60, 64]), 0, "rest"),
       0,
-      { cc: 74, value: 100, channel: 1, output: "all" },
+      { cc: 74, value: 100, channel: 1 },
     )
     const pasted = pasteStep(source, 5, source.steps[0])
 

@@ -90,23 +90,50 @@ describe("step editor", () => {
 
     click("Add CC")
     const [cc] = patch().steps[0].ccs
-    expect(cc).toMatchObject({ cc: 74, value: 64, channel: "voice" })
+    expect(cc).toMatchObject({ cc: 74, value: 64, channel: 1 })
 
-    click(`CC number ${cc.id} up`)
+    click(`CC ${cc.id} up`)
     expect(patch().steps[0].ccs[0].cc).toBe(75)
 
-    fireEvent.change(screen.getByLabelText(`CC output ${cc.id}`), {
-      target: { value: "2" },
-    })
-    expect(patch().steps[0].ccs[0].output).toBe(2)
+    click(`Value ${cc.id} down`)
+    expect(patch().steps[0].ccs[0].value).toBe(63)
 
-    fireEvent.change(screen.getByLabelText(`Channel ${cc.id}`), {
-      target: { value: "5" },
-    })
-    expect(patch().steps[0].ccs[0].channel).toBe(5)
+    click(`Channel ${cc.id} up`)
+    expect(patch().steps[0].ccs[0].channel).toBe(2)
 
     click(`Remove CC ${cc.id}`)
     expect(patch().steps[0].ccs).toEqual([])
+  })
+
+  it("takes a CC number, value and channel typed in, like the tempo", () => {
+    setup()
+    click("Add CC")
+    const [cc] = patch().steps[0].ccs
+
+    const type = (label: string, text: string) => {
+      const field = screen.getByLabelText(`${label} ${cc.id}`)
+      fireEvent.focus(field)
+      fireEvent.change(field, { target: { value: text } })
+      fireEvent.keyDown(field, { key: "Enter" })
+    }
+
+    type("CC", "91")
+    type("Value", "7")
+    type("Channel", "12")
+    expect(patch().steps[0].ccs[0]).toMatchObject({
+      cc: 91,
+      value: 7,
+      channel: 12,
+    })
+
+    // whatever is typed lands inside the field's range
+    type("CC", "300")
+    type("Channel", "0")
+    expect(patch().steps[0].ccs[0]).toMatchObject({ cc: 127, channel: 1 })
+
+    // and nonsense leaves it alone
+    type("Value", "abc")
+    expect(patch().steps[0].ccs[0].value).toBe(7)
   })
 
   it("copies a step onto another and clears one", () => {

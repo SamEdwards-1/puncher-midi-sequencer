@@ -75,7 +75,8 @@ to another when a condition is met.
 
 ### Step editor, recording, undo
 - **Step editor:** edit notes by hand (name ⇄ number, transpose ±1/±12) and a
-  CC list (cc, value, channel or voice channel, output). CCs fire when the
+  CC list (cc, value, channel — each typed or stepped). A step's CC belongs to
+  no voice, so it goes out on its own channel to every output. CCs fire when the
   sequencer lands on the step, before that beat's notes — including on rests,
   never on skips, and not again while Hang holds. Copy/paste steps.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer

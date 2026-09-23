@@ -315,35 +315,20 @@ export class Engine {
     return result.step
   }
 
+  // A step's CC is its own message on its own channel, so it goes to every
+  // output rather than to a voice's.
   private emitStepCCs(ccs: CCEventJSON[], beat: number, events: EngineEvent[]) {
     for (const cc of ccs) {
-      for (const channel of this.resolveCCChannels(cc)) {
-        events.push({
-          type: "cc",
-          beat,
-          cc: cc.cc,
-          value: cc.value,
-          channel,
-          output: cc.output,
-          source: "step",
-        })
-      }
+      events.push({
+        type: "cc",
+        beat,
+        cc: cc.cc,
+        value: cc.value,
+        channel: cc.channel,
+        output: "all",
+        source: "step",
+      })
     }
-  }
-
-  // "voice" means the channel of the voice the CC goes to; on the All output
-  // that is every enabled voice's channel.
-  private resolveCCChannels(cc: CCEventJSON): number[] {
-    if (typeof cc.channel === "number") {
-      return [cc.channel]
-    }
-    if (typeof cc.output === "number") {
-      return [this.patch.voices[cc.output].channel]
-    }
-    const channels = this.patch.voices
-      .filter((voice) => voice.enabled)
-      .map((voice) => voice.channel)
-    return [...new Set(channels)]
   }
 
   private emitMod(
