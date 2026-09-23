@@ -4,6 +4,7 @@ import {
   MAX_NOTES_PER_STEP,
   ModOutJSON,
   ModSource,
+  NOTES_PER_STEP,
   PatchJSON,
   PatternStepJSON,
   StepIndex,
@@ -70,9 +71,9 @@ export const setStep = (
 /**
  * Notes keep the order they were put in, so editing one never shuffles the
  * rows under the pointer; the engine sorts them when it reads a step. They
- * are unique, clamped to the MIDI range, and capped at 16. The patch's own
- * Max Notes per Step only decides how many the engine reads, so lowering it
- * never destroys notes.
+ * are unique, clamped to the MIDI range, and capped at 16 — what a file from
+ * before the count was fixed may carry. The engine reads the lowest
+ * NOTES_PER_STEP of them, so the extras are kept but never sound.
  */
 export const setStepNotes = (
   patch: PatchJSON,
@@ -83,11 +84,15 @@ export const setStepNotes = (
     notes: [...new Set(notes.map(clampNote))].slice(0, MAX_NOTES_PER_STEP),
   })
 
+// A note past the step's four would belong to no voice, so it is refused.
 export const addStepNote = (
   patch: PatchJSON,
   index: StepIndex,
   note: number,
-): PatchJSON => setStepNotes(patch, index, [...patch.steps[index].notes, note])
+): PatchJSON =>
+  patch.steps[index].notes.length >= NOTES_PER_STEP
+    ? patch
+    : setStepNotes(patch, index, [...patch.steps[index].notes, note])
 
 /**
  * Moving a note onto a pitch the step already holds would merge the two, so
@@ -230,17 +235,17 @@ export const setModOut = (
 export const trimStepsToLimit = (patch: PatchJSON): PatchJSON => ({
   ...patch,
   steps: patch.steps.map((step) =>
-    step.notes.length > patch.maxNotesPerStep
+    step.notes.length > NOTES_PER_STEP
       ? {
           ...step,
           notes: step.notes
             .filter((note) =>
               [...step.notes]
                 .sort((a, b) => a - b)
-                .slice(0, patch.maxNotesPerStep)
+                .slice(0, NOTES_PER_STEP)
                 .includes(note),
             )
-            .slice(0, patch.maxNotesPerStep),
+            .slice(0, NOTES_PER_STEP),
         }
       : step,
   ),

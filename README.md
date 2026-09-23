@@ -65,11 +65,12 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 or typed straight into.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
-Notes held together land on one step, and the target then moves on — so a
-chord sequence fills consecutive steps. Turn Record off when you're done.
+A step takes four notes — one for each voice — and only then does the target
+move on, so it fills whether you play a chord or one note at a time. Turn
+Record off when you're done.
 
-**The grid.** Each circle is a step holding up to four notes (adjustable) and
-any number of CC events. Clicking one selects it, sounds it, and shows it in
+**The grid.** Each circle is a step holding four notes, one for each voice to
+draw from, and any number of CC events. Clicking one selects it, sounds it, and shows it in
 the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 

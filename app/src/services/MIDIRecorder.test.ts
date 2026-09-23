@@ -28,7 +28,7 @@ describe("MIDIRecorder", () => {
     recorder.setRecording(true)
   })
 
-  it("fills a step to the limit before moving on", () => {
+  it("fills a step with one note per voice before moving on", () => {
     play(noteOn(60), noteOff(60), noteOn(64), noteOff(64))
 
     // two of the four are down, so the step is still the target
@@ -64,20 +64,20 @@ describe("MIDIRecorder", () => {
   })
 
   it("carries what won't fit onto the next step", () => {
-    store.patch = { ...store.patch, maxNotesPerStep: 2 }
-    play(noteOn(67), noteOn(60), noteOn(64))
+    play(noteOn(67), noteOn(60), noteOn(64), noteOn(71), noteOn(72))
 
-    expect(store.patch.steps[0].notes).toEqual([60, 67])
-    expect(store.patch.steps[1].notes).toEqual([64])
+    expect(store.patch.steps[0].notes).toEqual([60, 64, 67, 71])
+    expect(store.patch.steps[1].notes).toEqual([72])
     expect(recorder.target).toBe(1)
   })
 
-  it("moves on when a pitch the step already has is played again", () => {
+  it("waits for four however often a pitch is repeated", () => {
+    // a step keeps each pitch once, so a repeat adds nothing to it
     play(noteOn(60), noteOff(60), noteOn(60), noteOff(60))
 
     expect(store.patch.steps[0].notes).toEqual([60])
-    expect(store.patch.steps[1].notes).toEqual([60])
-    expect(recorder.target).toBe(1)
+    expect(store.patch.steps[1].notes).toEqual([])
+    expect(recorder.target).toBe(0)
   })
 
   it("replaces the notes already on a step", () => {
@@ -116,18 +116,17 @@ describe("MIDIRecorder", () => {
   })
 
   it("records onto the step that was picked", () => {
-    store.patch = { ...store.patch, maxNotesPerStep: 1 }
     recorder.setTarget(5)
-    play(noteOn(60), noteOff(60))
+    play(noteOn(60), noteOn(64), noteOn(67), noteOn(71))
 
-    expect(store.patch.steps[5].notes).toEqual([60])
+    expect(store.patch.steps[5].notes).toEqual([60, 64, 67, 71])
     expect(recorder.target).toBe(6)
   })
 
   it("wraps around the end of the grid", () => {
-    store.patch = { ...store.patch, size: "small", maxNotesPerStep: 1 }
+    store.patch = { ...store.patch, size: "small" }
     recorder.setTarget(15)
-    play(noteOn(60), noteOff(60))
+    play(noteOn(60), noteOn(64), noteOn(67), noteOn(71))
 
     expect(recorder.target).toBe(0)
   })

@@ -144,18 +144,6 @@ export const SequencerPanel: FC = () => {
           />
         </Field>
 
-        <Field label={localized["sequencer-max-notes"]}>
-          <Stepper
-            label={localized["sequencer-max-notes"]}
-            value={patch.maxNotesPerStep}
-            min={1}
-            max={16}
-            onChange={(maxNotesPerStep) =>
-              editSequencer({ maxNotesPerStep }, "max-notes")
-            }
-          />
-        </Field>
-
         <ButtonField label={localized["sequencer-mark"]}>
           {/* these turn grid clicks into marking rests or skips until
               switched off again */}

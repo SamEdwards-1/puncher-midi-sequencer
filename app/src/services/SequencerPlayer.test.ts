@@ -190,17 +190,17 @@ describe("SequencerPlayer", () => {
       expect(all.sent).toHaveLength(0)
     })
 
-    it("keeps to the step's note limit", () => {
+    it("keeps to the four notes a step plays", () => {
       const patch = previewPatch()
-      patch.steps[0].notes = [48, 55, 60, 64]
-      patch.maxNotesPerStep = 2
+      // a fifth note, as a file saved before the count was fixed may hold
+      patch.steps[0].notes = [48, 55, 60, 64, 72]
       patch.voices[0] = { ...patch.voices[0], pace: "16th" }
       player.setPatch(patch)
       player.previewStep(0)
 
-      // only the lowest two notes are in play, so the arpeggio repeats them
+      // one note per voice, lowest first; the fifth never sounds
       expect(all.ofType(0x90).map((message) => message.data[1])).toEqual([
-        48, 55, 48, 55,
+        48, 55, 60, 64,
       ])
     })
 

@@ -8,8 +8,6 @@ import {
   VoiceJSON,
 } from "./types"
 
-export const DEFAULT_MAX_NOTES_PER_STEP = 4
-
 export const createDefaultJump = (): JumpJSON => ({
   rule: { kind: "always" },
   dest: null,
@@ -72,7 +70,6 @@ export const createDefaultPatch = (): PatchJSON => ({
   name: "",
   size: "large",
   loop: { mode: "recorded", end: 15 },
-  maxNotesPerStep: DEFAULT_MAX_NOTES_PER_STEP,
   syncVoices: false,
   pace: "8th",
   direction: "fwd",
