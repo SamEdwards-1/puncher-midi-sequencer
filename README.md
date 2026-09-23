@@ -34,8 +34,8 @@ npm install
 npm start
 ```
 
-Then open the address it prints (http://localhost:3000 unless that port is
-busy) and allow MIDI when the browser asks.
+Then open the address it prints — http://localhost:3000, or the next free
+port if something else already has it — and allow MIDI when the browser asks.
 
 ## Setting up MIDI
 
