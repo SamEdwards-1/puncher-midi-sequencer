@@ -165,11 +165,12 @@ describe("undo and redo", () => {
       rootStore.midiInput.handleMessage([0x80, note, 0])
     }
     fireEvent.click(screen.getByRole("button", { name: "Record" }))
+    // three of the four the step holds, so they stay together on it
     expect(
       patch()
-        .steps.slice(0, 3)
+        .steps.slice(0, 2)
         .map((step) => step.notes),
-    ).toEqual([[60], [62], [64]])
+    ).toEqual([[60, 62, 64], []])
 
     fireEvent.click(undoButton())
     expect(patch()).toBe(before)
