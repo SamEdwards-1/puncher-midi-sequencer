@@ -6,6 +6,8 @@ import {
   StepState,
   VoiceIndex,
 } from "@midiseq/core"
+import CloseIcon from "mdi-react/CloseIcon"
+import PlusIcon from "mdi-react/PlusIcon"
 import { FC, HTMLAttributes } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
@@ -138,7 +140,7 @@ export const StepEditor: FC = () => {
                 aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
                 onClick={() => removeNote(selected, position)}
               >
-                ×
+                <CloseIcon size={14} />
               </Button>
             </Row>
           )
@@ -164,6 +166,7 @@ export const StepEditor: FC = () => {
               addNote(selected, step.notes[step.notes.length - 1] ?? 60)
             }
           >
+            <PlusIcon size={14} />
             <Localized name="sequencer-step-add-note" />
           </Button>
         </Row>
@@ -184,6 +187,7 @@ export const StepEditor: FC = () => {
               })
             }
           >
+            <PlusIcon size={14} />
             <Localized name="sequencer-step-add-cc" />
           </Button>
         </PanelHeader>
@@ -275,7 +279,7 @@ const CCRow: FC<{
         aria-label={`${localized["sequencer-step-remove-cc"]} ${cc.id}`}
         onClick={onRemove}
       >
-        ×
+        <CloseIcon size={14} />
       </Button>
     </Row>
   )

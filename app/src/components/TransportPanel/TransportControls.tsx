@@ -1,3 +1,6 @@
+import PlayIcon from "mdi-react/PlayIcon"
+import RecordIcon from "mdi-react/RecordIcon"
+import StopIcon from "mdi-react/StopIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
@@ -22,9 +25,15 @@ export const TransportControls: FC = () => {
         onClick={isPlaying ? stop : play}
       >
         {isPlaying ? (
-          <Localized name="sequencer-stop" />
+          <>
+            <StopIcon size={16} />
+            <Localized name="sequencer-stop" />
+          </>
         ) : (
-          <Localized name="sequencer-play" />
+          <>
+            <PlayIcon size={16} />
+            <Localized name="sequencer-play" />
+          </>
         )}
       </ToolbarButton>
       <ToolbarButton
@@ -33,6 +42,7 @@ export const TransportControls: FC = () => {
         active={isRecording}
         onClick={toggleRecording}
       >
+        <RecordIcon size={16} />
         <Localized name="sequencer-record" />
       </ToolbarButton>
       <div className="w-32">

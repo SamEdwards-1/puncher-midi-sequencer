@@ -1,7 +1,9 @@
+import MinusIcon from "mdi-react/MinusIcon"
+import PlusIcon from "mdi-react/PlusIcon"
 import { FC, useState } from "react"
 
 const STEP =
-  "h-[1.6rem] w-[1.6rem] rounded-sm bg-background-secondary text-title leading-none text-fg enabled:hover:bg-highlight disabled:text-fg-tertiary"
+  "flex h-[1.6rem] w-[1.6rem] items-center justify-center rounded-sm bg-background-secondary text-fg enabled:hover:bg-highlight disabled:text-fg-tertiary"
 
 const VALUE = "grow text-center font-mono text-body text-fg"
 
@@ -50,7 +52,7 @@ export const Stepper: FC<StepperProps> = ({
         disabled={value <= min}
         onClick={() => onChange(clamp(value - step))}
       >
-        −
+        <MinusIcon size={14} />
       </button>
       {parse === undefined ? (
         <span className={VALUE}>
@@ -97,7 +99,7 @@ export const Stepper: FC<StepperProps> = ({
         disabled={value >= max}
         onClick={() => onChange(clamp(value + step))}
       >
-        +
+        <PlusIcon size={14} />
       </button>
     </div>
   )

@@ -1,4 +1,5 @@
 import { JumpRule } from "@midiseq/core"
+import CloseIcon from "mdi-react/CloseIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
@@ -92,7 +93,7 @@ export const JumpPatcher: FC = () => {
         disabled={value === null}
         onClick={() => editJump(selected, { [kind]: null })}
       >
-        ×
+        <CloseIcon size={14} />
       </Button>
     </div>
   )
