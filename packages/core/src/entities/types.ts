@@ -45,9 +45,8 @@ export interface CCEventJSON {
   id: number
   cc: number
   value: number
-  // "voice" means each voice's own channel
-  channel: number | "voice"
-  output: OutputTarget
+  // 1-16. A step's CC belongs to no voice, so it goes to every output.
+  channel: number
 }
 
 export interface StepJSON {

@@ -32,6 +32,25 @@ describe("the file format", () => {
     }
   })
 
+  it("opens a file whose CCs followed a voice's channel", () => {
+    const patch = createDemoPatch()
+    const text = serializeFile(createFile(patch))
+    const older = JSON.parse(text)
+    // as that version wrote a CC: a voice's own channel, and a target output
+    older.patch.steps[0].ccs = [
+      { id: 1, cc: 74, value: 100, channel: "voice", output: 2 },
+    ]
+    const result = parseFile(JSON.stringify(older))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      // it lands on channel 1, and the output it targeted is forgotten
+      expect(result.patch.steps[0].ccs).toEqual([
+        { id: 1, cc: 74, value: 100, channel: 1 },
+      ])
+    }
+  })
+
   it("writes pretty JSON ending in a newline", () => {
     const text = serializeFile(createFile(createDefaultPatch()))
     expect(text.startsWith("{\n")).toBe(true)

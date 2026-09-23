@@ -47,8 +47,8 @@ export const CCEventSchema = z.object({
   id: z.number().int(),
   cc: midiValue,
   value: midiValue,
-  channel: z.union([channel, z.literal("voice")]),
-  output: OutputTargetSchema,
+  // a file written when a CC could follow a voice's channel lands on 1
+  channel: z.preprocess((value) => (value === "voice" ? 1 : value), channel),
 })
 
 export const StepSchema = z.object({

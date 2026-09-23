@@ -1,11 +1,4 @@
-import {
-  CCEventJSON,
-  NOTES_PER_STEP,
-  noteNumberToName,
-  OutputTarget,
-  StepState,
-  VoiceIndex,
-} from "@midiseq/core"
+import { NOTES_PER_STEP, noteNumberToName, StepState } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
 import { FC, HTMLAttributes } from "react"
@@ -18,6 +11,7 @@ import { cn } from "../ui/cn"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
+import { CCRow } from "./CCRow"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -27,8 +21,6 @@ const Row: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
 )
 
 const STATES: StepState[] = ["normal", "rest", "skip"]
-const VOICES: VoiceIndex[] = [0, 1, 2, 3]
-const CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
 
 export const StepEditor: FC = () => {
   const patch = usePatch()
@@ -178,14 +170,7 @@ export const StepEditor: FC = () => {
           <Button
             type="button"
             size="sm"
-            onClick={() =>
-              addCC(selected, {
-                cc: 74,
-                value: 64,
-                channel: "voice",
-                output: "all",
-              })
-            }
+            onClick={() => addCC(selected, { cc: 74, value: 64, channel: 1 })}
           >
             <PlusIcon size={14} />
             <Localized name="sequencer-step-add-cc" />
@@ -208,79 +193,5 @@ export const StepEditor: FC = () => {
         ))}
       </div>
     </>
-  )
-}
-
-const CCRow: FC<{
-  cc: CCEventJSON
-  onChange: (changes: Partial<Omit<CCEventJSON, "id">>) => void
-  onRemove: () => void
-}> = ({ cc, onChange, onRemove }) => {
-  const localized = useLocalization()
-
-  return (
-    <Row>
-      <Stepper
-        label={`${localized["sequencer-step-cc"]} ${cc.id}`}
-        value={cc.cc}
-        min={0}
-        max={127}
-        format={(value) => `CC ${value}`}
-        onChange={(next) => onChange({ cc: next })}
-      />
-      <Stepper
-        label={`${localized["sequencer-step-cc-value"]} ${cc.id}`}
-        value={cc.value}
-        min={0}
-        max={127}
-        onChange={(value) => onChange({ value })}
-      />
-      <Select
-        aria-label={`${localized["sequencer-midi-channel"]} ${cc.id}`}
-        value={cc.channel === "voice" ? "voice" : String(cc.channel)}
-        onChange={(event) =>
-          onChange({
-            channel:
-              event.target.value === "voice"
-                ? "voice"
-                : Number(event.target.value),
-          })
-        }
-      >
-        <option value="voice">{localized["sequencer-step-cc-voice"]}</option>
-        {CHANNELS.map((channel) => (
-          <option key={channel} value={channel}>
-            {channel}
-          </option>
-        ))}
-      </Select>
-      <Select
-        aria-label={`${localized["sequencer-step-cc-output"]} ${cc.id}`}
-        value={cc.output === "all" ? "all" : String(cc.output)}
-        onChange={(event) =>
-          onChange({
-            output:
-              event.target.value === "all"
-                ? "all"
-                : (Number(event.target.value) as OutputTarget),
-          })
-        }
-      >
-        <option value="all">{localized["sequencer-output-all"]}</option>
-        {VOICES.map((voice) => (
-          <option key={voice} value={voice}>
-            {`${localized["sequencer-output-voice"]} ${voice + 1}`}
-          </option>
-        ))}
-      </Select>
-      <Button
-        type="button"
-        size="sm"
-        aria-label={`${localized["sequencer-step-remove-cc"]} ${cc.id}`}
-        onClick={onRemove}
-      >
-        <CloseIcon size={14} />
-      </Button>
-    </Row>
   )
 }
