@@ -37,6 +37,36 @@ export const setVoice = (
   ),
 })
 
+/**
+ * The channel a voice takes when asked for `wanted`: that one, or, where
+ * another voice already plays on it, the next free one onward in the
+ * direction it was moved. No two voices share a channel, so each keeps a
+ * Velocity lane of its own; with nothing free that way it stays put.
+ */
+export const freeVoiceChannel = (
+  patch: PatchJSON,
+  voiceIndex: number,
+  wanted: number,
+): number => {
+  const current = patch.voices[voiceIndex].channel
+  const taken = new Set(
+    patch.voices
+      .filter((_, index) => index !== voiceIndex)
+      .map((voice) => voice.channel),
+  )
+  const direction = wanted < current ? -1 : 1
+  for (
+    let channel = Math.min(16, Math.max(1, wanted));
+    channel >= 1 && channel <= 16;
+    channel += direction
+  ) {
+    if (!taken.has(channel)) {
+      return channel
+    }
+  }
+  return current
+}
+
 export const setPatternStep = (
   patch: PatchJSON,
   voiceIndex: number,

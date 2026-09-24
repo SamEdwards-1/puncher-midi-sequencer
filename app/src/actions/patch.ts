@@ -4,6 +4,7 @@ import {
   clearPatch,
   clearStep,
   EnvelopeJSON,
+  freeVoiceChannel,
   JumpJSON,
   PatchJSON,
   PatternStepJSON,
@@ -60,8 +61,15 @@ export function usePatchEditor() {
       [apply, sequencerStore],
     ),
     editVoice: useCallback(
-      (index: number, changes: Partial<VoiceJSON>, key?: string) =>
-        apply(setVoice(sequencerStore.patch, index, changes), key),
+      (index: number, changes: Partial<VoiceJSON>, key?: string) => {
+        const patch = sequencerStore.patch
+        // a channel another voice has moves on to the next free one
+        const channel =
+          changes.channel === undefined
+            ? {}
+            : { channel: freeVoiceChannel(patch, index, changes.channel) }
+        apply(setVoice(patch, index, { ...changes, ...channel }), key)
+      },
       [apply, sequencerStore],
     ),
     editPatternStep: useCallback(

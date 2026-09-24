@@ -6,6 +6,7 @@ import {
   addStepNote,
   clearPatch,
   clearStep,
+  freeVoiceChannel,
   nextFreeCC,
   pasteStep,
   removeEnvelope,
@@ -196,6 +197,20 @@ describe("patch commands", () => {
     ).toMatchObject({ velocityOffset: -30 })
     expect(own.voices[1].pattern[2]).toBe(patch.voices[1].pattern[2])
     expect(own.voices[0]).toBe(patch.voices[0])
+  })
+
+  it("never give two voices one channel", () => {
+    // voices on 1 to 4
+    const patch = createDefaultPatch()
+    expect(freeVoiceChannel(patch, 0, 9)).toBe(9)
+    // stepping up onto a taken channel carries on to the next free one
+    expect(freeVoiceChannel(patch, 0, 2)).toBe(5)
+    // and stepping down, downward
+    const high = setVoice(patch, 3, { channel: 8 })
+    expect(freeVoiceChannel(high, 3, 3)).toBe(8)
+    expect(freeVoiceChannel(high, 3, 7)).toBe(7)
+    // with nothing free that way, it stays where it is
+    expect(freeVoiceChannel(patch, 1, 1)).toBe(2)
   })
 
   it("copy a step onto another and clear one", () => {

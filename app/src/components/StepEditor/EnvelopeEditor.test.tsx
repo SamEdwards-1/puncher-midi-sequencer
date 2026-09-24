@@ -19,9 +19,9 @@ const points = () => envelopes()[0].points
 const click = (name: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }))
 
-// jsdom has no layout, so the graph is its fallback 480 by 160, inset by 6
+// jsdom has no layout, so the graph is its fallback 480 by 240, inset by 6
 const X = (time: number) => 6 + time * 468
-const Y = (value: number) => 6 + (1 - value / 127) * 148
+const Y = (value: number) => 6 + (1 - value / 127) * 228
 
 const frame = () => screen.getByRole("application", { name: "Envelope" })
 const svg = () => frame().querySelector("svg") as SVGSVGElement
@@ -177,6 +177,19 @@ describe("the envelope editor", () => {
       expect(voices.getByText("9")).toBeInTheDocument()
     })
 
+    it("never lets two voices share a channel", () => {
+      setup(null)
+      // voices on 1 to 4: stepping voice 1 up passes over 2, 3 and 4
+      click("Voice 1 channel up")
+      expect(patch().voices[0].channel).toBe(5)
+      // typing a taken channel lands on the next free one
+      fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
+      type("Voice 2 channel", "3")
+      expect(patch().voices[1].channel).toBe(6)
+      const channels = patch().voices.map(({ channel }) => channel)
+      expect(new Set(channels).size).toBe(4)
+    })
+
     it("sets a CC's channel in its row", () => {
       setup()
       click("CC channel up")
@@ -234,6 +247,38 @@ describe("the envelope editor", () => {
       // a hair off the 1/16 line and well off the line
       clickAt(X(0.9), Y(10), { detail: 2 })
       expect(points()).toContainEqual({ time: 1, value: 10 })
+    })
+
+    it("shows the envelope's value while the mouse is over the line", () => {
+      setup()
+      const readout = () => svg().querySelector("[data-envelope-value]")
+      fireEvent.mouseMove(svg(), { clientX: X(0.5), clientY: Y(64) })
+      expect(readout()).toHaveAttribute("data-envelope-value", "64")
+      expect(readout()?.textContent).toBe("64")
+
+      // over a point, the point's value
+      fireEvent.mouseMove(svg(), { clientX: X(0.75), clientY: Y(96) })
+      expect(readout()).toHaveAttribute("data-envelope-value", "96")
+
+      // and nothing away from the line
+      fireEvent.mouseMove(svg(), { clientX: X(0.5), clientY: Y(10) })
+      expect(readout()).toBeNull()
+    })
+
+    it("shows the value under the mouse as a point is dragged", () => {
+      setup()
+      press(X(0.25), Y(32))
+      moveTo(X(0.25), Y(50))
+      fireEvent.mouseMove(svg(), {
+        clientX: X(0.25),
+        clientY: Y(50),
+        buttons: 1,
+      })
+      expect(svg().querySelector("[data-envelope-value]")).toHaveAttribute(
+        "data-envelope-value",
+        "50",
+      )
+      release(X(0.25), Y(50))
     })
 
     it("does nothing on a single click away from the line", () => {
@@ -407,6 +452,11 @@ describe("the envelope editor", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Voice 1 Dot 1" }))
       expect(notes()).toHaveLength(3)
+    })
+
+    it("keep their voice's own colour under an envelope", () => {
+      setup(ramp, (start) => setStepNotes(start, 0, [60]))
+      expect(notes()[0]).toHaveAttribute("fill-opacity", "1")
     })
 
     it("keep the same keys from step to step", () => {
@@ -617,7 +667,7 @@ describe("the envelope editor", () => {
       expect(velocities()).toEqual([95, 65])
     })
 
-    it("shows only its own voice's bars, even on a shared channel", () => {
+    it("shows only its own voice's bars, even where an older patch shares a channel", () => {
       setup(null, (start) => {
         const next = withNotes(start)
         next.voices[1] = {

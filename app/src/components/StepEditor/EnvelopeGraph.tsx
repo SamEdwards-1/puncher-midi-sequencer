@@ -16,6 +16,7 @@ import {
   stepNotes,
   updateEnvelope,
   VoiceIndex,
+  valueAt,
 } from "@midiseq/core"
 import {
   FC,
@@ -68,7 +69,7 @@ export const GRIDS = [
   { beats: 1 / 6, label: "1/16T" },
 ]
 
-export const GRAPH_HEIGHT = 160
+export const GRAPH_HEIGHT = 240
 const PAD = 6
 // before the graph has been measured, and in tests
 const FALLBACK_WIDTH = 480
@@ -133,6 +134,9 @@ export const EnvelopeGraph: FC<{
     segment: number | null
     bar: boolean
   }>({ point: null, segment: null, bar: false })
+  // where the mouse is over the graph, for the value readout
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
   const envelope = lane.kind === "cc" ? lane.envelope : null
 
   const stepBeats = paceBeats(patch.pace)
@@ -188,6 +192,10 @@ export const EnvelopeGraph: FC<{
     // keeps the page from selecting text under a drag
     event.preventDefault()
     frame.current?.focus()
+    setDragging(true)
+    document.addEventListener("mouseup", () => setDragging(false), {
+      once: true,
+    })
 
     const down = event.nativeEvent
     const start = local(down)
@@ -392,11 +400,12 @@ export const EnvelopeGraph: FC<{
   }
 
   const onMouseMove = (event: ReactMouseEvent<SVGSVGElement>) => {
+    const { x, y } = local(event.nativeEvent)
+    setPointer({ x, y })
     // while a button is down, the drag has the mouse
     if (event.buttons !== 0) {
       return
     }
-    const { x, y } = local(event.nativeEvent)
     if (lane.kind === "velocity") {
       setHover({ point: null, segment: null, bar: barsAt(bars, x).length > 0 })
       return
@@ -448,6 +457,31 @@ export const EnvelopeGraph: FC<{
               ? "ns-resize"
               : "default"
 
+  // The envelope's value where the mouse is, shown beside it while it is over
+  // the line or a point, or dragging.
+  const readout = (() => {
+    if (
+      envelope === null ||
+      points.length === 0 ||
+      pointer === null ||
+      !(dragging || hover.point !== null || hover.segment !== null)
+    ) {
+      return null
+    }
+    const exact =
+      hover.point !== null && !dragging
+        ? points[hover.point].value
+        : valueAt(points, timeAtX(plot, pointer.x))
+    const value = Math.round(exact ?? 0)
+    const labelWidth = 8 + 7 * String(value).length
+    return {
+      value,
+      width: labelWidth,
+      x: Math.min(Math.max(0, pointer.x + 10), width - labelWidth - 2),
+      y: Math.max(2, pointer.y - 24),
+    }
+  })()
+
   const gridLabel = GRIDS.find(({ beats }) => beats === gridBeats)?.label
 
   return (
@@ -487,9 +521,10 @@ export const EnvelopeGraph: FC<{
           style={{ cursor }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
-          onMouseLeave={() =>
+          onMouseLeave={() => {
             setHover({ point: null, segment: null, bar: false })
-          }
+            setPointer(null)
+          }}
         >
           <title>{localized["sequencer-envelope"]}</title>
           <rect
@@ -540,7 +575,9 @@ export const EnvelopeGraph: FC<{
               rx={2}
               fill={`var(--midiseq-voice-${note.voice})`}
               // behind velocity bars the notes only say where they are
-              fillOpacity={lane.kind === "velocity" ? 0.16 : 0.4}
+              // under an envelope the notes keep their voice's own colour;
+              // behind velocity bars they only say where the notes are
+              fillOpacity={lane.kind === "velocity" ? 0.16 : 1}
             />
           ))}
 
@@ -585,7 +622,7 @@ export const EnvelopeGraph: FC<{
               <path
                 d={areaPath(points, plot)}
                 fill="var(--midiseq-envelope)"
-                fillOpacity={0.12}
+                fillOpacity={0.08}
               />
               <path
                 data-envelope-line
@@ -612,6 +649,31 @@ export const EnvelopeGraph: FC<{
                 />
               ))}
             </>
+          )}
+
+          {readout !== null && (
+            <g data-envelope-value={readout.value} pointerEvents="none">
+              <rect
+                x={readout.x}
+                y={readout.y}
+                width={readout.width}
+                height={16}
+                rx={3}
+                fill="var(--midiseq-background-dark)"
+                stroke="var(--midiseq-envelope)"
+                strokeOpacity={0.7}
+              />
+              <text
+                x={readout.x + readout.width / 2}
+                y={readout.y + 12}
+                textAnchor="middle"
+                fontSize={11}
+                fill="var(--midiseq-fg)"
+                fontFamily="var(--midiseq-mono-font)"
+              >
+                {readout.value}
+              </text>
+            </g>
           )}
 
           <text

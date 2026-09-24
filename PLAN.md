@@ -85,8 +85,9 @@ to another when a condition is met.
 - **Velocity & CCs:** a tab per voice's **Velocity** — one bar per note,
   as Signal's — and a tab per CC envelope on the step. The row above the
   graph sets the lane's channel, 1–16: a Velocity tab's is its voice's,
-  shared with the Voices panel; a CC's is its own, and stays put when a voice
-  moves. A CC added from a tab goes out on that tab's channel.
+  shared with the Voices panel, and no two voices may share one — a channel
+  another voice has passes on to the next free one; a CC's is its own, and
+  stays put when a voice moves. A CC added from a tab goes out on that tab's channel.
 - **Velocity lane:** press a bar to set its note's velocity and drag to
   follow the mouse; press between bars to paint every bar the mouse passes.
   A bar is its dot's velocity, so every bar from that dot moves with it.
@@ -102,7 +103,8 @@ to another when a condition is met.
   time making a jump. Time runs across the step, 0 to 1, so an envelope
   stretches with the sequencer's pace. It is drawn over a read-only piano roll
   of the notes the step plays — rendered from the voices, so pace, dots,
-  ratchets, length and rule all show, in each voice's colour, muted.
+  ratchets, length and rule all show, in each voice's colour. Hovering the line,
+  or dragging, shows the envelope's value under the mouse.
   - *Edit:* click the line to add a point on it, double-click anywhere to
     place one, drag a point (never past its neighbours; a straight vertical
     drag keeps its time), drag the line to raise or lower a segment, click a
