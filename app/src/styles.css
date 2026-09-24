@@ -64,6 +64,10 @@
   /* behind the dots a voice reaches in one sequencer step: well below the
      panel, so the band reads at a glance behind coloured dots */
   --midiseq-pace-band: hsl(228, 12%, 7%);
+
+  /* a step's CC envelope, apart from every voice's colour since it lies over
+     their notes */
+  --midiseq-envelope: hsl(188, 72%, 52%);
 }
 
 :root[data-theme="light"] {
@@ -101,6 +105,7 @@
   --midiseq-voice-2: hsl(155, 60%, 32%);
   --midiseq-voice-3: hsl(290, 50%, 48%);
   --midiseq-pace-band: hsl(228, 14%, 80%);
+  --midiseq-envelope: hsl(190, 80%, 34%);
 }
 
 /* Tailwind's tokens point at those variables rather than copying them, so a
@@ -144,6 +149,7 @@
      voiceColor() */
   --color-voice: var(--midiseq-voice);
   --color-pace-band: var(--midiseq-pace-band);
+  --color-envelope: var(--midiseq-envelope);
 }
 
 @layer base {

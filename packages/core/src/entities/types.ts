@@ -41,18 +41,33 @@ export interface JumpJSON {
   normal: StepIndex | null
 }
 
-export interface CCEventJSON {
+// A breakpoint on a step's envelope. `time` runs from the step's start (0)
+// to its end (1), so the envelope stretches with the sequencer's pace;
+// `value` is the CC value there, 0-127.
+export interface EnvelopePointJSON {
+  time: number
+  value: number
+}
+
+/**
+ * A CC as a curve over one step: breakpoints joined by straight lines. The
+ * value holds at the first point's before it and the last point's after it,
+ * so a single point is a plain CC message sent on landing. Two points at the
+ * same time make a jump.
+ */
+export interface EnvelopeJSON {
   id: number
   cc: number
-  value: number
   // 1-16. A step's CC belongs to no voice, so it goes to every output.
   channel: number
+  // sorted by time
+  points: EnvelopePointJSON[]
 }
 
 export interface StepJSON {
   // sorted ascending; the engine reads the lowest maxNotesPerStep of them
   notes: number[]
-  ccs: CCEventJSON[]
+  envelopes: EnvelopeJSON[]
   state: StepState
   jump: JumpJSON
 }

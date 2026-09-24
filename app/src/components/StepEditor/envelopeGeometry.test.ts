@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest"
+import {
+  areaPath,
+  cellAt,
+  hitPoint,
+  hitSegment,
+  isBlackKey,
+  keyRange,
+  linePath,
+  Plot,
+  timeAtX,
+  toX,
+  toY,
+  valueAtY,
+} from "./envelopeGeometry"
+
+// 100 by 127 inside a 10 pixel inset, so a unit of time or value is easy
+const plot: Plot = { width: 120, height: 147, pad: 10 }
+const ramp = [
+  { time: 0.2, value: 27 },
+  { time: 0.8, value: 127 },
+]
+
+describe("envelope geometry", () => {
+  it("maps the step across and the CC value up, inside the inset", () => {
+    expect(toX(plot, 0)).toBe(10)
+    expect(toX(plot, 1)).toBe(110)
+    expect(toY(plot, 127)).toBe(10)
+    expect(toY(plot, 0)).toBe(137)
+    expect(timeAtX(plot, toX(plot, 0.3))).toBeCloseTo(0.3)
+    expect(valueAtY(plot, toY(plot, 90))).toBeCloseTo(90)
+  })
+
+  it("keeps a position outside the plot inside the step and the CC range", () => {
+    expect(timeAtX(plot, -50)).toBe(0)
+    expect(timeAtX(plot, 500)).toBe(1)
+    expect(valueAtY(plot, -50)).toBe(127)
+    expect(valueAtY(plot, 500)).toBe(0)
+  })
+
+  it("finds the point under the mouse, the later of two overlapping", () => {
+    expect(hitPoint(ramp, plot, toX(plot, 0.2) + 3, toY(plot, 27))).toBe(0)
+    expect(hitPoint(ramp, plot, toX(plot, 0.5), toY(plot, 77))).toBeNull()
+
+    const stacked = [
+      { time: 0.5, value: 60 },
+      { time: 0.5, value: 60 },
+    ]
+    expect(hitPoint(stacked, plot, toX(plot, 0.5), toY(plot, 60))).toBe(1)
+  })
+
+  it("finds the segment under the mouse, numbered as moveSegment counts", () => {
+    // halfway along the slope
+    expect(hitSegment(ramp, plot, toX(plot, 0.5), toY(plot, 77))).toBe(0)
+    // the flat stretch into the first point, and out of the last
+    expect(hitSegment(ramp, plot, toX(plot, 0.05), toY(plot, 27))).toBe(-1)
+    expect(hitSegment(ramp, plot, toX(plot, 0.95), toY(plot, 127))).toBe(1)
+    // and nothing well away from the line
+    expect(hitSegment(ramp, plot, toX(plot, 0.5), toY(plot, 10))).toBeNull()
+    expect(hitSegment([], plot, 50, 50)).toBeNull()
+  })
+
+  it("draws the line flat to both ends of the step", () => {
+    expect(linePath(ramp, plot)).toBe("M10,110 L30,110 L90,10 L110,10")
+    expect(areaPath(ramp, plot)).toBe(
+      "M10,110 L30,110 L90,10 L110,10 L110,137 L10,137 Z",
+    )
+    expect(linePath([], plot)).toBe("")
+  })
+
+  it("finds the grid cell a time falls in", () => {
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+    expect(cellAt(grid, 0)).toBe(0)
+    expect(cellAt(grid, 0.3)).toBe(1)
+    expect(cellAt(grid, 0.75)).toBe(3)
+    // the step's end belongs to the last cell
+    expect(cellAt(grid, 1)).toBe(3)
+  })
+
+  it("shows the notes with a key either side, and at least an octave", () => {
+    expect(keyRange([60, 72, 79])).toEqual({ low: 59, high: 80 })
+    const one = keyRange([60])
+    expect(one.high - one.low + 1).toBe(13)
+    expect(one.low).toBeLessThanOrEqual(59)
+    expect(one.high).toBeGreaterThanOrEqual(61)
+    // at the ends of the MIDI range it grows the other way
+    expect(keyRange([0])).toEqual({ low: 0, high: 12 })
+    expect(keyRange([127])).toEqual({ low: 115, high: 127 })
+    // with nothing to show, the octave around middle C
+    expect(keyRange([])).toEqual({ low: 54, high: 66 })
+  })
+
+  it("knows the black keys", () => {
+    expect([60, 61, 62, 63, 64, 65, 66].map(isBlackKey)).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+    ])
+  })
+})

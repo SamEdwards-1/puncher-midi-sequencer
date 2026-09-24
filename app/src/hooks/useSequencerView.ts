@@ -26,6 +26,25 @@ export function usePreviewOnClick() {
   return useAtom(previewOnClickAtom)
 }
 
+// The envelope editor's tool, grid and open CC tab. The grid is a note value
+// in beats; the tab is an envelope's id, falling back to the step's first.
+export type EnvelopeTool = "edit" | "draw"
+const envelopeToolAtom = atom<EnvelopeTool>("edit")
+const envelopeGridAtom = atom(0.25)
+const selectedEnvelopeAtom = atom<number | null>(null)
+
+export function useEnvelopeTool() {
+  return useAtom(envelopeToolAtom)
+}
+
+export function useEnvelopeGrid() {
+  return useAtom(envelopeGridAtom)
+}
+
+export function useSelectedEnvelope() {
+  return useAtom(selectedEnvelopeAtom)
+}
+
 export function useSelectedVoice() {
   return useAtom(selectedVoiceAtom)
 }

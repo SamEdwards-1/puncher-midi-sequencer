@@ -30,7 +30,7 @@ to another when a condition is met.
 
 ### Sequencer
 - **Steps** hold up to *Step Notes* notes — 1 to 4, saved in the file — plus
-  any number of CC events. Four is the ceiling because a step's notes are what
+  any number of CC envelopes. Four is the ceiling because a step's notes are what
   the voices draw from, and a fifth would belong to no voice.
   - A file saved while the count was a setting keeps whatever it holds; the
     notes past the fourth are dimmed and ignored until "Trim to limit"
@@ -76,11 +76,30 @@ to another when a condition is met.
 ### Step editor, recording, undo
 - **Step editor:** edit notes by hand (typed as a name or stepped, transpose
   ±1/±12 — a bare letter keeps the octave, anything outside MIDI's range is
-  refused) and a
-  CC list (cc, value, channel — each typed or stepped). A step's CC belongs to
-  no voice, so it goes out on its own channel to every output. CCs fire when the
-  sequencer lands on the step, before that beat's notes — including on rests,
-  never on skips, and not again while Hang holds. Copy/paste steps.
+  refused) and the step's CCs, each an **envelope** across the step (below).
+  A step's CC belongs to no voice, so it goes out on its own channel to every
+  output. Copy/paste steps.
+- **CC envelopes:** a tab per CC (number and channel typed or stepped), each
+  an envelope in the manner of Live's: breakpoints joined by straight lines,
+  the value held before the first point and after the last, two points at one
+  time making a jump. Time runs across the step, 0 to 1, so an envelope
+  stretches with the sequencer's pace. It is drawn over a read-only piano roll
+  of the notes the step plays — rendered from the voices, so pace, dots,
+  ratchets, length and rule all show, in each voice's colour, muted.
+  - *Edit:* click the line to add a point on it, double-click anywhere to
+    place one, drag a point (never past its neighbours; a straight vertical
+    drag keeps its time), drag the line to raise or lower a segment, click a
+    point to delete it. *Draw* (B while the graph has focus — elsewhere B is
+    Bump): drag to paint, one flat value per grid cell crossed, cells a quick
+    stroke skips filled in along it, as Signal's pencil does. Points snap to
+    the grid (1/4 to 1/32, and triplets) unless Alt is held. A drag is one
+    undo entry.
+  - *Playback:* on landing each envelope sends its opening value, in list
+    order and before that beat's notes — including on rests, never on skips,
+    and not again while Hang holds the step. It then follows its line, read
+    live every 1/48 beat and sent only when the whole value changes, so an
+    envelope redrawn mid-step is heard at once. A one-point envelope is
+    exactly the CC event it replaced; older files open that way.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer
   keyboard; a step fills to Step Notes before moving on; overdub while
   playing; rest & advance,
@@ -182,8 +201,8 @@ packages/core/
 
 ```ts
 type StepIndex = number   // Large 0..63 (r*8+c), Small 0..15 (r*4+c)
-interface StepJSON { notes: number[]; ccs: CCEventJSON[]; state: "normal"|"rest"|"skip"; jump: JumpJSON }
-interface CCEventJSON { id: number; cc: number; value: number; channel: number | "voice"; output: "all"|0|1|2|3 }
+interface StepJSON { notes: number[]; envelopes: EnvelopeJSON[]; state: "normal"|"rest"|"skip"; jump: JumpJSON }
+interface EnvelopeJSON { id: number; cc: number; channel: number; points: { time: number /* 0..1 of the step */; value: number }[] }
 interface JumpJSON { rule: JumpRule; dest: StepIndex | null; normal: StepIndex | null }
 interface LoopJSON { mode: "recorded"|"all"|"custom"; end: StepIndex }
 interface VoiceJSON { enabled; pace; length; rule; offset; patternLength; pattern: PatternStepJSON[16]; velocity; channel }
@@ -394,6 +413,35 @@ the whole number changes: a steady clock writes once and then says nothing.
 **What is not there yet:** song position pointer, and a tempo field that says
 it is being driven from outside rather than simply being overwritten.
 
+## 5.6 CC envelopes
+
+**Breakpoints, not a value per grid cell.** Like Live, an envelope stores
+points joined by segments, so a slow sweep is two points however fine the
+grid. Draw mode's flat steps are only what the paint stroke writes — pairs of
+points — and a run painted at one value keeps just its ends.
+
+**Time is a fraction of the step.** The step's length is the sequencer's
+pace, so storing 0 to 1 lets an envelope keep its shape when the pace
+changes. The grid is laid over it in note values, so a 1/16 grid on a
+one-bar step is sixteen cells and on a quarter-note step four.
+
+**Read live, sent on change.** The engine samples the step's envelopes every
+1/48 beat — the grid every pace sits on — from the patch as it is now, not as
+it was on landing, so drawing while the sequence plays is heard straight
+away. It sends a CC only when the rounded value moves, so a flat line costs
+one message per landing.
+
+**The notes underneath** are the step rendered once through the engine, as a
+clicked step is auditioned: every voice starting together on its first dot.
+Chance and the random rules use a fixed seed, so the picture holds still
+while editing.
+
+**What is not there yet:** selecting and moving several points at once;
+Live's inserting points at a time selection's edges when a segment is
+dragged (there is no time selection); recording incoming CCs into an
+envelope; and, with Sync Voices off, the piano roll still shows each voice
+from its first dot, where in play it carries on from wherever it was.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -402,7 +450,7 @@ it is being driven from outside rather than simply being overwritten.
 | Hold vs Tie | Hold sustains with no retrigger; Tie overlaps into the new note |
 | Grid sizes | 4×4 and 8×8 only |
 | Notes per step | Step Notes, 1–4 with one per voice as the ceiling, default 4. Recording fills to it before advancing |
-| Step CC timing | Fires when the sequencer lands on the step |
+| Step CCs | Envelopes across the step, replacing plain CC events: the opening value on landing, then the line, sent as it changes |
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |
 | Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |

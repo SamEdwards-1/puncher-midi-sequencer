@@ -1,6 +1,6 @@
-import { onPaceGrid, paceBeats } from "../entities/paces"
+import { valueAt } from "../entities/envelope"
+import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
 import {
-  CCEventJSON,
   ModSource,
   PatchJSON,
   StepIndex,
@@ -44,7 +44,15 @@ const MAX_EVENTS_PER_RENDER = 10000
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
-type Candidate = { kind: "seq" | "voice" | "off"; beat: number; voice: number }
+// How often an envelope is read across its step: the finest grid every pace
+// sits on, about 10 ms at 120 BPM.
+export const ENVELOPE_RESOLUTION = 1 / PACE_GRID
+
+type Candidate = {
+  kind: "seq" | "env" | "voice" | "off"
+  beat: number
+  voice: number
+}
 
 /**
  * Turns a patch into timestamped MIDI events. Works in floating-point beats so
@@ -137,6 +145,9 @@ export class Engine {
         case "seq":
           this.tickSequencer(candidate.beat, events)
           break
+        case "env":
+          this.tickEnvelopes(candidate.beat, events)
+          break
         case "voice":
           this.tickVoice(candidate.voice as VoiceIndex, candidate.beat, events)
           break
@@ -149,8 +160,9 @@ export class Engine {
   }
 
   // Earliest pending item at or before `toBeat`. At equal beats the sequencer
-  // goes first (its CCs and sync reset precede the notes), then voice ticks,
-  // then pending note offs, so hold/tie can still extend a sounding note.
+  // goes first (its CCs and sync reset precede the notes), then the step's
+  // envelopes, then voice ticks, then pending note offs, so hold/tie can
+  // still extend a sounding note.
   private nextCandidate(toBeat: number): Candidate | null {
     let best: Candidate | null = null
     const consider = (candidate: Candidate) => {
@@ -163,6 +175,9 @@ export class Engine {
     }
 
     consider({ kind: "seq", beat: this.runtime.nextSeqBeat, voice: -1 })
+    if (this.runtime.envelope !== null) {
+      consider({ kind: "env", beat: this.runtime.envelope.nextBeat, voice: -1 })
+    }
     for (const index of voiceIndexes) {
       consider({
         kind: "voice",
@@ -230,7 +245,6 @@ export class Engine {
     }
 
     const position = runtime.position
-    const step = this.currentStep()
     events.push({
       type: "step",
       beat,
@@ -244,7 +258,11 @@ export class Engine {
       ),
     })
 
-    this.emitStepCCs(step.ccs, beat, events)
+    this.landEnvelopes(
+      viewIndex(position, patch.size, this.actions.flip),
+      beat,
+      events,
+    )
     this.emitSequencerMods(beat, position, events)
 
     if (this.syncVoices) {
@@ -320,16 +338,71 @@ export class Engine {
     return result.step
   }
 
-  // A step's CC is its own message on its own channel, so it goes to every
-  // output rather than to a voice's.
-  private emitStepCCs(ccs: CCEventJSON[], beat: number, events: EngineEvent[]) {
-    for (const cc of ccs) {
+  /**
+   * Starts the landed step's envelopes: each sends its opening value now,
+   * in list order and ahead of the notes on this beat — rests included, as
+   * a rest still lands — and then follows its curve across the step.
+   */
+  private landEnvelopes(step: StepIndex, beat: number, events: EngineEvent[]) {
+    const lengthBeats = paceBeats(this.patch.pace)
+    this.runtime.envelope = {
+      step,
+      startBeat: beat,
+      lengthBeats,
+      nextBeat: this.nextEnvelopeSample(beat, beat, lengthBeats),
+      sent: {},
+    }
+    this.sendEnvelopes(beat, events)
+  }
+
+  private tickEnvelopes(beat: number, events: EngineEvent[]) {
+    const envelope = this.runtime.envelope
+    if (envelope === null) {
+      return
+    }
+    this.sendEnvelopes(beat, events)
+    envelope.nextBeat = this.nextEnvelopeSample(
+      beat,
+      envelope.startBeat,
+      envelope.lengthBeats,
+    )
+  }
+
+  private nextEnvelopeSample(
+    beat: number,
+    startBeat: number,
+    lengthBeats: number,
+  ): number {
+    const next = onPaceGrid(beat + ENVELOPE_RESOLUTION)
+    return next < onPaceGrid(startBeat + lengthBeats) ? next : Infinity
+  }
+
+  // Reads the envelopes live, so one redrawn mid-step is heard at once. A
+  // value goes out only when it changes; a step's CC is its own message on
+  // its own channel, so it goes to every output rather than to a voice's.
+  private sendEnvelopes(beat: number, events: EngineEvent[]) {
+    const envelope = this.runtime.envelope
+    if (envelope === null) {
+      return
+    }
+    const time = (beat - envelope.startBeat) / envelope.lengthBeats
+    for (const { id, cc, channel, points } of this.patch.steps[envelope.step]
+      .envelopes) {
+      const exact = valueAt(points, time)
+      if (exact === null) {
+        continue
+      }
+      const value = Math.round(exact)
+      if (envelope.sent[id] === value) {
+        continue
+      }
+      envelope.sent[id] = value
       events.push({
         type: "cc",
         beat,
-        cc: cc.cc,
-        value: cc.value,
-        channel: cc.channel,
+        cc,
+        value,
+        channel,
         output: "all",
         source: "step",
       })

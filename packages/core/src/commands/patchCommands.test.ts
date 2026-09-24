@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
 import {
-  addStepCC,
+  addEnvelope,
   addStepNote,
   clearPatch,
   clearStep,
+  nextFreeCC,
   pasteStep,
-  removeStepCC,
+  removeEnvelope,
   removeStepNote,
   setJump,
   setModOut,
@@ -20,8 +21,10 @@ import {
   togglePatternStep,
   transposeStep,
   trimStepsToLimit,
-  updateStepCC,
+  updateEnvelope,
 } from "./patchCommands"
+
+const flat = (value: number) => [{ time: 0, value }]
 
 describe("patch commands", () => {
   it("leave the original patch untouched", () => {
@@ -116,47 +119,91 @@ describe("patch commands", () => {
     expect(many.steps[0].notes).toHaveLength(16)
   })
 
-  it("add, edit and remove step CCs", () => {
+  it("add, edit and remove a step's envelopes", () => {
     const patch = createDefaultPatch()
-    const withCC = addStepCC(patch, 3, { cc: 74, value: 100, channel: 1 })
-    const [cc] = withCC.steps[3].ccs
-    expect(cc).toMatchObject({ cc: 74, value: 100 })
+    const withCC = addEnvelope(patch, 3, {
+      cc: 74,
+      channel: 1,
+      points: flat(100),
+    })
+    const [envelope] = withCC.steps[3].envelopes
+    expect(envelope).toMatchObject({ cc: 74, points: flat(100) })
 
-    const updated = updateStepCC(withCC, 3, cc.id, { value: 20 })
-    expect(updated.steps[3].ccs[0].value).toBe(20)
-    expect(removeStepCC(updated, 3, cc.id).steps[3].ccs).toEqual([])
+    const ramp = [
+      { time: 0, value: 0 },
+      { time: 1, value: 127 },
+    ]
+    const updated = updateEnvelope(withCC, 3, envelope.id, {
+      cc: 71,
+      points: ramp,
+    })
+    expect(updated.steps[3].envelopes[0]).toMatchObject({
+      cc: 71,
+      points: ramp,
+    })
+    expect(removeEnvelope(updated, 3, envelope.id).steps[3].envelopes).toEqual(
+      [],
+    )
   })
 
-  it("give each CC its own id", () => {
+  it("give each envelope its own id across the patch", () => {
     const patch = createDefaultPatch()
-    const event = {
-      cc: 1,
-      value: 0,
-      channel: 1 as const,
-      output: "all" as const,
-    }
-    const twice = addStepCC(addStepCC(patch, 0, event), 0, event)
+    const envelope = { cc: 1, channel: 1, points: flat(0) }
+    const twice = addEnvelope(addEnvelope(patch, 0, envelope), 9, envelope)
 
-    const [first, second] = twice.steps[0].ccs
-    expect(first.id).not.toBe(second.id)
+    expect(twice.steps[0].envelopes[0].id).not.toBe(
+      twice.steps[9].envelopes[0].id,
+    )
+  })
+
+  it("offer the next CC a step isn't using, brightness first", () => {
+    const patch = createDefaultPatch()
+    expect(nextFreeCC(patch.steps[0])).toBe(74)
+
+    const one = addEnvelope(patch, 0, { cc: 74, channel: 1, points: [] })
+    expect(nextFreeCC(one.steps[0])).toBe(75)
+    // other steps' CCs don't count
+    expect(nextFreeCC(one.steps[1])).toBe(74)
+
+    let full = patch
+    for (let cc = 74; cc < 128; cc++) {
+      full = addEnvelope(full, 0, { cc, channel: 1, points: [] })
+    }
+    // past 127 it starts again from 0
+    expect(nextFreeCC(full.steps[0])).toBe(0)
   })
 
   it("copy a step onto another and clear one", () => {
-    const source = addStepCC(
+    const source = addEnvelope(
       setStepState(setStepNotes(createDefaultPatch(), 0, [60, 64]), 0, "rest"),
       0,
-      { cc: 74, value: 100, channel: 1 },
+      {
+        cc: 74,
+        channel: 1,
+        points: [
+          { time: 0, value: 10 },
+          { time: 0.5, value: 100 },
+        ],
+      },
     )
     const pasted = pasteStep(source, 5, source.steps[0])
 
     expect(pasted.steps[5].notes).toEqual([60, 64])
     expect(pasted.steps[5].state).toBe("rest")
-    expect(pasted.steps[5].ccs[0]).toMatchObject({ cc: 74, value: 100 })
-    // the copy has its own id, so the two CCs stay separate
-    expect(pasted.steps[5].ccs[0].id).not.toBe(source.steps[0].ccs[0].id)
+    expect(pasted.steps[5].envelopes[0]).toMatchObject({
+      cc: 74,
+      points: source.steps[0].envelopes[0].points,
+    })
+    // the copy has its own id and its own points, so the two stay separate
+    expect(pasted.steps[5].envelopes[0].id).not.toBe(
+      source.steps[0].envelopes[0].id,
+    )
+    expect(pasted.steps[5].envelopes[0].points).not.toBe(
+      source.steps[0].envelopes[0].points,
+    )
 
     const cleared = clearStep(pasted, 5)
-    expect(cleared.steps[5]).toMatchObject({ notes: [], ccs: [] })
+    expect(cleared.steps[5]).toMatchObject({ notes: [], envelopes: [] })
     // clearing leaves the state and jump alone
     expect(cleared.steps[5].state).toBe("rest")
   })
@@ -191,7 +238,9 @@ describe("patch commands", () => {
 
     // nothing of the music is left
     expect(cleared.steps.every((step) => step.notes.length === 0)).toBe(true)
-    expect(cleared.steps.every((step) => step.ccs.length === 0)).toBe(true)
+    expect(cleared.steps.every((step) => step.envelopes.length === 0)).toBe(
+      true,
+    )
     expect(cleared.steps.every((step) => step.state === "normal")).toBe(true)
     expect(cleared.steps.every((step) => step.jump.dest === null)).toBe(true)
     expect(cleared.voices).toEqual(createDefaultPatch().voices)

@@ -71,7 +71,7 @@ then does the target move on, so it fills whether you play a chord or one note
 at a time. Turn Record off when you're done.
 
 **The grid.** Each circle is a step holding up to four notes, one for each
-voice to draw from, and any number of CC events. Clicking one selects it, sounds it, and shows it in
+voice to draw from, and any number of CC envelopes. Clicking one selects it, sounds it, and shows it in
 the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 
@@ -83,9 +83,17 @@ start and stop are ignored, so playing and stopping stay yours.
 
 **The step editor** lists the selected step's notes by name, so you can add,
 remove, retune or transpose them by hand. A note can be typed as well as
-stepped — `G#5`, or just `D` to stay in the octave it is already on — and so
-can a CC's number, value and channel. CCs fire when the sequencer lands on the
-step. Steps can be copied and pasted.
+stepped — `G#5`, or just `D` to stay in the octave it is already on. Steps
+can be copied and pasted.
+
+**CC envelopes.** Under the notes, each CC on the step has a tab and an
+envelope: a line of breakpoints drawn across the step, over a piano roll of
+the notes the step plays. In **Edit**, click the line to add a point, or
+double-click anywhere; drag a point, or drag the line to raise it; click a
+point to delete it. In **Draw** (press **B** with the graph focused), drag to
+paint values across the grid. Points snap to the grid unless you hold **Alt**.
+An envelope sends its first value as the sequencer lands on the step, then
+follows its line until the next.
 
 **Voices.** Each of the four voices has its own pace, gate length, note-picking
 rule (up, down, random, highest, and so on), octave offset, velocity, channel

@@ -17,7 +17,7 @@ export const createDefaultJump = (): JumpJSON => ({
 
 export const createDefaultStep = (): StepJSON => ({
   notes: [],
-  ccs: [],
+  envelopes: [],
   state: "normal",
   jump: createDefaultJump(),
 })

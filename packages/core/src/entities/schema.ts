@@ -44,20 +44,63 @@ export const OutputTargetSchema = z.union([
   z.literal(3),
 ])
 
-export const CCEventSchema = z.object({
-  id: z.number().int(),
-  cc: midiValue,
+export const EnvelopePointSchema = z.object({
+  time: z.number().min(0).max(1),
   value: midiValue,
-  // a file written when a CC could follow a voice's channel lands on 1
-  channel: z.preprocess((value) => (value === "voice" ? 1 : value), channel),
 })
 
-export const StepSchema = z.object({
-  notes: z.array(midiValue).max(MAX_NOTES_PER_STEP),
-  ccs: z.array(CCEventSchema),
-  state: z.enum(["normal", "rest", "skip"]),
-  jump: JumpSchema,
+export const EnvelopeSchema = z.object({
+  id: z.number().int(),
+  cc: midiValue,
+  // a file written when a CC could follow a voice's channel lands on 1
+  channel: z.preprocess((value) => (value === "voice" ? 1 : value), channel),
+  // Stable, so two points at one time keep the order that makes their jump.
+  points: z
+    .array(EnvelopePointSchema)
+    .transform((points) => [...points].sort((a, b) => a.time - b.time)),
 })
+
+/**
+ * Steps once held CC events: a number, a value and a channel, sent on
+ * landing. Each becomes an envelope with a single point at the step's start,
+ * which sends exactly that.
+ */
+const envelopesFromCCs = (step: unknown): unknown => {
+  if (
+    typeof step !== "object" ||
+    step === null ||
+    !("ccs" in step) ||
+    "envelopes" in step
+  ) {
+    return step
+  }
+  const { ccs, ...rest } = step as { ccs: unknown }
+  return {
+    ...rest,
+    envelopes: Array.isArray(ccs)
+      ? ccs.map((cc) =>
+          typeof cc === "object" && cc !== null
+            ? {
+                id: cc.id,
+                cc: cc.cc,
+                channel: cc.channel,
+                points: [{ time: 0, value: cc.value }],
+              }
+            : cc,
+        )
+      : ccs,
+  }
+}
+
+export const StepSchema = z.preprocess(
+  envelopesFromCCs,
+  z.object({
+    notes: z.array(midiValue).max(MAX_NOTES_PER_STEP),
+    envelopes: z.array(EnvelopeSchema),
+    state: z.enum(["normal", "rest", "skip"]),
+    jump: JumpSchema,
+  }),
+)
 
 export const PatternStepSchema = z.object({
   on: z.boolean(),

@@ -12,7 +12,7 @@ import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
-import { CCRow } from "./CCRow"
+import { EnvelopeEditor } from "./EnvelopeEditor"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -34,9 +34,6 @@ export const StepEditor: FC = () => {
     editNote,
     removeNote,
     transpose,
-    addCC,
-    editCC,
-    removeCC,
     clearStepContent,
     paste,
     trimToLimit,
@@ -166,34 +163,7 @@ export const StepEditor: FC = () => {
           </Button>
         </Row>
 
-        <PanelHeader as="div" className={HEADER}>
-          <span className={TITLE}>
-            <Localized name="sequencer-step-ccs" />
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => addCC(selected, { cc: 74, value: 64, channel: 1 })}
-          >
-            <PlusIcon size={14} />
-            <Localized name="sequencer-step-add-cc" />
-          </Button>
-        </PanelHeader>
-
-        {step.ccs.length === 0 && (
-          <div className="text-fg-tertiary">
-            <Localized name="sequencer-step-no-ccs" />
-          </div>
-        )}
-
-        {step.ccs.map((cc) => (
-          <CCRow
-            key={cc.id}
-            cc={cc}
-            onChange={(changes) => editCC(selected, cc.id, changes)}
-            onRemove={() => removeCC(selected, cc.id)}
-          />
-        ))}
+        <EnvelopeEditor step={selected} />
       </div>
     </>
   )

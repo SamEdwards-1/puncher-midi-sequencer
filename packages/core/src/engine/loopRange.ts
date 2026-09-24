@@ -23,8 +23,11 @@ export const viewIndex = (
   return col * width + row
 }
 
+// An envelope with no points sends nothing, so it is not content.
 export const hasContent = (step: StepJSON): boolean =>
-  step.notes.length > 0 || step.ccs.length > 0 || step.state === "rest"
+  step.notes.length > 0 ||
+  step.envelopes.some((envelope) => envelope.points.length > 0) ||
+  step.state === "rest"
 
 export const loopEndIndex = (patch: PatchJSON): StepIndex => {
   const max = maxStepIndex(patch.size)

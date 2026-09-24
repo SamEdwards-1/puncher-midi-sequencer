@@ -54,12 +54,22 @@ export default {
     "sequencer-step-over-limit":
       "Notes past the limit are dimmed and stay silent.",
     "sequencer-step-trim": "Trim to limit",
-    "sequencer-step-ccs": "CC events",
+    "sequencer-step-ccs": "CC envelopes",
     "sequencer-step-add-cc": "Add CC",
     "sequencer-step-remove-cc": "Remove CC",
-    "sequencer-step-no-ccs": "No CC events.",
+    "sequencer-step-no-ccs":
+      "No CCs on this step. Add one to draw its envelope over the step's notes.",
     "sequencer-step-cc": "CC",
-    "sequencer-step-cc-value": "Value",
+    "sequencer-envelope": "Envelope",
+    "sequencer-envelope-cc-number": "CC number",
+    "sequencer-envelope-cc-channel": "CC channel",
+    "sequencer-envelope-edit": "Edit",
+    "sequencer-envelope-draw": "Draw",
+    "sequencer-envelope-grid": "Grid",
+    "sequencer-envelope-edit-hint":
+      "Click the line to add a point, or double-click anywhere. Drag a point or the line to move it; click a point to delete it. Alt skips the grid; B switches to Draw.",
+    "sequencer-envelope-draw-hint":
+      "Drag to paint values across the grid. Alt paints freely; B switches back to Edit.",
     "sequencer-action-latch": "Latch",
     "sequencer-preview": "Audition step",
     "sequencer-mark": "Mark",

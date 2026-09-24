@@ -6,6 +6,7 @@ import {
   EngineActions,
   EngineEvent,
   NoteOffEvent,
+  oneStepPatch,
   PatchJSON,
   paceBeats,
   StepIndex,
@@ -123,27 +124,11 @@ export class SequencerPlayer {
    */
   previewStep = (step: number) => {
     const patch = this.patch
-    const source = patch.steps[step]
-    if (source === undefined) {
+    if (patch.steps[step] === undefined) {
       return
     }
 
-    // A one-step patch, so the sequencer stays on this step and the voices
-    // start together as they would on landing.
-    const previewPatch: PatchJSON = {
-      ...patch,
-      loop: { mode: "custom", end: 0 },
-      steps: patch.steps.map((existing, index) =>
-        index === 0
-          ? {
-              ...source,
-              jump: { rule: { kind: "always" }, dest: null, normal: null },
-            }
-          : existing,
-      ),
-    }
-
-    const engine = new Engine(previewPatch, {
+    const engine = new Engine(oneStepPatch(patch, step), {
       seed: Math.floor(Math.random() * 2 ** 32),
     })
     engine.start(0)

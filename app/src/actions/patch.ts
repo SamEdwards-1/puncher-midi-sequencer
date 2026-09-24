@@ -1,14 +1,14 @@
 import {
-  addStepCC,
+  addEnvelope,
   addStepNote,
-  CCEventJSON,
   clearPatch,
   clearStep,
+  EnvelopeJSON,
   JumpJSON,
   PatchJSON,
   PatternStepJSON,
   pasteStep,
-  removeStepCC,
+  removeEnvelope,
   removeStepNote,
   StepJSON,
   StepState,
@@ -22,7 +22,7 @@ import {
   togglePatternStep,
   transposeStep,
   trimStepsToLimit,
-  updateStepCC,
+  updateEnvelope,
   VoiceJSON,
   VoicePattern,
 } from "@midiseq/core"
@@ -118,22 +118,26 @@ export function usePatchEditor() {
         ),
       [apply, sequencerStore],
     ),
-    addCC: useCallback(
-      (step: number, cc: Omit<CCEventJSON, "id">) =>
-        apply(addStepCC(sequencerStore.patch, step, cc)),
+    addEnvelope: useCallback(
+      (step: number, envelope: Omit<EnvelopeJSON, "id">) =>
+        apply(addEnvelope(sequencerStore.patch, step, envelope)),
       [apply, sequencerStore],
     ),
-    editCC: useCallback(
-      (step: number, id: number, changes: Partial<Omit<CCEventJSON, "id">>) =>
+    editEnvelope: useCallback(
+      (
+        step: number,
+        id: number,
+        changes: Partial<Omit<EnvelopeJSON, "id" | "points">>,
+      ) =>
         apply(
-          updateStepCC(sequencerStore.patch, step, id, changes),
-          `cc-${step}-${id}`,
+          updateEnvelope(sequencerStore.patch, step, id, changes),
+          `envelope-${step}-${id}`,
         ),
       [apply, sequencerStore],
     ),
-    removeCC: useCallback(
+    removeEnvelope: useCallback(
       (step: number, id: number) =>
-        apply(removeStepCC(sequencerStore.patch, step, id)),
+        apply(removeEnvelope(sequencerStore.patch, step, id)),
       [apply, sequencerStore],
     ),
     clearStepContent: useCallback(
@@ -150,4 +154,28 @@ export function usePatchEditor() {
       [apply, sequencerStore],
     ),
   }
+}
+
+/**
+ * An edit made across a drag. The patch as it was goes into history once, at
+ * the first change, and every move after replaces the patch directly, so the
+ * whole gesture is one undo entry however long it takes — and a drag that
+ * changes nothing leaves no entry at all.
+ */
+export function usePatchGesture() {
+  const { sequencerStore, history } = useStores()
+
+  return useCallback(() => {
+    let recorded = false
+    return (next: PatchJSON) => {
+      if (next === sequencerStore.patch) {
+        return
+      }
+      if (!recorded) {
+        history.push()
+        recorded = true
+      }
+      sequencerStore.patch = next
+    }
+  }, [sequencerStore, history])
 }

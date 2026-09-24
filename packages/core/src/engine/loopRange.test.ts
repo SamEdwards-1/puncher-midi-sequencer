@@ -19,7 +19,13 @@ describe("loopEndIndex", () => {
     patch.steps[9].state = "rest"
     expect(loopEndIndex(patch)).toBe(9)
 
-    patch.steps[12].ccs = [{ id: 1, cc: 74, value: 100, channel: 1 }]
+    // an envelope with no points sends nothing, so it doesn't count
+    patch.steps[14].envelopes = [{ id: 2, cc: 74, channel: 1, points: [] }]
+    expect(loopEndIndex(patch)).toBe(9)
+
+    patch.steps[12].envelopes = [
+      { id: 1, cc: 74, channel: 1, points: [{ time: 0, value: 100 }] },
+    ]
     expect(loopEndIndex(patch)).toBe(12)
   })
 
