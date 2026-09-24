@@ -197,6 +197,30 @@ describe("editing the sequencer", () => {
       expect(row(2).querySelectorAll("[data-band]").length).toBe(2)
     })
 
+    it("underlines the dot each voice is playing", () => {
+      const playing = () =>
+        [1, 2, 3, 4].map((voice) =>
+          within(row(voice))
+            .getAllByRole("button", { name: /Dot/ })
+            .findIndex((button) => button.dataset.playing === "true"),
+        )
+      expect(playing()).toEqual([-1, -1, -1, -1])
+      expect(document.querySelector("[data-playhead]")).toBeNull()
+
+      act(() => {
+        rootStore.player.playingDots = [3, null, 15, 0]
+      })
+      // a voice that has not reached a dot yet shows none
+      expect(playing()).toEqual([3, -1, 15, 0])
+      expect(dot(1, 4).querySelector("[data-playhead]")).not.toBeNull()
+      expect(document.querySelectorAll("[data-playhead]")).toHaveLength(3)
+
+      act(() => {
+        rootStore.player.playingDots = null
+      })
+      expect(document.querySelector("[data-playhead]")).toBeNull()
+    })
+
     it("returns the band to the first dot once playing stops", () => {
       setPace("4th")
       act(() => {

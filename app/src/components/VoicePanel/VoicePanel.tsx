@@ -307,6 +307,7 @@ const Patterns: FC<{
   const patch = usePatch()
   const { player } = useStores()
   const voiceDots = useMobxGetter(player, "voiceDots")
+  const playingDots = useMobxGetter(player, "playingDots")
   const { togglePatternDot } = usePatchEditor()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
@@ -388,6 +389,7 @@ const Patterns: FC<{
                     data-beyond={dotIndex >= voice.patternLength}
                     data-reached={reached(dotIndex)}
                     data-editing={editing}
+                    data-playing={playingDots?.[voiceIndex] === dotIndex}
                     data-articulation={dot.articulation}
                     data-accent={dot.accent}
                     data-chance={dot.probability < 100}
@@ -410,6 +412,15 @@ const Patterns: FC<{
                     }}
                   >
                     {dot.ratchet > 1 ? dot.ratchet : ""}
+                    {playingDots?.[voiceIndex] === dotIndex && (
+                      // under the dot rather than on it, so it reads the same
+                      // on a dot that is on, off or hollow
+                      <span
+                        aria-hidden
+                        data-playhead
+                        className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
+                      />
+                    )}
                   </button>
                 )
               })}

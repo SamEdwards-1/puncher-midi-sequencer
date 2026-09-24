@@ -379,6 +379,7 @@ export class Engine {
     if (!voice.enabled) {
       return
     }
+    events.push({ type: "dot", beat, voice: index, dot: patternIndex })
 
     const patternStep = voice.pattern[patternIndex]
     const step = this.currentStep()

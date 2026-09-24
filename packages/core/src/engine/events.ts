@@ -39,8 +39,18 @@ export interface StepAdvanceEvent {
   voiceDots: number[]
 }
 
+// A voice reaching a dot of its pattern, whether the dot sounds or not, so a
+// display can follow each voice through its pattern. Sends nothing.
+export interface VoiceDotEvent {
+  type: "dot"
+  beat: number
+  voice: VoiceIndex
+  dot: number
+}
+
 export type EngineEvent =
   | NoteOnEvent
   | NoteOffEvent
   | CCOutEvent
   | StepAdvanceEvent
+  | VoiceDotEvent

@@ -112,6 +112,22 @@ describe("SequencerPlayer", () => {
     expect(player.voiceDots).toBeNull()
   })
 
+  it("follows each voice to the dot it is on as that dot comes due", () => {
+    player.play()
+    expect(player.playingDots).toBeNull()
+    // the first dot sounds at 1050 ms
+    runFor(75)
+    expect(player.playingDots).toEqual([0, null, null, null])
+    // a quarter-note voice reaches its second dot at 1550, rendered ahead
+    runFor(400)
+    expect(player.playingDots).toEqual([0, null, null, null])
+    runFor(100)
+    expect(player.playingDots).toEqual([1, null, null, null])
+
+    player.stop()
+    expect(player.playingDots).toBeNull()
+  })
+
   it("follows a tempo change from the current beat", () => {
     player.play()
     runFor(1000)
