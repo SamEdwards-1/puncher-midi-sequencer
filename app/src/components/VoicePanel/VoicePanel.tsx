@@ -9,9 +9,9 @@ import {
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
+import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
+import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
-import FileExportOutlineIcon from "mdi-react/FileExportOutlineIcon"
-import FileImportOutlineIcon from "mdi-react/FileImportOutlineIcon"
 import { CSSProperties, FC, ReactNode, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
@@ -440,13 +440,13 @@ const Patterns: FC<{
           label={localized["sequencer-patterns-import"]}
           onClick={importPatterns}
         >
-          <FileImportOutlineIcon size={16} />
+          <ArrowCollapseDownIcon size={16} />
         </PatternFileButton>
         <PatternFileButton
           label={localized["sequencer-patterns-export"]}
           onClick={exportPatterns}
         >
-          <FileExportOutlineIcon size={16} />
+          <ArrowExpandUpIcon size={16} />
         </PatternFileButton>
       </div>
 
@@ -472,8 +472,8 @@ const PatternFileButton: FC<{
     type="button"
     aria-label={label}
     title={label}
-    // the size and look of a stepper's buttons, so it reads as one
-    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm bg-background-secondary text-fg-secondary hover:bg-highlight hover:text-fg"
+    // a stepper button's size, with no fill until it is hovered
+    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm text-fg-secondary hover:bg-highlight hover:text-fg"
     onClick={onClick}
   >
     {children}
