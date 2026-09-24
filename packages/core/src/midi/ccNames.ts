@@ -132,3 +132,25 @@ export const CC_NAMES = [
 ] as const
 
 export const ccName = (cc: number): string => CC_NAMES[cc] ?? `CC ${cc}`
+
+// Bank select, data entry, data increment and decrement, NRPN and RPN.
+const PROTOCOL_CCS = new Set([0, 32, 6, 38, 96, 97, 98, 99, 100, 101])
+const FIRST_CHANNEL_MODE_CC = 120
+
+/**
+ * Whether a controller is a control's position — something a knob, fader,
+ * wheel or pedal sends, and so something an envelope can hold. Not:
+ *
+ * - 120–127, the channel mode messages — All Sound Off, Reset All
+ *   Controllers, Local Control, All Notes Off, Omni and Mono/Poly — which
+ *   the MIDI spec sets apart from controllers. They are commands.
+ * - Bank select and the parameter numbers with their data entry, which mean
+ *   something only in order with each other and with the program change or
+ *   parameter they pick. As separate envelopes each would go out on its own
+ *   at every landing.
+ *
+ * A sequencer sends all of these on every channel when it starts and
+ * stops, which is how they reach a recording.
+ */
+export const isControlPosition = (cc: number): boolean =>
+  cc < FIRST_CHANNEL_MODE_CC && !PROTOCOL_CCS.has(cc)

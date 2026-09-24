@@ -7,6 +7,7 @@ import {
   moveSegment,
   paintPoints,
   removePoint,
+  simplifyPoints,
   snapTime,
   stairsFor,
   valueAt,
@@ -228,3 +229,50 @@ describe("envelopes", () => {
 function round(time: number) {
   return Math.round(time * 1e9) / 1e9
 }
+
+describe("simplifyPoints", () => {
+  // a knob swept steadily from 0 to 100, one message every 1/48 of the step
+  const sweep = Array.from({ length: 49 }, (_, index) => ({
+    time: index / 48,
+    value: Math.round((index / 48) * 100),
+  }))
+
+  it("keeps only the ends of a steady sweep", () => {
+    expect(simplifyPoints(sweep)).toEqual([
+      { time: 0, value: 0 },
+      { time: 1, value: 100 },
+    ])
+  })
+
+  it("keeps the bend in a sweep that turns round", () => {
+    const upAndDown = [
+      ...sweep.slice(0, 25),
+      ...sweep.slice(1, 25).map((point) => ({
+        time: 0.5 + point.time,
+        value: 50 - point.value,
+      })),
+    ]
+    const thinned = simplifyPoints(upAndDown)
+    expect(thinned).toHaveLength(3)
+    expect(thinned[1]).toEqual({ time: 0.5, value: 50 })
+  })
+
+  it("never moves what plays by more than one", () => {
+    const wobbly = sweep.map((point, index) => ({
+      ...point,
+      value: point.value + (index % 3 === 0 ? 3 : 0),
+    }))
+    const thinned = simplifyPoints(wobbly)
+    for (const point of wobbly) {
+      const played = Math.round(valueAt(thinned, point.time) ?? 0)
+      expect(Math.abs(played - point.value)).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it("leaves one or two points alone", () => {
+    expect(simplifyPoints([{ time: 0.3, value: 9 }])).toEqual([
+      { time: 0.3, value: 9 },
+    ])
+    expect(simplifyPoints([])).toEqual([])
+  })
+})

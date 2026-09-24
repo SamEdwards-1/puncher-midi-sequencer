@@ -48,6 +48,8 @@ export default class RootStore {
       this.midiInput,
       // a whole take undoes in one go
       () => this.history.push(),
+      // assigned below; read only once a CC arrives
+      () => this.player.stepProgress(),
     )
     this.player = new SequencerPlayer(
       this.sequencerStore.patch,

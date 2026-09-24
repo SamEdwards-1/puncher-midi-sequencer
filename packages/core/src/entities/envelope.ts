@@ -228,3 +228,78 @@ export const stairsFor = (
     stroke,
   }
 }
+
+/**
+ * Thins a run of points to the ones that give it its shape. A point goes
+ * when the line between the points kept either side of it passes within
+ * `tolerance` of its value, so a steady sweep keeps its two ends and a
+ * curve keeps its bends. At the default of half a step, nothing that plays
+ * moves by more than one, since the engine sends rounded values.
+ *
+ * Meant for a stroke played in — a knob's run of messages — before it is
+ * laid over an envelope; the ends are always kept.
+ */
+export const simplifyPoints = (
+  points: EnvelopePointJSON[],
+  tolerance = 0.5,
+): EnvelopePointJSON[] => {
+  if (points.length <= 2) {
+    return points
+  }
+  const keep = points.map(
+    (_, index) => index === 0 || index === points.length - 1,
+  )
+  const ranges: [number, number][] = [[0, points.length - 1]]
+  while (ranges.length > 0) {
+    const range = ranges.pop()
+    if (range === undefined) {
+      break
+    }
+    const [first, last] = range
+    const a = points[first]
+    const b = points[last]
+    const span = b.time - a.time
+    let farthest = -1
+    let distance = tolerance
+    for (let index = first + 1; index < last; index++) {
+      const point = points[index]
+      const expected =
+        span === 0
+          ? a.value
+          : a.value + ((b.value - a.value) * (point.time - a.time)) / span
+      const off = Math.abs(point.value - expected)
+      if (off > distance) {
+        distance = off
+        farthest = index
+      }
+    }
+    if (farthest !== -1) {
+      keep[farthest] = true
+      ranges.push([first, farthest], [farthest, last])
+    }
+  }
+  return points.filter((_, index) => keep[index])
+}
+
+/**
+ * Stored times are beats from the step's start; the editing tools here work
+ * in fractions of a step, 0 to its end at 1. These convert between the two
+ * for a step `stepBeats` long. A point past the step's end comes out beyond
+ * 1: the tools leave such points where they are unless one is moved, so an
+ * envelope made on a longer step keeps what doesn't fit, and it plays again
+ * if the pace grows back.
+ */
+export const toStepTimes = (
+  points: EnvelopePointJSON[],
+  stepBeats: number,
+): EnvelopePointJSON[] =>
+  points.map((point) => ({ ...point, time: point.time / stepBeats }))
+
+export const toBeatTimes = (
+  points: EnvelopePointJSON[],
+  stepBeats: number,
+): EnvelopePointJSON[] =>
+  points.map((point) => ({
+    ...point,
+    time: Math.round(point.time * stepBeats * TIME_DIGITS) / TIME_DIGITS,
+  }))

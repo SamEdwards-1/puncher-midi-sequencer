@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
+import { editItem } from "../../test/menus"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -136,7 +137,7 @@ describe("step editor", () => {
     click("Add note")
     expect(patch().steps[0].notes).toEqual([60])
 
-    click("Undo")
+    fireEvent.click(editItem("Undo"))
     expect(patch().steps[0].notes).toEqual([])
   })
 })

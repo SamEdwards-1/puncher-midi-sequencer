@@ -41,8 +41,9 @@ export interface JumpJSON {
   normal: StepIndex | null
 }
 
-// A breakpoint on a step's envelope. `time` runs from the step's start (0)
-// to its end (1), so the envelope stretches with the sequencer's pace;
+// A breakpoint on a step's envelope. `time` is in beats from the step's
+// start, so an envelope keeps its timing when the sequencer's pace changes:
+// a shorter step plays only what fits, a longer one holds the last value.
 // `value` is the CC value there, 0-127.
 export interface EnvelopePointJSON {
   time: number

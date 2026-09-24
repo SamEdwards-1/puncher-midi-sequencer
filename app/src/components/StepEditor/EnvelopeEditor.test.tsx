@@ -9,6 +9,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
+import { editItem } from "../../test/menus"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -86,7 +87,7 @@ const setup = (
     screen.getByRole("tab", { name: shape !== null ? "CC 74" : "Velocity 1" }),
   )
   // both kinds of lane have the tools
-  click("Edit")
+  click("Edit points")
 }
 
 const tab = (name: string) => screen.queryByRole("tab", { name })
@@ -351,7 +352,7 @@ describe("the envelope editor", () => {
       )
       expect(points()[0]).toEqual({ time: 0.5, value: 70 })
 
-      click("Undo")
+      fireEvent.click(editItem("Undo"))
       expect(patch()).toBe(before)
     })
   })
@@ -667,7 +668,7 @@ describe("the envelope editor", () => {
           [firstBar, Y(100)],
         ],
       )
-      click("Undo")
+      fireEvent.click(editItem("Undo"))
       expect(patch()).toBe(before)
     })
 
@@ -772,5 +773,182 @@ describe("the envelope editor", () => {
       fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
       expect(velocities()).toEqual([100])
     })
+  })
+})
+
+describe("recording into the editor", () => {
+  const openTab = () =>
+    screen
+      .getAllByRole("tab")
+      .find((tab) => tab.getAttribute("aria-selected") === "true")
+      ?.textContent?.trim()
+  const handles = () => svg().querySelectorAll("circle").length
+
+  it("opens a knob's tab and shows its values as they arrive", () => {
+    setup(null)
+    // the voice's velocity is what is on show to begin with
+    expect(openTab()).toBe("Velocity 1")
+
+    click("Record")
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 10])
+    })
+    expect(openTab()).toBe("CC 30")
+
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 90])
+      rootStore.midiInput.handleMessage([0xb0, 30, 40])
+    })
+    // the three values it was turned to, across the step
+    expect(points()).toEqual([
+      { time: 0, value: 10 },
+      { time: 0.5, value: 90 },
+      { time: 1, value: 40 },
+    ])
+    expect(handles()).toBe(3)
+  })
+
+  it("leaves a tab clicked away from while the knob still turns", () => {
+    setup(null)
+    click("Record")
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 10])
+    })
+    fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
+
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 90])
+    })
+    expect(openTab()).toBe("Velocity 2")
+
+    // until a different knob moves
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 31, 50])
+    })
+    expect(openTab()).toBe("CC 31")
+  })
+
+  it("names the channel where the same CC is on several", () => {
+    setup(null)
+    click("Record")
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 74, 10])
+      rootStore.midiInput.handleMessage([0xb1, 74, 20])
+      rootStore.midiInput.handleMessage([0xb0, 7, 90])
+    })
+    const labels = screen
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent?.trim())
+      .filter((label) => label?.startsWith("CC"))
+    // a number on its own when it is the only one
+    expect(labels).toEqual(["CC 74 · ch 1", "CC 74 · ch 2", "CC 7"])
+  })
+
+  it("stays put for a knob recorded onto a step not on show", () => {
+    setup(null)
+    click("Record")
+    rootStore.recorder.setTarget(5)
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 10])
+    })
+    expect(openTab()).toBe("Velocity 1")
+  })
+})
+
+describe("changing the pace under an envelope", () => {
+  // the ramp is drawn on a one-beat step: 32 at a quarter beat, 96 at three
+  const setPace = (pace: PatchJSON["pace"]) =>
+    act(() => {
+      rootStore.sequencerStore.patch = { ...patch(), pace }
+    })
+  const drawnAt = () =>
+    [...svg().querySelectorAll("circle")].map((circle) =>
+      Number(circle.getAttribute("cx")),
+    )
+
+  it("keeps each point at its beat on a longer step", () => {
+    setup()
+    setPace("2nd")
+
+    expect(points()).toEqual(ramp)
+    // two beats across the graph now, so both sit in its first half
+    expect(drawnAt()).toEqual([X(0.25 / 2), X(0.75 / 2)])
+  })
+
+  it("keeps what falls past a shorter step, and plays it when it grows", () => {
+    setup()
+    setPace("8th")
+    // half a beat across the graph: the second point lies past its end
+    expect(drawnAt()[1]).toBeGreaterThan(X(1))
+
+    // editing what is on show leaves it be
+    dragFrom([X(0.5), Y(32)], [[X(0.5), Y(64)]])
+    expect(points()[0].value).toBeGreaterThan(32)
+    expect(points().at(-1)).toEqual({ time: 0.75, value: 96 })
+
+    setPace("4th")
+    expect(points().at(-1)).toEqual({ time: 0.75, value: 96 })
+  })
+})
+
+describe("clicking between steps", () => {
+  const openTab = () =>
+    screen
+      .getAllByRole("tab")
+      .find((tab) => tab.getAttribute("aria-selected") === "true")
+      ?.textContent?.trim()
+  const step = (n: number) => click(`Step ${n}`)
+  const on = (index: number) => patch().steps[index].envelopes
+
+  it("keeps a CC tab open, showing each step's own envelope", () => {
+    setup(ramp, (start) =>
+      addEnvelope(start, 1, {
+        cc: 74,
+        channel: 1,
+        points: [{ time: 0, value: 5 }],
+      }),
+    )
+    fireEvent.click(screen.getByRole("tab", { name: "CC 74" }))
+
+    step(2)
+    expect(openTab()).toBe("CC 74")
+    expect(svg().querySelectorAll("circle")).toHaveLength(1)
+  })
+
+  it("keeps it open on a step without that CC, ready to draw into", () => {
+    setup()
+    fireEvent.click(screen.getByRole("tab", { name: "CC 74" }))
+
+    step(3)
+    expect(openTab()).toBe("CC 74")
+    expect(on(2)).toEqual([])
+
+    // a double-click places the first point, and makes the envelope
+    press(X(0.5), Y(64), { detail: 2 })
+    release(X(0.5), Y(64))
+    expect(on(2)).toMatchObject([{ cc: 74, channel: 1 }])
+    expect(on(2)[0].points).toHaveLength(1)
+  })
+
+  it("keeps a Velocity tab open", () => {
+    setup()
+    fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
+    step(3)
+    step(1)
+    expect(openTab()).toBe("Velocity 2")
+  })
+
+  it("doesn't open a knob's tab by landing on the step it was recorded on", () => {
+    setup(null)
+    click("Record")
+    act(() => {
+      rootStore.midiInput.handleMessage([0xb0, 30, 10])
+    })
+    expect(openTab()).toBe("CC 30")
+    fireEvent.click(screen.getByRole("tab", { name: "Velocity 1" }))
+
+    step(2)
+    step(1)
+    expect(openTab()).toBe("Velocity 1")
   })
 })

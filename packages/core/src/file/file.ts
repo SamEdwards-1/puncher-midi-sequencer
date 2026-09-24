@@ -1,9 +1,11 @@
 import { z } from "zod"
+import { toBeatTimes } from "../entities/envelope"
+import { paceBeats } from "../entities/paces"
 import { PatchSchema } from "../entities/schema"
 import { PatchJSON } from "../entities/types"
 
 export const FILE_FORMAT = "midiseq"
-export const FILE_VERSION = 1
+export const FILE_VERSION = 2
 export const FILE_EXTENSION = ".midiseq.json"
 
 export const MidiseqFileSchema = z.object({
@@ -59,10 +61,33 @@ export const describeIssue = (error: z.ZodError): string => {
 }
 
 /**
- * Brings a file up to the current version. Only version 1 exists so far;
- * later versions add their step here.
+ * Brings a file up to the current version, one step at a time.
+ *
+ * 1 → 2: envelope point times were fractions of the step, and are now beats
+ * from its start. Scaled by the pace the file was saved with, every envelope
+ * sounds exactly as it did.
  */
-const migrate = (file: MidiseqFile): MidiseqFile => file
+const migrate = (file: MidiseqFile): MidiseqFile => {
+  if (file.version >= FILE_VERSION) {
+    return file
+  }
+  const patch = file.patch as unknown as PatchJSON
+  const stepBeats = paceBeats(patch.pace)
+  return {
+    ...file,
+    version: FILE_VERSION,
+    patch: {
+      ...patch,
+      steps: patch.steps.map((step) => ({
+        ...step,
+        envelopes: step.envelopes.map((envelope) => ({
+          ...envelope,
+          points: toBeatTimes(envelope.points, stepBeats),
+        })),
+      })),
+    } as unknown as MidiseqFile["patch"],
+  }
+}
 
 export const parseFile = (text: string): ParseResult => {
   let json: unknown

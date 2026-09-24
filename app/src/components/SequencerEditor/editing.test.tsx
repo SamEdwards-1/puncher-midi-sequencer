@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
+import { editItem } from "../../test/menus"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -317,8 +318,8 @@ describe("editing the sequencer", () => {
 })
 
 describe("undo and redo", () => {
-  const undoButton = () => screen.getByRole("button", { name: "Undo" })
-  const redoButton = () => screen.getByRole("button", { name: "Redo" })
+  const undoButton = () => editItem("Undo")
+  const redoButton = () => editItem("Redo")
 
   it("walks an edit back and forward again", () => {
     expect(undoButton()).toBeDisabled()

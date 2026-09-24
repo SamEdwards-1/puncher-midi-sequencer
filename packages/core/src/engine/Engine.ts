@@ -385,7 +385,9 @@ export class Engine {
     if (envelope === null) {
       return
     }
-    const time = (beat - envelope.startBeat) / envelope.lengthBeats
+    // in beats, so a pace change shortens or lengthens what is heard of the
+    // envelope rather than squeezing or stretching it
+    const time = beat - envelope.startBeat
     for (const { id, cc, channel, points } of this.patch.steps[envelope.step]
       .envelopes) {
       const exact = valueAt(points, time)

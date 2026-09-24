@@ -68,7 +68,12 @@ menu on the left.
 **Recording.** Arm **Record**, click the step you want to start from, and play.
 A step fills to **Step notes** — four by default, one for each voice — and only
 then does the target move on, so it fills whether you play a chord or one note
-at a time. Turn Record off when you're done.
+at a time. Turn a knob and it records too, into that CC's envelope: while the
+sequence plays, as a curve on the step you hear it on, from the moment it
+moved; while stopped, spread across the record step in the order you turned
+it. An envelope keeps its timing if you change the pace afterwards: a shorter
+step plays what fits, a longer one holds the last value. Turn Record off when
+you're done.
 
 **The grid.** Each circle is a step holding up to four notes, one for each
 voice to draw from, and any number of CC envelopes. Clicking one selects it, sounds it, and shows it in

@@ -1,7 +1,6 @@
 export default {
   en: {
     "sequencer-app-name": "midiseq",
-    "sequencer-untitled": "Untitled",
     "sequencer-panel": "Sequencer",
     "sequencer-grid": "Grid",
     "sequencer-step-editor": "Step Editor",
@@ -17,6 +16,7 @@ export default {
     "sequencer-step": "Step",
     "sequencer-record": "Record",
     "sequencer-file": "File",
+    "sequencer-edit": "Edit",
     "sequencer-file-new": "New",
     "sequencer-file-open": "Open…",
     "sequencer-file-save": "Save",
@@ -63,10 +63,13 @@ export default {
       "Drag across the notes to paint their velocities. B switches back to Edit.",
     "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
+    "sequencer-step-cc-channel-short": "ch",
+    "sequencer-envelope-not-on-step": "not on this step — draw to add",
     "sequencer-envelope": "Envelope",
     "sequencer-envelope-cc-number": "CC number",
     "sequencer-envelope-cc-channel": "CC channel",
     "sequencer-envelope-edit": "Edit",
+    "sequencer-envelope-edit-tool": "Edit points",
     "sequencer-envelope-draw": "Draw",
     "sequencer-envelope-grid": "Grid",
     "sequencer-envelope-edit-hint":

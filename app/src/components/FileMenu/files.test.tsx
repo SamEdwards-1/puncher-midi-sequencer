@@ -19,6 +19,7 @@ import { AutoSaveService } from "../../services/AutoSaveService"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
+import { editItem } from "../../test/menus"
 import { App } from "../App/App"
 
 const memoryStorage = (): Storage => {
@@ -108,7 +109,7 @@ describe("files", () => {
     await waitFor(() => expect(files.written).toHaveLength(1))
     expect(JSON.parse(files.written[0])).toMatchObject({
       format: "midiseq",
-      version: 1,
+      version: 2,
       patch: { tempo: 121 },
     })
     expect(rootStore.sequencerStore.isSaved).toBe(true)
@@ -337,7 +338,7 @@ describe("pattern files", () => {
     // and the sequencer stays as it was
     expect(patch().tempo).toBe(before.tempo)
 
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }))
+    fireEvent.click(editItem("Undo"))
     expect(patch()).toBe(before)
   })
 
@@ -405,5 +406,121 @@ describe("pattern files", () => {
     await act(async () => {})
 
     expect(alert).not.toHaveBeenCalled()
+  })
+})
+
+describe("ending a take", () => {
+  const arm = () => {
+    click("Record")
+    expect(rootStore.recorder.isRecording).toBe(true)
+  }
+
+  it("ends when the patch is saved, before it is written", async () => {
+    const files = fakeFiles()
+    setup({ fileService: files.service })
+    arm()
+    rootStore.midiInput.handleMessage([0x90, 60, 100])
+
+    click("File")
+    click("Save")
+
+    expect(rootStore.recorder.isRecording).toBe(false)
+    await waitFor(() => expect(files.written).toHaveLength(1))
+    // what was recorded is in what was written
+    expect(JSON.parse(files.written[0]).patch.steps[0].notes).toEqual([60])
+  })
+
+  it("ends on Save As too", async () => {
+    const files = fakeFiles()
+    setup({ fileService: files.service })
+    arm()
+
+    click("File")
+    click(/Save As/i)
+
+    expect(rootStore.recorder.isRecording).toBe(false)
+    await waitFor(() => expect(files.written).toHaveLength(1))
+  })
+
+  it("ends when a file is opened, and records nothing into it", async () => {
+    const saved = { ...createDefaultPatch(), tempo: 96 }
+    const files = fakeFiles(serializeFile(createFile(saved)))
+    setup({ fileService: files.service })
+    arm()
+
+    click("File")
+    click("Open…")
+    await waitFor(() => expect(patch().tempo).toBe(96))
+
+    expect(rootStore.recorder.isRecording).toBe(false)
+    act(() => {
+      rootStore.midiInput.handleMessage([0x90, 72, 100])
+    })
+    expect(patch().steps[0].notes).toEqual([])
+  })
+
+  it("ends on New", () => {
+    setup()
+    arm()
+
+    click("File")
+    click("New")
+
+    expect(rootStore.recorder.isRecording).toBe(false)
+  })
+
+  it("carries on when opening is called off", () => {
+    setup()
+    vi.mocked(window.confirm).mockReturnValue(false)
+    rootStore.sequencerStore.isSaved = false
+    arm()
+
+    click("File")
+    click("Open…")
+
+    expect(rootStore.recorder.isRecording).toBe(true)
+  })
+
+  it("ends when the step is cleared, as its own undo entry", () => {
+    setup()
+    arm()
+    act(() => {
+      rootStore.midiInput.handleMessage([0x90, 60, 100])
+    })
+    expect(patch().steps[0].notes).toEqual([60])
+
+    click("Clear")
+    expect(rootStore.recorder.isRecording).toBe(false)
+    expect(patch().steps[0].notes).toEqual([])
+
+    // the clear comes off first, and the note recorded comes back
+    fireEvent.click(editItem("Undo"))
+    expect(patch().steps[0].notes).toEqual([60])
+  })
+
+  it("ends when Play is pressed", () => {
+    setup()
+    arm()
+
+    click("Play")
+    expect(rootStore.recorder.isRecording).toBe(false)
+  })
+
+  it("can be armed again once playing, to record over what plays", () => {
+    setup()
+    click("Play")
+    arm()
+
+    expect(rootStore.player.isPlaying).toBe(true)
+    expect(rootStore.recorder.isRecording).toBe(true)
+  })
+
+  it("is not ended by auditioning a step", () => {
+    setup()
+    arm()
+
+    click("Step 5")
+    expect(rootStore.recorder.isRecording).toBe(true)
+    expect(rootStore.recorder.target).toBe(4)
   })
 })
