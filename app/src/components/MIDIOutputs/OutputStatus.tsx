@@ -40,8 +40,10 @@ export const OutputStatus: FC = () => {
   }
 
   return (
-    // an output element is a status region already
-    <output className="flex max-w-[20rem] items-center truncate px-1 text-small text-fg-secondary">
+    // an output element is a status region already. Contained, so its text
+    // never widens the bar's right side: it fills what room there is and
+    // truncates.
+    <output className="block max-w-[20rem] grow truncate text-right [contain:inline-size] px-1 text-small text-fg-secondary">
       {message}
     </output>
   )

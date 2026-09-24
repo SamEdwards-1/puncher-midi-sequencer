@@ -68,6 +68,9 @@
   /* a step's CC envelope, apart from every voice's colour since it lies over
      their notes */
   --midiseq-envelope: hsl(188, 72%, 52%);
+
+  /* the Puncher logo in the top bar */
+  --midiseq-logo: hsl(340, 90%, 86%);
 }
 
 :root[data-theme="light"] {
@@ -106,6 +109,8 @@
   --midiseq-voice-3: hsl(290, 50%, 48%);
   --midiseq-pace-band: hsl(228, 14%, 80%);
   --midiseq-envelope: hsl(190, 80%, 34%);
+  /* light pink vanishes on the light bar, so it deepens here */
+  --midiseq-logo: hsl(335, 65%, 58%);
 }
 
 /* Tailwind's tokens point at those variables rather than copying them, so a
@@ -146,6 +151,7 @@
   --color-voice: var(--midiseq-voice);
   --color-pace-band: var(--midiseq-pace-band);
   --color-envelope: var(--midiseq-envelope);
+  --color-logo: var(--midiseq-logo);
 }
 
 @layer base {

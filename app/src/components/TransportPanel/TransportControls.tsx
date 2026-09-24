@@ -11,8 +11,8 @@ import { ToolbarButton } from "../ui/Button"
 import { Stepper } from "../ui/Stepper"
 
 export const TransportControls: FC = () => {
-  const { isPlaying, position, play, stop } = usePlayer()
-  const { isRecording, target, toggleRecording } = useRecorder()
+  const { isPlaying, play, stop } = usePlayer()
+  const { isRecording, toggleRecording } = useRecorder()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
   const patch = usePatch()
@@ -59,10 +59,6 @@ export const TransportControls: FC = () => {
           }}
           onChange={(tempo) => editSequencer({ tempo }, "tempo")}
         />
-      </div>
-      <div className="flex items-center px-1 font-mono text-small text-fg-secondary">
-        <Localized name="sequencer-step" />{" "}
-        {isRecording ? target + 1 : position === null ? "–" : position + 1}
       </div>
     </div>
   )
