@@ -1,18 +1,19 @@
 import { noteNumberToName, StepState } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
-import { FC, HTMLAttributes } from "react"
+import { FC, HTMLAttributes, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
+import { Button, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
-import { CCRow } from "./CCRow"
+import { EnvelopeEditor } from "./EnvelopeEditor"
+import { hasJump, JumpPatcher } from "./JumpPatcher"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -34,15 +35,17 @@ export const StepEditor: FC = () => {
     editNote,
     removeNote,
     transpose,
-    addCC,
-    editCC,
-    removeCC,
     clearStepContent,
     paste,
     trimToLimit,
   } = usePatchEditor()
 
+  // the step whose "Jump rule" was just clicked, so its jump shows before
+  // it is set to anything
+  const [openedJump, setOpenedJump] = useState<number | null>(null)
+
   const step = patch.steps[selected]
+  const jumpShown = hasJump(step.jump) || openedJump === selected
   const beyondLimit = step.notes.length > patch.maxNotesPerStep
 
   return (
@@ -129,14 +132,13 @@ export const StepEditor: FC = () => {
                   onChange={(next) => editNote(selected, position, next)}
                 />
               </div>
-              <Button
-                type="button"
-                size="sm"
+              <IconButton
                 aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
+                title={localized["sequencer-step-remove-note"]}
                 onClick={() => removeNote(selected, position)}
               >
-                <CloseIcon size={14} />
-              </Button>
+                <CloseIcon size={16} />
+              </IconButton>
             </Row>
           )
         })}
@@ -164,36 +166,21 @@ export const StepEditor: FC = () => {
             <PlusIcon size={14} />
             <Localized name="sequencer-step-add-note" />
           </Button>
+          {!jumpShown && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setOpenedJump(selected)}
+            >
+              <PlusIcon size={14} />
+              <Localized name="sequencer-jump-add" />
+            </Button>
+          )}
         </Row>
 
-        <PanelHeader as="div" className={HEADER}>
-          <span className={TITLE}>
-            <Localized name="sequencer-step-ccs" />
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => addCC(selected, { cc: 74, value: 64, channel: 1 })}
-          >
-            <PlusIcon size={14} />
-            <Localized name="sequencer-step-add-cc" />
-          </Button>
-        </PanelHeader>
+        {jumpShown && <JumpPatcher onRemove={() => setOpenedJump(null)} />}
 
-        {step.ccs.length === 0 && (
-          <div className="text-fg-tertiary">
-            <Localized name="sequencer-step-no-ccs" />
-          </div>
-        )}
-
-        {step.ccs.map((cc) => (
-          <CCRow
-            key={cc.id}
-            cc={cc}
-            onChange={(changes) => editCC(selected, cc.id, changes)}
-            onRemove={() => removeCC(selected, cc.id)}
-          />
-        ))}
+        <EnvelopeEditor step={selected} />
       </div>
     </>
   )

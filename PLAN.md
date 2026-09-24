@@ -24,13 +24,13 @@ to another when a condition is met.
 | Area | Contents |
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
-| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip) and the Jump editor |
-| Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons |
-| Right | Voice tabs 1–4 |
+| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Grid · Voices · Sequencer |
+| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
+| Right | Voice tabs 1–4, 100px wider than their first 18–22rem so the dots are bigger; below 1200px, tabbed with the sequencer settings. Dots fill the column, up to 1.75rem |
 
 ### Sequencer
 - **Steps** hold up to *Step Notes* notes — 1 to 4, saved in the file — plus
-  any number of CC events. Four is the ceiling because a step's notes are what
+  any number of CC envelopes. Four is the ceiling because a step's notes are what
   the voices draw from, and a fifth would belong to no voice.
   - A file saved while the count was a setting keeps whatever it holds; the
     notes past the fourth are dimmed and ignored until "Trim to limit"
@@ -53,6 +53,12 @@ to another when a condition is met.
 
 ### Jumps (one per step)
 - Destination (or none) and Normal (where to go on failure; default "next").
+- In the step editor, hidden until **+ Jump rule** (beside Add note) is
+  clicked or the step has a jump; then one row — Rule, Destination, Normal,
+  each target picked with a crosshair icon button — whose X resets the whole
+  jump. The button goes while the row shows. Pick and every X in the centre
+  column are bare icon buttons, filled only on hover (or, for Pick, while
+  picking).
 - Rules: Always · 1x–7x (succeed N times, fail once) · 2:2–8:8 (succeed on the
   Nth visit) · 10–90% · Last · Not Last.
 
@@ -64,6 +70,10 @@ to another when a condition is met.
 - **Pattern:** 1–16 dots, each on/off with options:
   - Articulation: none / hold (sustain through the dot) / tie (legato overlap)
   - Accent: none / + / − · Ratchet: 1–4 hits · Probability: 10–100%
+  - Velocity: the voice's, unless the dot has its own (set in the Velocity
+    lane, §5.6, or typed in its options, where it is kept exactly and is an
+    accent only on that accent's level). An accent moves it by the *accent amount*, a setting of the
+    machine (General, 1–64, default 20).
   - Condition: Always, 2:2, 3:3, 4:4, 1x, 2x, 3x, Last, Not Last
   - Plays only when both probability and condition pass.
 
@@ -76,11 +86,52 @@ to another when a condition is met.
 ### Step editor, recording, undo
 - **Step editor:** edit notes by hand (typed as a name or stepped, transpose
   ±1/±12 — a bare letter keeps the octave, anything outside MIDI's range is
-  refused) and a
-  CC list (cc, value, channel — each typed or stepped). A step's CC belongs to
-  no voice, so it goes out on its own channel to every output. CCs fire when the
-  sequencer lands on the step, before that beat's notes — including on rests,
-  never on skips, and not again while Hang holds. Copy/paste steps.
+  refused) and the step's CCs, each an **envelope** across the step (below).
+  A step's CC belongs to no voice, so it goes out on its own channel to every
+  output. Copy/paste steps.
+- **Velocity & CCs:** a tab per voice's **Velocity** — a line through its
+  notes' velocities — and a tab per CC envelope on the step. Tabs that don't
+  fit the row go in a menu (the count and a chevron) before the +, which
+  stays on the row; the open tab is always kept on it. The row above the
+  graph holds a Velocity tab's voice velocity, shared with the Voices panel
+  — a note's velocity goes out with the note, so the lane has no channel —
+  or a CC's number and channel, 1–16. No two voices may share a channel: a
+  channel another voice has passes on to the next free one. A CC added from
+  a tab goes out on that tab's channel (a Velocity tab's is its voice's).
+- **Velocity lane:** edited like an envelope, with the same Edit and Draw
+  tools and B key, but its points are the voice's notes: drag a point, or a
+  stretch of line to raise the notes at both ends; click a point to return
+  its note to the voice's velocity; Draw paints every note a stroke crosses.
+  No point can be added. A point is its dot's velocity, so every point from
+  that dot moves with it.
+  Dropped within a quarter of the accent amount of the voice's velocity plus
+  or minus that amount (±5 at 20), it snaps onto that accent; near the
+  voice's own, onto a plain dot; anywhere else it is the dot's own velocity,
+  kept as an offset from the voice's. The dot's size shows the level its
+  velocity is nearest — plain, + or − — so small changes leave it alone.
+  Dashed lines mark the accent levels.
+- **CC envelopes:** a tab per CC (number and channel typed or stepped), each
+  an envelope in the manner of Live's: breakpoints joined by straight lines,
+  the value held before the first point and after the last, two points at one
+  time making a jump. Time runs across the step, 0 to 1, so an envelope
+  stretches with the sequencer's pace. It is drawn over a read-only piano roll
+  of the notes the step plays — rendered from the voices, so pace, dots,
+  ratchets, length and rule all show, in each voice's colour. Hovering the line,
+  or dragging, shows the envelope's value under the mouse.
+  - *Edit:* click the line to add a point on it, double-click anywhere to
+    place one, drag a point (never past its neighbours; a straight vertical
+    drag keeps its time), drag the line to raise or lower a segment, click a
+    point to delete it. *Draw* (B while the graph has focus — elsewhere B is
+    Bump): drag to paint, one flat value per grid cell crossed, cells a quick
+    stroke skips filled in along it, as Signal's pencil does. Points snap to
+    the grid (1/4 to 1/32, and triplets) unless Alt is held. A drag is one
+    undo entry.
+  - *Playback:* on landing each envelope sends its opening value, in list
+    order and before that beat's notes — including on rests, never on skips,
+    and not again while Hang holds the step. It then follows its line, read
+    live every 1/48 beat and sent only when the whole value changes, so an
+    envelope redrawn mid-step is heard at once. A one-point envelope is
+    exactly the CC event it replaced; older files open that way.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer
   keyboard; a step fills to Step Notes before moving on; overdub while
   playing; rest & advance,
@@ -182,11 +233,12 @@ packages/core/
 
 ```ts
 type StepIndex = number   // Large 0..63 (r*8+c), Small 0..15 (r*4+c)
-interface StepJSON { notes: number[]; ccs: CCEventJSON[]; state: "normal"|"rest"|"skip"; jump: JumpJSON }
-interface CCEventJSON { id: number; cc: number; value: number; channel: number | "voice"; output: "all"|0|1|2|3 }
+interface StepJSON { notes: number[]; envelopes: EnvelopeJSON[]; state: "normal"|"rest"|"skip"; jump: JumpJSON }
+interface EnvelopeJSON { id: number; cc: number; channel: number; points: { time: number /* 0..1 of the step */; value: number }[] }
 interface JumpJSON { rule: JumpRule; dest: StepIndex | null; normal: StepIndex | null }
 interface LoopJSON { mode: "recorded"|"all"|"custom"; end: StepIndex }
 interface VoiceJSON { enabled; pace; length; rule; offset; patternLength; pattern: PatternStepJSON[16]; velocity; channel }
+interface PatternStepJSON { on; articulation; accent: "none"|"+"|"-"; velocityOffset /* from the voice's velocity */; ratchet; probability; condition }
 interface PatchJSON {
   version: 1; name; size: "small"|"large"; loop: LoopJSON
   syncVoices; pace; direction; shiftAmt; tempo
@@ -394,6 +446,54 @@ the whole number changes: a steady clock writes once and then says nothing.
 **What is not there yet:** song position pointer, and a tempo field that says
 it is being driven from outside rather than simply being overwritten.
 
+## 5.6 CC envelopes
+
+**Breakpoints, not a value per grid cell.** Like Live, an envelope stores
+points joined by segments, so a slow sweep is two points however fine the
+grid. Draw mode's flat steps are only what the paint stroke writes — pairs of
+points — and a run painted at one value keeps just its ends.
+
+**Time is a fraction of the step.** The step's length is the sequencer's
+pace, so storing 0 to 1 lets an envelope keep its shape when the pace
+changes. The grid is laid over it in note values, so a 1/16 grid on a
+one-bar step is sixteen cells and on a quarter-note step four.
+
+**Read live, sent on change.** The engine samples the step's envelopes every
+1/48 beat — the grid every pace sits on — from the patch as it is now, not as
+it was on landing, so drawing while the sequence plays is heard straight
+away. It sends a CC only when the rounded value moves, so a flat line costs
+one message per landing.
+
+**The notes underneath** are the step rendered once through the engine, as a
+clicked step is auditioned: every voice starting together on its first dot.
+Chance and the random rules use a fixed seed, so the picture holds still
+while editing. The keys run exactly from the lowest note anything plays to
+the highest: the grid's keys, and those keys moved by each playing voice's
+offset. They are taken across every step rather than the step on show, so the
+roll doesn't jump from step to step; setting a key or an offset beyond them
+moves that edge. (Keeping to the grid's keys alone, tried first, hid voices
+whose offsets took them outside.)
+
+**Velocity is the dot's.** Notes come from pattern dots, and a voice's
+pattern plays on every step, so a velocity point edits its dot: every point
+from that dot, on this step and every other, moves with it. The lane first
+drew bars, as Signal does; it became a line so velocity edits the way the CC
+envelopes beside it do. The dot keeps an
+offset from its voice's velocity rather than a value of its own, so moving
+the voice's velocity moves every point, and an accent stays an accent — its
+size set by the accent amount, not frozen at what it was when drawn. The dot
+is drawn big or small for its accent, and a velocity of its own shows as
+whichever level it is nearest, as drawn or after the voice's velocity or the
+accent amount moves under it. A snap of ±2, the first version's, proved too
+tight to find with a mouse; a quarter of the accent amount gives each level
+a pull that grows with the gap.
+
+**What is not there yet:** selecting and moving several points at once;
+Live's inserting points at a time selection's edges when a segment is
+dragged (there is no time selection); recording incoming CCs into an
+envelope; and, with Sync Voices off, the piano roll still shows each voice
+from its first dot, where in play it carries on from wherever it was.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -402,7 +502,7 @@ it is being driven from outside rather than simply being overwritten.
 | Hold vs Tie | Hold sustains with no retrigger; Tie overlaps into the new note |
 | Grid sizes | 4×4 and 8×8 only |
 | Notes per step | Step Notes, 1–4 with one per voice as the ceiling, default 4. Recording fills to it before advancing |
-| Step CC timing | Fires when the sequencer lands on the step |
+| Step CCs | Envelopes across the step, replacing plain CC events: the opening value on landing, then the line, sent as it changes |
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |
 | Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |

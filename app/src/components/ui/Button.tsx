@@ -35,6 +35,34 @@ export const Button: FC<ButtonProps> = ({
   />
 )
 
+export interface IconButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean
+}
+
+/**
+ * Just a glyph: no fill until it is hovered, and a tint while it is on. The
+ * size of a stepper's buttons.
+ */
+export const IconButton: FC<IconButtonProps> = ({
+  active = false,
+  className,
+  ...props
+}) => (
+  <button
+    type="button"
+    data-active={active}
+    className={cn(
+      "flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm disabled:opacity-40",
+      active
+        ? "bg-highlight text-theme"
+        : "text-fg-secondary enabled:hover:bg-highlight enabled:hover:text-fg",
+      className,
+    )}
+    {...props}
+  />
+)
+
 export interface ToolbarButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean

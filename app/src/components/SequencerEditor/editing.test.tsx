@@ -117,16 +117,16 @@ describe("editing the sequencer", () => {
       expect(row(2)).toHaveAttribute("aria-current", "false")
     })
 
-    it("edits any voice's dot without changing the selected voice", () => {
+    it("edits any voice's dot, and selects that voice", () => {
       fireEvent.click(dot(3, 4))
       expect(patch().voices[2].pattern[3].on).toBe(false)
       // the other voices are untouched
       expect(patch().voices[0].pattern[3].on).toBe(true)
-      expect(screen.getByRole("button", { name: "Voice 1" })).toHaveAttribute(
+      expect(screen.getByRole("button", { name: "Voice 3" })).toHaveAttribute(
         "data-active",
         "true",
       )
-      expect(row(1)).toHaveAttribute("aria-current", "true")
+      expect(row(3)).toHaveAttribute("aria-current", "true")
     })
 
     it("selects a voice from its row's number, leaving its dots alone", () => {
@@ -159,6 +159,11 @@ describe("editing the sequencer", () => {
       expect(patch().voices[0].pattern[4].ratchet).toBe(1)
       expect(dot(2, 5)).toHaveAttribute("data-editing", "true")
       expect(dot(1, 5)).toHaveAttribute("data-editing", "false")
+      // opening a dot's options selects its voice too
+      expect(screen.getByRole("button", { name: "Voice 2" })).toHaveAttribute(
+        "data-active",
+        "true",
+      )
     })
 
     it("highlights the dots a voice reaches in one sequencer step", () => {

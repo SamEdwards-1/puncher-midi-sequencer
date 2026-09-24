@@ -26,7 +26,19 @@ const everySettingChanged = (): PatchJSON => {
       index === 5
         ? {
             notes: [48, 52],
-            ccs: [{ id: 1, cc: 74, value: 90, channel: 9 }],
+            envelopes: [
+              {
+                id: 1,
+                cc: 74,
+                channel: 9,
+                points: [
+                  { time: 0, value: 90 },
+                  { time: 0.25, value: 12 },
+                  { time: 0.25, value: 127 },
+                  { time: 1 / 3, value: 64 },
+                ],
+              },
+            ],
             state: "rest",
             jump: { rule: { kind: "every", n: 3 }, dest: 2, normal: 7 },
           }
@@ -43,6 +55,7 @@ const everySettingChanged = (): PatchJSON => {
         on: (dot + index) % 3 !== 0,
         articulation: pick(["hold", "tie", "none"] as const, dot + index),
         accent: pick(["+", "-", "none"] as const, dot + index),
+        velocityOffset: pick([0, 7, -12, 30] as const, dot + index),
         ratchet: pick([2, 3, 4, 1] as const, dot + index),
         probability: pick([50, 25, 90, 100] as const, dot + index),
         condition: pick(["2:2", "1x", "notLast", "always"] as const, dot),
@@ -127,22 +140,71 @@ describe("the file format", () => {
     expect(saved(undefined)).toBe(4)
   })
 
-  it("opens a file whose CCs followed a voice's channel", () => {
+  it("opens a file of CC events as one-point envelopes", () => {
     const patch = createDemoPatch()
     const text = serializeFile(createFile(patch))
     const older = JSON.parse(text)
-    // as that version wrote a CC: a voice's own channel, and a target output
+    for (const step of older.patch.steps) {
+      delete step.envelopes
+      step.ccs = []
+    }
     older.patch.steps[0].ccs = [
-      { id: 1, cc: 74, value: 100, channel: "voice", output: 2 },
+      { id: 1, cc: 74, value: 100, channel: 3 },
+      // written when a CC could follow a voice's channel
+      { id: 2, cc: 71, value: 5, channel: "voice", output: 2 },
     ]
     const result = parseFile(JSON.stringify(older))
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      // it lands on channel 1, and the output it targeted is forgotten
-      expect(result.patch.steps[0].ccs).toEqual([
-        { id: 1, cc: 74, value: 100, channel: 1 },
+      // a point at the step's start sends just what the CC event did
+      expect(result.patch.steps[0].envelopes).toEqual([
+        { id: 1, cc: 74, channel: 3, points: [{ time: 0, value: 100 }] },
+        { id: 2, cc: 71, channel: 1, points: [{ time: 0, value: 5 }] },
       ])
+      expect(result.patch.steps[1].envelopes).toEqual([])
+      expect(result.patch.steps[0]).not.toHaveProperty("ccs")
+    }
+  })
+
+  it("puts an envelope's points in time order, keeping jumps as they were", () => {
+    const file = JSON.parse(serializeFile(createFile(createDefaultPatch())))
+    file.patch.steps[0].envelopes = [
+      {
+        id: 1,
+        cc: 1,
+        channel: 1,
+        points: [
+          { time: 0.5, value: 1 },
+          { time: 0.25, value: 2 },
+          { time: 0.5, value: 3 },
+        ],
+      },
+    ]
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.patch.steps[0].envelopes[0].points).toEqual([
+        { time: 0.25, value: 2 },
+        { time: 0.5, value: 1 },
+        { time: 0.5, value: 3 },
+      ])
+    }
+  })
+
+  it("refuses an envelope point outside its step", () => {
+    const file = JSON.parse(serializeFile(createFile(createDefaultPatch())))
+    file.patch.steps[3].envelopes = [
+      { id: 1, cc: 1, channel: 1, points: [{ time: 1.5, value: 1 }] },
+    ]
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(
+        /^patch\.steps\.3\.envelopes\.0\.points\.0\.time/,
+      )
     }
   })
 

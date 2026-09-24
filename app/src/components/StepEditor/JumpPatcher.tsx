@@ -1,16 +1,15 @@
-import { JumpRule } from "@midiseq/core"
+import { createDefaultJump, JumpJSON, JumpRule } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
+import CrosshairsGpsIcon from "mdi-react/CrosshairsGpsIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
-import { ButtonField, Field, Fields } from "../ui/Field"
-import { PanelHeader } from "../ui/Panel"
+import { IconButton } from "../ui/Button"
 import { Select } from "../ui/Select"
 
-const VALUE = "grow font-mono text-fg"
+const VALUE = "font-mono text-fg"
 
 // The rules a jump can follow, flattened for a select.
 const RULES: { value: string; label: string }[] = [
@@ -62,7 +61,16 @@ const parseRule = (value: string): JumpRule => {
   }
 }
 
-export const JumpPatcher: FC = () => {
+// A jump that does anything: somewhere to go, a rule other than always, or a
+// step to carry on to.
+export const hasJump = (jump: JumpJSON) =>
+  jump.dest !== null || jump.normal !== null || jump.rule.kind !== "always"
+
+/**
+ * The step's own jump, on one row, so it sits in the step editor: the step it
+ * leaves from is the one the editor is on. Its X takes the whole jump away.
+ */
+export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
   const patch = usePatch()
   const [selected] = useSelectedStep()
   const [mode, setMode] = useGridMode()
@@ -70,46 +78,44 @@ export const JumpPatcher: FC = () => {
   const localized = useLocalization()
 
   const jump = patch.steps[selected].jump
+  const picking = mode === "dest" || mode === "normal"
 
   const target = (
     kind: "dest" | "normal",
+    label: string,
     value: number | null,
     emptyLabel: string,
   ) => (
-    <div className="flex items-center gap-[0.4rem]">
+    <div className="flex items-center gap-1">
+      <span>{label}</span>
       <span className={VALUE}>{value === null ? emptyLabel : value + 1}</span>
-      <Button
-        type="button"
-        size="sm"
+      <IconButton
+        aria-label={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
+        title={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
+        aria-pressed={mode === kind}
         active={mode === kind}
         onClick={() => setMode(mode === kind ? null : kind)}
       >
-        <Localized name="sequencer-jump-pick" />
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        aria-label={`${localized["sequencer-jump-clear"]} ${kind}`}
-        disabled={value === null}
-        onClick={() => editJump(selected, { [kind]: null })}
-      >
-        <CloseIcon size={14} />
-      </Button>
+        <CrosshairsGpsIcon size={16} />
+      </IconButton>
     </div>
   )
 
-  return (
-    <>
-      <PanelHeader>
-        <Localized name="sequencer-jumps" />
-      </PanelHeader>
-      <Fields>
-        <ButtonField label={localized["sequencer-jump-source"]}>
-          <span className={VALUE}>{selected + 1}</span>
-        </ButtonField>
+  const remove = () => {
+    if (picking) {
+      setMode(null)
+    }
+    editJump(selected, createDefaultJump())
+    onRemove()
+  }
 
-        <Field label={localized["sequencer-jump-rule"]}>
+  return (
+    <div className="-mx-4 flex flex-col gap-2 border-t border-divider px-4 pt-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex items-center gap-[0.4rem]">
+          <label htmlFor="jump-rule">{localized["sequencer-jump-rule"]}</label>
           <Select
+            id="jump-rule"
             value={ruleValue(jump.rule)}
             onChange={(event) =>
               editJump(selected, { rule: parseRule(event.target.value) })
@@ -121,22 +127,33 @@ export const JumpPatcher: FC = () => {
               </option>
             ))}
           </Select>
-        </Field>
+        </div>
+        {target(
+          "dest",
+          localized["sequencer-jump-dest"],
+          jump.dest,
+          localized["sequencer-jump-none"],
+        )}
+        {target(
+          "normal",
+          localized["sequencer-jump-normal"],
+          jump.normal,
+          localized["sequencer-jump-next"],
+        )}
+        <IconButton
+          aria-label={localized["sequencer-jump-remove"]}
+          title={localized["sequencer-jump-remove"]}
+          onClick={remove}
+        >
+          <CloseIcon size={16} />
+        </IconButton>
+      </div>
 
-        <ButtonField label={localized["sequencer-jump-dest"]}>
-          {target("dest", jump.dest, localized["sequencer-jump-none"])}
-        </ButtonField>
-
-        <ButtonField label={localized["sequencer-jump-normal"]}>
-          {target("normal", jump.normal, localized["sequencer-jump-next"])}
-        </ButtonField>
-      </Fields>
-
-      {(mode === "dest" || mode === "normal") && (
-        <div className="px-4 pb-3 text-small text-fg-secondary">
+      {picking && (
+        <div className="text-small text-fg-secondary">
           <Localized name="sequencer-jump-hint" />
         </div>
       )}
-    </>
+    </div>
   )
 }

@@ -14,12 +14,12 @@ import { usePatch } from "../../hooks/usePatch"
 import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
+import { cn } from "../ui/cn"
 import { ButtonField, Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
-import { JumpPatcher } from "./JumpPatcher"
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: "fwd", label: "Forwards" },
@@ -36,7 +36,11 @@ const LOOP_MODES: { value: LoopMode; label: string }[] = [
   { value: "custom", label: "Custom" },
 ]
 
-export const SequencerPanel: FC = () => {
+// `header` is left off when the panel sits under a tab that names it.
+export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
+  header = true,
+  className = "border-r border-divider",
+}) => {
   const patch = usePatch()
   const { editSequencer } = usePatchEditor()
   const [mode, setMode] = useGridMode()
@@ -45,11 +49,13 @@ export const SequencerPanel: FC = () => {
   return (
     <Panel
       aria-label={localized["sequencer-panel"]}
-      className="overflow-y-auto border-r border-divider"
+      className={cn("overflow-y-auto", className)}
     >
-      <PanelHeader>
-        <Localized name="sequencer-panel" />
-      </PanelHeader>
+      {header && (
+        <PanelHeader>
+          <Localized name="sequencer-panel" />
+        </PanelHeader>
+      )}
       <Fields>
         <Field label={localized["sequencer-size"]}>
           <Select
@@ -180,8 +186,6 @@ export const SequencerPanel: FC = () => {
           </div>
         </ButtonField>
       </Fields>
-
-      <JumpPatcher />
     </Panel>
   )
 }

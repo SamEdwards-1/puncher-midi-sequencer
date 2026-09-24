@@ -5,14 +5,26 @@ import {
   PatternCondition,
   PatternStepJSON,
   Probability,
+  playedVelocity,
   Ratchet,
+  shownAccent,
+  typedVelocityToDot,
 } from "@midiseq/core"
 import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
+import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { usePatch } from "../../hooks/usePatch"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
 import { Select } from "../ui/Select"
+import { Stepper } from "../ui/Stepper"
+
+// digits are all a typed velocity means; the stepper clamps it to 1-127
+const parseNumber = (text: string) => {
+  const number = Number.parseInt(text.replace(/[^0-9]/g, ""), 10)
+  return Number.isFinite(number) ? number : null
+}
 
 const ARTICULATIONS: Articulation[] = ["none", "hold", "tie"]
 const ACCENTS: Accent[] = ["none", "+", "-"]
@@ -46,6 +58,8 @@ export const StepOptions: FC<StepOptionsProps> = ({
   onClose,
 }) => {
   const { editPatternStep } = usePatchEditor()
+  const { accentAmount } = useAccentAmount()
+  const voiceVelocity = usePatch().voices[voiceIndex].velocity
   const localized = useLocalization()
   const popup = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState(requestedAt)
@@ -124,9 +138,14 @@ export const StepOptions: FC<StepOptionsProps> = ({
 
         <Field label={localized["sequencer-dot-accent"]}>
           <Select
-            value={dot.accent}
+            value={shownAccent(voiceVelocity, accentAmount, dot)}
+            // an accent picked here is exactly that accent, so it clears any
+            // velocity of the dot's own
             onChange={(event) =>
-              change({ accent: event.target.value as Accent })
+              change({
+                accent: event.target.value as Accent,
+                velocityOffset: 0,
+              })
             }
           >
             {ACCENTS.map((value) => (
@@ -135,6 +154,26 @@ export const StepOptions: FC<StepOptionsProps> = ({
               </option>
             ))}
           </Select>
+        </Field>
+
+        <Field label={localized["sequencer-voice-velocity"]}>
+          <Stepper
+            label={localized["sequencer-voice-velocity"]}
+            value={playedVelocity(voiceVelocity, accentAmount, dot)}
+            min={1}
+            max={127}
+            parse={parseNumber}
+            // exactly as typed or stepped: an accent only where it lands on
+            // one, and one undo entry for a run of steps
+            onChange={(velocity) =>
+              editPatternStep(
+                voiceIndex,
+                dotIndex,
+                typedVelocityToDot(voiceVelocity, accentAmount, velocity),
+                `dot-velocity-${voiceIndex}-${dotIndex}`,
+              )
+            }
+          />
         </Field>
 
         <Field label={localized["sequencer-dot-ratchet"]}>

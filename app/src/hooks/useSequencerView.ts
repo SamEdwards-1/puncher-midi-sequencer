@@ -26,6 +26,39 @@ export function usePreviewOnClick() {
   return useAtom(previewOnClickAtom)
 }
 
+// The envelope editor's tool, grid and open lane. The grid is a note value
+// in beats; the lane is a voice's velocity or a CC envelope, by its id.
+export type EnvelopeTool = "edit" | "draw"
+export type EnvelopeLane =
+  | { kind: "velocity"; voice: VoiceIndex }
+  | { kind: "cc"; id: number }
+const envelopeToolAtom = atom<EnvelopeTool>("edit")
+const envelopeGridAtom = atom(0.25)
+const selectedLaneAtom = atom<EnvelopeLane | null>(null)
+
+export function useEnvelopeTool() {
+  return useAtom(envelopeToolAtom)
+}
+
+export function useEnvelopeGrid() {
+  return useAtom(envelopeGridAtom)
+}
+
+export function useSelectedLane() {
+  return useAtom(selectedLaneAtom)
+}
+
+// Which settings pane the right-hand column shows when the window is too
+// narrow for the sequencer's own column.
+// The tab open where panes share a column: in one column the grid is a
+// tab as well, and the one shown first; beside the grid, its Voices tab.
+export type SidePane = "grid" | "voices" | "sequencer"
+const sidePaneAtom = atom<SidePane>("grid")
+
+export function useSidePane() {
+  return useAtom(sidePaneAtom)
+}
+
 export function useSelectedVoice() {
   return useAtom(selectedVoiceAtom)
 }

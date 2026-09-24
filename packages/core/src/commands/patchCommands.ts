@@ -1,6 +1,6 @@
 import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
 import {
-  CCEventJSON,
+  EnvelopeJSON,
   JumpJSON,
   MAX_NOTES_PER_STEP,
   ModOutJSON,
@@ -12,6 +12,7 @@ import {
   StepState,
   VoiceJSON,
 } from "../entities/types"
+import { velocityToDot } from "../entities/velocity"
 
 const clampNote = (note: number) => Math.min(127, Math.max(0, Math.round(note)))
 
@@ -36,6 +37,36 @@ export const setVoice = (
   ),
 })
 
+/**
+ * The channel a voice takes when asked for `wanted`: that one, or, where
+ * another voice already plays on it, the next free one onward in the
+ * direction it was moved. No two voices share a channel, so each keeps a
+ * Velocity lane of its own; with nothing free that way it stays put.
+ */
+export const freeVoiceChannel = (
+  patch: PatchJSON,
+  voiceIndex: number,
+  wanted: number,
+): number => {
+  const current = patch.voices[voiceIndex].channel
+  const taken = new Set(
+    patch.voices
+      .filter((_, index) => index !== voiceIndex)
+      .map((voice) => voice.channel),
+  )
+  const direction = wanted < current ? -1 : 1
+  for (
+    let channel = Math.min(16, Math.max(1, wanted));
+    channel >= 1 && channel <= 16;
+    channel += direction
+  ) {
+    if (!taken.has(channel)) {
+      return channel
+    }
+  }
+  return current
+}
+
 export const setPatternStep = (
   patch: PatchJSON,
   voiceIndex: number,
@@ -47,6 +78,24 @@ export const setPatternStep = (
       current === dotIndex ? { ...dot, ...changes } : dot,
     ),
   })
+
+/**
+ * Sets the velocity a dot plays at, as drawn in the velocity lane: an accent
+ * where it lands on or near one, the dot's own velocity anywhere else.
+ */
+export const setDotVelocity = (
+  patch: PatchJSON,
+  voiceIndex: number,
+  dotIndex: number,
+  velocity: number,
+  accentAmount: number,
+): PatchJSON =>
+  setPatternStep(
+    patch,
+    voiceIndex,
+    dotIndex,
+    velocityToDot(patch.voices[voiceIndex].velocity, accentAmount, velocity),
+  )
 
 export const togglePatternStep = (
   patch: PatchJSON,
@@ -150,49 +199,79 @@ export const transposeStep = (
     patch.steps[index].notes.map((note) => note + semitones),
   )
 
-const nextCCId = (patch: PatchJSON): number =>
+// Unique across the patch, so an envelope keeps its identity when its step
+// is copied elsewhere.
+export const nextEnvelopeId = (patch: PatchJSON): number =>
   patch.steps.reduce(
     (highest, step) =>
-      step.ccs.reduce((id, cc) => Math.max(id, cc.id), highest),
+      step.envelopes.reduce(
+        (id, envelope) => Math.max(id, envelope.id),
+        highest,
+      ),
     0,
   ) + 1
 
-export const addStepCC = (
+// Brightness first, as the first CC added always was; after that the next
+// number the step isn't already using on that channel.
+const FIRST_CC = 74
+
+export const nextFreeCC = (step: StepJSON, channel: number): number => {
+  const used = new Set(
+    step.envelopes
+      .filter((envelope) => envelope.channel === channel)
+      .map((envelope) => envelope.cc),
+  )
+  for (let offset = 0; offset < 128; offset++) {
+    const cc = (FIRST_CC + offset) % 128
+    if (!used.has(cc)) {
+      return cc
+    }
+  }
+  return FIRST_CC
+}
+
+export const addEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
-  cc: Omit<CCEventJSON, "id">,
+  envelope: Omit<EnvelopeJSON, "id">,
 ): PatchJSON =>
   setStep(patch, index, {
-    ccs: [...patch.steps[index].ccs, { ...cc, id: nextCCId(patch) }],
+    envelopes: [
+      ...patch.steps[index].envelopes,
+      { ...envelope, id: nextEnvelopeId(patch) },
+    ],
   })
 
-export const updateStepCC = (
+export const updateEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
   id: number,
-  changes: Partial<Omit<CCEventJSON, "id">>,
+  changes: Partial<Omit<EnvelopeJSON, "id">>,
 ): PatchJSON =>
   setStep(patch, index, {
-    ccs: patch.steps[index].ccs.map((cc) =>
-      cc.id === id ? { ...cc, ...changes } : cc,
+    envelopes: patch.steps[index].envelopes.map((envelope) =>
+      envelope.id === id ? { ...envelope, ...changes } : envelope,
     ),
   })
 
-export const removeStepCC = (
+export const removeEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
   id: number,
 ): PatchJSON =>
   setStep(patch, index, {
-    ccs: patch.steps[index].ccs.filter((cc) => cc.id !== id),
+    envelopes: patch.steps[index].envelopes.filter(
+      (envelope) => envelope.id !== id,
+    ),
   })
 
 export const clearStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
-  setStep(patch, index, { notes: [], ccs: [] })
+  setStep(patch, index, { notes: [], envelopes: [] })
 
 /**
- * Empties the sequence: every step back to no notes, no CCs, no jump and no
- * rest or skip, and every voice back to its default settings and pattern.
+ * Empties the sequence: every step back to no notes, no envelopes, no jump
+ * and no rest or skip, and every voice back to its default settings and
+ * pattern.
  * How the patch is played — size, pace, direction, loop, tempo — is left
  * alone, since none of that is the music.
  */
@@ -202,7 +281,7 @@ export const clearPatch = (patch: PatchJSON): PatchJSON => ({
   voices: patch.voices.map((_, index) => createDefaultVoice(index)),
 })
 
-// Copies notes, CCs, state and jump onto another step.
+// Copies notes, envelopes, state and jump onto another step.
 export const pasteStep = (
   patch: PatchJSON,
   index: StepIndex,
@@ -210,9 +289,10 @@ export const pasteStep = (
 ): PatchJSON =>
   setStep(patch, index, {
     notes: [...source.notes],
-    ccs: source.ccs.map((cc, offset) => ({
-      ...cc,
-      id: nextCCId(patch) + offset,
+    envelopes: source.envelopes.map((envelope, offset) => ({
+      ...envelope,
+      id: nextEnvelopeId(patch) + offset,
+      points: envelope.points.map((point) => ({ ...point })),
     })),
     state: source.state,
     jump: { ...source.jump },

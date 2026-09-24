@@ -200,12 +200,21 @@ describe("Engine", () => {
     expect(notesOn(engine.render(3.9))).toEqual([48, 55, 60, 64])
   })
 
-  describe("step CCs", () => {
+  describe("step envelopes", () => {
+    const ccs = (events: EngineEvent[]) =>
+      events.flatMap((e) =>
+        e.type === "cc" ? [{ beat: e.beat, value: e.value }] : [],
+      )
+    const envelope = (
+      points: { time: number; value: number }[],
+      overrides = {},
+    ) => ({ id: 1, cc: 74, channel: 3, points, ...overrides })
+
     beforeEach(() => {
-      patch.steps[0].ccs = [{ id: 1, cc: 74, value: 100, channel: 3 }]
+      patch.steps[0].envelopes = [envelope([{ time: 0, value: 100 }])]
     })
 
-    it("fires on landing, before that beat's notes", () => {
+    it("sends a one-point envelope on landing, before that beat's notes", () => {
       const engine = new Engine(patch)
       engine.start(0)
       const events = withoutDots(engine.render(0.1))
@@ -230,9 +239,11 @@ describe("Engine", () => {
           channel: 1,
         },
       ])
+      // and, holding still, nothing more
+      expect(ccs(engine.render(0.9))).toEqual([])
     })
 
-    it("fires on a rest but never on a skipped step", () => {
+    it("sends on a rest but never on a skipped step", () => {
       patch.steps[0].state = "rest"
       const resting = new Engine(patch)
       resting.start(0)
@@ -247,7 +258,9 @@ describe("Engine", () => {
     })
 
     it("sends on its own channel, to every output", () => {
-      patch.steps[0].ccs = [{ id: 1, cc: 74, value: 10, channel: 9 }]
+      patch.steps[0].envelopes = [
+        envelope([{ time: 0, value: 10 }], { channel: 9 }),
+      ]
       patch.voices[2].channel = 3
 
       const engine = new Engine(patch)
@@ -255,6 +268,128 @@ describe("Engine", () => {
       const cc = engine.render(0.1).find((e) => e.type === "cc")
       // the voices' own channels have nothing to do with it
       expect(cc).toMatchObject({ channel: 9, output: "all" })
+    })
+
+    it("follows its line across the step, sending each value as it changes", () => {
+      // a quarter-note step rising by one every 48th of a beat
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0, value: 0 },
+          { time: 1, value: 48 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      const sent = ccs(engine.render(0.999))
+
+      expect(sent).toHaveLength(48)
+      expect(sent.map((cc) => cc.value)).toEqual(
+        Array.from({ length: 48 }, (_, k) => k),
+      )
+      expect(sent[24]).toEqual({ beat: 0.5, value: 24 })
+    })
+
+    it("sends nothing while the line is flat", () => {
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0, value: 20 },
+          { time: 0.5, value: 20 },
+          { time: 0.5, value: 90 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      // a jump halfway sends once, when it comes
+      expect(ccs(engine.render(0.999))).toEqual([
+        { beat: 0, value: 20 },
+        { beat: 0.5, value: 90 },
+      ])
+    })
+
+    it("holds the first point's value until it", () => {
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0.5, value: 30 },
+          { time: 1, value: 30 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(ccs(engine.render(0.999))).toEqual([{ beat: 0, value: 30 }])
+    })
+
+    it("stretches with the sequencer's pace", () => {
+      patch.pace = "2nd"
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0, value: 0 },
+          { time: 1, value: 96 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      const sent = ccs(engine.render(1.999))
+      // the same line over two beats reaches half way at the first
+      expect(sent.find((cc) => cc.beat === 1)?.value).toBe(48)
+      expect(sent).toHaveLength(96)
+    })
+
+    it("starts again on every landing, even at the value it left", () => {
+      patch.loop = { mode: "custom", end: 0 }
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(ccs(engine.render(2.9))).toEqual([
+        { beat: 0, value: 100 },
+        { beat: 1, value: 100 },
+        { beat: 2, value: 100 },
+      ])
+    })
+
+    it("hears an envelope redrawn mid-step at once", () => {
+      patch.pace = "1bar"
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(ccs(engine.render(1))).toEqual([{ beat: 0, value: 100 }])
+
+      const redrawn = structuredClone(patch)
+      redrawn.steps[0].envelopes = [envelope([{ time: 0, value: 40 }])]
+      engine.setPatch(redrawn)
+      expect(ccs(engine.render(1.1))).toEqual([{ beat: 1 + 1 / 48, value: 40 }])
+    })
+
+    it("plays out once and then holds while Hang keeps the step", () => {
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0, value: 0 },
+          { time: 1, value: 48 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      engine.render(0.5)
+      engine.setActions({ hang: true })
+      const later = ccs(engine.render(3.9))
+      // the rest of the first step's line, then nothing more
+      expect(later.at(-1)).toEqual({ beat: 47 / 48, value: 47 })
+    })
+
+    it("sends nothing for an envelope without points", () => {
+      patch.steps[0].envelopes = [envelope([])]
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(ccs(engine.render(3.9))).toEqual([])
+    })
+
+    it("sends several envelopes in list order", () => {
+      patch.steps[0].envelopes = [
+        envelope([{ time: 0, value: 1 }], { id: 1, cc: 71 }),
+        envelope([{ time: 0, value: 2 }], { id: 2, cc: 10 }),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(
+        engine.render(0.1).flatMap((e) => (e.type === "cc" ? [e.cc] : [])),
+      ).toEqual([71, 10])
     })
   })
 
@@ -401,6 +536,23 @@ describe("Engine", () => {
         .filter((e): e is NoteOnEvent => e.type === "noteOn")
         .map((e) => e.velocity)
       expect(velocities).toEqual([84, 44])
+    })
+
+    it("plays a dot's own velocity, with its accent on top, inside MIDI's range", () => {
+      patch.voices[0].pattern[0].velocityOffset = 10
+      patch.voices[0].pattern[1].velocityOffset = 10
+      patch.voices[0].pattern[1].accent = "+"
+      patch.voices[0].pattern[2].velocityOffset = 90
+      patch.voices[0].pattern[3].velocityOffset = -90
+      patch.voices[0].patternLength = 4
+
+      const engine = new Engine(patch, { accentAmount: 20 })
+      engine.start(0)
+      const velocities = engine
+        .render(3.1)
+        .filter((e): e is NoteOnEvent => e.type === "noteOn")
+        .map((e) => e.velocity)
+      expect(velocities).toEqual([74, 94, 127, 1])
     })
 
     it("hold sustains the previous note through the dot", () => {

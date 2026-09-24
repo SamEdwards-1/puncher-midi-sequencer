@@ -23,6 +23,18 @@ export interface VoiceRuntime {
   activeNote: ActiveNote | null
 }
 
+// The envelopes of the step the sequencer is on, played across its length.
+export interface EnvelopeRuntime {
+  // the stored step, fixed on landing so Flip can't swap it mid-step
+  step: StepIndex
+  startBeat: number
+  lengthBeats: number
+  // the next sample, or Infinity once the step is over
+  nextBeat: number
+  // the last value sent for each envelope, by id
+  sent: Record<number, number>
+}
+
 export interface EngineRuntime {
   started: boolean
   position: StepIndex
@@ -34,6 +46,7 @@ export interface EngineRuntime {
   lastJumpResult: boolean | null
   queued: StepIndex | null
   voices: VoiceRuntime[]
+  envelope: EnvelopeRuntime | null
 }
 
 export const createVoiceRuntime = (): VoiceRuntime => ({
@@ -55,6 +68,7 @@ export const createRuntime = (patch: PatchJSON): EngineRuntime => ({
   lastJumpResult: null,
   queued: null,
   voices: patch.voices.map(createVoiceRuntime),
+  envelope: null,
 })
 
 export const voiceIndexes: VoiceIndex[] = [0, 1, 2, 3]

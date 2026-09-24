@@ -1,4 +1,5 @@
 import {
+  Accent,
   dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
@@ -6,6 +7,8 @@ import {
   PACES,
   PaceId,
   PatternStepJSON,
+  playedVelocity,
+  shownAccent,
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
@@ -15,11 +18,13 @@ import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import { CSSProperties, FC, ReactNode, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
+import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
-import { useSelectedVoice } from "../../hooks/useSequencerView"
+import { useSelectedLane, useSelectedVoice } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
@@ -68,15 +73,19 @@ const voiceColor = (index: VoiceIndex): CSSProperties =>
 // Spells the options out on hover, since the marks are necessarily terse.
 const describe = (
   dot: PatternStepJSON,
+  accent: Accent,
+  velocity: number,
   localized: Record<string, string>,
 ): string => {
   const parts = [
     dot.articulation === "none"
       ? null
       : localized[`sequencer-dot-articulation-${dot.articulation}`],
-    dot.accent === "none"
+    accent === "none" ? null : `${localized["sequencer-dot-accent"]} ${accent}`,
+    // a velocity of its own is invisible on the dot unless it is an accent's
+    dot.velocityOffset === 0
       ? null
-      : `${localized["sequencer-dot-accent"]} ${dot.accent}`,
+      : `${localized["sequencer-voice-velocity"]} ${velocity}`,
     dot.ratchet > 1
       ? `${localized["sequencer-dot-ratchet"]} ${dot.ratchet}x`
       : null,
@@ -91,7 +100,12 @@ const describe = (
  * makes it bigger or smaller, a probability below 100% hollows it out, a hold
  * or tie draws a tail towards the next dot, and a condition marks the corner.
  */
-const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
+const dotClass = (
+  dot: PatternStepJSON,
+  accent: Accent,
+  beyond: boolean,
+  editing: boolean,
+) => {
   const chance = dot.probability < 100
   return cn(
     DOT,
@@ -102,8 +116,8 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
         : "border-transparent bg-voice text-on-surface"
       : "border-transparent bg-step text-on-surface",
     beyond && "opacity-25",
-    dot.accent === "+" && "scale-[1.15]",
-    dot.accent === "-" && "scale-80",
+    accent === "+" && "scale-[1.15]",
+    accent === "-" && "scale-80",
     // the dot whose options are open
     editing && "outline-2 outline-offset-2 outline-fg",
     dot.articulation === "hold" && cn(TAIL, "before:bg-voice"),
@@ -113,7 +127,11 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
   )
 }
 
-export const VoicePanel: FC = () => {
+// `header` is left off when the panel sits under a tab that names it.
+export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
+  header = true,
+  className = "border-l border-divider",
+}) => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
   const { editVoice } = usePatchEditor()
@@ -123,11 +141,13 @@ export const VoicePanel: FC = () => {
   return (
     <Panel
       aria-label={localized["sequencer-voices"]}
-      className="overflow-y-auto border-l border-divider"
+      className={cn("overflow-y-auto", className)}
     >
-      <PanelHeader>
-        <Localized name="sequencer-voices" />
-      </PanelHeader>
+      {header && (
+        <PanelHeader>
+          <Localized name="sequencer-voices" />
+        </PanelHeader>
+      )}
 
       <div className="flex border-b border-divider">
         {VOICES.map((index) => (
@@ -300,8 +320,8 @@ const bands = (
 /**
  * Every voice's pattern at once, one row each and every dot editable, so the
  * voices can be written against each other without flipping through tabs.
- * A row's number selects its voice for the fields above; its dots edit the
- * pattern and leave the selection alone.
+ * A row's number selects its voice for the fields above without touching the
+ * pattern; editing one of its dots selects the voice as well.
  */
 const Patterns: FC<{
   selected: VoiceIndex
@@ -312,6 +332,17 @@ const Patterns: FC<{
   const voiceDots = useMobxGetter(player, "voiceDots")
   const playingDots = useMobxGetter(player, "playingDots")
   const { togglePatternDot } = usePatchEditor()
+  const { accentAmount } = useAccentAmount()
+  const [, setLane] = useSelectedLane()
+
+  // Editing a dot brings its voice up: its tab in the fields above, and its
+  // Velocity tab in the step editor if a Velocity tab is what is open there.
+  const focusVoice = (voice: VoiceIndex) => {
+    onSelect(voice)
+    setLane((lane) =>
+      lane?.kind === "velocity" ? { kind: "velocity", voice } : lane,
+    )
+  }
   const { exportPatterns, importPatterns } = usePatternFileActions()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
@@ -366,7 +397,9 @@ const Patterns: FC<{
                 voiceIndex + 1
               )}
             </button>
-            <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
+            {/* dots fill the column, up to a size that still reads as a
+                row of dots when the panel has the whole window */}
+            <span className="grid flex-1 grid-cols-[repeat(16,minmax(0,1.75rem))] gap-[0.3rem]">
               {runs.map(([first, count]) => (
                 <span
                   key={first}
@@ -383,6 +416,8 @@ const Patterns: FC<{
                 const editing =
                   options?.voiceIndex === voiceIndex &&
                   options.dotIndex === dotIndex
+                // a velocity landing on an accent's shows as that accent
+                const accent = shownAccent(voice.velocity, accentAmount, dot)
                 return (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
@@ -395,19 +430,34 @@ const Patterns: FC<{
                     data-editing={editing}
                     data-playing={playingDots?.[voiceIndex] === dotIndex}
                     data-articulation={dot.articulation}
-                    data-accent={dot.accent}
+                    data-accent={accent}
+                    data-velocity={playedVelocity(
+                      voice.velocity,
+                      accentAmount,
+                      dot,
+                    )}
                     data-chance={dot.probability < 100}
                     data-condition={dot.condition !== "always"}
                     className={dotClass(
                       dot,
+                      accent,
                       dotIndex >= voice.patternLength,
                       editing,
                     )}
                     style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
-                    title={describe(dot, localized)}
-                    onClick={() => togglePatternDot(voiceIndex, dotIndex)}
+                    title={describe(
+                      dot,
+                      accent,
+                      playedVelocity(voice.velocity, accentAmount, dot),
+                      localized,
+                    )}
+                    onClick={() => {
+                      togglePatternDot(voiceIndex, dotIndex)
+                      focusVoice(voiceIndex)
+                    }}
                     onContextMenu={(event) => {
                       event.preventDefault()
+                      focusVoice(voiceIndex)
                       setOptions({
                         voiceIndex,
                         dotIndex,
@@ -468,14 +518,7 @@ const PatternFileButton: FC<{
   onClick: () => void
   children: ReactNode
 }> = ({ label, onClick, children }) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    // a stepper button's size, with no fill until it is hovered
-    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm text-fg-secondary hover:bg-highlight hover:text-fg"
-    onClick={onClick}
-  >
+  <IconButton aria-label={label} title={label} onClick={onClick}>
     {children}
-  </button>
+  </IconButton>
 )

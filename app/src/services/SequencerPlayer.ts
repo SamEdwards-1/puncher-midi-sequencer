@@ -2,10 +2,12 @@ import {
   CLOCKS_PER_BEAT,
   clockBytes,
   createActions,
+  DEFAULT_ACCENT_AMOUNT,
   Engine,
   EngineActions,
   EngineEvent,
   NoteOffEvent,
+  oneStepPatch,
   PatchJSON,
   paceBeats,
   StepIndex,
@@ -64,6 +66,7 @@ export class SequencerPlayer {
   private dotMarks: { time: number; voice: number; dot: number }[] = []
   private lastScheduledTime = 0
   private sendClock = false
+  private accentAmount = DEFAULT_ACCENT_AMOUNT
   // the last clock tick handed to the router, counted from the start
   private clockSent = -1
 
@@ -123,28 +126,13 @@ export class SequencerPlayer {
    */
   previewStep = (step: number) => {
     const patch = this.patch
-    const source = patch.steps[step]
-    if (source === undefined) {
+    if (patch.steps[step] === undefined) {
       return
     }
 
-    // A one-step patch, so the sequencer stays on this step and the voices
-    // start together as they would on landing.
-    const previewPatch: PatchJSON = {
-      ...patch,
-      loop: { mode: "custom", end: 0 },
-      steps: patch.steps.map((existing, index) =>
-        index === 0
-          ? {
-              ...source,
-              jump: { rule: { kind: "always" }, dest: null, normal: null },
-            }
-          : existing,
-      ),
-    }
-
-    const engine = new Engine(previewPatch, {
+    const engine = new Engine(oneStepPatch(patch, step), {
       seed: Math.floor(Math.random() * 2 ** 32),
+      accentAmount: this.accentAmount,
     })
     engine.start(0)
     const msPerBeat = 60000 / patch.tempo
@@ -168,6 +156,12 @@ export class SequencerPlayer {
 
   setSendClock = (send: boolean) => {
     this.sendClock = send
+  }
+
+  // How far an accent moves a velocity; the next note played hears it.
+  setAccentAmount = (amount: number) => {
+    this.accentAmount = amount
+    this.engine.accentAmount = amount
   }
 
   play = () => {

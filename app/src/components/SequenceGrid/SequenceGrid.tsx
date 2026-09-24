@@ -1,5 +1,12 @@
 import { gridWidth, stepCount } from "@midiseq/core"
-import { CSSProperties, FC } from "react"
+import {
+  CSSProperties,
+  FC,
+  RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import {
@@ -28,7 +35,37 @@ const DEST_MARK =
 
 const JUMP_COLOURS = 8
 
-export const SequenceGrid: FC = () => {
+// The smallest the grid shrinks to as the column scrolls: eight steps of
+// about 26px, still big enough to hit and read.
+const MIN_GRID = 208
+// room above and below the grid
+const GRID_PAD = 12
+// the share of the column's height the grid starts at, so the editors below
+// it are in view from the first
+const START_SHARE = 0.6
+
+const useSize = (ref: RefObject<HTMLElement | null>) => {
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (element === null) {
+      return
+    }
+    const measure = () =>
+      setSize({ width: element.clientWidth, height: element.clientHeight })
+    measure()
+    if (typeof ResizeObserver === "undefined") {
+      return
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+  return size
+}
+
+// `className` sizes the panel where it sits in a tab rather than a column.
+export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const { sequencerStore, player, recorder } = useStores()
   const localized = useLocalization()
   const { editJump, editStepState } = usePatchEditor()
@@ -106,10 +143,32 @@ export const SequenceGrid: FC = () => {
 
   const columns = gridWidth(size)
 
+  /**
+   * The column scrolls as one, with the grid stuck to its top. The grid's
+   * layer keeps its full height in the layout while the grid inside it
+   * shrinks by as much as the column has scrolled, so the editors below
+   * follow its bottom edge up; once it is down to its smallest they carry on
+   * underneath it. The scroll goes to a CSS variable rather than to React,
+   * so scrolling never re-renders the steps.
+   */
+  const scroller = useRef<HTMLDivElement>(null)
+  const { width, height } = useSize(scroller)
+  const fullGrid = Math.max(
+    MIN_GRID,
+    Math.min(width - 32, height * START_SHARE - 2 * GRID_PAD),
+  )
+  const fullLayer = fullGrid + 2 * GRID_PAD
+  const smallestLayer = MIN_GRID + 2 * GRID_PAD
+  const onScroll = () => {
+    const element = scroller.current
+    element?.style.setProperty("--grid-scroll", `${element.scrollTop}px`)
+  }
+
   return (
-    // The centre column never scrolls as a whole: the grid shrinks to fit and
-    // the step editor scrolls on its own.
-    <Panel aria-label={localized["sequencer-grid"]} className="overflow-hidden">
+    <Panel
+      aria-label={localized["sequencer-grid"]}
+      className={cn("overflow-hidden", className)}
+    >
       <PanelHeader className="flex items-center gap-2">
         <span className="grow">
           <Localized name="sequencer-grid" />
@@ -123,16 +182,38 @@ export const SequenceGrid: FC = () => {
           />
         </span>
       </PanelHeader>
-      {/* Below the grid on a normal window; beside it once there is room, so
-          the grid can use the full height. */}
-      <div className="flex min-h-0 flex-1 flex-col wide:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex min-h-[6rem] flex-1 items-center justify-center overflow-hidden px-4 py-3">
-            {/* A square that takes the smaller of the space's width and
-                height, so the whole grid is always visible and the cells stay
-                round. */}
+      <div
+        ref={scroller}
+        data-grid-scroller
+        className="min-h-0 flex-1 overflow-y-auto"
+        style={
+          {
+            "--grid-scroll": "0px",
+            // what focus scrolls to lands below the grid, not under it
+            scrollPaddingTop: smallestLayer,
+          } as CSSProperties
+        }
+        onScroll={onScroll}
+      >
+        {/* the grid's layer: its full height in the layout, see-through and
+            unclickable below the grid, so the editors show and work there */}
+        <div
+          className="pointer-events-none sticky top-0 z-10"
+          style={{ height: fullLayer }}
+        >
+          <div
+            data-grid-frame
+            // without Preflight, padding would add to the height it is given
+            className="pointer-events-auto box-border flex items-center justify-center bg-background px-4 shadow-[0_1px_0_var(--midiseq-divider)]"
+            style={{
+              height: `max(${smallestLayer}px, ${fullLayer}px - var(--grid-scroll))`,
+              paddingBlock: GRID_PAD,
+            }}
+          >
+            {/* A square as tall as the frame allows, so the cells stay round
+                however far the grid has shrunk. */}
             <div
-              className="grid aspect-square h-full max-h-full max-w-full gap-[0.4rem]"
+              className="grid aspect-square h-full max-w-full gap-[0.4rem]"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 gridTemplateRows: `repeat(${columns}, minmax(0, 1fr))`,
@@ -205,9 +286,11 @@ export const SequenceGrid: FC = () => {
               })}
             </div>
           </div>
-          <ActionButtons />
         </div>
-        <div className="max-h-[min(45%,24rem)] flex-none overflow-y-auto border-t border-divider wide:max-h-none wide:w-96 wide:border-t-0 wide:border-l">
+        {/* no taller than it is, so the scroll ends with the editor's
+            bottom at the window's; the grid shrinks as far as that allows */}
+        <div>
+          <ActionButtons />
           <StepEditor />
         </div>
       </div>

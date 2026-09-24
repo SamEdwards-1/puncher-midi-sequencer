@@ -18,6 +18,7 @@ export const registerReactions = (rootStore: RootStore) => {
     midiDeviceStore,
     midiInput,
     player,
+    playbackSettings,
     sequencerStore,
     synthStore,
   } = rootStore
@@ -105,6 +106,12 @@ export const registerReactions = (rootStore: RootStore) => {
   reaction(
     () => midiDeviceStore.clock.send,
     (send) => player.setSendClock(send),
+    { fireImmediately: true },
+  )
+
+  reaction(
+    () => playbackSettings.accentAmount,
+    (amount) => player.setAccentAmount(amount),
     { fireImmediately: true },
   )
 
