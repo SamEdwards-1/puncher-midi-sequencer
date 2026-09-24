@@ -215,4 +215,46 @@ describe("SequencerPlayer", () => {
       expect(last).toBeLessThanOrEqual(1000 + 2000)
     })
   })
+
+  describe("MIDI clock", () => {
+    const clockBytesSent = () =>
+      all.sent.filter((message) => message.data[0] >= 0xf8)
+
+    it("sends start, 24 ticks to the beat, then stop", () => {
+      player.setSendClock(true)
+      player.play()
+      runFor(1000)
+
+      const sent = clockBytesSent()
+      expect(sent[0].data).toEqual([0xfa])
+      expect(sent[0].time).toBe(1000)
+
+      const ticks = sent.filter((message) => message.data[0] === 0xf8)
+      // the first beat lands at 1050 ms, and a beat is 500 ms at 120 BPM
+      expect(ticks[0].time).toBe(1050)
+      expect(ticks[24].time).toBeCloseTo(1550, 6)
+      // every tick is its own message, evenly spaced
+      for (let index = 1; index <= 24; index++) {
+        const gap = (ticks[index].time ?? 0) - (ticks[index - 1].time ?? 0)
+        expect(gap).toBeCloseTo(500 / 24, 6)
+      }
+
+      player.stop()
+      expect(clockBytesSent().at(-1)?.data).toEqual([0xfc])
+    })
+
+    it("stays quiet unless it is asked for", () => {
+      player.play()
+      runFor(1000)
+      expect(clockBytesSent()).toHaveLength(0)
+    })
+
+    it("only goes to the ports taking the whole sequence", () => {
+      player.setSendClock(true)
+      player.play()
+      runFor(500)
+      // the voice's own port carries its notes, not the transport
+      expect(voice0.sent.some((message) => message.data[0] >= 0xf8)).toBe(false)
+    })
+  })
 })

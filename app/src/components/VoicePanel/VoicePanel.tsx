@@ -2,9 +2,9 @@ import {
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
   PACE_LABELS,
+  PACES,
   PaceId,
   PatternStepJSON,
-  VOICE_PACES,
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
@@ -159,7 +159,7 @@ export const VoicePanel: FC = () => {
               editVoice(selected, { pace: event.target.value as PaceId })
             }
           >
-            {VOICE_PACES.map((pace) => (
+            {PACES.map((pace) => (
               <option key={pace} value={pace}>
                 {PACE_LABELS[pace]}
               </option>

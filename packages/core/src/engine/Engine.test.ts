@@ -340,16 +340,14 @@ describe("Engine", () => {
     })
   })
 
-  it("keeps golden paces drifting against straight ones", () => {
-    patch.voices[0].pace = "g4th"
+  it("keeps a dotted pace drifting against the straight grid", () => {
+    patch.voices[0].pace = "4thD"
     const engine = new Engine(patch)
     engine.start(0)
     const beats = beatsOf(engine.render(3.9), "noteOn")
 
-    expect(beats).toHaveLength(3)
-    beats.forEach((beat, index) => {
-      expect(beat).toBeCloseTo(index * 1.618033988749895, 9)
-    })
+    // every note and a half, so it lands off the beat every other time
+    expect(beats).toEqual([0, 1.5, 3])
   })
 
   it("queues a step for the next advance", () => {

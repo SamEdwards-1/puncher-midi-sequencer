@@ -55,11 +55,14 @@ const memoryStorage = (): Storage => {
 
 describe("the settings dialog", () => {
   let rootStore: RootStore
+  let now = 1000
 
   const open = async () => {
+    now = 1000
     rootStore = new RootStore({
       ticker: new ManualTicker(),
       storage: memoryStorage(),
+      now: () => now,
       requestMIDIAccess: async () => access as unknown as MIDIAccess,
     })
     await act(async () => {
@@ -184,6 +187,43 @@ describe("the settings dialog", () => {
     )
     expect(midi().filter.ccs).not.toContain(1)
     expect(midi().filter.ccs).toContain(2)
+  })
+
+  it("takes a tempo from an incoming clock, and nothing else", async () => {
+    const dialog = await open()
+    fireEvent.click(dialog.getByRole("checkbox", { name: "Keystation" }))
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Take tempo from MIDI clock" }),
+    )
+
+    const before = rootStore.sequencerStore.patch.tempo
+    expect(before).toBe(120)
+
+    // 24 ticks a beat at 10 ms is 250 BPM, which the field's range caps at 400
+    const clockAt = (bpm: number, ticks: number) => {
+      const step = 60000 / (bpm * 24)
+      act(() => {
+        for (let i = 0; i < ticks; i++) {
+          now += step
+          keyboard.onmidimessage?.({ data: new Uint8Array([0xf8]) })
+        }
+      })
+    }
+    clockAt(90, 24)
+    expect(rootStore.sequencerStore.patch.tempo).toBe(90)
+
+    // the transport is still ours: a start byte does not set it playing
+    act(() => {
+      keyboard.onmidimessage?.({ data: new Uint8Array([0xfa]) })
+    })
+    expect(rootStore.player.isPlaying).toBe(false)
+
+    // and with the box unticked the tempo stops following
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Take tempo from MIDI clock" }),
+    )
+    clockAt(140, 24)
+    expect(rootStore.sequencerStore.patch.tempo).toBe(90)
   })
 
   it("closes on Escape", async () => {

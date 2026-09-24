@@ -1,12 +1,13 @@
 import { z } from "zod"
-import { PACE_BEATS } from "./paces"
+import { migratePace, PACE_BEATS } from "./paces"
 import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH, NOTES_PER_STEP } from "./types"
 
 const midiValue = z.number().int().min(0).max(127)
 const channel = z.number().int().min(1).max(16)
 
-export const PaceIdSchema = z.enum(
-  Object.keys(PACE_BEATS) as [string, ...string[]],
+export const PaceIdSchema = z.preprocess(
+  (value) => (typeof value === "string" ? migratePace(value) : value),
+  z.enum(Object.keys(PACE_BEATS) as [string, ...string[]]),
 )
 
 export const ProbabilitySchema = z.union([

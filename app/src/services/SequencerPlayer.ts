@@ -1,4 +1,6 @@
 import {
+  CLOCKS_PER_BEAT,
+  clockBytes,
   createActions,
   Engine,
   EngineActions,
@@ -51,6 +53,9 @@ export class SequencerPlayer {
   private pending: EngineEvent[] = []
   private stepMarks: { time: number; position: StepIndex }[] = []
   private lastScheduledTime = 0
+  private sendClock = false
+  // the last clock tick handed to the router, counted from the start
+  private clockSent = -1
 
   constructor(
     patch: PatchJSON,
@@ -149,6 +154,10 @@ export class SequencerPlayer {
     }
   }
 
+  setSendClock = (send: boolean) => {
+    this.sendClock = send
+  }
+
   play = () => {
     if (this.isPlaying) {
       return
@@ -160,8 +169,12 @@ export class SequencerPlayer {
     this.pending = []
     this.stepMarks = []
     this.lastScheduledTime = now
+    this.clockSent = -1
     this.engine.start(0)
     this.isPlaying = true
+    if (this.sendClock) {
+      this.router.clock(clockBytes("start"), now)
+    }
     this.ticker.start(this.tick)
     this.tick()
   }
@@ -176,6 +189,9 @@ export class SequencerPlayer {
       .stop(Math.max(0, this.beatAt(now)))
       .filter((event): event is NoteOffEvent => event.type === "noteOff")
     this.router.panic(now, this.horizon(now), sounding)
+    if (this.sendClock) {
+      this.router.clock(clockBytes("stop"), now)
+    }
     this.pending = []
     this.stepMarks = []
     this.isPlaying = false
@@ -205,6 +221,7 @@ export class SequencerPlayer {
     }
 
     const toBeat = this.beatAt(now + this.lookaheadMs)
+    this.emitClock(toBeat, now)
     this.pending.push(...this.engine.render(toBeat))
     this.pending.sort((a, b) => a.beat - b.beat)
 
@@ -229,6 +246,21 @@ export class SequencerPlayer {
     if (position !== this.position) {
       this.position = position
     }
+  }
+
+  // 24 to the quarter note, on the same grid the notes are scheduled against
+  private emitClock(toBeat: number, now: number) {
+    if (!this.sendClock) {
+      return
+    }
+    const due = Math.floor(toBeat * CLOCKS_PER_BEAT)
+    const bytes = clockBytes("clock")
+    for (let tick = this.clockSent + 1; tick <= due; tick++) {
+      const time = Math.max(this.timeAt(tick / CLOCKS_PER_BEAT), now)
+      this.router.clock(bytes, time)
+      this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
+    }
+    this.clockSent = Math.max(this.clockSent, due)
   }
 
   private beatAt(time: number): number {

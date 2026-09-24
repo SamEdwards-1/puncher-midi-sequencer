@@ -88,8 +88,8 @@ to another when a condition is met.
 - **Undo/redo:** every patch change; a drag or a recording take is one entry.
 
 ### Mod Outs (8 CC streams)
-Seq X, Seq Y (top is low), Phase (position in loop), Action OR, Voice 1–4
-Random. Each has enable, CC#, min/max and smoothing.
+The sequencer's own motion sent out as CC. Deferred, and described in
+[NEXT.md](NEXT.md); the engine half of it is already in place.
 
 ### MIDI I/O
 - Outputs are ticked, any number at once: every ticked port takes the whole
@@ -101,7 +101,12 @@ Random. Each has enable, CC#, min/max and smoothing.
 - An **input filter** decides what the ticked inputs may send in: which
   channels, which notes (a range), transposed by so many semitones, and which
   controllers. It describes the rig rather than the music, so it lives with
-  the settings and never enters a patch. MIDI clock in and out.
+  the settings and never enters a patch.
+- **MIDI clock out**, on unless it is turned off: start, 24 ticks to the
+  quarter note and stop, to every port taking the whole sequence.
+- **Tempo in**, off unless it is turned on: a clock arriving at a ticked input
+  sets the tempo, and only the tempo. Start and stop are ignored, so the
+  transport stays midiseq's own.
 - **Ableton Link** through a small local bridge (§3.5), so midiseq shares a
   tempo and beat grid with Live, Signal and other Link apps on the machine or
   LAN. Without the bridge running, everything else still works.
@@ -213,7 +218,7 @@ localStorage autosave for crash recovery; presets stored in the same format.
 | 4 | Core UI + commands + undo | Every setting editable, heard live, undoable | ✅ |
 | 5 | Step editor | Build a sequence by hand; CCs arrive on landing | |
 | 6 | Jumps, actions, step options | All jump and pattern-option rules usable from the UI | ✅ |
-| 7 | Mod Outs, settings, clock | Follows Signal's MIDI clock over loopMIDI | |
+| 7 | Settings & MIDI clock | Follows Signal's MIDI clock over loopMIDI, and drives it | |
 | 8 | Files & presets | `.midiseq.json` round-trips; crash recovery works | ✅ |
 | 9 | Signal workflow & polish | Record midiseq live into Signal while synced | |
 | 10 | Standalone sound | midiseq plays on its own, with an instrument per voice | ✅ |
@@ -368,6 +373,26 @@ written into a patch, on the same reasoning as themes in §5.3.
 **Not yet true:** nothing consumes CC input, so the CC filter decides what
 reaches the app rather than what the app does with it. Recording CCs into a
 step is the milestone that gives it a job.
+
+## 5.5 MIDI clock (part of milestone 7)
+
+**Sending.** While playing, the player schedules a clock byte every 1/24 beat
+on the same grid the notes use, so the clock bends with a tempo change exactly
+as the music does. Start goes out when play begins and stop when it ends, to
+every port taking the whole sequence — a single voice's port has no part in a
+transport.
+
+**Taking a tempo, not a transport.** Slaving the whole transport to an
+incoming clock was built and taken out again: it made playing and stopping
+depend on another machine for no gain. What came back is narrower — the tempo
+alone. A tick advances an average over the last 12 intervals, which follows a
+change within a beat without lurching on one late message, and a gap over half
+a second is a pause rather than a slow tempo, so the average starts again.
+The result lands in the patch, where the tempo field shows it, and only when
+the whole number changes: a steady clock writes once and then says nothing.
+
+**What is not there yet:** song position pointer, and a tempo field that says
+it is being driven from outside rather than simply being overwritten.
 
 ## 6. Decisions
 

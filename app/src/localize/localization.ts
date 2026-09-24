@@ -100,6 +100,13 @@ export default {
     "sequencer-midi-voice-outputs": "Voice outputs",
     "sequencer-midi-voice-outputs-hint":
       "A voice can also go to a port of its own, alongside the ports above.",
+    "sequencer-clock": "Clock",
+    "sequencer-clock-send": "Send MIDI clock",
+    "sequencer-clock-hint":
+      "Start, stop and 24 ticks a beat go to every ticked output, so anything listening follows midiseq's tempo.",
+    "sequencer-clock-follow": "Take tempo from MIDI clock",
+    "sequencer-clock-follow-hint":
+      "A clock arriving at a ticked input sets the tempo. Start and stop are ignored — playing and stopping stay yours.",
     "sequencer-filter": "Input filter",
     "sequencer-filter-hint": "What the ticked inputs are allowed to send in.",
     "sequencer-filter-channels": "Channels",
@@ -131,6 +138,8 @@ export default {
     "sequencer-midi-enable": "Enable MIDI",
     "sequencer-midi-enable-hint":
       "midiseq needs your permission to use MIDI devices.",
+    "sequencer-no-input":
+      "Nothing to record from — tick a MIDI input in Settings",
     "sequencer-no-output":
       "Nothing is routed — pick an output in MIDI to hear this",
     "sequencer-synth-loading": "Starting the built-in sound…",

@@ -4,8 +4,8 @@ import {
   LoopMode,
   NOTES_PER_STEP,
   PACE_LABELS,
+  PACES,
   PaceId,
-  SEQUENCER_PACES,
   stepCount,
 } from "@midiseq/core"
 import { FC } from "react"
@@ -70,7 +70,7 @@ export const SequencerPanel: FC = () => {
               editSequencer({ pace: event.target.value as PaceId })
             }
           >
-            {SEQUENCER_PACES.map((pace) => (
+            {PACES.map((pace) => (
               <option key={pace} value={pace}>
                 {PACE_LABELS[pace]}
               </option>
