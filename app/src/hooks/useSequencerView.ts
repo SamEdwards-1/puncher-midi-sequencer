@@ -26,14 +26,14 @@ export function usePreviewOnClick() {
   return useAtom(previewOnClickAtom)
 }
 
-// The envelope editor's tool, grid, channel and open lane. The grid is a note
-// value in beats; the lane is Velocity or an envelope's id, falling back to
-// the channel's first.
+// The envelope editor's tool, grid and open lane. The grid is a note value
+// in beats; the lane is a voice's velocity or a CC envelope, by its id.
 export type EnvelopeTool = "edit" | "draw"
-export type EnvelopeLane = "velocity" | number
+export type EnvelopeLane =
+  | { kind: "velocity"; voice: VoiceIndex }
+  | { kind: "cc"; id: number }
 const envelopeToolAtom = atom<EnvelopeTool>("edit")
 const envelopeGridAtom = atom(0.25)
-const envelopeChannelAtom = atom(1)
 const selectedLaneAtom = atom<EnvelopeLane | null>(null)
 
 export function useEnvelopeTool() {
@@ -42,10 +42,6 @@ export function useEnvelopeTool() {
 
 export function useEnvelopeGrid() {
   return useAtom(envelopeGridAtom)
-}
-
-export function useEnvelopeChannel() {
-  return useAtom(envelopeChannelAtom)
 }
 
 export function useSelectedLane() {

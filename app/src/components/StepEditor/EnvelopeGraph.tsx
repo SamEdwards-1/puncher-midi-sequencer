@@ -583,7 +583,7 @@ export const EnvelopeGraph: FC<{
               <path
                 d={areaPath(points, plot)}
                 fill="var(--midiseq-envelope)"
-                fillOpacity={0.16}
+                fillOpacity={0.12}
               />
               <path
                 data-envelope-line

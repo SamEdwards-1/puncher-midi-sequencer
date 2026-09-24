@@ -9,9 +9,11 @@ export const DEFAULT_ACCENT_AMOUNT = 20
 export const MIN_ACCENT_AMOUNT = 1
 export const MAX_ACCENT_AMOUNT = 64
 
-// A velocity drawn this close to an accent's, or to the voice's own, counts
-// as it: a mouse rarely lands on the exact value.
-export const ACCENT_SNAP = 2
+// A velocity drawn this close to a level snaps onto it: a quarter of the
+// accent amount, so the pull grows with the gap between levels, and never
+// less than 2, as a mouse rarely lands on the exact value.
+export const accentSnap = (accentAmount: number) =>
+  Math.max(2, Math.round(accentAmount / 4))
 
 type DotVelocity = Pick<PatternStepJSON, "accent" | "velocityOffset">
 
@@ -28,6 +30,28 @@ const ACCENTS: Accent[] = ["none", "+", "-"]
 const levelOf = (voiceVelocity: number, accentAmount: number, accent: Accent) =>
   clampVelocity(voiceVelocity + accentDelta(accent, accentAmount))
 
+// The level nearest a velocity — the voice's own, or either accent — and how
+// far off it is.
+const nearestLevel = (
+  voiceVelocity: number,
+  accentAmount: number,
+  velocity: number,
+): { accent: Accent; away: number } => {
+  let nearest: { accent: Accent; away: number } = {
+    accent: "none",
+    away: Number.POSITIVE_INFINITY,
+  }
+  for (const accent of ACCENTS) {
+    const away = Math.abs(
+      velocity - levelOf(voiceVelocity, accentAmount, accent),
+    )
+    if (away < nearest.away) {
+      nearest = { accent, away }
+    }
+  }
+  return nearest
+}
+
 /**
  * The velocity a dot plays at: its voice's, moved by the dot's own offset,
  * then by its accent.
@@ -42,10 +66,10 @@ export const playedVelocity = (
   )
 
 /**
- * What a velocity drawn for a dot means. On, or within a couple of, the
- * voice's velocity with the accent amount added or taken away, it is that
- * accent; near the voice's own, a plain dot. Anywhere else it is the dot's
- * own velocity, kept as an offset from the voice's so the two move together.
+ * What a velocity drawn for a dot means. Near the voice's velocity with the
+ * accent amount added or taken away, it snaps onto that accent; near the
+ * voice's own, onto a plain dot. Anywhere else it is the dot's own velocity,
+ * kept as an offset from the voice's so the two move together.
  */
 export const velocityToDot = (
   voiceVelocity: number,
@@ -53,25 +77,18 @@ export const velocityToDot = (
   velocity: number,
 ): DotVelocity => {
   const drawn = clampVelocity(velocity)
-  let nearest: Accent | null = null
-  let closest = ACCENT_SNAP
-  for (const accent of ACCENTS) {
-    const away = Math.abs(drawn - levelOf(voiceVelocity, accentAmount, accent))
-    if (away <= ACCENT_SNAP && (nearest === null || away < closest)) {
-      nearest = accent
-      closest = away
-    }
-  }
-  return nearest === null
-    ? { accent: "none", velocityOffset: drawn - voiceVelocity }
-    : { accent: nearest, velocityOffset: 0 }
+  const { accent, away } = nearestLevel(voiceVelocity, accentAmount, drawn)
+  return away <= accentSnap(accentAmount)
+    ? { accent, velocityOffset: 0 }
+    : { accent: "none", velocityOffset: drawn - voiceVelocity }
 }
 
 /**
  * The accent a dot looks like it has, which is what its size shows. An
- * accent it was given shows as itself; a velocity of its own shows as an
- * accent only where it lands on, or within a couple of, one — as it can
- * once the voice's velocity or the accent amount has moved under it.
+ * accent it was given shows as itself; a velocity of its own shows as the
+ * level it is nearest — louder than halfway to the accent above reads as
+ * that accent, softer than halfway to the one below as that — so small
+ * changes either side of the voice's velocity leave the dot as it is.
  */
 export const shownAccent = (
   voiceVelocity: number,
@@ -81,11 +98,9 @@ export const shownAccent = (
   if (dot.accent !== "none" || dot.velocityOffset === 0) {
     return dot.accent
   }
-  const played = playedVelocity(voiceVelocity, accentAmount, dot)
-  const accent = (["+", "-"] as const).find(
-    (candidate) =>
-      Math.abs(played - levelOf(voiceVelocity, accentAmount, candidate)) <=
-      ACCENT_SNAP,
-  )
-  return accent ?? "none"
+  return nearestLevel(
+    voiceVelocity,
+    accentAmount,
+    playedVelocity(voiceVelocity, accentAmount, dot),
+  ).accent
 }

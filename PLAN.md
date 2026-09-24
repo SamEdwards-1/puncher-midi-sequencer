@@ -82,20 +82,21 @@ to another when a condition is met.
   refused) and the step's CCs, each an **envelope** across the step (below).
   A step's CC belongs to no voice, so it goes out on its own channel to every
   output. Copy/paste steps.
-- **Velocity & CCs, by channel:** a picker for all 16 MIDI channels, named
-  by the voices on each. A channel a voice plays on has a **Velocity** lane,
-  open first — one bar per note, as Signal's — and any channel can hold CC
-  envelopes, a tab each, added on the channel picked; a CC keeps its channel
-  when a voice moves off it.
+- **Velocity & CCs:** a tab per voice's **Velocity** — one bar per note,
+  as Signal's — and a tab per CC envelope on the step. The row above the
+  graph sets the lane's channel, 1–16: a Velocity tab's is its voice's,
+  shared with the Voices panel; a CC's is its own, and stays put when a voice
+  moves. A CC added from a tab goes out on that tab's channel.
 - **Velocity lane:** press a bar to set its note's velocity and drag to
   follow the mouse; press between bars to paint every bar the mouse passes.
   A bar is its dot's velocity, so every bar from that dot moves with it.
-  Landing on, or within 2 of, the voice's velocity plus or minus the accent
-  amount makes that accent — the dot grows or shrinks — and near the voice's
-  own makes a plain dot; anywhere else is the dot's own velocity, kept as an
-  offset from the voice's, and the dot keeps its size. Dashed lines mark the
-  accent levels.
-- **CC envelopes:** a tab per CC (number typed or stepped), each
+  Dropped within a quarter of the accent amount of the voice's velocity plus
+  or minus that amount (±5 at 20), it snaps onto that accent; near the
+  voice's own, onto a plain dot; anywhere else it is the dot's own velocity,
+  kept as an offset from the voice's. The dot's size shows the level its
+  velocity is nearest — plain, + or − — so small changes leave it alone.
+  Dashed lines mark the accent levels.
+- **CC envelopes:** a tab per CC (number and channel typed or stepped), each
   an envelope in the manner of Live's: breakpoints joined by straight lines,
   the value held before the first point and after the last, two points at one
   time making a jump. Time runs across the step, 0 to 1, so an envelope
@@ -459,9 +460,11 @@ that dot, on this step and every other, moves with it. The dot keeps an
 offset from its voice's velocity rather than a value of its own, so moving
 the voice's velocity moves every bar, and an accent stays an accent — its
 size set by the accent amount, not frozen at what it was when drawn. The dot
-is drawn big or small for its accent, or for a velocity of its own that
-lands within 2 of one (as it can once the voice's velocity or the accent
-amount moves under it); between the levels it keeps its size.
+is drawn big or small for its accent, and a velocity of its own shows as
+whichever level it is nearest, as drawn or after the voice's velocity or the
+accent amount moves under it. A snap of ±2, the first version's, proved too
+tight to find with a mouse; a quarter of the accent amount gives each level
+a pull that grows with the gap.
 
 **What is not there yet:** selecting and moving several points at once;
 Live's inserting points at a time selection's edges when a segment is

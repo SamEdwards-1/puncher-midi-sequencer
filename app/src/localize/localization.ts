@@ -57,10 +57,8 @@ export default {
     "sequencer-step-ccs": "Velocity & CCs",
     "sequencer-step-add-cc": "Add CC",
     "sequencer-step-remove-cc": "Remove CC",
-    "sequencer-step-no-ccs":
-      "No voice plays on this channel, and it has no CCs on this step. Add one to draw its envelope over the step's notes.",
     "sequencer-velocity-hint":
-      "Drag a bar to set its note's velocity, or drag across bars to paint them. A bar near a dashed line becomes that accent; one dot's bars move together.",
+      "Drag a bar to set its note's velocity, or drag across bars to paint them. Near a dashed line a bar snaps onto that accent; a dot shows whichever level its velocity is nearest. One dot's bars move together.",
     "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
     "sequencer-envelope": "Envelope",

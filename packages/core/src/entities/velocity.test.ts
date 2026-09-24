@@ -28,18 +28,24 @@ describe("dot velocities", () => {
       expect(toDot(44)).toEqual({ accent: "-", velocityOffset: 0 })
     })
 
-    it("a couple either side of one still make it", () => {
-      expect(toDot(86)).toEqual({ accent: "+", velocityOffset: 0 })
-      expect(toDot(82)).toEqual({ accent: "+", velocityOffset: 0 })
-      expect(toDot(42)).toEqual({ accent: "-", velocityOffset: 0 })
-      // but not three
-      expect(toDot(87)).toEqual({ accent: "none", velocityOffset: 23 })
+    it("within a quarter of the accent amount of one snap onto it", () => {
+      // 20 / 4: five either side
+      expect(toDot(89)).toEqual({ accent: "+", velocityOffset: 0 })
+      expect(toDot(79)).toEqual({ accent: "+", velocityOffset: 0 })
+      expect(toDot(39)).toEqual({ accent: "-", velocityOffset: 0 })
+      // but not six
+      expect(toDot(90)).toEqual({ accent: "none", velocityOffset: 26 })
+      // a larger accent amount pulls from further off
+      expect(velocityToDot(64, 40, 96)).toEqual({
+        accent: "+",
+        velocityOffset: 0,
+      })
     })
 
-    it("near the voice's own make a plain dot", () => {
+    it("near the voice's own snap onto a plain dot", () => {
       expect(toDot(64)).toEqual(plain)
-      expect(toDot(66)).toEqual(plain)
-      expect(toDot(62)).toEqual(plain)
+      expect(toDot(69)).toEqual(plain)
+      expect(toDot(59)).toEqual(plain)
     })
 
     it("anywhere else are the dot's own, as an offset from the voice's", () => {
@@ -77,23 +83,28 @@ describe("dot velocities", () => {
       expect(shownAccent(64, 20, plain)).toBe("none")
     })
 
-    it("as an accent where a dot's own velocity lands on or near one", () => {
-      expect(shownAccent(64, 20, { accent: "none", velocityOffset: 20 })).toBe(
-        "+",
-      )
-      expect(shownAccent(64, 20, { accent: "none", velocityOffset: -19 })).toBe(
-        "-",
-      )
-      // once the accent amount moves under it
-      expect(shownAccent(64, 25, { accent: "none", velocityOffset: 20 })).toBe(
-        "none",
-      )
+    const own = (velocityOffset: number, accentAmount = 20) =>
+      shownAccent(64, accentAmount, { accent: "none", velocityOffset })
+
+    it("as the level a dot's own velocity is nearest", () => {
+      // past halfway to an accent, it reads as that accent
+      expect(own(11)).toBe("+")
+      expect(own(58)).toBe("+")
+      expect(own(-11)).toBe("-")
+      expect(own(-60)).toBe("-")
+      // short of halfway, it is still the voice's own
+      expect(own(9)).toBe("none")
+      expect(own(-9)).toBe("none")
     })
 
-    it("as plain for a velocity between the levels", () => {
-      expect(shownAccent(64, 20, { accent: "none", velocityOffset: 7 })).toBe(
-        "none",
-      )
+    it("as plain exactly halfway, so only a clear lean reads as an accent", () => {
+      expect(own(10)).toBe("none")
+      expect(own(-10)).toBe("none")
+    })
+
+    it("again when the accent amount moves under it", () => {
+      expect(own(20, 20)).toBe("+")
+      expect(own(20, 50)).toBe("none")
     })
 
     it("as plain for a plain dot, even where accents are clipped to it", () => {
