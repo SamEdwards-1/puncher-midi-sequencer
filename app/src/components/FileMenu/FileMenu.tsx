@@ -1,7 +1,8 @@
+import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import { FC, useState } from "react"
 import { useFileActions } from "../../actions/file"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { ToolbarButton } from "../ui/Button"
+import { cn } from "../ui/cn"
 
 const ITEM = "px-4 py-2 text-left text-body text-fg hover:bg-highlight"
 
@@ -17,14 +18,21 @@ export const FileMenu: FC = () => {
 
   return (
     <div className="relative flex items-center">
-      <ToolbarButton
+      {/* a menu-bar title, flat rather than a pill */}
+      <button
         type="button"
         aria-expanded={open}
-        active={open}
+        className={cn(
+          "flex h-8 items-center gap-1 rounded-sm pr-2 pl-3 text-body",
+          open
+            ? "bg-background-secondary text-fg"
+            : "text-fg-secondary hover:bg-highlight hover:text-fg",
+        )}
         onClick={() => setOpen(!open)}
       >
         <Localized name="sequencer-file" />
-      </ToolbarButton>
+        <ChevronDownIcon size={16} />
+      </button>
       {open && (
         <div
           role="menu"

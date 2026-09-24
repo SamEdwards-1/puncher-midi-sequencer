@@ -19,7 +19,7 @@ export const SequencerEditor: FC = () => {
 
   return (
     <div className="flex min-h-0 grow flex-col bg-background">
-      <TopBar />
+      <TopBar compact={!two} />
       {three ? (
         <div className="grid min-h-0 grow grid-cols-[minmax(calc(16rem-25px),calc(20rem-25px))_1fr_minmax(calc(18rem+100px),calc(22rem+100px))]">
           <SequencerPanel />

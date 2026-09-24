@@ -17,7 +17,6 @@ export default {
     "sequencer-step": "Step",
     "sequencer-record": "Record",
     "sequencer-file": "File",
-    "sequencer-clear-all": "Clear all",
     "sequencer-file-new": "New",
     "sequencer-file-open": "Open…",
     "sequencer-file-save": "Save",

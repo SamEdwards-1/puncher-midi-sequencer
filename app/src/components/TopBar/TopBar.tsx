@@ -1,64 +1,88 @@
 import CogIcon from "mdi-react/CogIcon"
+import RedoIcon from "mdi-react/RedoIcon"
+import UndoIcon from "mdi-react/UndoIcon"
 import { FC, useState } from "react"
-import { usePatchEditor } from "../../actions/patch"
+import logo from "../../assets/puncher-logo.svg?raw"
 import { useHistory } from "../../hooks/useHistory"
-import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
-import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { SettingsDialog } from "../Settings/SettingsDialog"
 import { TransportControls } from "../TransportPanel/TransportControls"
-import { ToolbarButton } from "../ui/Button"
+import { IconButton, ToolbarButton } from "../ui/Button"
 
-export const TopBar: FC = () => {
-  const { sequencerStore } = useStores()
+// the bar's buttons are a size up from a stepper's
+const TOOLBAR_ICON = "h-8 w-8"
+
+export interface TopBarProps {
+  // the editor is down to one column, so the bar has little room to spare
+  compact?: boolean
+}
+
+export const TopBar: FC<TopBarProps> = ({ compact = false }) => {
   const localized = useLocalization()
-  const { clearAll } = usePatchEditor()
   const { canUndo, canRedo, undo, redo } = useHistory()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const name = useMobxSelector(
-    () => sequencerStore.patch.name,
-    [sequencerStore],
-  )
-  const fileName = useMobxGetter(sequencerStore, "fileName")
-  const isSaved = useMobxGetter(sequencerStore, "isSaved")
 
   return (
-    <header className="box-border flex h-12 flex-shrink-0 items-center gap-2 border-b border-divider bg-background-dark pr-4">
-      <div className="flex items-center gap-2 pl-4">
-        <div className="text-title font-semibold">
-          <Localized name="sequencer-app-name" />
-        </div>
-        <div className="text-body text-fg-secondary">
-          {fileName ??
-            (name.length > 0 ? name : localized["sequencer-untitled"])}
-          {/* a dot while there are unsaved changes */}
-          {isSaved ? "" : " •"}
+    // three columns, the outer two equal, so the transport sits in the middle
+    // of the bar whatever is either side of it. When the bar runs short the
+    // left side keeps its buttons and the right gives way only as far as the
+    // output status can truncate, so nothing overlaps.
+    <header className="box-border grid h-12 flex-shrink-0 grid-cols-[minmax(max-content,1fr)_auto_minmax(auto,1fr)] items-center gap-2 border-b border-divider bg-background-dark px-4">
+      <div className="flex items-center gap-2">
+        {/* inline rather than an <img>, so the logo's currentColor is ours */}
+        <div
+          className="flex h-7 pr-2 text-logo [&>svg]:h-full [&>svg]:w-auto"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: our own asset
+          dangerouslySetInnerHTML={{ __html: logo }}
+        />
+        <FileMenu />
+        <div className="flex items-center gap-1">
+          <IconButton
+            className={TOOLBAR_ICON}
+            title={localized["sequencer-undo"]}
+            aria-label={localized["sequencer-undo"]}
+            disabled={!canUndo}
+            onClick={undo}
+          >
+            <UndoIcon size={18} />
+          </IconButton>
+          <IconButton
+            className={TOOLBAR_ICON}
+            title={localized["sequencer-redo"]}
+            aria-label={localized["sequencer-redo"]}
+            disabled={!canRedo}
+            onClick={redo}
+          >
+            <RedoIcon size={18} />
+          </IconButton>
         </div>
       </div>
-      <FileMenu />
-      {/* undoable in one go, so it asks nothing before emptying the patch */}
-      <ToolbarButton type="button" onClick={clearAll}>
-        <Localized name="sequencer-clear-all" />
-      </ToolbarButton>
-      <ToolbarButton type="button" disabled={!canUndo} onClick={undo}>
-        <Localized name="sequencer-undo" />
-      </ToolbarButton>
-      <ToolbarButton type="button" disabled={!canRedo} onClick={redo}>
-        <Localized name="sequencer-redo" />
-      </ToolbarButton>
-      <div className="grow" />
       <TransportControls />
-      <OutputStatus />
-      <ToolbarButton
-        type="button"
-        active={settingsOpen}
-        onClick={() => setSettingsOpen(true)}
-      >
-        <CogIcon size={16} />
-        <Localized name="sequencer-settings" />
-      </ToolbarButton>
+      <div className="flex items-center justify-end gap-2">
+        <OutputStatus />
+        {compact ? (
+          <IconButton
+            className={TOOLBAR_ICON}
+            title={localized["sequencer-settings"]}
+            aria-label={localized["sequencer-settings"]}
+            active={settingsOpen}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <CogIcon size={18} />
+          </IconButton>
+        ) : (
+          <ToolbarButton
+            type="button"
+            active={settingsOpen}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <CogIcon size={16} />
+            <Localized name="sequencer-settings" />
+          </ToolbarButton>
+        )}
+      </div>
       {settingsOpen && (
         <SettingsDialog onClose={() => setSettingsOpen(false)} />
       )}
