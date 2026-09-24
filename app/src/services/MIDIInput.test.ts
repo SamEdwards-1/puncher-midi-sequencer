@@ -36,10 +36,19 @@ describe("parseInputMessage", () => {
     })
   })
 
+  it("reads the clock tick a tempo can be read from", () => {
+    expect(parseInputMessage([0xf8])).toEqual({ type: "clock" })
+  })
+
   it("ignores everything else", () => {
-    expect(parseInputMessage([0xf8])).toBeNull()
+    expect(parseInputMessage([0xf1, 0x00])).toBeNull()
+    // start and stop are not ours to obey
+    expect(parseInputMessage([0xfa])).toBeNull()
+    expect(parseInputMessage([0xfc])).toBeNull()
+    expect(parseInputMessage([])).toBeNull()
     // notes only, for the callers that want just those
     expect(parseNoteMessage([0xb0, 74, 10])).toBeNull()
+    expect(parseNoteMessage([0xf8])).toBeNull()
     expect(parseNoteMessage([0x90, 60, 100])?.type).toBe("noteOn")
   })
 })

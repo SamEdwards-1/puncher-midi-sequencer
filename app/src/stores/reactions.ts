@@ -13,8 +13,14 @@ const sameAssignment = (a: OutputAssignment, b: OutputAssignment) =>
   a.voices.every((voice, index) => voice === b.voices[index])
 
 export const registerReactions = (rootStore: RootStore) => {
-  const { midiDeviceStore, midiInput, player, sequencerStore, synthStore } =
-    rootStore
+  const {
+    clockFollower,
+    midiDeviceStore,
+    midiInput,
+    player,
+    sequencerStore,
+    synthStore,
+  } = rootStore
 
   // Outputs are ports, except where the built-in sound was chosen; that slot
   // gets the synth once it has loaded.
@@ -95,6 +101,34 @@ export const registerReactions = (rootStore: RootStore) => {
     (filter) => midiInput.setFilter(filter),
     { fireImmediately: true },
   )
+
+  reaction(
+    () => midiDeviceStore.clock.send,
+    (send) => player.setSendClock(send),
+    { fireImmediately: true },
+  )
+
+  // what has been heard so far says nothing about a clock just switched on
+  reaction(
+    () => midiDeviceStore.clock.followTempo,
+    () => clockFollower.reset(),
+  )
+
+  /**
+   * An incoming clock sets the tempo and nothing else: start and stop are
+   * ignored, so the transport stays midiseq's own. The tempo lands in the
+   * patch, where the field shows it, but only when the number actually
+   * changes — a steady clock writes once and then says nothing.
+   */
+  midiInput.on((message) => {
+    if (message.type !== "clock" || !midiDeviceStore.clock.followTempo) {
+      return
+    }
+    const tempo = clockFollower.onTick()
+    if (tempo !== null && tempo !== sequencerStore.patch.tempo) {
+      sequencerStore.patch = { ...sequencerStore.patch, tempo }
+    }
+  })
 
   reaction(
     () => sequencerStore.patch,

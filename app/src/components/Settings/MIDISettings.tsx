@@ -39,6 +39,8 @@ export const MIDISettings: FC = () => {
     toggleInput,
     toggleOutput,
     setVoiceOutput,
+    clock,
+    setClock,
     requestMIDIAccess,
   } = useMIDIDevice()
 
@@ -168,6 +170,25 @@ export const MIDISettings: FC = () => {
             </Select>
           </label>
         ))}
+      </Section>
+
+      <Section name={localized["sequencer-clock"]}>
+        <p className="m-0 pb-1 text-tiny text-fg-tertiary">
+          <Localized name="sequencer-clock-hint" />
+        </p>
+        <Checkbox
+          label={localized["sequencer-clock-send"]}
+          checked={clock.send}
+          onChange={(send) => setClock({ send })}
+        />
+        <Checkbox
+          label={localized["sequencer-clock-follow"]}
+          checked={clock.followTempo}
+          onChange={(followTempo) => setClock({ followTempo })}
+        />
+        <p className="m-0 pt-1 text-tiny text-fg-tertiary">
+          <Localized name="sequencer-clock-follow-hint" />
+        </p>
       </Section>
 
       <MIDIFilterSettings />

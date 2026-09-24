@@ -2,6 +2,7 @@ import {
   createDefaultMIDIFilter,
   FilterableMessage,
   filterMIDIMessage,
+  MIDI_CLOCK,
   MIDIFilterJSON,
 } from "@midiseq/core"
 
@@ -19,15 +20,27 @@ export interface MIDICCMessage {
   value: number
 }
 
-export type MIDIInputMessage = MIDINoteMessage | MIDICCMessage
+export interface MIDIClockTick {
+  type: "clock"
+}
+
+export type MIDIInputMessage = MIDINoteMessage | MIDICCMessage | MIDIClockTick
 
 export type MIDIInputListener = (message: MIDIInputMessage) => void
 
-// Notes and controllers; everything else (clock, program change) is ignored
-// until the milestones that need it.
+// Notes, controllers, and the clock tick a tempo can be read from. Start and
+// stop are deliberately left alone: midiseq keeps its own transport.
+
 export const parseInputMessage = (
   data: Uint8Array | number[],
 ): MIDIInputMessage | null => {
+  if (data.length === 0) {
+    return null
+  }
+  // a realtime byte stands alone and belongs to no channel
+  if (data[0] === MIDI_CLOCK) {
+    return { type: "clock" }
+  }
   if (data.length < 3) {
     return null
   }
@@ -51,7 +64,10 @@ export const parseNoteMessage = (
   data: Uint8Array | number[],
 ): MIDINoteMessage | null => {
   const message = parseInputMessage(data)
-  return message === null || message.type === "cc" ? null : message
+  if (message === null || message.type === "cc" || message.type === "clock") {
+    return null
+  }
+  return message
 }
 
 /**
@@ -95,6 +111,13 @@ export class MIDIInput {
     }
     const parsed = parseInputMessage(data)
     if (parsed === null) {
+      return
+    }
+    // a filter is about channels, notes and controllers; a clock has none
+    if (parsed.type === "clock") {
+      for (const listener of this.listeners) {
+        listener(parsed)
+      }
       return
     }
     const allowed = filterMIDIMessage(

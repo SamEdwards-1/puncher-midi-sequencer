@@ -75,6 +75,12 @@ voice to draw from, and any number of CC events. Clicking one selects it, sounds
 the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 
+**Clock.** midiseq sends MIDI clock — start, stop and 24 ticks a beat — to
+every ticked output, so anything listening follows its tempo. In
+**Settings → MIDI** you can turn that off, and you can have midiseq take its
+*tempo* from a clock arriving at a ticked input instead. Only the tempo:
+start and stop are ignored, so playing and stopping stay yours.
+
 **The step editor** lists the selected step's notes by name, so you can add,
 remove, retune or transpose them by hand. A note can be typed as well as
 stepped — `G#5`, or just `D` to stay in the octave it is already on — and so

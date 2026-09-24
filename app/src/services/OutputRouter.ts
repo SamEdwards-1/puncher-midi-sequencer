@@ -126,6 +126,14 @@ export class OutputRouter {
     }
   }
 
+  // System realtime goes to the ports taking the whole sequence: a clock is
+  // about the transport, which a single voice's port has no part in.
+  clock(bytes: number[], timestamp: number) {
+    for (const sink of this.assignment.all) {
+      sink.send(bytes, timestamp)
+    }
+  }
+
   // Silences every assigned port. Messages already queued with a future
   // timestamp can't always be cancelled (not every browser implements
   // MIDIOutput.clear), so the silencing is sent again at `horizon`, after the

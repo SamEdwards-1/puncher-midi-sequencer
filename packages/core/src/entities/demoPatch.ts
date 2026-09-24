@@ -53,7 +53,7 @@ export const createDemoPatch = (): PatchJSON => {
     {
       ...lead,
       enabled: true,
-      pace: "g8th",
+      pace: "8thD",
       length: 0.4,
       rule: "random",
       offset: 12,

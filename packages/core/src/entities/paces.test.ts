@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
-  GOLDEN_RATIO,
+  migratePace,
+  nearestPace,
   PACE_BEATS,
   PACE_LABELS,
+  PACES,
   paceBeats,
-  SEQUENCER_PACES,
-  VOICE_PACES,
 } from "./paces"
 
 describe("paces", () => {
@@ -17,25 +17,33 @@ describe("paces", () => {
     expect(paceBeats("4thT")).toBeCloseTo(2 / 3)
   })
 
-  it("makes golden paces about 1.618x their straight note", () => {
-    expect(paceBeats("g4th") / paceBeats("4th")).toBeCloseTo(GOLDEN_RATIO)
-    expect(paceBeats("g8th") / paceBeats("8th")).toBeCloseTo(GOLDEN_RATIO)
-    // slower than the straight note but faster than the dotted one
-    expect(paceBeats("g8th")).toBeGreaterThan(paceBeats("8thD"))
-    expect(paceBeats("g8th")).toBeLessThan(paceBeats("4th"))
-  })
-
-  it("lists voice paces slowest first and leaves golden out of the sequencer", () => {
-    const durations = VOICE_PACES.map(paceBeats)
+  it("offers straight, dotted and triplet notes, slowest first", () => {
+    const durations = PACES.map(paceBeats)
     expect(durations).toEqual([...durations].sort((a, b) => b - a))
-    expect(VOICE_PACES).toHaveLength(26)
-    expect(SEQUENCER_PACES).toHaveLength(20)
-    expect(SEQUENCER_PACES.some((id) => id.startsWith("g"))).toBe(false)
+    expect(PACES).toHaveLength(20)
+    expect(PACES.some((id) => id.startsWith("g"))).toBe(false)
   })
 
   it("labels every pace", () => {
     for (const id of Object.keys(PACE_BEATS)) {
       expect(PACE_LABELS[id as keyof typeof PACE_BEATS]).toBeTruthy()
     }
+  })
+
+  it("reads a golden pace from an older file as the nearest one left", () => {
+    // 1.618 beats, between the quarter and the dotted quarter
+    expect(migratePace("g4th")).toBe("4thD")
+    // 6.47 beats, nearest the two-bar pace at 8
+    expect(migratePace("gWhole")).toBe("2bar")
+    expect(migratePace("g32nd")).toBe("32ndD")
+    // anything else is left alone, for the schema to accept or refuse
+    expect(migratePace("8th")).toBe("8th")
+    expect(migratePace("nonsense")).toBe("nonsense")
+  })
+
+  it("finds the pace nearest a length", () => {
+    expect(nearestPace(1)).toBe("4th")
+    expect(nearestPace(0.26)).toBe("16th")
+    expect(nearestPace(1000)).toBe("16bar")
   })
 })

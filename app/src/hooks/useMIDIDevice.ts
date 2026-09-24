@@ -33,10 +33,14 @@ export function useMIDIDevice() {
     get filter() {
       return useMobxGetter(midiDeviceStore, "filter")
     },
+    get clock() {
+      return useMobxGetter(midiDeviceStore, "clock")
+    },
     toggleInput: midiDeviceStore.toggleInput,
     toggleOutput: midiDeviceStore.toggleOutput,
     setVoiceOutput: midiDeviceStore.setVoiceOutput,
     setFilter: midiDeviceStore.setFilter,
+    setClock: midiDeviceStore.setClock,
     requestMIDIAccess: midiDeviceStore.requestMIDIAccess,
   }
 }

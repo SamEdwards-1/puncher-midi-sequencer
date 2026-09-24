@@ -1,27 +1,31 @@
 import { FC } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
+import { useRecorder } from "../../hooks/useRecorder"
 import { useStores } from "../../hooks/useStores"
 import { Localized } from "../../localize/useLocalization"
 
 /**
- * Why nothing can be heard, said beside the transport rather than inside the
- * routing menu. Picking an instrument makes no sound on its own, and the
- * built-in sound takes a moment to fetch its SoundFont — both of which look
- * exactly like a broken sequencer from the outside.
+ * Why nothing is happening, said beside the transport rather than inside the
+ * settings. Recording with no input ticked, a sequence with nowhere to play
+ * and a SoundFont still loading all look exactly like a broken sequencer from
+ * the outside.
  */
 export const OutputStatus: FC = () => {
   const { synthStore } = useStores()
   const state = useMobxGetter(synthStore, "state")
   const error = useMobxGetter(synthStore, "error")
-  const { outputNames } = useMIDIDevice()
+  const { outputNames, inputNames } = useMIDIDevice()
+  const { isRecording } = useRecorder()
 
   const routed =
     outputNames.all.length > 0 ||
     outputNames.voices.some((name) => name !== null)
 
   const message =
-    state === "loading" ? (
+    isRecording && inputNames.length === 0 ? (
+      <Localized name="sequencer-no-input" />
+    ) : state === "loading" ? (
       <Localized name="sequencer-synth-loading" />
     ) : state === "error" ? (
       <>

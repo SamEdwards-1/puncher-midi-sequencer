@@ -1,4 +1,5 @@
 import { AutoSaveService } from "../services/AutoSaveService"
+import { ClockFollower } from "../services/ClockFollower"
 import { FileService } from "../services/FileService"
 import { MIDIInput } from "../services/MIDIInput"
 import { MIDIRecorder } from "../services/MIDIRecorder"
@@ -26,6 +27,7 @@ export default class RootStore {
   readonly history = new HistoryStore(this.sequencerStore)
   readonly outputRouter = new OutputRouter()
   readonly midiInput = new MIDIInput()
+  readonly clockFollower: ClockFollower
   readonly midiDeviceStore: MIDIDeviceStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
@@ -49,6 +51,7 @@ export default class RootStore {
       this.outputRouter,
       { ticker: options.ticker, now: options.now },
     )
+    this.clockFollower = new ClockFollower(options.now)
     this.synthStore = options.synthStore ?? new SynthStore()
     this.fileService = options.fileService ?? new FileService()
     this.autoSave =

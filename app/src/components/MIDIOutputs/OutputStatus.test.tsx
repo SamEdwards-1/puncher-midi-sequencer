@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -46,5 +46,22 @@ describe("OutputStatus", () => {
       rootStore.synthStore.error = "Couldn't fetch the SoundFont (503)"
     })
     expect(status()).toHaveTextContent(/SoundFont \(503\)/)
+  })
+
+  it("says why recording hears nothing until an input is ticked", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+    const text = () => status()?.textContent ?? ""
+
+    // nothing about inputs until recording is armed
+    expect(text()).not.toMatch(/record from/)
+
+    fireEvent.click(screen.getByRole("button", { name: "Record" }))
+    expect(text()).toMatch(/tick a MIDI input in Settings/)
+
+    act(() => {
+      rootStore.midiDeviceStore.toggleInput("Keystation", true)
+    })
+    expect(text()).not.toMatch(/record from/)
   })
 })
