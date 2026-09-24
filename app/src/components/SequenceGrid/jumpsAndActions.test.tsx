@@ -24,12 +24,31 @@ const setup = () => {
   click("Step 1")
 }
 
+// a step shows its jump once "Jump rule" is clicked
+const openJump = () =>
+  fireEvent.click(stepEditor().getByRole("button", { name: "Jump rule" }))
+
 describe("jumps", () => {
+  it("hides a step's jump until Jump rule is clicked, and allows one", () => {
+    setup()
+    expect(stepEditor().queryByLabelText("Rule")).toBeNull()
+
+    openJump()
+    expect(stepEditor().getByLabelText("Rule")).toBeInTheDocument()
+    // the step has its one jump, so there is no adding another
+    expect(stepEditor().queryByRole("button", { name: "Jump rule" })).toBeNull()
+
+    // another step starts without one showing
+    click("Step 2")
+    expect(stepEditor().queryByLabelText("Rule")).toBeNull()
+  })
+
   it("picks a destination from the grid", () => {
     setup()
+    openJump()
     expect(stepEditor().getByText("None")).toBeInTheDocument()
 
-    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
+    click("Pick destination")
     click("Step 5")
 
     expect(patch().steps[0].jump.dest).toBe(4)
@@ -38,19 +57,37 @@ describe("jumps", () => {
     expect(patch().steps[0].jump.dest).toBe(4)
   })
 
-  it("picks a normal step and clears it again", () => {
+  it("keeps a set jump showing, and removes the whole of it at once", () => {
     setup()
-    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[1])
+    openJump()
+    click("Pick destination")
+    click("Step 5")
+    click("Pick normal")
     click("Step 7")
-    expect(patch().steps[0].jump.normal).toBe(6)
+    fireEvent.change(stepEditor().getByLabelText("Rule"), {
+      target: { value: "every:3" },
+    })
 
-    click("Clear normal")
-    expect(patch().steps[0].jump.normal).toBeNull()
+    click("Step 2")
+    click("Step 1")
+    expect(stepEditor().getByLabelText("Rule")).toBeInTheDocument()
+
+    click("Remove jump")
+    expect(patch().steps[0].jump).toEqual({
+      rule: { kind: "always" },
+      dest: null,
+      normal: null,
+    })
+    expect(stepEditor().queryByLabelText("Rule")).toBeNull()
+    expect(
+      stepEditor().getByRole("button", { name: "Jump rule" }),
+    ).toBeInTheDocument()
   })
 
   it("marks a jump's source and destination in one colour", () => {
     setup()
-    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
+    openJump()
+    click("Pick destination")
     click("Step 5")
 
     const source = screen.getByRole("button", { name: "Step 1" })
@@ -66,11 +103,13 @@ describe("jumps", () => {
 
   it("gives each jump its own colour", () => {
     setup()
-    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
+    openJump()
+    click("Pick destination")
     click("Step 5")
 
     click("Step 2")
-    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
+    openJump()
+    click("Pick destination")
     click("Step 6")
 
     const first = screen
@@ -84,6 +123,7 @@ describe("jumps", () => {
 
   it("changes the jump rule", () => {
     setup()
+    openJump()
     fireEvent.change(stepEditor().getByLabelText("Rule"), {
       target: { value: "every:3" },
     })

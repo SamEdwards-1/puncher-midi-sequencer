@@ -69,10 +69,10 @@ describe("the layout", () => {
   it("keeps a step's jump in the step editor", () => {
     setup()
     const grid = within(region("Sequence Grid") as HTMLElement)
-    expect(grid.getByText("Jumps")).toBeInTheDocument()
+    fireEvent.click(grid.getByRole("button", { name: "Jump rule" }))
     expect(grid.getByLabelText("Rule")).toBeInTheDocument()
     expect(
-      within(region("Sequencer") as HTMLElement).queryByText("Jumps"),
+      within(region("Sequencer") as HTMLElement).queryByLabelText("Rule"),
     ).toBeNull()
   })
 })

@@ -118,8 +118,10 @@ without changing any dots.
 when its rule passes — always, every third visit, 25% of the time, and so on.
 A jump draws as a coloured pair in the grid: the source marked at its top
 right, the destination at its bottom left. Failed jumps fall through to the
-next step, or to a "normal" step you choose. A step's jump is set in the step
-editor: its rule, and a destination and normal step picked from the grid.
+next step, or to a "normal" step you choose. A step has one jump, added in the
+step editor with **+ Jump rule** beside **+ Add note**: one row holds its rule
+and the destination and normal step, each picked from the grid, and its **X**
+takes the whole jump away.
 
 **Narrow windows.** Below 1200px wide, the Sequencer settings leave their own
 column and become a tab beside Voices on the right.

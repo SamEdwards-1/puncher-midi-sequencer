@@ -103,7 +103,9 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
 
   return (
     <>
-      <PanelHeader as="div" className="flex items-center gap-2">
+      {/* the page's gutter is the header's own, so its title lines up with the
+          step editor's */}
+      <PanelHeader as="div" className="-mx-4 flex items-center gap-2">
         <span className="grow">
           <Localized name="sequencer-step-ccs" />
         </span>

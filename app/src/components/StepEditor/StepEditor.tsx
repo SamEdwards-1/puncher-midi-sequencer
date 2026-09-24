@@ -1,7 +1,7 @@
 import { noteNumberToName, StepState } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
-import { FC, HTMLAttributes } from "react"
+import { FC, HTMLAttributes, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
@@ -13,7 +13,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeEditor } from "./EnvelopeEditor"
-import { JumpPatcher } from "./JumpPatcher"
+import { hasJump, JumpPatcher } from "./JumpPatcher"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -40,7 +40,12 @@ export const StepEditor: FC = () => {
     trimToLimit,
   } = usePatchEditor()
 
+  // the step whose "Jump rule" was just clicked, so its jump shows before
+  // it is set to anything
+  const [openedJump, setOpenedJump] = useState<number | null>(null)
+
   const step = patch.steps[selected]
+  const jumpShown = hasJump(step.jump) || openedJump === selected
   const beyondLimit = step.notes.length > patch.maxNotesPerStep
 
   return (
@@ -162,9 +167,19 @@ export const StepEditor: FC = () => {
             <PlusIcon size={14} />
             <Localized name="sequencer-step-add-note" />
           </Button>
+          {!jumpShown && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setOpenedJump(selected)}
+            >
+              <PlusIcon size={14} />
+              <Localized name="sequencer-jump-add" />
+            </Button>
+          )}
         </Row>
 
-        <JumpPatcher />
+        {jumpShown && <JumpPatcher onRemove={() => setOpenedJump(null)} />}
 
         <EnvelopeEditor step={selected} />
       </div>

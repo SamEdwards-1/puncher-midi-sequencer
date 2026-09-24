@@ -53,6 +53,9 @@ to another when a condition is met.
 
 ### Jumps (one per step)
 - Destination (or none) and Normal (where to go on failure; default "next").
+- In the step editor, hidden until **+ Jump rule** (beside Add note) is
+  clicked or the step has a jump; then one row — Rule, Destination, Normal —
+  whose X resets the whole jump. The button goes while the row shows.
 - Rules: Always · 1x–7x (succeed N times, fail once) · 2:2–8:8 (succeed on the
   Nth visit) · 10–90% · Last · Not Last.
 

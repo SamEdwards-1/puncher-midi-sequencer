@@ -13,7 +13,9 @@ describe("App", () => {
 
     expect(screen.getByRole("banner")).toBeInTheDocument()
     expect(screen.getByText("Sequencer")).toBeInTheDocument()
-    expect(screen.getByText("Jumps")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Jump rule" }),
+    ).toBeInTheDocument()
     expect(screen.getByText("Sequence Grid")).toBeInTheDocument()
     expect(screen.getByText("Voices")).toBeInTheDocument()
     for (const action of ["Hang", "Bump", "Flip", "Shift"]) {
