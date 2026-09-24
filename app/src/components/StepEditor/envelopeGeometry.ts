@@ -181,10 +181,10 @@ export const cellAt = (grid: number[], time: number): number => {
 }
 
 /**
- * The lowest and highest notes the whole patch can play: every step's notes
- * the voices can reach, moved by the furthest offsets any voice has. Taken
- * across all the steps rather than the one on show, so the piano roll holds
- * still from step to step and while notes and dots are edited.
+ * The lowest and highest keys held on any step of the grid — the notes the
+ * voices draw from, as far as the step's note limit goes. Taken across all
+ * the steps rather than the one on show, so the piano roll holds still from
+ * step to step, and moves only when a note is set beyond it.
  */
 export const patchNoteSpan = (patch: PatchJSON): number[] => {
   const notes = patch.steps
@@ -192,41 +192,18 @@ export const patchNoteSpan = (patch: PatchJSON): number[] => {
     .flatMap((step) =>
       [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
     )
-  if (notes.length === 0) {
-    return []
-  }
-  const offsets = patch.voices.map((voice) => voice.offset)
-  const inRange = (note: number) => Math.min(127, Math.max(0, note))
-  return [
-    inRange(Math.min(...notes) + Math.min(...offsets)),
-    inRange(Math.max(...notes) + Math.max(...offsets)),
-  ]
+  return notes.length === 0 ? [] : [Math.min(...notes), Math.max(...notes)]
 }
 
 /**
- * The keys the piano roll shows: the notes with a key to spare either side,
- * and at least an octave, so a single note doesn't fill the height. With no
- * notes, the octave around middle C.
+ * The keys the piano roll shows: exactly the lowest to the highest of
+ * `notes`, so its bottom row is the lowest key in the grid and its top row
+ * the highest. With no notes, the octave around middle C.
  */
-export const keyRange = (
-  notes: number[],
-  minimum = 13,
-): { low: number; high: number } => {
-  if (notes.length === 0) {
-    return { low: 54, high: 66 }
-  }
-  let low = Math.max(0, Math.min(...notes) - 1)
-  let high = Math.min(127, Math.max(...notes) + 1)
-  while (high - low + 1 < minimum) {
-    if (low > 0) {
-      low--
-    }
-    if (high - low + 1 < minimum && high < 127) {
-      high++
-    }
-  }
-  return { low, high }
-}
+export const keyRange = (notes: number[]): { low: number; high: number } =>
+  notes.length === 0
+    ? { low: 54, high: 66 }
+    : { low: Math.min(...notes), high: Math.max(...notes) }
 
 const BLACK_KEYS = new Set([1, 3, 6, 8, 10])
 

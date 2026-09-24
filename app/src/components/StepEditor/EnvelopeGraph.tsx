@@ -563,23 +563,27 @@ export const EnvelopeGraph: FC<{
             />
           ))}
 
-          {notes.map((note) => (
-            <rect
-              key={`${note.voice}-${note.note}-${note.start}`}
-              data-note={note.note}
-              data-voice={note.voice}
-              x={toX(plot, note.start)}
-              y={keyY(note.note) + 0.5}
-              width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
-              height={Math.max(1, keyHeight - 1)}
-              rx={2}
-              fill={`var(--midiseq-voice-${note.voice})`}
-              // behind velocity bars the notes only say where they are
-              // under an envelope the notes keep their voice's own colour;
-              // behind velocity bars they only say where the notes are
-              fillOpacity={lane.kind === "velocity" ? 0.16 : 1}
-            />
-          ))}
+          {/* a voice's offset can take a note past the grid's keys; the
+              roll keeps to the grid's keys and leaves those out */}
+          {notes
+            .filter(({ note }) => note >= keys.low && note <= keys.high)
+            .map((note) => (
+              <rect
+                key={`${note.voice}-${note.note}-${note.start}`}
+                data-note={note.note}
+                data-voice={note.voice}
+                x={toX(plot, note.start)}
+                y={keyY(note.note) + 0.5}
+                width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
+                height={Math.max(1, keyHeight - 1)}
+                rx={2}
+                fill={`var(--midiseq-voice-${note.voice})`}
+                // behind velocity bars the notes only say where they are
+                // under an envelope the notes keep their voice's own colour;
+                // behind velocity bars they only say where the notes are
+                fillOpacity={lane.kind === "velocity" ? 0.16 : 1}
+              />
+            ))}
 
           {lane.kind === "velocity" &&
             lane.voices.map((voice) => {

@@ -464,14 +464,37 @@ describe("the envelope editor", () => {
         setStepNotes(setStepNotes(start, 0, [60]), 5, [72, 76]),
       )
       const keys = () => svg().getAttribute("data-keys")
-      // the whole patch's notes, a key either side
-      expect(keys()).toBe("59-77")
+      // the grid's lowest key at the bottom, its highest at the top
+      expect(keys()).toBe("60-76")
 
       fireEvent.click(screen.getByRole("button", { name: "Step 6" }))
-      expect(keys()).toBe("59-77")
+      expect(keys()).toBe("60-76")
       // and a step with nothing on it doesn't close them up either
       fireEvent.click(screen.getByRole("button", { name: "Step 9" }))
-      expect(keys()).toBe("59-77")
+      expect(keys()).toBe("60-76")
+    })
+
+    it("moves when a key is set beyond them", () => {
+      setup([], (start) =>
+        setStepNotes(setStepNotes(start, 0, [67]), 5, [72, 76]),
+      )
+      const keys = () => svg().getAttribute("data-keys")
+      expect(keys()).toBe("67-76")
+
+      // step 1's G4 down a semitone: the bottom row follows it
+      click("Note 1 down")
+      expect(keys()).toBe("66-76")
+    })
+
+    it("leaves out a note a voice's offset takes past the grid's keys", () => {
+      setup([], (start) => {
+        const next = setStepNotes(start, 0, [60, 64])
+        next.voices[1] = { ...next.voices[1], enabled: true, offset: 24 }
+        return next
+      })
+      const shown = notes().map((note) => note.getAttribute("data-voice"))
+      expect(shown).not.toContain("1")
+      expect(shown).toContain("0")
     })
 
     it("can't be dragged or clicked", () => {

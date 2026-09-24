@@ -86,11 +86,11 @@ describe("envelope geometry", () => {
     expect(patchNoteSpan(patch)).toEqual([48, 79])
   })
 
-  it("reaches as far as the voices' offsets take the notes", () => {
+  it("spans the grid's keys alone, whatever offsets the voices play at", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
     patch.voices[1].offset = -24
     patch.voices[3].offset = 12
-    expect(patchNoteSpan(patch)).toEqual([36, 76])
+    expect(patchNoteSpan(patch)).toEqual([60, 64])
   })
 
   it("leaves out notes no voice can play", () => {
@@ -102,15 +102,11 @@ describe("envelope geometry", () => {
     expect(patchNoteSpan(createDefaultPatch())).toEqual([])
   })
 
-  it("shows the notes with a key either side, and at least an octave", () => {
-    expect(keyRange([60, 72, 79])).toEqual({ low: 59, high: 80 })
-    const one = keyRange([60])
-    expect(one.high - one.low + 1).toBe(13)
-    expect(one.low).toBeLessThanOrEqual(59)
-    expect(one.high).toBeGreaterThanOrEqual(61)
-    // at the ends of the MIDI range it grows the other way
-    expect(keyRange([0])).toEqual({ low: 0, high: 12 })
-    expect(keyRange([127])).toEqual({ low: 115, high: 127 })
+  it("shows exactly the lowest key to the highest, nothing either side", () => {
+    // G4 at the bottom, C6 at the top
+    expect(keyRange([67, 72, 84])).toEqual({ low: 67, high: 84 })
+    // a single key fills the roll
+    expect(keyRange([60])).toEqual({ low: 60, high: 60 })
     // with nothing to show, the octave around middle C
     expect(keyRange([])).toEqual({ low: 54, high: 66 })
   })

@@ -454,9 +454,10 @@ one message per landing.
 **The notes underneath** are the step rendered once through the engine, as a
 clicked step is auditioned: every voice starting together on its first dot.
 Chance and the random rules use a fixed seed, so the picture holds still
-while editing. The keys span the whole patch — every step's playable notes,
-moved by the voices' offsets — rather than the step on show, so the roll
-doesn't jump from step to step.
+while editing. The keys run exactly from the grid's lowest key to its
+highest, across every step rather than the step on show, so the roll doesn't
+jump from step to step; setting a key beyond them moves that edge. A note a
+voice's offset takes past the grid's keys is left off the roll.
 
 **Velocity is the dot's.** Notes come from pattern dots, and a voice's
 pattern plays on every step, so a velocity bar edits its dot: every bar from

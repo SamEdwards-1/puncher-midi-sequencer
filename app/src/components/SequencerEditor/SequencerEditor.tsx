@@ -20,13 +20,13 @@ export const SequencerEditor: FC = () => {
     <div className="flex min-h-0 grow flex-col bg-background">
       <TopBar />
       {wide ? (
-        <div className="grid min-h-0 grow grid-cols-[minmax(16rem,20rem)_1fr_minmax(18rem,22rem)]">
+        <div className="grid min-h-0 grow grid-cols-[minmax(calc(16rem-25px),calc(20rem-25px))_1fr_minmax(calc(18rem+50px),calc(22rem+50px))]">
           <SequencerPanel />
           <SequenceGrid />
           <VoicePanel />
         </div>
       ) : (
-        <div className="grid min-h-0 grow grid-cols-[1fr_minmax(18rem,22rem)]">
+        <div className="grid min-h-0 grow grid-cols-[1fr_minmax(calc(18rem+50px),calc(22rem+50px))]">
           <SequenceGrid />
           <SidePanes />
         </div>
