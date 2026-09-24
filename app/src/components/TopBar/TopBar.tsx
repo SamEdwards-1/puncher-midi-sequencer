@@ -1,10 +1,8 @@
 import CogIcon from "mdi-react/CogIcon"
-import RedoIcon from "mdi-react/RedoIcon"
-import UndoIcon from "mdi-react/UndoIcon"
 import { FC, useState } from "react"
 import logo from "../../assets/puncher-logo.svg?raw"
-import { useHistory } from "../../hooks/useHistory"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { EditMenu } from "../EditMenu/EditMenu"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { SettingsDialog } from "../Settings/SettingsDialog"
@@ -21,7 +19,6 @@ export interface TopBarProps {
 
 export const TopBar: FC<TopBarProps> = ({ compact = false }) => {
   const localized = useLocalization()
-  const { canUndo, canRedo, undo, redo } = useHistory()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
@@ -38,26 +35,7 @@ export const TopBar: FC<TopBarProps> = ({ compact = false }) => {
           dangerouslySetInnerHTML={{ __html: logo }}
         />
         <FileMenu />
-        <div className="flex items-center gap-1">
-          <IconButton
-            className={TOOLBAR_ICON}
-            title={localized["sequencer-undo"]}
-            aria-label={localized["sequencer-undo"]}
-            disabled={!canUndo}
-            onClick={undo}
-          >
-            <UndoIcon size={18} />
-          </IconButton>
-          <IconButton
-            className={TOOLBAR_ICON}
-            title={localized["sequencer-redo"]}
-            aria-label={localized["sequencer-redo"]}
-            disabled={!canRedo}
-            onClick={redo}
-          >
-            <RedoIcon size={18} />
-          </IconButton>
-        </div>
+        <EditMenu />
       </div>
       <TransportControls />
       <div className="flex items-center justify-end gap-2">

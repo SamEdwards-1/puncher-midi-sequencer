@@ -43,7 +43,15 @@ const attempt = async <T>(
 }
 
 export function useFileActions() {
-  const { sequencerStore, history, fileService, autoSave } = useStores()
+  const { sequencerStore, history, fileService, autoSave, recorder } =
+    useStores()
+
+  /**
+   * Each of these acts on the whole patch, so a take ends first: a save
+   * writes the patch as the take left it rather than one still being played
+   * into, and a new or opened patch doesn't carry on recording into itself.
+   */
+  const endTake = useCallback(() => recorder.setRecording(false), [recorder])
 
   const load = useCallback(
     (patch: ReturnType<typeof createDefaultPatch>, fileName: string | null) => {
@@ -67,14 +75,16 @@ export function useFileActions() {
   return {
     newPatch: useCallback(() => {
       if (confirmDiscard()) {
+        endTake()
         load(createDefaultPatch(), null)
       }
-    }, [confirmDiscard, load]),
+    }, [confirmDiscard, endTake, load]),
 
     open: useCallback(async () => {
       if (!confirmDiscard()) {
         return
       }
+      endTake()
       const opened = await attempt("open a file", () => fileService.open())
       if (opened === null) {
         return
@@ -85,9 +95,10 @@ export function useFileActions() {
         return
       }
       load(result.patch, opened.name)
-    }, [confirmDiscard, fileService, load]),
+    }, [confirmDiscard, endTake, fileService, load]),
 
     save: useCallback(async () => {
+      endTake()
       const text = serializeFile(createFile(sequencerStore.patch))
       const name = await attempt("save the patch", () =>
         fileService.save(
@@ -100,9 +111,10 @@ export function useFileActions() {
         sequencerStore.isSaved = true
         autoSave.clear()
       }
-    }, [sequencerStore, fileService, autoSave]),
+    }, [endTake, sequencerStore, fileService, autoSave]),
 
     saveAs: useCallback(async () => {
+      endTake()
       const text = serializeFile(createFile(sequencerStore.patch))
       const name = await attempt("save the patch", () =>
         fileService.saveAs(
@@ -115,7 +127,7 @@ export function useFileActions() {
         sequencerStore.isSaved = true
         autoSave.clear()
       }
-    }, [sequencerStore, fileService, autoSave]),
+    }, [endTake, sequencerStore, fileService, autoSave]),
   }
 }
 

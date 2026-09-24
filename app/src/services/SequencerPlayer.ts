@@ -24,6 +24,27 @@ export interface SequencerPlayerOptions {
   seed?: number
 }
 
+/**
+ * Where a step landed. `step` is the stored step it plays, which differs
+ * from `position` while Flip is held; `beat` and `lengthBeats` are what the
+ * engine measures that step's envelopes against.
+ */
+interface StepMark {
+  time: number
+  beat: number
+  lengthBeats: number
+  position: StepIndex
+  step: StepIndex
+  voiceDots: number[]
+}
+
+/** How far through the sounding step the sequence is, 0 to 1. */
+export interface StepProgress {
+  step: StepIndex
+  time: number
+  lengthBeats: number
+}
+
 const TICK_MS = 25
 const LOOKAHEAD_MS = 100
 // upper bound on how long a clicked step sounds
@@ -58,11 +79,9 @@ export class SequencerPlayer {
   private anchorBeat = 0
   // rendered events not yet due for scheduling, in beat order
   private pending: EngineEvent[] = []
-  private stepMarks: {
-    time: number
-    position: StepIndex
-    voiceDots: number[]
-  }[] = []
+  private stepMarks: StepMark[] = []
+  // the last step that has sounded, for recording onto it
+  private landed: StepMark | null = null
   private dotMarks: { time: number; voice: number; dot: number }[] = []
   private lastScheduledTime = 0
   private sendClock = false
@@ -164,6 +183,36 @@ export class SequencerPlayer {
     this.engine.accentAmount = amount
   }
 
+  /**
+   * The step sounding now and how far through it, measured the way the
+   * engine reads that step's envelopes — so a point recorded here plays
+   * back at the moment it was played. A step whose mark is due but not yet
+   * taken off by a tick counts as sounding, which keeps a recording exact
+   * right at a step's edge. Null when stopped, or before the first step.
+   */
+  stepProgress = (): StepProgress | null => {
+    if (!this.isPlaying) {
+      return null
+    }
+    const now = this.now()
+    let current = this.landed
+    for (const mark of this.stepMarks) {
+      if (mark.time > now) {
+        break
+      }
+      current = mark
+    }
+    if (current === null) {
+      return null
+    }
+    const along = (this.beatAt(now) - current.beat) / current.lengthBeats
+    return {
+      step: current.step,
+      time: Math.min(1, Math.max(0, along)),
+      lengthBeats: current.lengthBeats,
+    }
+  }
+
   play = () => {
     if (this.isPlaying) {
       return
@@ -174,6 +223,7 @@ export class SequencerPlayer {
     this.anchorBeat = 0
     this.pending = []
     this.stepMarks = []
+    this.landed = null
     this.dotMarks = []
     this.lastScheduledTime = now
     this.clockSent = -1
@@ -201,6 +251,7 @@ export class SequencerPlayer {
     }
     this.pending = []
     this.stepMarks = []
+    this.landed = null
     this.dotMarks = []
     this.isPlaying = false
     this.position = null
@@ -242,7 +293,10 @@ export class SequencerPlayer {
       if (event.type === "step") {
         this.stepMarks.push({
           time,
+          beat: event.beat,
+          lengthBeats: paceBeats(this.patch.pace),
           position: event.position,
+          step: event.step,
           voiceDots: event.voiceDots,
         })
       } else if (event.type === "dot") {
@@ -259,6 +313,7 @@ export class SequencerPlayer {
     while (this.stepMarks.length > 0 && this.stepMarks[0].time <= now) {
       position = this.stepMarks[0].position
       voiceDots = this.stepMarks[0].voiceDots
+      this.landed = this.stepMarks[0]
       this.stepMarks.shift()
     }
     if (position !== this.position) {

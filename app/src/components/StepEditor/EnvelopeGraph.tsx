@@ -1,4 +1,5 @@
 import {
+  addEnvelope,
   ENVELOPE_MAX_VALUE,
   EnvelopeJSON,
   EnvelopePointJSON,
@@ -7,6 +8,7 @@ import {
   insertPointOnLine,
   movePoint,
   moveSegment,
+  nextEnvelopeId,
   paceBeats,
   paintPoints,
   removePoint,
@@ -14,6 +16,8 @@ import {
   snapTime,
   stairsFor,
   stepNotes,
+  toBeatTimes,
+  toStepTimes,
   updateEnvelope,
   VoiceIndex,
   valueAt,
@@ -63,7 +67,7 @@ import {
  * of the notes its voices play.
  */
 export type GraphLane =
-  | { kind: "cc"; envelope: EnvelopeJSON | null }
+  | { kind: "cc"; envelope: EnvelopeJSON | null; cc: number; channel: number }
   | { kind: "velocity"; voice: VoiceIndex }
 
 export const GRIDS = [
@@ -149,6 +153,11 @@ export const EnvelopeGraph: FC<{
   const envelope = lane.kind === "cc" ? lane.envelope : null
 
   const stepBeats = paceBeats(patch.pace)
+  // Stored in beats, drawn and edited as fractions of the step as it is now:
+  // an envelope keeps its timing when the pace changes, and whatever lies
+  // past a shortened step's end is kept, off to the right, rather than lost.
+  const envelopePoints =
+    envelope === null ? [] : toStepTimes(envelope.points, stepBeats)
   const grid = useMemo(
     () => gridTimes(stepBeats, gridBeats),
     [stepBeats, gridBeats],
@@ -165,7 +174,7 @@ export const EnvelopeGraph: FC<{
   const keyY = (note: number) => PAD + (keys.high - note) * keyHeight
   // the line drawn and edited: the envelope's, or one through the velocities
   const points: EnvelopePointJSON[] =
-    lane.kind === "velocity" ? velocities : (envelope?.points ?? [])
+    lane.kind === "velocity" ? velocities : envelopePoints
   const span = { x: width - 2 * PAD, y: GRAPH_HEIGHT - 2 * PAD }
 
   // Lines as close as the grid allows; failing that beats, failing that bars.
@@ -192,9 +201,6 @@ export const EnvelopeGraph: FC<{
     if (event.button !== 0) {
       return
     }
-    if (lane.kind === "cc" && envelope === null) {
-      return
-    }
     // keeps the page from selecting text under a drag
     event.preventDefault()
     frame.current?.focus()
@@ -208,18 +214,24 @@ export const EnvelopeGraph: FC<{
       editVelocities(down)
       return
     }
-    if (envelope === null) {
-      return
-    }
     const start = local(down)
-    const original = envelope.points
+    const original = envelopePoints
     const commit = beginGesture()
-    const setPoints = (next: EnvelopePointJSON[]) =>
+    // A lane the step has no envelope for gets one at the first mark.
+    const id = envelope?.id ?? nextEnvelopeId(sequencerStore.patch)
+    const setPoints = (next: EnvelopePointJSON[]) => {
+      const current = sequencerStore.patch
+      const points = toBeatTimes(next, stepBeats)
       commit(
-        updateEnvelope(sequencerStore.patch, step, envelope.id, {
-          points: next,
-        }),
+        current.steps[step].envelopes.some((each) => each.id === id)
+          ? updateEnvelope(current, step, id, { points })
+          : addEnvelope(current, step, {
+              cc: lane.cc,
+              channel: lane.channel,
+              points,
+            }),
       )
+    }
     const valueDelta = (dy: number) => (-dy / span.y) * ENVELOPE_MAX_VALUE
     // the second press of a double-click: never a delete or a second point
     const second = down.detail >= 2
@@ -480,15 +492,13 @@ export const EnvelopeGraph: FC<{
   }
 
   const cursor =
-    lane.kind === "cc" && envelope === null
-      ? "default"
-      : tool === "draw"
-        ? "crosshair"
-        : hover.point !== null
-          ? "pointer"
-          : hover.segment !== null
-            ? "ns-resize"
-            : "default"
+    tool === "draw"
+      ? "crosshair"
+      : hover.point !== null
+        ? "pointer"
+        : hover.segment !== null
+          ? "ns-resize"
+          : "default"
 
   // The envelope's value where the mouse is, shown beside it while it is over
   // the line or a point, or dragging.

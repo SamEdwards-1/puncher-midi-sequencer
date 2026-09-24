@@ -29,9 +29,11 @@ export function usePreviewOnClick() {
 // The envelope editor's tool, grid and open lane. The grid is a note value
 // in beats; the lane is a voice's velocity or a CC envelope, by its id.
 export type EnvelopeTool = "edit" | "draw"
+// A CC lane is its number and channel rather than one step's envelope, so
+// the tab stays open from step to step.
 export type EnvelopeLane =
   | { kind: "velocity"; voice: VoiceIndex }
-  | { kind: "cc"; id: number }
+  | { kind: "cc"; cc: number; channel: number }
 const envelopeToolAtom = atom<EnvelopeTool>("edit")
 const envelopeGridAtom = atom(0.25)
 const selectedLaneAtom = atom<EnvelopeLane | null>(null)

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { migratePace, PACE_BEATS } from "./paces"
+import { MAX_PACE_BEATS, migratePace, PACE_BEATS } from "./paces"
 import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH, NOTES_PER_STEP } from "./types"
 
 const midiValue = z.number().int().min(0).max(127)
@@ -45,7 +45,8 @@ export const OutputTargetSchema = z.union([
 ])
 
 export const EnvelopePointSchema = z.object({
-  time: z.number().min(0).max(1),
+  // beats from the step's start
+  time: z.number().min(0).max(MAX_PACE_BEATS),
   value: midiValue,
 })
 

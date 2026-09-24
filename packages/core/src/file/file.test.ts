@@ -193,10 +193,11 @@ describe("the file format", () => {
     }
   })
 
-  it("refuses an envelope point outside its step", () => {
+  it("refuses an envelope point no step could reach", () => {
     const file = JSON.parse(serializeFile(createFile(createDefaultPatch())))
+    // beats from the step's start: past sixteen bars, no pace gets there
     file.patch.steps[3].envelopes = [
-      { id: 1, cc: 1, channel: 1, points: [{ time: 1.5, value: 1 }] },
+      { id: 1, cc: 1, channel: 1, points: [{ time: 65, value: 1 }] },
     ]
     const result = parseFile(JSON.stringify(file))
 
@@ -205,6 +206,62 @@ describe("the file format", () => {
       expect(result.error).toMatch(
         /^patch\.steps\.3\.envelopes\.0\.points\.0\.time/,
       )
+    }
+  })
+
+  it("keeps an envelope point past its step, for a longer pace", () => {
+    const patch = createDefaultPatch()
+    const text = serializeFile(createFile(patch))
+    const file = JSON.parse(text)
+    file.patch.steps[3].envelopes = [
+      { id: 1, cc: 1, channel: 1, points: [{ time: 6, value: 1 }] },
+    ]
+    const result = parseFile(JSON.stringify(file))
+    expect(result.ok).toBe(true)
+  })
+
+  it("reads envelope times written as fractions of the step as beats", () => {
+    // a version 1 file, when a point's time ran 0 to 1 across the step
+    const patch = { ...createDefaultPatch(), pace: "2nd" as const }
+    const file = JSON.parse(serializeFile(createFile(patch)))
+    file.version = 1
+    file.patch.steps[0].envelopes = [
+      {
+        id: 1,
+        cc: 74,
+        channel: 1,
+        points: [
+          { time: 0, value: 0 },
+          { time: 0.25, value: 64 },
+          { time: 1, value: 127 },
+        ],
+      },
+    ]
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.file.version).toBe(2)
+      // two beats a step: the same points, at the same moments
+      expect(result.patch.steps[0].envelopes[0].points).toEqual([
+        { time: 0, value: 0 },
+        { time: 0.5, value: 64 },
+        { time: 2, value: 127 },
+      ])
+    }
+  })
+
+  it("leaves beats alone in a file that already has them", () => {
+    const patch = { ...createDefaultPatch(), pace: "2nd" as const }
+    patch.steps[0].envelopes = [
+      { id: 1, cc: 74, channel: 1, points: [{ time: 1.5, value: 9 }] },
+    ]
+    const result = parseFile(serializeFile(createFile(patch)))
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.patch.steps[0].envelopes[0].points).toEqual([
+        { time: 1.5, value: 9 },
+      ])
     }
   })
 

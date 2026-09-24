@@ -49,6 +49,9 @@ export const PACE_LABELS: Record<PaceId, string> = {
 
 export const paceBeats = (id: PaceId): number => PACE_BEATS[id]
 
+// The longest a step can be, and so the latest an envelope point can matter.
+export const MAX_PACE_BEATS = Math.max(...Object.values(PACE_BEATS))
+
 // Every pace is a whole number of these, from the 32nd triplet (4) to the
 // dotted 32nd (9) and the straight 32nd (6).
 export const PACE_GRID = 48

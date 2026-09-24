@@ -113,8 +113,10 @@ to another when a condition is met.
 - **CC envelopes:** a tab per CC (number and channel typed or stepped), each
   an envelope in the manner of Live's: breakpoints joined by straight lines,
   the value held before the first point and after the last, two points at one
-  time making a jump. Time runs across the step, 0 to 1, so an envelope
-  stretches with the sequencer's pace. It is drawn over a read-only piano roll
+  time making a jump. Time is in beats from the step's start, so an envelope
+  keeps its timing when the pace changes: a shorter step plays only what
+  fits, a longer one holds the last value. It is drawn over a read-only piano
+  roll
   of the notes the step plays — rendered from the voices, so pace, dots,
   ratchets, length and rule all show, in each voice's colour. Hovering the line,
   or dragging, shows the envelope's value under the mouse.
@@ -135,7 +137,17 @@ to another when a condition is met.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer
   keyboard; a step fills to Step Notes before moving on; overdub while
   playing; rest & advance,
-  back & clear, octave, and a Clear menu.
+  back & clear, octave, and a Clear menu. Controllers go into the step's
+  envelope for that CC and channel (§5.6): while playing, where they are
+  heard; stopped, into the record target in the order played. Commands such
+  as All Sound Off, and the RPN and bank-select machinery, are not recorded.
+- **A take ends** on Play, Save, Save as, New, Open and a step's Clear. Play
+  first: steps recorded while stopped are heard back without what is played
+  over them being written in — Record can be armed again once playing, which
+  is how a knob is recorded as a curve. The file actions and Clear end it
+  before they act, so a save writes the patch as the take left it and the
+  take and the action are never one undo entry. Auditioning a clicked step
+  doesn't end it, or picking where to record would.
 - **Undo/redo:** every patch change; a drag or a recording take is one entry.
 
 ### Mod Outs (8 CC streams)
@@ -422,9 +434,10 @@ always treated alike and nothing is left sounding.
 the ports — so it is kept with the other settings in local storage and never
 written into a patch, on the same reasoning as themes in §5.3.
 
-**Not yet true:** nothing consumes CC input, so the CC filter decides what
-reaches the app rather than what the app does with it. Recording CCs into a
-step is the milestone that gives it a job.
+**What the CC filter governs** is which controllers recording writes into
+envelopes (§5.6). CCs pass the channel list too, but the note range and the
+transpose are about notes and never touch one: a CC keeps its number and its
+value, whatever those are set to.
 
 ## 5.5 MIDI clock (part of milestone 7)
 
@@ -453,10 +466,17 @@ points joined by segments, so a slow sweep is two points however fine the
 grid. Draw mode's flat steps are only what the paint stroke writes — pairs of
 points — and a run painted at one value keeps just its ends.
 
-**Time is a fraction of the step.** The step's length is the sequencer's
-pace, so storing 0 to 1 lets an envelope keep its shape when the pace
-changes. The grid is laid over it in note values, so a 1/16 grid on a
-one-bar step is sixteen cells and on a quarter-note step four.
+**Time is in beats.** A point's time is beats from the step's start, so an
+envelope keeps the timing it was drawn or recorded with when the pace
+changes. A shorter step plays only what fits and the rest waits, kept, for
+the pace to grow back; a longer one holds the last value to its end. The
+editor draws the step as it is now, so a point past a shortened step lies off
+its right edge with the line running out to it. (Times were first stored as
+fractions of the step, so an envelope stretched with the pace; that was
+reversed, and files written then are read by scaling each time by the pace
+they were saved with, so they sound as they did.) The grid is laid over the
+step in note values, so a 1/16 grid on a one-bar step is sixteen cells and on
+a quarter-note step four.
 
 **Read live, sent on change.** The engine samples the step's envelopes every
 1/48 beat — the grid every pace sits on — from the patch as it is now, not as
@@ -488,10 +508,44 @@ accent amount moves under it. A snap of ±2, the first version's, proved too
 tight to find with a mouse; a quarter of the accent amount gives each level
 a pull that grows with the gap.
 
+**Recording a knob.** Armed, a controller goes into the step's envelope for
+that CC and channel, made if the step has none. While the sequence plays it
+writes where it is heard: on the step sounding — the stored step, so Flip is
+honoured — at the playhead's place in it, measured exactly as the engine
+reads envelopes, so a point plays back at the moment it was played. It
+replaces the curve from there to the step's end with what is played, the last
+value holding: latched rather than touch, since a MIDI knob has no "let go".
+Moving on to another step starts again there, and a step no knob touched
+keeps its envelope. Stopped, there is no playhead to place a value against,
+so a controller records the way notes do: into the record target, in the
+order played, every value this take has sent spread evenly across the step
+at the pace it has then. A sweep becomes a ramp over the step, and one value
+alone is the value it lands on. (Keeping only the last value, tried first,
+made a knob turned while stopped look as if it had recorded nothing.)
+
+Only a control's position is recorded. The channel mode messages, 120–127,
+are commands; bank select and the RPN and NRPN numbers with their data entry
+mean something only in sequence with each other. A sequencer sends all of
+them on every channel when it starts and stops — which, recorded, made
+sixteen tabs of All Sound Off. Where one CC does arrive on several channels,
+each is its own envelope and its tab names the channel.
+
+A knob recorded into the step on show opens its tab, once per knob, so its
+values are seen arriving; a tab clicked away from stays away until a
+different knob moves.
+
+Points are put on the 1/48-beat grid the engine reads on, a burst within one
+slot keeping only its last, and a stroke is thinned before it is laid down.
+Kept exactly, knob messages arriving unevenly in time turned a steady sweep
+into a staircase — 20 handles on one measured — so a stroke may be thinned by
+up to two in 127, which left that sweep with three and keeps any real bend.
+A rest keeps its state when a CC is recorded onto it, since a rest still
+plays its envelopes. A take, notes and controllers together, is one undo.
+
 **What is not there yet:** selecting and moving several points at once;
 Live's inserting points at a time selection's edges when a segment is
-dragged (there is no time selection); recording incoming CCs into an
-envelope; and, with Sync Voices off, the piano roll still shows each voice
+dragged (there is no time selection); and, with Sync Voices off, the piano
+roll still shows each voice
 from its first dot, where in play it carries on from wherever it was.
 
 ## 6. Decisions

@@ -318,7 +318,8 @@ describe("Engine", () => {
       expect(ccs(engine.render(0.999))).toEqual([{ beat: 0, value: 30 }])
     })
 
-    it("stretches with the sequencer's pace", () => {
+    it("keeps its timing on a longer step, holding the last value", () => {
+      // drawn on a one-beat step, then the pace doubled
       patch.pace = "2nd"
       patch.steps[0].envelopes = [
         envelope([
@@ -329,9 +330,25 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       const sent = ccs(engine.render(1.999))
-      // the same line over two beats reaches half way at the first
-      expect(sent.find((cc) => cc.beat === 1)?.value).toBe(48)
-      expect(sent).toHaveLength(96)
+      // it reaches the top at beat one, as it did, and says nothing after
+      expect(sent.find((cc) => cc.beat === 0.5)?.value).toBe(48)
+      expect(sent.at(-1)).toEqual({ beat: 1, value: 96 })
+    })
+
+    it("plays only what fits a shorter step", () => {
+      // drawn over two beats, then the pace halved
+      patch.steps[0].envelopes = [
+        envelope([
+          { time: 0, value: 0 },
+          { time: 2, value: 96 },
+        ]),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      const sent = ccs(engine.render(0.999))
+      // half the line: up to about 48 by the step's end, and no further
+      expect(sent.find((cc) => cc.beat === 0.5)?.value).toBe(24)
+      expect(Math.max(...sent.map((cc) => cc.value))).toBeLessThan(48)
     })
 
     it("starts again on every landing, even at the value it left", () => {

@@ -19,6 +19,7 @@ export const registerReactions = (rootStore: RootStore) => {
     midiInput,
     player,
     playbackSettings,
+    recorder,
     sequencerStore,
     synthStore,
   } = rootStore
@@ -101,6 +102,21 @@ export const registerReactions = (rootStore: RootStore) => {
     () => midiDeviceStore.filter,
     (filter) => midiInput.setFilter(filter),
     { fireImmediately: true },
+  )
+
+  /**
+   * Pressing Play ends a take, however it is pressed. Steps recorded while
+   * stopped are then heard back without what is played over them being
+   * written in. Arming Record once playing still records on top — which is
+   * how a knob is recorded as a curve.
+   */
+  reaction(
+    () => player.isPlaying,
+    (playing) => {
+      if (playing) {
+        recorder.setRecording(false)
+      }
+    },
   )
 
   reaction(

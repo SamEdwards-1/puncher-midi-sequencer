@@ -1,10 +1,11 @@
-import { CC_NAMES, nextEnvelopeId, nextFreeCC, VoiceIndex } from "@midiseq/core"
+import { CC_NAMES, nextFreeCC, VoiceIndex } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
 import PencilIcon from "mdi-react/PencilIcon"
-import { CSSProperties, FC, ReactNode } from "react"
+import { CSSProperties, FC, ReactNode, useEffect, useRef } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import {
   EnvelopeLane,
@@ -13,6 +14,7 @@ import {
   useSelectedLane,
   useSelectedVoice,
 } from "../../hooks/useSequencerView"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button, IconButton } from "../ui/Button"
 import { PanelHeader } from "../ui/Panel"
@@ -49,7 +51,7 @@ const voiceColor = (voice: VoiceIndex): CSSProperties =>
 const sameLane = (a: EnvelopeLane, b: EnvelopeLane) =>
   a.kind === "velocity"
     ? b.kind === "velocity" && a.voice === b.voice
-    : b.kind === "cc" && a.id === b.id
+    : b.kind === "cc" && a.cc === b.cc && a.channel === b.channel
 
 /**
  * The step's velocities and CCs. Every voice has a Velocity tab — a line
@@ -68,35 +70,67 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
   const { addEnvelope, editEnvelope, removeEnvelope, editVoice } =
     usePatchEditor()
   const localized = useLocalization()
+  const { recorder } = useStores()
+  const recorded = useMobxGetter(recorder, "recordedLane")
 
-  // the lane left open while it is still here; otherwise the velocity of
-  // the voice being worked on
-  const lane: EnvelopeLane =
-    selected !== null &&
-    (selected.kind === "velocity" ||
-      step.envelopes.some(({ id }) => id === selected.id))
-      ? selected
-      : { kind: "velocity", voice: selectedVoice }
+  // A knob recorded into this step opens its tab, so its values are seen
+  // arriving. Once per knob, and only when a knob moves: a tab clicked away
+  // from stays away, and clicking a step never opens one.
+  const handled = useRef(recorded)
+  useEffect(() => {
+    if (recorded === handled.current) {
+      return
+    }
+    handled.current = recorded
+    if (recorded !== null && recorded.step === stepIndex) {
+      const { cc, channel } = recorded
+      setSelected({ kind: "cc", cc, channel })
+    }
+  }, [recorded, stepIndex, setSelected])
+
+  // The lane left open stays open from step to step. A CC the step has no
+  // envelope for is shown empty, ready to be drawn into, rather than
+  // swapped for another tab.
+  const lane: EnvelopeLane = selected ?? {
+    kind: "velocity",
+    voice: selectedVoice,
+  }
   const envelope =
     lane.kind === "cc"
-      ? (step.envelopes.find(({ id }) => id === lane.id) ?? null)
+      ? (step.envelopes.find(
+          ({ cc, channel }) => cc === lane.cc && channel === lane.channel,
+        ) ?? null)
       : null
   const laneChannel =
-    lane.kind === "velocity"
-      ? patch.voices[lane.voice].channel
-      : (envelope?.channel ?? 1)
+    lane.kind === "velocity" ? patch.voices[lane.voice].channel : lane.channel
 
   // a new CC goes out on the channel of the lane it is added from
   const add = () => {
-    setSelected({ kind: "cc", id: nextEnvelopeId(patch) })
+    const cc = nextFreeCC(step, laneChannel)
+    setSelected({ kind: "cc", cc, channel: laneChannel })
     addEnvelope(stepIndex, {
-      cc: nextFreeCC(step, laneChannel),
+      cc,
       channel: laneChannel,
       points: [{ time: 0, value: NEW_ENVELOPE_VALUE }],
     })
   }
 
+  // The number or channel of the open CC: the envelope's, if the step has
+  // one, and either way the tab follows it.
+  const setLane = (cc: number, channel: number) => {
+    if (envelope !== null) {
+      editEnvelope(stepIndex, envelope.id, { cc, channel })
+    }
+    setSelected({ kind: "cc", cc, channel })
+  }
+
   const channelLabel = localized["sequencer-midi-channel"]
+
+  // the same CC can be on several channels, so those tabs say which
+  const ccLabel = (cc: number, channel: number) =>
+    step.envelopes.filter((each) => each.cc === cc).length > 1
+      ? `${localized["sequencer-step-cc"]} ${cc} · ${localized["sequencer-step-cc-channel-short"]} ${channel}`
+      : `${localized["sequencer-step-cc"]} ${cc}`
 
   // a Velocity tab for every voice, then the step's CCs
   const tabs: (LaneTab & { lane: EnvelopeLane })[] = [
@@ -109,9 +143,20 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
     })),
     ...step.envelopes.map((each) => ({
       key: `cc-${each.id}`,
-      label: `${localized["sequencer-step-cc"]} ${each.cc}`,
-      lane: { kind: "cc", id: each.id } as const,
+      label: ccLabel(each.cc, each.channel),
+      lane: { kind: "cc", cc: each.cc, channel: each.channel } as const,
     })),
+    // the CC left open, which this step has no envelope for: dimmed
+    ...(lane.kind === "cc" && envelope === null
+      ? [
+          {
+            key: `cc-${lane.cc}-${lane.channel}-empty`,
+            label: ccLabel(lane.cc, lane.channel),
+            lane,
+            off: true,
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -171,53 +216,64 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
         </div>
       )}
 
-      {envelope !== null && (
+      {lane.kind === "cc" && (
         <div className="flex items-end gap-2">
           <Labelled label={localized["sequencer-step-cc"]}>
             <Stepper
               label={localized["sequencer-envelope-cc-number"]}
-              value={envelope.cc}
+              value={lane.cc}
               min={0}
               max={127}
               parse={parseNumber}
-              onChange={(cc) => editEnvelope(stepIndex, envelope.id, { cc })}
+              onChange={(cc) => setLane(cc, lane.channel)}
             />
           </Labelled>
           <div
             className="min-w-0 flex-1 truncate pb-[0.35rem] text-small text-fg-secondary"
-            title={CC_NAMES[envelope.cc]}
+            title={CC_NAMES[lane.cc]}
           >
-            {CC_NAMES[envelope.cc]}
+            {CC_NAMES[lane.cc]}
+            {envelope === null && (
+              <span className="text-fg-tertiary">
+                {" "}
+                (<Localized name="sequencer-envelope-not-on-step" />)
+              </span>
+            )}
           </div>
           <Labelled label={channelLabel}>
             <Stepper
               label={localized["sequencer-envelope-cc-channel"]}
-              value={envelope.channel}
+              value={lane.channel}
               min={1}
               max={16}
               parse={parseNumber}
-              onChange={(channel) =>
-                editEnvelope(stepIndex, envelope.id, { channel })
-              }
+              onChange={(channel) => setLane(lane.cc, channel)}
             />
           </Labelled>
-          <IconButton
-            aria-label={localized["sequencer-step-remove-cc"]}
-            title={localized["sequencer-step-remove-cc"]}
-            onClick={() => removeEnvelope(stepIndex, envelope.id)}
-          >
-            <CloseIcon size={16} />
-          </IconButton>
+          {envelope !== null && (
+            <IconButton
+              aria-label={localized["sequencer-step-remove-cc"]}
+              title={localized["sequencer-step-remove-cc"]}
+              onClick={() => {
+                removeEnvelope(stepIndex, envelope.id)
+                setSelected({ kind: "velocity", voice: selectedVoice })
+              }}
+            >
+              <CloseIcon size={16} />
+            </IconButton>
+          )}
         </div>
       )}
 
-      {(lane.kind === "velocity" || envelope !== null) && (
+      {(lane.kind === "velocity" || lane.kind === "cc") && (
         <div className="flex items-center gap-1">
           <Button
             type="button"
             size="sm"
             active={tool === "edit"}
             aria-pressed={tool === "edit"}
+            // "Edit" alone is the menu in the bar
+            aria-label={localized["sequencer-envelope-edit-tool"]}
             title={localized["sequencer-envelope-edit"]}
             onClick={() => setTool("edit")}
           >
@@ -258,7 +314,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
         lane={
           lane.kind === "velocity"
             ? { kind: "velocity", voice: lane.voice }
-            : { kind: "cc", envelope }
+            : { kind: "cc", envelope, cc: lane.cc, channel: lane.channel }
         }
       />
 

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
 import { App } from "./App"
@@ -23,20 +23,6 @@ describe("App", () => {
     }
     // the large grid draws 64 steps
     expect(screen.getByRole("button", { name: "Step 64" })).toBeInTheDocument()
-  })
-
-  it("shows the patch name from the sequencer store", () => {
-    const rootStore = createStore()
-    render(<App rootStore={rootStore} />)
-    expect(screen.getByText(/Demo/)).toBeInTheDocument()
-
-    act(() => {
-      rootStore.sequencerStore.patch = {
-        ...rootStore.sequencerStore.patch,
-        name: "Bassline",
-      }
-    })
-    expect(screen.getByText(/Bassline/)).toBeInTheDocument()
   })
 
   it("toggles play and stop", () => {
@@ -70,28 +56,31 @@ describe("App", () => {
     expect(rootStore.recorder.target).toBe(3)
   })
 
-  it("clears the steps and the voices, in one undo", () => {
+  // Clear all went with the logo bar: File → New is how a patch is emptied.
+  it("empties the steps and resets the voices with File → New", () => {
     const rootStore = createStore()
+    // yes, the changes can go
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true)
     render(<App rootStore={rootStore} />)
     const patch = () => rootStore.sequencerStore.patch
-    const before = patch()
 
     // the demo patch starts with chords, jumps and three voices playing
-    expect(before.steps[0].notes.length).toBeGreaterThan(0)
-    expect(before.voices[1].enabled).toBe(true)
+    expect(patch().steps[0].notes.length).toBeGreaterThan(0)
+    expect(patch().voices[1].enabled).toBe(true)
+    fireEvent.click(screen.getByRole("button", { name: "Tempo up" }))
 
-    fireEvent.click(screen.getByRole("button", { name: "Clear all" }))
+    fireEvent.click(screen.getByRole("button", { name: "File" }))
+    fireEvent.click(screen.getByRole("button", { name: "New" }))
 
     expect(patch().steps.every((step) => step.notes.length === 0)).toBe(true)
     expect(patch().steps.every((step) => step.jump.dest === null)).toBe(true)
     expect(patch().voices[0].rule).toBe("nth")
     expect(patch().voices[1].enabled).toBe(false)
-    // the tempo and the rest of the sequencer are left alone
-    expect(patch().tempo).toBe(before.tempo)
-    expect(patch().pace).toBe(before.pace)
-
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }))
-    expect(patch()).toBe(before)
+    // unlike Clear all, New is a whole new patch: the tempo goes back too,
+    // and its history starts fresh rather than one Undo from the old one
+    expect(patch().tempo).toBe(120)
+    expect(rootStore.history.canUndo).toBe(false)
+    confirm.mockRestore()
   })
 
   it("asks for MIDI access when the app starts, and again on request", async () => {

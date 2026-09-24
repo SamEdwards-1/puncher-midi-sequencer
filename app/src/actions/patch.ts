@@ -34,7 +34,7 @@ import { useStores } from "../hooks/useStores"
  * a continuous gesture (a drag, or a held stepper) so it lands as one entry.
  */
 export function usePatchEditor() {
-  const { sequencerStore, history } = useStores()
+  const { sequencerStore, history, recorder } = useStores()
 
   const apply = useCallback(
     (next: PatchJSON, key?: string) => {
@@ -143,9 +143,14 @@ export function usePatchEditor() {
         apply(removeEnvelope(sequencerStore.patch, step, id)),
       [apply, sequencerStore],
     ),
+    // Clearing ends a take first, so what was recorded and the clear are
+    // two undo entries rather than one that loses both.
     clearStepContent: useCallback(
-      (step: number) => apply(clearStep(sequencerStore.patch, step)),
-      [apply, sequencerStore],
+      (step: number) => {
+        recorder.setRecording(false)
+        apply(clearStep(sequencerStore.patch, step))
+      },
+      [apply, recorder, sequencerStore],
     ),
     paste: useCallback(
       (step: number, source: StepJSON) =>
