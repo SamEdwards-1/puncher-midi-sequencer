@@ -61,6 +61,15 @@ describe("MIDIRecorder", () => {
     expect(store.patch.steps[0].notes).toEqual([60, 64])
   })
 
+  it("fills to Step Notes when it asks for fewer than four", () => {
+    store.patch = { ...store.patch, maxNotesPerStep: 2 }
+    play(noteOn(60), noteOn(64), noteOn(67))
+
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+    expect(store.patch.steps[1].notes).toEqual([67])
+    expect(recorder.target).toBe(1)
+  })
+
   it("carries what won't fit onto the next step", () => {
     play(noteOn(67), noteOn(60), noteOn(64), noteOn(71), noteOn(72))
 

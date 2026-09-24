@@ -66,12 +66,12 @@ typed straight into. **Clear all**, **Undo** and **Redo** sit beside the File
 menu on the left.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
-A step takes four notes — one for each voice — and only then does the target
-move on, so it fills whether you play a chord or one note at a time. Turn
-Record off when you're done.
+A step fills to **Step notes** — four by default, one for each voice — and only
+then does the target move on, so it fills whether you play a chord or one note
+at a time. Turn Record off when you're done.
 
-**The grid.** Each circle is a step holding four notes, one for each voice to
-draw from, and any number of CC events. Clicking one selects it, sounds it, and shows it in
+**The grid.** Each circle is a step holding up to four notes, one for each
+voice to draw from, and any number of CC events. Clicking one selects it, sounds it, and shows it in
 the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 

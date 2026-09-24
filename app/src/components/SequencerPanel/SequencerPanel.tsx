@@ -2,6 +2,7 @@ import {
   Direction,
   GridSize,
   LoopMode,
+  NOTES_PER_STEP,
   PACE_LABELS,
   PaceId,
   SEQUENCER_PACES,
@@ -141,6 +142,18 @@ export const SequencerPanel: FC = () => {
             min={-24}
             max={24}
             onChange={(shiftAmt) => editSequencer({ shiftAmt }, "shift-amt")}
+          />
+        </Field>
+
+        <Field label={localized["sequencer-max-notes"]}>
+          <Stepper
+            label={localized["sequencer-max-notes"]}
+            value={patch.maxNotesPerStep}
+            min={1}
+            max={NOTES_PER_STEP}
+            onChange={(maxNotesPerStep) =>
+              editSequencer({ maxNotesPerStep }, "max-notes")
+            }
           />
         </Field>
 

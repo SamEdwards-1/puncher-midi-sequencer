@@ -31,6 +31,7 @@ export default {
     "sequencer-loop-end": "Loop end",
     "sequencer-sync-voices": "Sync voices",
     "sequencer-shift-amt": "Shift amt",
+    "sequencer-max-notes": "Step notes",
     "sequencer-voice": "Voice",
     "sequencer-voice-enable": "Enable",
     "sequencer-voice-length": "Length",

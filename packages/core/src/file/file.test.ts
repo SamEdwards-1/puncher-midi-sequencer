@@ -17,19 +17,27 @@ describe("the file format", () => {
     }
   })
 
-  it("opens a file saved when the note count was a setting", () => {
+  it("reads the note count a file was saved with, within today's range", () => {
     const patch = createDemoPatch()
     const text = serializeFile(createFile(patch))
-    // as that version wrote it
-    const older = JSON.parse(text)
-    older.patch.maxNotesPerStep = 6
-    const result = parseFile(JSON.stringify(older))
-
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.patch).toEqual(patch)
-      expect("maxNotesPerStep" in result.patch).toBe(false)
+    const saved = (maxNotesPerStep: unknown) => {
+      const file = JSON.parse(text)
+      if (maxNotesPerStep === undefined) {
+        delete file.patch.maxNotesPerStep
+      } else {
+        file.patch.maxNotesPerStep = maxNotesPerStep
+      }
+      const result = parseFile(JSON.stringify(file))
+      return result.ok
+        ? result.patch.maxNotesPerStep
+        : `refused: ${result.error}`
     }
+
+    expect(saved(2)).toBe(2)
+    // more than a note per voice, from when the limit went to sixteen
+    expect(saved(16)).toBe(4)
+    // and from when it was fixed at four and not written at all
+    expect(saved(undefined)).toBe(4)
   })
 
   it("opens a file whose CCs followed a voice's channel", () => {

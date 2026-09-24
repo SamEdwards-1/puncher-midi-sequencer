@@ -68,7 +68,7 @@ export const MIDIFilterSettings: FC = () => {
       </p>
 
       <Field label={localized["sequencer-filter-channels"]}>
-        <div className="flex flex-wrap gap-1">
+        <div className="grid max-w-[20rem] flex-1 grid-cols-8 gap-1">
           {ALL_CHANNELS.map((channel) => {
             const on = filter.channels.includes(channel)
             return (
@@ -79,7 +79,7 @@ export const MIDIFilterSettings: FC = () => {
                 aria-pressed={on}
                 onClick={() => toggleChannel(channel, !on)}
                 className={cn(
-                  "h-6 w-7 rounded-sm text-tiny",
+                  "h-6 w-full rounded-sm text-tiny",
                   on
                     ? "bg-theme text-on-surface"
                     : "bg-background-secondary text-fg-secondary hover:bg-highlight",
