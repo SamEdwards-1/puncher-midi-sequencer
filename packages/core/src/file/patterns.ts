@@ -1,11 +1,6 @@
 import { z } from "zod"
-import { PatternStepSchema } from "../entities/schema"
-import {
-  MAX_PATTERN_LENGTH,
-  PatchJSON,
-  VOICE_COUNT,
-  VoiceJSON,
-} from "../entities/types"
+import { VoiceSchema } from "../entities/schema"
+import { PatchJSON, VOICE_COUNT, VoiceJSON } from "../entities/types"
 import { describeIssue } from "./file"
 
 export const PATTERNS_FORMAT = "midiseq-patterns"
@@ -14,15 +9,18 @@ export const PATTERNS_VERSION = 1
 // characters of letters, digits, "+" and "." — no hyphen.
 export const PATTERNS_EXTENSION = ".midiseqpat.json"
 
-// A voice's rhythm: its dots, their options, and how many of them play. Its
-// pace, rule and the rest stay with the patch, so patterns can be tried
-// against a different patch.
-export const VoicePatternSchema = z.object({
-  patternLength: z.number().int().min(1).max(MAX_PATTERN_LENGTH),
-  pattern: z.array(PatternStepSchema).length(MAX_PATTERN_LENGTH),
+// A voice whole: its dots and every setting that shapes how it plays them —
+// pace, length, rule, offset, velocity, channel, instrument. The sequencer
+// and its steps stay with the patch, so a set of voices can be tried against
+// another sequence. Files from before the settings came along hold only the
+// dots and their length; those still open, and change only that.
+export const VoicePatternSchema = VoiceSchema.partial().required({
+  patternLength: true,
+  pattern: true,
 })
 
-export type VoicePattern = Pick<VoiceJSON, "patternLength" | "pattern">
+export type VoicePattern = Partial<VoiceJSON> &
+  Pick<VoiceJSON, "patternLength" | "pattern">
 
 export const PatternsFileSchema = z.object({
   format: z.literal(PATTERNS_FORMAT),
@@ -42,10 +40,7 @@ export const createPatternsFile = (
   version: PATTERNS_VERSION,
   app: { name: "midiseq", version: appVersion },
   savedAt: new Date().toISOString(),
-  voices: patch.voices.map(({ patternLength, pattern }) => ({
-    patternLength,
-    pattern,
-  })),
+  voices: patch.voices,
 })
 
 export const serializePatterns = (file: PatternsFile): string =>
@@ -76,15 +71,11 @@ export const parsePatternsFile = (text: string): PatternsParseResult => {
   return { ok: true, voices: parsed.data.voices as VoicePattern[] }
 }
 
-/** Puts every voice's pattern in place, leaving the rest of each voice be. */
+/** Puts every voice in place, with whatever the file holds of it. */
 export const setPatterns = (
   patch: PatchJSON,
   voices: VoicePattern[],
 ): PatchJSON => ({
   ...patch,
-  voices: patch.voices.map((voice, index) => ({
-    ...voice,
-    patternLength: voices[index].patternLength,
-    pattern: voices[index].pattern,
-  })),
+  voices: patch.voices.map((voice, index) => ({ ...voice, ...voices[index] })),
 })

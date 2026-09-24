@@ -259,10 +259,18 @@ describe("saving everything", () => {
 })
 
 describe("pattern files", () => {
-  it("exports every voice's dots as a patterns file", async () => {
+  it("exports every voice's settings and dots as a patterns file", async () => {
     const files = recordingPickers()
     setup({ fileService: files.service })
     fireEvent.click(screen.getByRole("button", { name: "Voice 4 Dot 2" }))
+    fireEvent.click(screen.getByRole("button", { name: "Voice 4" }))
+    const voices = within(screen.getByRole("region", { name: "Voices" }))
+    fireEvent.change(voices.getByLabelText("Pace"), {
+      target: { value: "16th" },
+    })
+    fireEvent.change(voices.getByLabelText("Rule"), {
+      target: { value: "rise" },
+    })
 
     click("Export patterns")
 
@@ -270,6 +278,8 @@ describe("pattern files", () => {
     const exported = JSON.parse(files.written[0])
     expect(exported.format).toBe("midiseq-patterns")
     expect(exported.voices[3].pattern[1].on).toBe(false)
+    expect(exported.voices[3]).toMatchObject({ pace: "16th", rule: "rise" })
+    expect(exported.voices).toEqual(patch().voices)
     expect(exported).not.toHaveProperty("patch")
     expect(files.saves).toEqual([
       {
@@ -306,6 +316,7 @@ describe("pattern files", () => {
       condition: "last",
     }
     source.voices[2].rule = "fall"
+    source.tempo = 70
     const files = recordingPickers(
       serializePatterns(createPatternsFile(source)),
     )
@@ -321,8 +332,10 @@ describe("pattern files", () => {
       ratchet: 4,
       condition: "last",
     })
-    // only the patterns come across
-    expect(patch().voices[2].rule).toBe("nth")
+    // the voice's settings come across with its dots
+    expect(patch().voices[2].rule).toBe("fall")
+    // and the sequencer stays as it was
+    expect(patch().tempo).toBe(before.tempo)
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }))
     expect(patch()).toBe(before)

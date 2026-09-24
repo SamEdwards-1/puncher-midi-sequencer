@@ -38,7 +38,7 @@ describe("pattern files", () => {
     expect(pickerAccepts(".midiseq-patterns.json")).toBe(false)
   })
 
-  it("round-trips every voice's dots and pattern length", () => {
+  it("round-trips every voice's settings and dots", () => {
     const patch = patterned()
     const result = parsePatternsFile(
       serializePatterns(createPatternsFile(patch)),
@@ -46,30 +46,38 @@ describe("pattern files", () => {
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.voices).toEqual(
-        patch.voices.map(({ patternLength, pattern }) => ({
-          patternLength,
-          pattern,
-        })),
-      )
+      expect(result.voices).toEqual(patch.voices)
     }
   })
 
-  it("holds the patterns and nothing else of the patch", () => {
+  it("holds the voices whole and nothing of the sequencer", () => {
     const file = createPatternsFile(patterned())
     expect(file.format).toBe(PATTERNS_FORMAT)
     expect(Object.keys(file.voices[0]).sort()).toEqual([
+      "channel",
+      "enabled",
+      "length",
+      "offset",
+      "pace",
       "pattern",
       "patternLength",
+      "program",
+      "rule",
+      "velocity",
     ])
     expect(file).not.toHaveProperty("patch")
+    expect(file).not.toHaveProperty("steps")
   })
 
-  it("puts patterns in place and leaves the rest of each voice be", () => {
+  it("replaces every voice and leaves the sequencer and its steps be", () => {
     const source = patterned()
+    source.voices[2].rule = "fall"
+    source.voices[2].pace = "16thT"
+    source.voices[2].length = 0.3
+    source.voices[1].program = 33
     const target = createDefaultPatch()
-    target.voices[2].rule = "fall"
     target.tempo = 88
+    target.pace = "2nd"
 
     const result = parsePatternsFile(
       serializePatterns(createPatternsFile(source)),
@@ -79,15 +87,49 @@ describe("pattern files", () => {
     }
     const next = setPatterns(target, result.voices)
 
-    expect(next.voices[2].pattern).toEqual(source.voices[2].pattern)
-    expect(next.voices[2].patternLength).toBe(7)
-    // the voice's settings and the sequencer are the target's
-    expect(next.voices[2].rule).toBe("fall")
-    expect(next.voices[2].pace).toBe(target.voices[2].pace)
+    expect(next.voices).toEqual(source.voices)
     expect(next.tempo).toBe(88)
+    expect(next.pace).toBe("2nd")
     expect(next.steps).toBe(target.steps)
     // and the target itself is untouched, so the change can be undone
-    expect(target.voices[2].patternLength).toBe(16)
+    expect(target.voices[2].rule).toBe("nth")
+  })
+
+  it("opens a file of dots alone, and changes only the dots", () => {
+    const source = patterned()
+    const older = {
+      format: PATTERNS_FORMAT,
+      version: 1,
+      voices: source.voices.map(({ patternLength, pattern }) => ({
+        patternLength,
+        pattern,
+      })),
+    }
+    const target = createDefaultPatch()
+    target.voices[2].rule = "rise"
+
+    const result = parsePatternsFile(JSON.stringify(older))
+    if (!result.ok) {
+      throw new Error(result.error)
+    }
+    const next = setPatterns(target, result.voices)
+
+    expect(next.voices[2].pattern).toEqual(source.voices[2].pattern)
+    expect(next.voices[2].patternLength).toBe(7)
+    expect(next.voices[2].rule).toBe("rise")
+    expect(next.voices[2].pace).toBe(target.voices[2].pace)
+  })
+
+  it("refuses a voice setting out of range, and says where", () => {
+    const file = JSON.parse(
+      serializePatterns(createPatternsFile(createDefaultPatch())),
+    )
+    file.voices[1].velocity = 500
+    const result = parsePatternsFile(JSON.stringify(file))
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(/^voices\.1\.velocity/)
+    }
   })
 
   it("refuses a patch file, so the two can't be mixed up", () => {
