@@ -24,9 +24,9 @@ to another when a condition is met.
 | Area | Contents |
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
-| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip) and the Jump editor |
-| Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
-| Right | Voice tabs 1–4 |
+| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices in the right column |
+| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
+| Right | Voice tabs 1–4; below 1200px, tabbed with the sequencer settings |
 
 ### Sequencer
 - **Steps** hold up to *Step Notes* notes — 1 to 4, saved in the file — plus

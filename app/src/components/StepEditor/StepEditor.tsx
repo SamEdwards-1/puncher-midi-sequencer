@@ -13,6 +13,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeEditor } from "./EnvelopeEditor"
+import { JumpPatcher } from "./JumpPatcher"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -162,6 +163,8 @@ export const StepEditor: FC = () => {
             <Localized name="sequencer-step-add-note" />
           </Button>
         </Row>
+
+        <JumpPatcher />
 
         <EnvelopeEditor step={selected} />
       </div>

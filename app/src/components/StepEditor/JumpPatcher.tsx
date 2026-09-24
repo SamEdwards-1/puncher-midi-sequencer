@@ -6,7 +6,7 @@ import { usePatch } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
-import { ButtonField, Field, Fields } from "../ui/Field"
+import { ButtonField, Field } from "../ui/Field"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 
@@ -98,16 +98,14 @@ export const JumpPatcher: FC = () => {
     </div>
   )
 
+  // The step's own jump, so it sits in the step editor: the step it leaves
+  // from is the one the editor is on.
   return (
     <>
-      <PanelHeader>
+      <PanelHeader as="div">
         <Localized name="sequencer-jumps" />
       </PanelHeader>
-      <Fields>
-        <ButtonField label={localized["sequencer-jump-source"]}>
-          <span className={VALUE}>{selected + 1}</span>
-        </ButtonField>
-
+      <div className="flex flex-col">
         <Field label={localized["sequencer-jump-rule"]}>
           <Select
             value={ruleValue(jump.rule)}
@@ -130,10 +128,10 @@ export const JumpPatcher: FC = () => {
         <ButtonField label={localized["sequencer-jump-normal"]}>
           {target("normal", jump.normal, localized["sequencer-jump-next"])}
         </ButtonField>
-      </Fields>
+      </div>
 
       {(mode === "dest" || mode === "normal") && (
-        <div className="px-4 pb-3 text-small text-fg-secondary">
+        <div className="text-small text-fg-secondary">
           <Localized name="sequencer-jump-hint" />
         </div>
       )}

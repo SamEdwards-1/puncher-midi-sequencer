@@ -48,6 +48,15 @@ export function useSelectedLane() {
   return useAtom(selectedLaneAtom)
 }
 
+// Which settings pane the right-hand column shows when the window is too
+// narrow for the sequencer's own column.
+export type SidePane = "sequencer" | "voices"
+const sidePaneAtom = atom<SidePane>("voices")
+
+export function useSidePane() {
+  return useAtom(sidePaneAtom)
+}
+
 export function useSelectedVoice() {
   return useAtom(selectedVoiceAtom)
 }

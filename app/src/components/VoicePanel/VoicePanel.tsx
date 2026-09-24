@@ -126,7 +126,11 @@ const dotClass = (
   )
 }
 
-export const VoicePanel: FC = () => {
+// `header` is left off when the panel sits under a tab that names it.
+export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
+  header = true,
+  className = "border-l border-divider",
+}) => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
   const { editVoice } = usePatchEditor()
@@ -136,11 +140,13 @@ export const VoicePanel: FC = () => {
   return (
     <Panel
       aria-label={localized["sequencer-voices"]}
-      className="overflow-y-auto border-l border-divider"
+      className={cn("overflow-y-auto", className)}
     >
-      <PanelHeader>
-        <Localized name="sequencer-voices" />
-      </PanelHeader>
+      {header && (
+        <PanelHeader>
+          <Localized name="sequencer-voices" />
+        </PanelHeader>
+      )}
 
       <div className="flex border-b border-divider">
         {VOICES.map((index) => (

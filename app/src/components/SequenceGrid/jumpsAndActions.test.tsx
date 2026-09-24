@@ -10,8 +10,9 @@ let rootStore: RootStore
 const patch = () => rootStore.sequencerStore.patch
 const click = (name: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }))
-const sequencerPanel = () =>
-  within(screen.getByRole("region", { name: "Sequencer" }))
+// the step editor, and so a step's jump, sits under the grid
+const stepEditor = () =>
+  within(screen.getByRole("region", { name: "Sequence Grid" }))
 
 const setup = () => {
   rootStore = new RootStore({
@@ -26,11 +27,9 @@ const setup = () => {
 describe("jumps", () => {
   it("picks a destination from the grid", () => {
     setup()
-    expect(sequencerPanel().getByText("None")).toBeInTheDocument()
+    expect(stepEditor().getByText("None")).toBeInTheDocument()
 
-    fireEvent.click(
-      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
-    )
+    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
     click("Step 5")
 
     expect(patch().steps[0].jump.dest).toBe(4)
@@ -41,9 +40,7 @@ describe("jumps", () => {
 
   it("picks a normal step and clears it again", () => {
     setup()
-    fireEvent.click(
-      sequencerPanel().getAllByRole("button", { name: "Pick" })[1],
-    )
+    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[1])
     click("Step 7")
     expect(patch().steps[0].jump.normal).toBe(6)
 
@@ -53,9 +50,7 @@ describe("jumps", () => {
 
   it("marks a jump's source and destination in one colour", () => {
     setup()
-    fireEvent.click(
-      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
-    )
+    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
     click("Step 5")
 
     const source = screen.getByRole("button", { name: "Step 1" })
@@ -71,15 +66,11 @@ describe("jumps", () => {
 
   it("gives each jump its own colour", () => {
     setup()
-    fireEvent.click(
-      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
-    )
+    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
     click("Step 5")
 
     click("Step 2")
-    fireEvent.click(
-      sequencerPanel().getAllByRole("button", { name: "Pick" })[0],
-    )
+    fireEvent.click(stepEditor().getAllByRole("button", { name: "Pick" })[0])
     click("Step 6")
 
     const first = screen
@@ -93,12 +84,12 @@ describe("jumps", () => {
 
   it("changes the jump rule", () => {
     setup()
-    fireEvent.change(sequencerPanel().getByLabelText("Rule"), {
+    fireEvent.change(stepEditor().getByLabelText("Rule"), {
       target: { value: "every:3" },
     })
     expect(patch().steps[0].jump.rule).toEqual({ kind: "every", n: 3 })
 
-    fireEvent.change(sequencerPanel().getByLabelText("Rule"), {
+    fireEvent.change(stepEditor().getByLabelText("Rule"), {
       target: { value: "chance:25" },
     })
     expect(patch().steps[0].jump.rule).toEqual({ kind: "chance", pct: 25 })
