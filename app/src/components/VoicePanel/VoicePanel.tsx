@@ -10,7 +10,10 @@ import {
   VoiceRule,
 } from "@midiseq/core"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
-import { CSSProperties, FC, useState } from "react"
+import FileExportOutlineIcon from "mdi-react/FileExportOutlineIcon"
+import FileImportOutlineIcon from "mdi-react/FileImportOutlineIcon"
+import { CSSProperties, FC, ReactNode, useState } from "react"
+import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
@@ -309,6 +312,7 @@ const Patterns: FC<{
   const voiceDots = useMobxGetter(player, "voiceDots")
   const playingDots = useMobxGetter(player, "playingDots")
   const { togglePatternDot } = usePatchEditor()
+  const { exportPatterns, importPatterns } = usePatternFileActions()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
     voiceIndex: VoiceIndex
@@ -428,8 +432,22 @@ const Patterns: FC<{
           </fieldset>
         )
       })}
-      <div className="px-1 pt-1 pb-4 text-tiny text-fg-tertiary">
-        <Localized name="sequencer-dot-hint" />
+      <div className="flex items-center gap-2 pt-1 pb-4 pl-1">
+        <span className="flex-1 text-tiny text-fg-tertiary">
+          <Localized name="sequencer-dot-hint" />
+        </span>
+        <PatternFileButton
+          label={localized["sequencer-patterns-import"]}
+          onClick={importPatterns}
+        >
+          <FileImportOutlineIcon size={14} />
+        </PatternFileButton>
+        <PatternFileButton
+          label={localized["sequencer-patterns-export"]}
+          onClick={exportPatterns}
+        >
+          <FileExportOutlineIcon size={14} />
+        </PatternFileButton>
       </div>
 
       {options !== null && (
@@ -444,3 +462,19 @@ const Patterns: FC<{
     </section>
   )
 }
+
+const PatternFileButton: FC<{
+  label: string
+  onClick: () => void
+  children: ReactNode
+}> = ({ label, onClick, children }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    className="flex h-6 w-6 flex-none items-center justify-center rounded text-fg-tertiary hover:bg-highlight hover:text-fg"
+    onClick={onClick}
+  >
+    {children}
+  </button>
+)

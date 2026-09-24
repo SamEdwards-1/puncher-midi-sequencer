@@ -1,15 +1,31 @@
 import {
   createDefaultPatch,
   createFile,
+  createPatternsFile,
   FILE_EXTENSION,
+  PATTERNS_EXTENSION,
   parseFile,
+  parsePatternsFile,
   serializeFile,
+  serializePatterns,
 } from "@midiseq/core"
 import { useCallback } from "react"
 import { useStores } from "../hooks/useStores"
+import { PATTERNS_FILE } from "../services/FileService"
+import { usePatchEditor } from "./patch"
 
 const nameFor = (fileName: string | null, patchName: string) =>
   fileName ?? `${patchName === "" ? "untitled" : patchName}${FILE_EXTENSION}`
+
+// "Bassline.midiseq.json" exports its patterns as
+// "Bassline.midiseq-patterns.json"
+const patternsNameFor = (fileName: string | null, patchName: string) => {
+  const name = nameFor(fileName, patchName)
+  const base = name.endsWith(FILE_EXTENSION)
+    ? name.slice(0, -FILE_EXTENSION.length)
+    : name.replace(/\.json$/i, "")
+  return `${base}${PATTERNS_EXTENSION}`
+}
 
 export function useFileActions() {
   const { sequencerStore, history, fileService, autoSave } = useStores()
@@ -81,5 +97,39 @@ export function useFileActions() {
         autoSave.clear()
       }
     }, [sequencerStore, fileService, autoSave]),
+  }
+}
+
+/**
+ * Every voice's dots on their own, to try against another patch. Exporting
+ * leaves the patch's file alone; importing is one undoable edit that swaps
+ * the patterns in and keeps each voice's other settings.
+ */
+export function usePatternFileActions() {
+  const { sequencerStore, fileService } = useStores()
+  const { replacePatterns } = usePatchEditor()
+
+  return {
+    exportPatterns: useCallback(async () => {
+      const text = serializePatterns(createPatternsFile(sequencerStore.patch))
+      await fileService.saveCopy(
+        text,
+        patternsNameFor(sequencerStore.fileName, sequencerStore.patch.name),
+        PATTERNS_FILE,
+      )
+    }, [sequencerStore, fileService]),
+
+    importPatterns: useCallback(async () => {
+      const opened = await fileService.openCopy(PATTERNS_FILE)
+      if (opened === null) {
+        return
+      }
+      const result = parsePatternsFile(opened.text)
+      if (!result.ok) {
+        window.alert(`Couldn't import those patterns. ${result.error}`)
+        return
+      }
+      replacePatterns(result.voices)
+    }, [fileService, replacePatterns]),
   }
 }
