@@ -104,3 +104,20 @@ export const shownAccent = (
     playedVelocity(voiceVelocity, accentAmount, dot),
   ).accent
 }
+
+/**
+ * A velocity typed for a dot, which is meant exactly: it is an accent only
+ * where it lands on one, and otherwise the dot's own, without the snap a
+ * drawn velocity gets.
+ */
+export const typedVelocityToDot = (
+  voiceVelocity: number,
+  accentAmount: number,
+  velocity: number,
+): DotVelocity => {
+  const typed = clampVelocity(velocity)
+  const { accent, away } = nearestLevel(voiceVelocity, accentAmount, typed)
+  return away === 0
+    ? { accent, velocityOffset: 0 }
+    : { accent: "none", velocityOffset: typed - voiceVelocity }
+}

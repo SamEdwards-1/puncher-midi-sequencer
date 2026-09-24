@@ -114,8 +114,9 @@ follows its line until the next.
 rule (up, down, random, highest, and so on), octave offset, velocity, channel
 and rhythm pattern. Because voices run at their own pace, a single chord step
 can become an arpeggio, a bass line and a lead at once. Right-click any
-pattern dot for its step options: articulation, accent, ratchet, probability
-and condition. The dot then shows what it carries. Clicking or right-clicking
+pattern dot for its step options: articulation, accent, velocity, ratchet,
+probability and condition. A velocity typed there is kept exactly — an accent
+only if it lands on one. The dot then shows what it carries. Clicking or right-clicking
 a dot also selects its voice; clicking a row's number selects the voice
 without changing any dots.
 
@@ -131,7 +132,7 @@ crosshair button, and its **X** takes the whole jump away.
 **Narrow windows.** Below 1200px wide, the Sequencer settings leave their own
 column and become a tab beside Voices, on the left, with the grid on the
 right. Below 876px everything shares one column, with a tab each for the
-Sequence Grid, Voices and Sequencer.
+Grid, Voices and Sequencer.
 
 **Actions** change the sequence as it plays, held down or latched:
 

@@ -3,7 +3,7 @@ export default {
     "sequencer-app-name": "midiseq",
     "sequencer-untitled": "Untitled",
     "sequencer-panel": "Sequencer",
-    "sequencer-grid": "Sequence Grid",
+    "sequencer-grid": "Grid",
     "sequencer-step-editor": "Step Editor",
     "sequencer-voices": "Voices",
     "sequencer-settings-panes": "Settings panes",

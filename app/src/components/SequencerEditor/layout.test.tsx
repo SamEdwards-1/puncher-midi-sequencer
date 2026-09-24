@@ -36,7 +36,7 @@ describe("the layout", () => {
     windowWidth(1200)
     setup()
     expect(region("Sequencer")).toBeInTheDocument()
-    expect(region("Sequence Grid")).toBeInTheDocument()
+    expect(region("Grid")).toBeInTheDocument()
     expect(region("Voices")).toBeInTheDocument()
     expect(screen.queryByRole("tablist", { name: "Settings panes" })).toBeNull()
   })
@@ -49,36 +49,34 @@ describe("the layout", () => {
       screen.getByRole("tablist", { name: "Settings panes" }),
     )
     expect(panes.getAllByRole("tab").map((each) => each.textContent)).toEqual([
-      "Sequence Grid",
+      "Grid",
       "Voices",
       "Sequencer",
     ])
-    expect(region("Sequence Grid")).toBeInTheDocument()
+    expect(region("Grid")).toBeInTheDocument()
     expect(region("Voices")).toBeNull()
     expect(region("Sequencer")).toBeNull()
 
     fireEvent.click(tab("Sequencer"))
     expect(region("Sequencer")).toBeInTheDocument()
-    expect(region("Sequence Grid")).toBeNull()
+    expect(region("Grid")).toBeNull()
 
     fireEvent.click(tab("Voices"))
     expect(region("Voices")).toBeInTheDocument()
-    expect(region("Sequence Grid")).toBeNull()
+    expect(region("Grid")).toBeNull()
   })
 
   it("puts the settings on the left and the grid on the right below 1200px", () => {
     windowWidth(876)
     setup()
     const panes = screen.getByRole("tablist", { name: "Settings panes" })
-    const grid = region("Sequence Grid") as HTMLElement
+    const grid = region("Grid") as HTMLElement
     expect(grid).toBeInTheDocument()
     expect(
       panes.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     // the grid has its own column, so it has no tab
-    expect(
-      within(panes).queryByRole("tab", { name: "Sequence Grid" }),
-    ).toBeNull()
+    expect(within(panes).queryByRole("tab", { name: "Grid" })).toBeNull()
   })
 
   it("folds the sequencer into a tab before Voices below 1200px", () => {
@@ -108,7 +106,7 @@ describe("the layout", () => {
 
   it("keeps a step's jump in the step editor", () => {
     setup()
-    const grid = within(region("Sequence Grid") as HTMLElement)
+    const grid = within(region("Grid") as HTMLElement)
     fireEvent.click(grid.getByRole("button", { name: "Jump rule" }))
     expect(grid.getByLabelText("Rule")).toBeInTheDocument()
     expect(

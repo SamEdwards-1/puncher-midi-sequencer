@@ -709,6 +709,34 @@ describe("the envelope editor", () => {
       expect(velocities()).toEqual([64, 44])
     })
 
+    it("takes a velocity typed in the dot's options, exactly", () => {
+      setup(null, withNotes)
+      fireEvent.contextMenu(dot(2))
+      const options = within(
+        screen.getByRole("dialog", { name: "Voice 1 Dot 2" }),
+      )
+      const field = options.getByRole("textbox", { name: "Velocity" })
+      expect(field).toHaveValue("64")
+
+      // near the + accent's 84, but kept as typed
+      fireEvent.focus(field)
+      fireEvent.change(field, { target: { value: "83" } })
+      fireEvent.keyDown(field, { key: "Enter" })
+      expect(velocities()).toEqual([64, 83])
+      expect(patch().voices[0].pattern[1]).toMatchObject({
+        accent: "none",
+        velocityOffset: 19,
+      })
+
+      // one more lands on the accent
+      fireEvent.click(options.getByRole("button", { name: "Velocity up" }))
+      expect(patch().voices[0].pattern[1]).toMatchObject({
+        accent: "+",
+        velocityOffset: 0,
+      })
+      expect(options.getByLabelText("Accent")).toHaveValue("+")
+    })
+
     it("follows the voice's velocity and the accent amount", () => {
       setup(null, (start) => {
         const next = withNotes(start)

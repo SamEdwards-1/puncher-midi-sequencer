@@ -24,7 +24,7 @@ to another when a condition is met.
 | Area | Contents |
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
-| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Sequence Grid · Voices · Sequencer |
+| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Grid · Voices · Sequencer |
 | Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
 | Right | Voice tabs 1–4, 100px wider than their first 18–22rem so the dots are bigger; below 1200px, tabbed with the sequencer settings. Dots fill the column, up to 1.75rem |
 
@@ -69,6 +69,8 @@ to another when a condition is met.
   DownUp+ (ends repeat), Rise (up 2, down 1), Fall (down 2, up 1).
 - **Pattern:** 1–16 dots, each on/off with options:
   - Articulation: none / hold (sustain through the dot) / tie (legato overlap)
+  - Velocity: typed or stepped, 1–127, kept exactly (no snap, unlike a drawn
+    velocity); landing exactly on an accent's level makes that accent
   - Accent: none / + / − · Ratchet: 1–4 hits · Probability: 10–100%
   - Velocity: the voice's, unless the dot has its own (set in the Velocity
     lane, §5.6). An accent moves it by the *accent amount*, a setting of the

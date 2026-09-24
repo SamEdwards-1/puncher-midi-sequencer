@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { playedVelocity, shownAccent, velocityToDot } from "./velocity"
+import {
+  playedVelocity,
+  shownAccent,
+  typedVelocityToDot,
+  velocityToDot,
+} from "./velocity"
 
 // a voice at 64 with an accent amount of 20: accents at 84 and 44
 const toDot = (velocity: number) => velocityToDot(64, 20, velocity)
@@ -110,5 +115,14 @@ describe("dot velocities", () => {
     it("as plain for a plain dot, even where accents are clipped to it", () => {
       expect(shownAccent(127, 20, plain)).toBe("none")
     })
+  })
+
+  it("keep a typed velocity exactly, an accent only when it lands on one", () => {
+    const typed = (velocity: number) => typedVelocityToDot(64, 20, velocity)
+    expect(typed(84)).toEqual({ accent: "+", velocityOffset: 0 })
+    expect(typed(64)).toEqual(plain)
+    // near an accent, but not on it: no snap, unlike a drawn velocity
+    expect(typed(83)).toEqual({ accent: "none", velocityOffset: 19 })
+    expect(typed(200)).toEqual({ accent: "none", velocityOffset: 63 })
   })
 })

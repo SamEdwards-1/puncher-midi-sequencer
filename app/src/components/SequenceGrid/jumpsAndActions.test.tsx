@@ -11,8 +11,7 @@ const patch = () => rootStore.sequencerStore.patch
 const click = (name: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }))
 // the step editor, and so a step's jump, sits under the grid
-const stepEditor = () =>
-  within(screen.getByRole("region", { name: "Sequence Grid" }))
+const stepEditor = () => within(screen.getByRole("region", { name: "Grid" }))
 
 const setup = () => {
   rootStore = new RootStore({
