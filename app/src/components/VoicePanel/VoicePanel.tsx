@@ -8,7 +8,7 @@ import {
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
-import { FC, useState } from "react"
+import { CSSProperties, FC, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
@@ -36,6 +36,10 @@ const TAIL =
 const CONDITION_MARK =
   "after:absolute after:top-[-0.1rem] after:right-[-0.1rem] after:h-[0.3rem] after:w-[0.3rem] after:rounded-full after:bg-yellow after:content-['']"
 
+// The overview's dots are small enough that the step options would be noise,
+// so they show only whether a dot plays, and how surely.
+const MINI_DOT = "aspect-square rounded-full border"
+
 const RULES: { value: VoiceRule; label: string }[] = [
   { value: "nth", label: "Nth" },
   { value: "lowest", label: "Lowest" },
@@ -52,6 +56,11 @@ const RULES: { value: VoiceRule; label: string }[] = [
 ]
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
+
+// Points the `voice` colour at one voice's, for the element and whatever is
+// inside it.
+const voiceColor = (index: VoiceIndex): CSSProperties =>
+  ({ "--midiseq-voice": `var(--midiseq-voice-${index})` }) as CSSProperties
 
 // Spells the options out on hover, since the marks are necessarily terse.
 const describe = (
@@ -86,17 +95,17 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
     dot.on
       ? // played only sometimes: hollow, so it reads as less certain
         chance
-        ? "border-theme bg-transparent text-fg"
-        : "border-transparent bg-theme text-on-surface"
+        ? "border-voice bg-transparent text-fg"
+        : "border-transparent bg-voice text-on-surface"
       : "border-transparent bg-step text-on-surface",
     beyond && "opacity-25",
     dot.accent === "+" && "scale-[1.15]",
     dot.accent === "-" && "scale-80",
     // the dot whose options are open
     editing && "outline-2 outline-offset-2 outline-fg",
-    dot.articulation === "hold" && cn(TAIL, "before:bg-theme"),
+    dot.articulation === "hold" && cn(TAIL, "before:bg-voice"),
     dot.articulation === "tie" &&
-      cn(TAIL, "before:border-t-2 before:border-theme before:bg-transparent"),
+      cn(TAIL, "before:border-t-2 before:border-voice before:bg-transparent"),
     dot.condition !== "always" && CONDITION_MARK,
   )
 }
@@ -132,10 +141,11 @@ export const VoicePanel: FC = () => {
             className={cn(
               TAB,
               index === selected
-                ? "border-theme text-fg"
+                ? "border-voice text-fg"
                 : "border-transparent text-fg-secondary",
               !patch.voices[index].enabled && "opacity-55",
             )}
+            style={voiceColor(index)}
             onClick={() => setSelected(index)}
           >
             {index + 1}
@@ -263,7 +273,10 @@ export const VoicePanel: FC = () => {
         </Field>
       </Fields>
 
-      <div className="grid grid-cols-8 gap-[0.3rem] px-4 pb-4">
+      <div
+        className="grid grid-cols-8 gap-[0.3rem] px-4 pb-4"
+        style={voiceColor(selected)}
+      >
         {voice.pattern.map((dot, index) => (
           <button
             // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
@@ -300,6 +313,8 @@ export const VoicePanel: FC = () => {
         <Localized name="sequencer-dot-hint" />
       </div>
 
+      <PatternOverview selected={selected} onSelect={setSelected} />
+
       {options !== null && (
         <StepOptions
           voiceIndex={selected}
@@ -310,5 +325,67 @@ export const VoicePanel: FC = () => {
         />
       )}
     </Panel>
+  )
+}
+
+/**
+ * Every voice's pattern at once, one row each, so how the voices interlock
+ * can be read without flipping through the tabs. A row selects its voice.
+ */
+const PatternOverview: FC<{
+  selected: VoiceIndex
+  onSelect: (index: VoiceIndex) => void
+}> = ({ selected, onSelect }) => {
+  const patch = usePatch()
+  const localized = useLocalization()
+
+  return (
+    <section
+      aria-label={localized["sequencer-voice-overview"]}
+      className="flex flex-col gap-[0.15rem] border-t border-divider px-3 py-3"
+    >
+      {VOICES.map((index) => {
+        const voice = patch.voices[index]
+        return (
+          <button
+            key={index}
+            type="button"
+            aria-label={`${localized["sequencer-voice"]} ${index + 1} ${localized["sequencer-voice-overview-row"]}`}
+            aria-current={index === selected}
+            data-enabled={voice.enabled}
+            className={cn(
+              "flex items-center gap-2 rounded px-1 py-[0.3rem]",
+              index === selected ? "bg-highlight" : "hover:bg-highlight",
+              !voice.enabled && "opacity-55",
+            )}
+            style={voiceColor(index)}
+            onClick={() => onSelect(index)}
+          >
+            <span className="w-3 flex-none text-tiny text-voice">
+              {index + 1}
+            </span>
+            <span className="grid flex-1 grid-cols-16 gap-[0.2rem]">
+              {voice.pattern.map((dot, dotIndex) => (
+                <span
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
+                  key={dotIndex}
+                  data-on={dot.on}
+                  data-beyond={dotIndex >= voice.patternLength}
+                  className={cn(
+                    MINI_DOT,
+                    dot.on
+                      ? dot.probability < 100
+                        ? "border-voice bg-transparent"
+                        : "border-transparent bg-voice"
+                      : "border-transparent bg-step",
+                    dotIndex >= voice.patternLength && "opacity-25",
+                  )}
+                />
+              ))}
+            </span>
+          </button>
+        )
+      })}
+    </section>
   )
 }

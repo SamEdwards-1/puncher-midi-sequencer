@@ -71,6 +71,72 @@ describe("editing the sequencer", () => {
     expect(patch().voices[0].pattern[2].on).toBe(true)
   })
 
+  describe("voice colours and the pattern overview", () => {
+    const overviewRow = (number: number) =>
+      screen.getByRole("button", { name: `Voice ${number} pattern` })
+    const colourOf = (element: HTMLElement) =>
+      element.style.getPropertyValue("--midiseq-voice")
+
+    it("draws the selected voice's dots and tab in that voice's colour", () => {
+      selectVoice(3)
+      const dots = voicePanel().getByRole("button", { name: "Dot 1" })
+        .parentElement as HTMLElement
+      const tab = screen.getByRole("button", { name: "Voice 3" })
+
+      expect(colourOf(dots)).toBe("var(--midiseq-voice-2)")
+      expect(colourOf(tab)).toBe("var(--midiseq-voice-2)")
+      // the active tab is underlined in its voice's colour, not the theme's
+      expect(tab).toHaveClass("border-voice")
+      expect(tab).not.toHaveClass("border-theme")
+    })
+
+    it("gives every tab and overview row its own voice's colour", () => {
+      for (const number of [1, 2, 3, 4]) {
+        const expected = `var(--midiseq-voice-${number - 1})`
+        expect(
+          colourOf(screen.getByRole("button", { name: `Voice ${number}` })),
+        ).toBe(expected)
+        expect(colourOf(overviewRow(number))).toBe(expected)
+      }
+    })
+
+    it("shows every voice's pattern under the selected one", () => {
+      // an edit on voice 2 shows in its row while voice 1 is selected
+      selectVoice(2)
+      fireEvent.click(voicePanel().getByRole("button", { name: "Dot 4" }))
+      selectVoice(1)
+
+      const row = overviewRow(2).querySelectorAll("[data-on]")
+      expect(row).toHaveLength(16)
+      expect(row[3]).toHaveAttribute("data-on", "false")
+      expect(row[2]).toHaveAttribute("data-on", "true")
+      expect(overviewRow(1)).toHaveAttribute("aria-current", "true")
+      expect(overviewRow(2)).toHaveAttribute("aria-current", "false")
+    })
+
+    it("dims the dots past a voice's pattern length in the overview", () => {
+      selectVoice(4)
+      for (let i = 0; i < 11; i++) {
+        fireEvent.click(
+          voicePanel().getByRole("button", { name: "Pattern down" }),
+        )
+      }
+      expect(patch().voices[3].patternLength).toBe(5)
+
+      const row = overviewRow(4).querySelectorAll("[data-on]")
+      expect(row[4]).toHaveAttribute("data-beyond", "false")
+      expect(row[5]).toHaveAttribute("data-beyond", "true")
+    })
+
+    it("selects a voice from its overview row", () => {
+      fireEvent.click(overviewRow(3))
+      expect(screen.getByRole("button", { name: "Voice 3" })).toHaveAttribute(
+        "data-active",
+        "true",
+      )
+    })
+  })
+
   it("steps the tempo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tempo up" }))
     expect(patch().tempo).toBe(121)

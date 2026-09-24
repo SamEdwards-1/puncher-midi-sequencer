@@ -73,6 +73,8 @@ export default {
     "sequencer-jump-next": "Next",
     "sequencer-jump-hint": "Click a step in the grid to set it.",
     "sequencer-dot-hint": "Right-click a dot for its step options.",
+    "sequencer-voice-overview": "All voices",
+    "sequencer-voice-overview-row": "pattern",
     "sequencer-dot-articulation": "Articulation",
     "sequencer-dot-articulation-none": "None",
     "sequencer-dot-articulation-hold": "Hold",
