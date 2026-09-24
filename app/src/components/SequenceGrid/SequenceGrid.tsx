@@ -283,8 +283,9 @@ export const SequenceGrid: FC = () => {
             </div>
           </div>
         </div>
-        {/* tall enough that the grid can always shrink all the way */}
-        <div style={{ minHeight: Math.max(0, height - smallestLayer) }}>
+        {/* no taller than it is, so the scroll ends with the editor's
+            bottom at the window's; the grid shrinks as far as that allows */}
+        <div>
           <ActionButtons />
           <StepEditor />
         </div>
