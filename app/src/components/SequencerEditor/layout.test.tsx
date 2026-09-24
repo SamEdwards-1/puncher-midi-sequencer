@@ -41,6 +41,46 @@ describe("the layout", () => {
     expect(screen.queryByRole("tablist", { name: "Settings panes" })).toBeNull()
   })
 
+  // before any test here picks a tab, so the grid's is the one open
+  it("puts everything in one column below 876px, the grid's tab first", () => {
+    windowWidth(875)
+    setup()
+    const panes = within(
+      screen.getByRole("tablist", { name: "Settings panes" }),
+    )
+    expect(panes.getAllByRole("tab").map((each) => each.textContent)).toEqual([
+      "Sequence Grid",
+      "Voices",
+      "Sequencer",
+    ])
+    expect(region("Sequence Grid")).toBeInTheDocument()
+    expect(region("Voices")).toBeNull()
+    expect(region("Sequencer")).toBeNull()
+
+    fireEvent.click(tab("Sequencer"))
+    expect(region("Sequencer")).toBeInTheDocument()
+    expect(region("Sequence Grid")).toBeNull()
+
+    fireEvent.click(tab("Voices"))
+    expect(region("Voices")).toBeInTheDocument()
+    expect(region("Sequence Grid")).toBeNull()
+  })
+
+  it("puts the settings on the left and the grid on the right below 1200px", () => {
+    windowWidth(876)
+    setup()
+    const panes = screen.getByRole("tablist", { name: "Settings panes" })
+    const grid = region("Sequence Grid") as HTMLElement
+    expect(grid).toBeInTheDocument()
+    expect(
+      panes.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    // the grid has its own column, so it has no tab
+    expect(
+      within(panes).queryByRole("tab", { name: "Sequence Grid" }),
+    ).toBeNull()
+  })
+
   it("folds the sequencer into a tab before Voices below 1200px", () => {
     windowWidth(1199)
     setup()

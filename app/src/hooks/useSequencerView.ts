@@ -50,8 +50,10 @@ export function useSelectedLane() {
 
 // Which settings pane the right-hand column shows when the window is too
 // narrow for the sequencer's own column.
-export type SidePane = "sequencer" | "voices"
-const sidePaneAtom = atom<SidePane>("voices")
+// The tab open where panes share a column: in one column the grid is a
+// tab as well, and the one shown first; beside the grid, its Voices tab.
+export type SidePane = "grid" | "voices" | "sequencer"
+const sidePaneAtom = atom<SidePane>("grid")
 
 export function useSidePane() {
   return useAtom(sidePaneAtom)

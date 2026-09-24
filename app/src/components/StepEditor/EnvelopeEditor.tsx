@@ -14,7 +14,7 @@ import {
   useSelectedVoice,
 } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
+import { Button, IconButton } from "../ui/Button"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
@@ -135,16 +135,19 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
 
       {lane.kind === "velocity" && (
         <div className="flex items-end gap-2">
+          {/* a note's velocity goes out with the note, on its voice's
+              channel, so the lane has no channel of its own: just the
+              voice's velocity, shared with the Voices panel */}
           <div className="w-40 flex-none">
-            <Labelled label={channelLabel}>
+            <Labelled label={localized["sequencer-voice-velocity"]}>
               <Stepper
-                label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${channelLabel.toLowerCase()}`}
-                value={patch.voices[lane.voice].channel}
+                label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${localized["sequencer-voice-velocity"].toLowerCase()}`}
+                value={patch.voices[lane.voice].velocity}
                 min={1}
-                max={16}
+                max={127}
                 parse={parseNumber}
-                onChange={(channel) =>
-                  editVoice(lane.voice, { channel }, `channel-${lane.voice}`)
+                onChange={(velocity) =>
+                  editVoice(lane.voice, { velocity }, `velocity-${lane.voice}`)
                 }
               />
             </Labelled>
@@ -157,8 +160,8 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
               aria-hidden
               className="h-2 w-2 flex-none rounded-full bg-voice"
             />
-            {localized["sequencer-voice"]} {lane.voice + 1}:{" "}
-            {patch.voices[lane.voice].velocity}, ±{accentAmount}
+            {localized["sequencer-voice"]} {lane.voice + 1} ·{" "}
+            {localized["sequencer-dot-accent"]} ±{accentAmount}
             {!patch.voices[lane.voice].enabled && (
               <span className="text-fg-tertiary">
                 (<Localized name="sequencer-velocity-voice-off" />)
@@ -198,15 +201,13 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
               }
             />
           </Labelled>
-          <Button
-            type="button"
-            size="sm"
+          <IconButton
             aria-label={localized["sequencer-step-remove-cc"]}
             title={localized["sequencer-step-remove-cc"]}
             onClick={() => removeEnvelope(stepIndex, envelope.id)}
           >
-            <CloseIcon size={14} />
-          </Button>
+            <CloseIcon size={16} />
+          </IconButton>
         </div>
       )}
 

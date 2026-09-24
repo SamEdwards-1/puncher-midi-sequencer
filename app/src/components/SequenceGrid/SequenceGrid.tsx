@@ -64,7 +64,8 @@ const useSize = (ref: RefObject<HTMLElement | null>) => {
   return size
 }
 
-export const SequenceGrid: FC = () => {
+// `className` sizes the panel where it sits in a tab rather than a column.
+export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const { sequencerStore, player, recorder } = useStores()
   const localized = useLocalization()
   const { editJump, editStepState } = usePatchEditor()
@@ -164,7 +165,10 @@ export const SequenceGrid: FC = () => {
   }
 
   return (
-    <Panel aria-label={localized["sequencer-grid"]} className="overflow-hidden">
+    <Panel
+      aria-label={localized["sequencer-grid"]}
+      className={cn("overflow-hidden", className)}
+    >
       <PanelHeader className="flex items-center gap-2">
         <span className="grow">
           <Localized name="sequencer-grid" />

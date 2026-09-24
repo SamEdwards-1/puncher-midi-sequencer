@@ -96,7 +96,8 @@ a point to return its note to the voice's velocity; in **Draw**, drag across
 the notes to paint them. Points come from the notes, so none can be added.
 Drop a point near a dashed line and it snaps onto that accent; anywhere else the dot keeps a velocity of its own, and
 grows or shrinks for whichever level it is nearest. How far an accent reaches
-is **Settings → General → Accent amount**. Each tab's row sets its channel.
+is **Settings → General → Accent amount**. A Velocity tab's row sets its
+voice's velocity; a CC's sets its number and channel.
 When there are more tabs than fit on the row, the rest wait in a menu at its
 end, beside the **+**; the open tab always stays on the row.
 
@@ -124,11 +125,13 @@ A jump draws as a coloured pair in the grid: the source marked at its top
 right, the destination at its bottom left. Failed jumps fall through to the
 next step, or to a "normal" step you choose. A step has one jump, added in the
 step editor with **+ Jump rule** beside **+ Add note**: one row holds its rule
-and the destination and normal step, each picked from the grid, and its **X**
-takes the whole jump away.
+and the destination and normal step, each picked from the grid with its
+crosshair button, and its **X** takes the whole jump away.
 
 **Narrow windows.** Below 1200px wide, the Sequencer settings leave their own
-column and become a tab beside Voices on the right.
+column and become a tab beside Voices, on the left, with the grid on the
+right. Below 876px everything shares one column, with a tab each for the
+Sequence Grid, Voices and Sequencer.
 
 **Actions** change the sequence as it plays, held down or latched:
 

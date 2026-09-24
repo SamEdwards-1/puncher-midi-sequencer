@@ -24,9 +24,9 @@ to another when a condition is met.
 | Area | Contents |
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
-| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices in the right column |
+| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Sequence Grid · Voices · Sequencer |
 | Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
-| Right | Voice tabs 1–4; below 1200px, tabbed with the sequencer settings |
+| Right | Voice tabs 1–4, 100px wider than their first 18–22rem so the dots are bigger; below 1200px, tabbed with the sequencer settings. Dots fill the column, up to 1.75rem |
 
 ### Sequencer
 - **Steps** hold up to *Step Notes* notes — 1 to 4, saved in the file — plus
@@ -54,8 +54,11 @@ to another when a condition is met.
 ### Jumps (one per step)
 - Destination (or none) and Normal (where to go on failure; default "next").
 - In the step editor, hidden until **+ Jump rule** (beside Add note) is
-  clicked or the step has a jump; then one row — Rule, Destination, Normal —
-  whose X resets the whole jump. The button goes while the row shows.
+  clicked or the step has a jump; then one row — Rule, Destination, Normal,
+  each target picked with a crosshair icon button — whose X resets the whole
+  jump. The button goes while the row shows. Pick and every X in the centre
+  column are bare icon buttons, filled only on hover (or, for Pick, while
+  picking).
 - Rules: Always · 1x–7x (succeed N times, fail once) · 2:2–8:8 (succeed on the
   Nth visit) · 10–90% · Last · Not Last.
 
@@ -89,10 +92,11 @@ to another when a condition is met.
   notes' velocities — and a tab per CC envelope on the step. Tabs that don't
   fit the row go in a menu (the count and a chevron) before the +, which
   stays on the row; the open tab is always kept on it. The row above the
-  graph sets the lane's channel, 1–16: a Velocity tab's is its voice's,
-  shared with the Voices panel, and no two voices may share one — a channel
-  another voice has passes on to the next free one; a CC's is its own, and
-  stays put when a voice moves. A CC added from a tab goes out on that tab's channel.
+  graph holds a Velocity tab's voice velocity, shared with the Voices panel
+  — a note's velocity goes out with the note, so the lane has no channel —
+  or a CC's number and channel, 1–16. No two voices may share a channel: a
+  channel another voice has passes on to the next free one. A CC added from
+  a tab goes out on that tab's channel (a Velocity tab's is its voice's).
 - **Velocity lane:** edited like an envelope, with the same Edit and Draw
   tools and B key, but its points are the voice's notes: drag a point, or a
   stretch of line to raise the notes at both ends; click a point to return

@@ -24,6 +24,7 @@ import { usePatch } from "../../hooks/usePatch"
 import { useSelectedLane, useSelectedVoice } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
@@ -396,7 +397,9 @@ const Patterns: FC<{
                 voiceIndex + 1
               )}
             </button>
-            <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
+            {/* dots fill the column, up to a size that still reads as a
+                row of dots when the panel has the whole window */}
+            <span className="grid flex-1 grid-cols-[repeat(16,minmax(0,1.75rem))] gap-[0.3rem]">
               {runs.map(([first, count]) => (
                 <span
                   key={first}
@@ -515,14 +518,7 @@ const PatternFileButton: FC<{
   onClick: () => void
   children: ReactNode
 }> = ({ label, onClick, children }) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    // a stepper button's size, with no fill until it is hovered
-    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm text-fg-secondary hover:bg-highlight hover:text-fg"
-    onClick={onClick}
-  >
+  <IconButton aria-label={label} title={label} onClick={onClick}>
     {children}
-  </button>
+  </IconButton>
 )

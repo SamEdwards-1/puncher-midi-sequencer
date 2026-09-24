@@ -6,7 +6,7 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
+import { Button, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { PanelHeader } from "../ui/Panel"
@@ -132,14 +132,13 @@ export const StepEditor: FC = () => {
                   onChange={(next) => editNote(selected, position, next)}
                 />
               </div>
-              <Button
-                type="button"
-                size="sm"
+              <IconButton
                 aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
+                title={localized["sequencer-step-remove-note"]}
                 onClick={() => removeNote(selected, position)}
               >
-                <CloseIcon size={14} />
-              </Button>
+                <CloseIcon size={16} />
+              </IconButton>
             </Row>
           )
         })}

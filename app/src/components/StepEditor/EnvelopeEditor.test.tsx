@@ -164,27 +164,30 @@ describe("the envelope editor", () => {
       expect(tab("Velocity 1")).toHaveAttribute("aria-selected", "true")
     })
 
-    it("sets a voice's channel from its Velocity tab, as the Voices panel does", () => {
+    it("sets a voice's velocity from its Velocity tab, and no channel", () => {
       setup(null)
       fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
-      type("Voice 2 channel", "9")
-      expect(patch().voices[1].channel).toBe(9)
+      // a note's velocity goes with the note, on its voice's channel
+      expect(screen.queryByLabelText("Voice 2 channel")).toBeNull()
+
+      type("Voice 2 velocity", "90")
+      expect(patch().voices[1].velocity).toBe(90)
+      // the line moves with it
+      click("Voice 2 velocity down")
+      expect(patch().voices[1].velocity).toBe(89)
 
       fireEvent.click(screen.getByRole("button", { name: "Voice 2" }))
       const voices = within(screen.getByRole("region", { name: "Voices" }))
-      // the panel's Channel shows the same number
-      expect(voices.getByText("9")).toBeInTheDocument()
+      // the panel's Velocity shows the same number
+      expect(voices.getByText("89")).toBeInTheDocument()
     })
 
     it("never lets two voices share a channel", () => {
       setup(null)
+      const voices = within(screen.getByRole("region", { name: "Voices" }))
       // voices on 1 to 4: stepping voice 1 up passes over 2, 3 and 4
-      click("Voice 1 channel up")
+      fireEvent.click(voices.getByRole("button", { name: "Channel up" }))
       expect(patch().voices[0].channel).toBe(5)
-      // typing a taken channel lands on the next free one
-      fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
-      type("Voice 2 channel", "3")
-      expect(patch().voices[1].channel).toBe(6)
       const channels = patch().voices.map(({ channel }) => channel)
       expect(new Set(channels).size).toBe(4)
     })

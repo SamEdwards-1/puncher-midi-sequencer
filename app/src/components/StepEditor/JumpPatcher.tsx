@@ -1,11 +1,12 @@
 import { createDefaultJump, JumpJSON, JumpRule } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
+import CrosshairsGpsIcon from "mdi-react/CrosshairsGpsIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Button } from "../ui/Button"
+import { IconButton } from "../ui/Button"
 import { Select } from "../ui/Select"
 
 const VALUE = "font-mono text-fg"
@@ -85,18 +86,18 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
     value: number | null,
     emptyLabel: string,
   ) => (
-    <div className="flex items-center gap-[0.4rem]">
+    <div className="flex items-center gap-1">
       <span>{label}</span>
       <span className={VALUE}>{value === null ? emptyLabel : value + 1}</span>
-      <Button
-        type="button"
-        size="sm"
+      <IconButton
         aria-label={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
+        title={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
+        aria-pressed={mode === kind}
         active={mode === kind}
         onClick={() => setMode(mode === kind ? null : kind)}
       >
-        <Localized name="sequencer-jump-pick" />
-      </Button>
+        <CrosshairsGpsIcon size={16} />
+      </IconButton>
     </div>
   )
 
@@ -110,7 +111,7 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
 
   return (
     <div className="-mx-4 flex flex-col gap-2 border-t border-divider px-4 pt-2">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center gap-[0.4rem]">
           <label htmlFor="jump-rule">{localized["sequencer-jump-rule"]}</label>
           <Select
@@ -139,16 +140,13 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
           jump.normal,
           localized["sequencer-jump-next"],
         )}
-        <div className="grow" />
-        <Button
-          type="button"
-          size="sm"
+        <IconButton
           aria-label={localized["sequencer-jump-remove"]}
           title={localized["sequencer-jump-remove"]}
           onClick={remove}
         >
-          <CloseIcon size={14} />
-        </Button>
+          <CloseIcon size={16} />
+        </IconButton>
       </div>
 
       {picking && (
