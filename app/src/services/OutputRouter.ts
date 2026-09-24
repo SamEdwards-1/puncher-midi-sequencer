@@ -111,9 +111,11 @@ export class OutputRouter {
       case "cc": {
         const bytes = controlChangeBytes(event.channel, event.cc, event.value)
         const sinks =
-          event.output === "all" ? all : [voices[event.output]].filter(
-            (sink): sink is MIDISink => sink !== null,
-          )
+          event.output === "all"
+            ? all
+            : [voices[event.output]].filter(
+                (sink): sink is MIDISink => sink !== null,
+              )
         for (const sink of sinks) {
           sink.send(bytes, timestamp)
         }

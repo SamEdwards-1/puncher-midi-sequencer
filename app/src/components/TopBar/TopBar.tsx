@@ -1,12 +1,13 @@
-import { FC } from "react"
+import CogIcon from "mdi-react/CogIcon"
+import { FC, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useHistory } from "../../hooks/useHistory"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { FileMenu } from "../FileMenu/FileMenu"
-import { OutputRoutingMenu } from "../MIDIOutputs/OutputRoutingMenu"
 import { OutputStatus } from "../MIDIOutputs/OutputStatus"
+import { SettingsDialog } from "../Settings/SettingsDialog"
 import { TransportControls } from "../TransportPanel/TransportControls"
 import { ToolbarButton } from "../ui/Button"
 
@@ -15,6 +16,7 @@ export const TopBar: FC = () => {
   const localized = useLocalization()
   const { clearAll } = usePatchEditor()
   const { canUndo, canRedo, undo, redo } = useHistory()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const name = useMobxSelector(
     () => sequencerStore.patch.name,
     [sequencerStore],
@@ -49,7 +51,17 @@ export const TopBar: FC = () => {
       <div className="grow" />
       <TransportControls />
       <OutputStatus />
-      <OutputRoutingMenu />
+      <ToolbarButton
+        type="button"
+        active={settingsOpen}
+        onClick={() => setSettingsOpen(true)}
+      >
+        <CogIcon size={16} />
+        <Localized name="sequencer-settings" />
+      </ToolbarButton>
+      {settingsOpen && (
+        <SettingsDialog onClose={() => setSettingsOpen(false)} />
+      )}
     </header>
   )
 }

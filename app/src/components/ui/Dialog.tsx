@@ -41,7 +41,7 @@ export const Dialog: FC<{
         aria-label={title}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the panel takes focus so Escape reaches it
         tabIndex={0}
-        className="flex max-h-[min(44rem,90vh)] w-[min(34rem,100%)] flex-col rounded-lg border border-popup-border bg-background shadow-[0_1rem_3rem_var(--midiseq-shadow)] focus:outline-none"
+        className="flex max-h-[min(44rem,90vh)] w-[min(46rem,100%)] flex-col rounded-lg border border-popup-border bg-background shadow-[0_1rem_3rem_var(--midiseq-shadow)] focus:outline-none"
       >
         <h2 className="m-0 px-6 pt-5 pb-3 text-title font-semibold text-fg">
           {title}

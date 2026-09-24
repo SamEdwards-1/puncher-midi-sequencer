@@ -25,7 +25,7 @@ describe("OutputRouter", () => {
     const voice0 = new FakeSink()
     const router = new OutputRouter()
     router.setAssignment(
-      { ...emptyAssignment(), all, voices: [voice0, null, null, null] },
+      { ...emptyAssignment(), all: [all], voices: [voice0, null, null, null] },
       0,
     )
 
@@ -44,7 +44,10 @@ describe("OutputRouter", () => {
     const voice0 = new FakeSink()
     const voice1 = new FakeSink()
     const router = new OutputRouter()
-    router.setAssignment({ all, voices: [voice0, voice1, null, null] }, 0)
+    router.setAssignment(
+      { all: [all], voices: [voice0, voice1, null, null] },
+      0,
+    )
 
     router.route(noteOn(0), 5)
     router.route(noteOn(1), 5)
@@ -57,7 +60,10 @@ describe("OutputRouter", () => {
   it("sends only the All stream to a port chosen for both", () => {
     const shared = new FakeSink()
     const router = new OutputRouter()
-    router.setAssignment({ all: shared, voices: [shared, null, null, null] }, 0)
+    router.setAssignment(
+      { all: [shared], voices: [shared, null, null, null] },
+      0,
+    )
 
     router.route(noteOn(0), 5)
     expect(shared.ofType(0x90)).toHaveLength(1)
@@ -67,7 +73,7 @@ describe("OutputRouter", () => {
     const all = new FakeSink()
     const voice2 = new FakeSink()
     const router = new OutputRouter()
-    router.setAssignment({ all, voices: [null, null, voice2, null] }, 0)
+    router.setAssignment({ all: [all], voices: [null, null, voice2, null] }, 0)
 
     const cc = {
       type: "cc" as const,
@@ -87,7 +93,7 @@ describe("OutputRouter", () => {
   it("silences a port that is unassigned", () => {
     const old = new FakeSink()
     const router = new OutputRouter()
-    router.setAssignment({ ...emptyAssignment(), all: old }, 0)
+    router.setAssignment({ ...emptyAssignment(), all: [old] }, 0)
     router.route(noteOn(0), 5)
 
     router.setAssignment(emptyAssignment(), 7)
@@ -100,7 +106,7 @@ describe("OutputRouter", () => {
     const all = new FakeSink()
     const voice0 = new FakeSink()
     const router = new OutputRouter()
-    router.setAssignment({ all, voices: [voice0, null, null, null] }, 0)
+    router.setAssignment({ all: [all], voices: [voice0, null, null, null] }, 0)
     router.route(noteOn(0), 5)
 
     router.panic(10, 120, [noteOff(0)])
