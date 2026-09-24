@@ -10,7 +10,9 @@ import { describeIssue } from "./file"
 
 export const PATTERNS_FORMAT = "midiseq-patterns"
 export const PATTERNS_VERSION = 1
-export const PATTERNS_EXTENSION = ".midiseq-patterns.json"
+// Chrome's file pickers take an extension only if it is at most 16
+// characters of letters, digits, "+" and "." — no hyphen.
+export const PATTERNS_EXTENSION = ".midiseqpat.json"
 
 // A voice's rhythm: its dots, their options, and how many of them play. Its
 // pace, rule and the rest stay with the patch, so patterns can be tried

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
-import { createFile, serializeFile } from "./file"
+import { createFile, FILE_EXTENSION, serializeFile } from "./file"
 import {
   createPatternsFile,
+  PATTERNS_EXTENSION,
   PATTERNS_FORMAT,
   parsePatternsFile,
   serializePatterns,
@@ -24,7 +25,19 @@ const patterned = () => {
   return patch
 }
 
+// Chrome refuses any other extension outright, and a picker that throws
+// looks, to someone clicking, like a button that does nothing.
+const pickerAccepts = (extension: string) =>
+  extension.length <= 16 && /^\.[a-z0-9+]+(\.[a-z0-9+]+)*$/i.test(extension)
+
 describe("pattern files", () => {
+  it("use extensions the browser's file pickers accept", () => {
+    expect(pickerAccepts(PATTERNS_EXTENSION)).toBe(true)
+    expect(pickerAccepts(FILE_EXTENSION)).toBe(true)
+    // what the first version shipped with, which Chrome rejected
+    expect(pickerAccepts(".midiseq-patterns.json")).toBe(false)
+  })
+
   it("round-trips every voice's dots and pattern length", () => {
     const patch = patterned()
     const result = parsePatternsFile(

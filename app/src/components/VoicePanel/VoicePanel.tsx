@@ -432,7 +432,7 @@ const Patterns: FC<{
           </fieldset>
         )
       })}
-      <div className="flex items-center gap-2 pt-1 pb-4 pl-1">
+      <div className="flex items-center gap-1 pt-1 pb-4 pl-1">
         <span className="flex-1 text-tiny text-fg-tertiary">
           <Localized name="sequencer-dot-hint" />
         </span>
@@ -440,13 +440,13 @@ const Patterns: FC<{
           label={localized["sequencer-patterns-import"]}
           onClick={importPatterns}
         >
-          <FileImportOutlineIcon size={14} />
+          <FileImportOutlineIcon size={16} />
         </PatternFileButton>
         <PatternFileButton
           label={localized["sequencer-patterns-export"]}
           onClick={exportPatterns}
         >
-          <FileExportOutlineIcon size={14} />
+          <FileExportOutlineIcon size={16} />
         </PatternFileButton>
       </div>
 
@@ -472,7 +472,8 @@ const PatternFileButton: FC<{
     type="button"
     aria-label={label}
     title={label}
-    className="flex h-6 w-6 flex-none items-center justify-center rounded text-fg-tertiary hover:bg-highlight hover:text-fg"
+    // the size and look of a stepper's buttons, so it reads as one
+    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm bg-background-secondary text-fg-secondary hover:bg-highlight hover:text-fg"
     onClick={onClick}
   >
     {children}

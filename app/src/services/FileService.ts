@@ -35,6 +35,15 @@ const pickerOptions = (kind: FileKind) => ({
   ],
 })
 
+// Closing a picker is a choice, and ends quietly. Anything else is a failure
+// the person clicking needs to hear about, so it carries on up.
+const dismissed = (error: unknown): null => {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return null
+  }
+  throw error
+}
+
 /**
  * Opening and saving `.midiseq.json` files. Chrome and Edge can write back to
  * the file that was opened; elsewhere it falls back to a file input and a
@@ -83,9 +92,8 @@ export class FileService {
       )
       const file = await handle.getFile()
       return { name: file.name, text: await file.text(), handle }
-    } catch {
-      // the picker was dismissed
-      return null
+    } catch (error) {
+      return dismissed(error)
     }
   }
 
@@ -128,9 +136,9 @@ export class FileService {
       if (remember) {
         this.handle = handle
       }
-      return this.write(handle, text)
-    } catch {
-      return null
+      return await this.write(handle, text)
+    } catch (error) {
+      return dismissed(error)
     }
   }
 

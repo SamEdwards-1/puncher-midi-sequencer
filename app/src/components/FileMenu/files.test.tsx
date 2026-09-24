@@ -273,8 +273,8 @@ describe("pattern files", () => {
     expect(exported).not.toHaveProperty("patch")
     expect(files.saves).toEqual([
       {
-        suggestedName: "untitled.midiseq-patterns.json",
-        extension: ".midiseq-patterns.json",
+        suggestedName: "untitled.midiseqpat.json",
+        extension: ".midiseqpat.json",
       },
     ])
   })
@@ -288,7 +288,7 @@ describe("pattern files", () => {
     click("Export patterns")
     await waitFor(() => expect(files.written).toHaveLength(1))
 
-    expect(files.saves[0].suggestedName).toBe("Bassline.midiseq-patterns.json")
+    expect(files.saves[0].suggestedName).toBe("Bassline.midiseqpat.json")
     // Save still asks where the patch goes, rather than writing over the
     // patterns, and the patch still counts as unsaved
     expect(rootStore.fileService.canWriteInPlace).toBe(false)
@@ -315,7 +315,7 @@ describe("pattern files", () => {
     click("Import patterns")
 
     await waitFor(() => expect(patch().voices[2].patternLength).toBe(6))
-    expect(files.opens).toEqual([".midiseq-patterns.json"])
+    expect(files.opens).toEqual([".midiseqpat.json"])
     expect(patch().voices[0].pattern[0].on).toBe(false)
     expect(patch().voices[3].pattern[9]).toMatchObject({
       ratchet: 4,
@@ -341,5 +341,56 @@ describe("pattern files", () => {
     await waitFor(() => expect(alert).toHaveBeenCalled())
     expect(alert.mock.lastCall?.[0]).toMatch(/Couldn't import those patterns/)
     expect(patch()).toBe(before)
+  })
+
+  // Chrome refuses a picker it doesn't like with a TypeError; that must not
+  // look like a dismissed picker, or the button seems dead
+  const refusingPickers = () =>
+    new FileService({
+      showOpenFilePicker: async () => {
+        throw new TypeError("Extension contains invalid characters.")
+      },
+      showSaveFilePicker: async () => {
+        throw new TypeError("Extension contains invalid characters.")
+      },
+    })
+
+  it("says so when the browser won't open a picker", async () => {
+    setup({ fileService: refusingPickers() })
+    const alert = vi.mocked(window.alert)
+    const before = patch()
+
+    click("Export patterns")
+    await waitFor(() =>
+      expect(alert.mock.lastCall?.[0]).toMatch(
+        /Couldn't export the patterns\. Extension contains invalid/,
+      ),
+    )
+
+    click("Import patterns")
+    await waitFor(() =>
+      expect(alert.mock.lastCall?.[0]).toMatch(/Couldn't import patterns\./),
+    )
+    expect(patch()).toBe(before)
+  })
+
+  it("stays quiet when the picker is simply closed", async () => {
+    const closed = async () => {
+      throw new DOMException("The user aborted a request.", "AbortError")
+    }
+    setup({
+      fileService: new FileService({
+        showOpenFilePicker: closed,
+        showSaveFilePicker: closed,
+      }),
+    })
+    const alert = vi.mocked(window.alert)
+    alert.mockClear()
+
+    click("Export patterns")
+    click("Import patterns")
+    await act(async () => {})
+
+    expect(alert).not.toHaveBeenCalled()
   })
 })

@@ -27,6 +27,21 @@ const patternsNameFor = (fileName: string | null, patchName: string) => {
   return `${base}${PATTERNS_EXTENSION}`
 }
 
+// A picker or a write that fails would otherwise leave a click that did
+// nothing at all.
+const attempt = async <T>(
+  what: string,
+  run: () => Promise<T>,
+): Promise<T | null> => {
+  try {
+    return await run()
+  } catch (error) {
+    const reason = error instanceof Error ? ` ${error.message}` : ""
+    window.alert(`Couldn't ${what}.${reason}`)
+    return null
+  }
+}
+
 export function useFileActions() {
   const { sequencerStore, history, fileService, autoSave } = useStores()
 
@@ -60,7 +75,7 @@ export function useFileActions() {
       if (!confirmDiscard()) {
         return
       }
-      const opened = await fileService.open()
+      const opened = await attempt("open a file", () => fileService.open())
       if (opened === null) {
         return
       }
@@ -74,9 +89,11 @@ export function useFileActions() {
 
     save: useCallback(async () => {
       const text = serializeFile(createFile(sequencerStore.patch))
-      const name = await fileService.save(
-        text,
-        nameFor(sequencerStore.fileName, sequencerStore.patch.name),
+      const name = await attempt("save the patch", () =>
+        fileService.save(
+          text,
+          nameFor(sequencerStore.fileName, sequencerStore.patch.name),
+        ),
       )
       if (name !== null) {
         sequencerStore.fileName = name
@@ -87,9 +104,11 @@ export function useFileActions() {
 
     saveAs: useCallback(async () => {
       const text = serializeFile(createFile(sequencerStore.patch))
-      const name = await fileService.saveAs(
-        text,
-        nameFor(sequencerStore.fileName, sequencerStore.patch.name),
+      const name = await attempt("save the patch", () =>
+        fileService.saveAs(
+          text,
+          nameFor(sequencerStore.fileName, sequencerStore.patch.name),
+        ),
       )
       if (name !== null) {
         sequencerStore.fileName = name
@@ -112,15 +131,19 @@ export function usePatternFileActions() {
   return {
     exportPatterns: useCallback(async () => {
       const text = serializePatterns(createPatternsFile(sequencerStore.patch))
-      await fileService.saveCopy(
-        text,
-        patternsNameFor(sequencerStore.fileName, sequencerStore.patch.name),
-        PATTERNS_FILE,
+      await attempt("export the patterns", () =>
+        fileService.saveCopy(
+          text,
+          patternsNameFor(sequencerStore.fileName, sequencerStore.patch.name),
+          PATTERNS_FILE,
+        ),
       )
     }, [sequencerStore, fileService]),
 
     importPatterns: useCallback(async () => {
-      const opened = await fileService.openCopy(PATTERNS_FILE)
+      const opened = await attempt("import patterns", () =>
+        fileService.openCopy(PATTERNS_FILE),
+      )
       if (opened === null) {
         return
       }
