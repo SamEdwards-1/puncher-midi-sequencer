@@ -15,6 +15,25 @@ const soloVoice = (patch: PatchJSON, overrides: Partial<VoiceJSON> = {}) => {
 const notesOn = (events: EngineEvent[]) =>
   events.filter((e): e is NoteOnEvent => e.type === "noteOn").map((e) => e.note)
 
+// a playhead move with Flip off, so the stored step is the grid position
+const step = (beat: number, position: number, voiceDots: number[]) => ({
+  type: "step",
+  beat,
+  position,
+  step: position,
+  voiceDots,
+})
+
+// what reaches MIDI, and the playhead, without the dots a display follows
+const withoutDots = (events: EngineEvent[]) =>
+  events.filter((e) => e.type !== "dot")
+
+const dotsOf = (events: EngineEvent[], voice: number) =>
+  events.flatMap((e) => (e.type === "dot" && e.voice === voice ? [e.dot] : []))
+
+const voiceDotsOf = (events: EngineEvent[]) =>
+  events.flatMap((e) => (e.type === "step" ? [e.voiceDots] : []))
+
 const positions = (events: EngineEvent[]) =>
   events.filter((e) => e.type === "step").map((e) => e.position)
 
@@ -35,22 +54,125 @@ describe("Engine", () => {
   it("plays one note per step and loops over the recorded steps", () => {
     const engine = new Engine(patch)
     engine.start(0)
-    const events = engine.render(3.9)
+    const events = withoutDots(engine.render(3.9))
 
     expect(events).toEqual([
-      { type: "step", beat: 0, position: 0, step: 0 },
+      step(0, 0, [0, 0, 0, 0]),
       { type: "noteOn", beat: 0, voice: 0, note: 60, velocity: 64, channel: 1 },
       { type: "noteOff", beat: 0.5, voice: 0, note: 60, channel: 1 },
-      { type: "step", beat: 1, position: 1, step: 1 },
+      step(1, 1, [1, 2, 2, 2]),
       { type: "noteOn", beat: 1, voice: 0, note: 62, velocity: 64, channel: 1 },
       { type: "noteOff", beat: 1.5, voice: 0, note: 62, channel: 1 },
-      { type: "step", beat: 2, position: 0, step: 0 },
+      step(2, 0, [2, 4, 4, 4]),
       { type: "noteOn", beat: 2, voice: 0, note: 60, velocity: 64, channel: 1 },
       { type: "noteOff", beat: 2.5, voice: 0, note: 60, channel: 1 },
-      { type: "step", beat: 3, position: 1, step: 1 },
+      step(3, 1, [3, 6, 6, 6]),
       { type: "noteOn", beat: 3, voice: 0, note: 62, velocity: 64, channel: 1 },
       { type: "noteOff", beat: 3.5, voice: 0, note: 62, channel: 1 },
     ])
+  })
+
+  describe("where each voice is on a step", () => {
+    it("names the dot each voice plays first, which runs on without sync", () => {
+      // voice 1 at 4ths plays a dot a step; the others, at 8ths, two
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(voiceDotsOf(engine.render(2.9))).toEqual([
+        [0, 0, 0, 0],
+        [1, 2, 2, 2],
+        [2, 4, 4, 4],
+      ])
+    })
+
+    it("wraps at the pattern's length", () => {
+      patch.voices[1].patternLength = 3
+      const engine = new Engine(patch)
+      engine.start(0)
+      // 8ths through a three-dot pattern: 0, 2, 4 % 3, 6 % 3
+      expect(voiceDotsOf(engine.render(3.9)).map((dots) => dots[1])).toEqual([
+        0, 2, 1, 0,
+      ])
+    })
+
+    it("starts every voice at its first dot on every step with sync", () => {
+      patch.syncVoices = true
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(voiceDotsOf(engine.render(2.9))).toEqual([
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ])
+    })
+
+    it("marks every dot a voice reaches, sounding or not", () => {
+      patch.voices[0].pattern[1].on = false
+      patch.voices[0].patternLength = 3
+      const engine = new Engine(patch)
+      engine.start(0)
+      const events = engine.render(4.9)
+
+      // quarter notes through a three-dot pattern, the silent dot included
+      expect(dotsOf(events, 0)).toEqual([0, 1, 2, 0, 1])
+      expect(events.flatMap((e) => (e.type === "dot" ? [e.beat] : []))).toEqual(
+        [0, 1, 2, 3, 4],
+      )
+    })
+
+    it("marks a dot before the note it plays", () => {
+      const engine = new Engine(patch)
+      engine.start(0)
+      const types = engine
+        .render(0.1)
+        .filter((e) => e.type === "dot" || e.type === "noteOn")
+        .map((e) => e.type)
+      expect(types).toEqual(["dot", "noteOn"])
+    })
+
+    it("marks nothing for a disabled voice", () => {
+      const engine = new Engine(patch)
+      engine.start(0)
+      // only voice 1 is enabled in these tests
+      const voices = new Set(
+        engine.render(3.9).flatMap((e) => (e.type === "dot" ? [e.voice] : [])),
+      )
+      expect([...voices]).toEqual([0])
+    })
+
+    it("counts triplets onto the step they belong to", () => {
+      // three 8th triplets to a quarter-note step, however long it runs
+      patch.voices[0].pace = "8thT"
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(voiceDotsOf(engine.render(4.9)).map((dots) => dots[0])).toEqual([
+        0, 3, 6, 9, 12,
+      ])
+    })
+
+    it("names the dot a slow voice plays next, even steps away", () => {
+      // a half-note voice ticks on every other quarter-note step
+      patch.voices[0].pace = "2nd"
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(voiceDotsOf(engine.render(3.9)).map((dots) => dots[0])).toEqual([
+        0, 1, 1, 2,
+      ])
+    })
+  })
+
+  it("plays each triplet once where a step starts, with sync", () => {
+    // Added-up triplets once fell just short of the step, so the voice
+    // ticked, then sync reset it and it ticked again on the step itself.
+    patch.syncVoices = true
+    patch.voices[0].pace = "8thT"
+    patch.loop = { mode: "custom", end: 0 }
+    const engine = new Engine(patch)
+    engine.start(0)
+
+    const onBeats = beatsOf(engine.render(2.9), "noteOn")
+    expect(onBeats).toHaveLength(9)
+    expect(new Set(onBeats).size).toBe(9)
+    expect(onBeats.filter((beat) => Number.isInteger(beat))).toEqual([0, 1, 2])
   })
 
   it("continues across render windows without gaps or repeats", () => {
@@ -86,10 +208,10 @@ describe("Engine", () => {
     it("fires on landing, before that beat's notes", () => {
       const engine = new Engine(patch)
       engine.start(0)
-      const events = engine.render(0.1)
+      const events = withoutDots(engine.render(0.1))
 
       expect(events.slice(0, 3)).toEqual([
-        { type: "step", beat: 0, position: 0, step: 0 },
+        step(0, 0, [0, 0, 0, 0]),
         {
           type: "cc",
           beat: 0,
@@ -307,7 +429,9 @@ describe("Engine", () => {
       engine.start(0)
       const events = engine.render(1.1)
 
-      expect(events.filter((e) => e.type !== "step")).toEqual([
+      expect(
+        events.filter((e) => e.type !== "step" && e.type !== "dot"),
+      ).toEqual([
         {
           type: "noteOn",
           beat: 0,

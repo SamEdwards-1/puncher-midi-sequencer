@@ -96,6 +96,38 @@ describe("SequencerPlayer", () => {
     expect(player.position).toBe(1)
   })
 
+  it("shows where each voice is when its step comes due, not before", () => {
+    player.play()
+    expect(player.voiceDots).toBeNull()
+    runFor(75)
+    expect(player.voiceDots).toEqual([0, 0, 0, 0])
+    // the second step is rendered ahead but has not sounded yet
+    runFor(400)
+    expect(player.voiceDots).toEqual([0, 0, 0, 0])
+    // a quarter-note voice has played one dot, the 8th-note voices two
+    runFor(100)
+    expect(player.voiceDots).toEqual([1, 2, 2, 2])
+
+    player.stop()
+    expect(player.voiceDots).toBeNull()
+  })
+
+  it("follows each voice to the dot it is on as that dot comes due", () => {
+    player.play()
+    expect(player.playingDots).toBeNull()
+    // the first dot sounds at 1050 ms
+    runFor(75)
+    expect(player.playingDots).toEqual([0, null, null, null])
+    // a quarter-note voice reaches its second dot at 1550, rendered ahead
+    runFor(400)
+    expect(player.playingDots).toEqual([0, null, null, null])
+    runFor(100)
+    expect(player.playingDots).toEqual([1, null, null, null])
+
+    player.stop()
+    expect(player.playingDots).toBeNull()
+  })
+
   it("follows a tempo change from the current beat", () => {
     player.play()
     runFor(1000)

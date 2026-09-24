@@ -1,4 +1,5 @@
 import {
+  dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
   PACE_LABELS,
@@ -8,10 +9,16 @@ import {
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
-import { FC, useState } from "react"
+import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
+import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
+import ChevronRightIcon from "mdi-react/ChevronRightIcon"
+import { CSSProperties, FC, ReactNode, useState } from "react"
+import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
@@ -53,6 +60,11 @@ const RULES: { value: VoiceRule; label: string }[] = [
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
+// Points the `voice` colour at one voice's, for the element and whatever is
+// inside it.
+const voiceColor = (index: VoiceIndex): CSSProperties =>
+  ({ "--midiseq-voice": `var(--midiseq-voice-${index})` }) as CSSProperties
+
 // Spells the options out on hover, since the marks are necessarily terse.
 const describe = (
   dot: PatternStepJSON,
@@ -86,17 +98,17 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
     dot.on
       ? // played only sometimes: hollow, so it reads as less certain
         chance
-        ? "border-theme bg-transparent text-fg"
-        : "border-transparent bg-theme text-on-surface"
+        ? "border-voice bg-transparent text-fg"
+        : "border-transparent bg-voice text-on-surface"
       : "border-transparent bg-step text-on-surface",
     beyond && "opacity-25",
     dot.accent === "+" && "scale-[1.15]",
     dot.accent === "-" && "scale-80",
     // the dot whose options are open
     editing && "outline-2 outline-offset-2 outline-fg",
-    dot.articulation === "hold" && cn(TAIL, "before:bg-theme"),
+    dot.articulation === "hold" && cn(TAIL, "before:bg-voice"),
     dot.articulation === "tie" &&
-      cn(TAIL, "before:border-t-2 before:border-theme before:bg-transparent"),
+      cn(TAIL, "before:border-t-2 before:border-voice before:bg-transparent"),
     dot.condition !== "always" && CONDITION_MARK,
   )
 }
@@ -104,12 +116,8 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
 export const VoicePanel: FC = () => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
-  const { editVoice, togglePatternDot } = usePatchEditor()
+  const { editVoice } = usePatchEditor()
   const localized = useLocalization()
-  const [options, setOptions] = useState<{
-    dotIndex: number
-    at: { x: number; y: number }
-  } | null>(null)
   const voice = patch.voices[selected]
 
   return (
@@ -132,10 +140,11 @@ export const VoicePanel: FC = () => {
             className={cn(
               TAB,
               index === selected
-                ? "border-theme text-fg"
+                ? "border-voice text-fg"
                 : "border-transparent text-fg-secondary",
               !patch.voices[index].enabled && "opacity-55",
             )}
+            style={voiceColor(index)}
             onClick={() => setSelected(index)}
           >
             {index + 1}
@@ -263,52 +272,210 @@ export const VoicePanel: FC = () => {
         </Field>
       </Fields>
 
-      <div className="grid grid-cols-8 gap-[0.3rem] px-4 pb-4">
-        {voice.pattern.map((dot, index) => (
-          <button
-            // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
-            key={index}
-            type="button"
-            aria-label={`${localized["sequencer-voice-dot"]} ${index + 1}`}
-            data-on={dot.on}
-            data-beyond={index >= voice.patternLength}
-            data-editing={options?.dotIndex === index}
-            data-articulation={dot.articulation}
-            data-accent={dot.accent}
-            data-chance={dot.probability < 100}
-            data-condition={dot.condition !== "always"}
-            className={dotClass(
-              dot,
-              index >= voice.patternLength,
-              options?.dotIndex === index,
+      <Patterns selected={selected} onSelect={setSelected} />
+    </Panel>
+  )
+}
+
+/**
+ * The runs of dots `reach` long from `start`, as [first, count] grid spans.
+ * A run that passes the end of the pattern carries on from its first dot, as
+ * the voice does, so it comes back as two.
+ */
+const bands = (
+  start: number,
+  reach: number,
+  patternLength: number,
+): [number, number][] => {
+  const first = start % patternLength
+  const beforeEnd = Math.min(reach, patternLength - first)
+  return beforeEnd === reach
+    ? [[first, reach]]
+    : [
+        [first, beforeEnd],
+        [0, reach - beforeEnd],
+      ]
+}
+
+/**
+ * Every voice's pattern at once, one row each and every dot editable, so the
+ * voices can be written against each other without flipping through tabs.
+ * A row's number selects its voice for the fields above; its dots edit the
+ * pattern and leave the selection alone.
+ */
+const Patterns: FC<{
+  selected: VoiceIndex
+  onSelect: (index: VoiceIndex) => void
+}> = ({ selected, onSelect }) => {
+  const patch = usePatch()
+  const { player } = useStores()
+  const voiceDots = useMobxGetter(player, "voiceDots")
+  const playingDots = useMobxGetter(player, "playingDots")
+  const { togglePatternDot } = usePatchEditor()
+  const { exportPatterns, importPatterns } = usePatternFileActions()
+  const localized = useLocalization()
+  const [options, setOptions] = useState<{
+    voiceIndex: VoiceIndex
+    dotIndex: number
+    at: { x: number; y: number }
+  } | null>(null)
+
+  return (
+    <section
+      aria-label={localized["sequencer-voice-patterns"]}
+      className="flex flex-col gap-[0.35rem] border-t border-divider px-3 pt-3"
+    >
+      {VOICES.map((voiceIndex) => {
+        const voice = patch.voices[voiceIndex]
+        // The dots the voice reaches while the sequencer sits on one step:
+        // from the dot it is on when the step sounds, or from its first when
+        // stopped, which is where playing starts.
+        const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
+        const runs = bands(
+          voiceDots?.[voiceIndex] ?? 0,
+          reach,
+          voice.patternLength,
+        )
+        const reached = (dotIndex: number) =>
+          runs.some(
+            ([first, count]) => dotIndex >= first && dotIndex < first + count,
+          )
+        return (
+          <fieldset
+            key={voiceIndex}
+            aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-pattern"]}`}
+            aria-current={voiceIndex === selected}
+            data-enabled={voice.enabled}
+            data-reach={reach}
+            className={cn(
+              "m-0 flex min-w-0 items-center gap-2 px-0 py-[0.4rem]",
+              !voice.enabled && "opacity-55",
             )}
-            title={describe(dot, localized)}
-            onClick={() => togglePatternDot(selected, index)}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setOptions({
-                dotIndex: index,
-                at: { x: event.clientX, y: event.clientY },
-              })
-            }}
+            style={voiceColor(voiceIndex)}
           >
-            {dot.ratchet > 1 ? dot.ratchet : ""}
-          </button>
-        ))}
-      </div>
-      <div className="px-4 pb-4 text-tiny text-fg-tertiary">
-        <Localized name="sequencer-dot-hint" />
+            <button
+              type="button"
+              aria-label={`${localized["sequencer-voice-select"]} ${voiceIndex + 1}`}
+              aria-pressed={voiceIndex === selected}
+              className="flex h-5 w-5 flex-none items-center justify-center rounded text-tiny text-voice hover:bg-highlight hover:brightness-125"
+              onClick={() => onSelect(voiceIndex)}
+            >
+              {voiceIndex === selected ? (
+                <ChevronRightIcon size={14} />
+              ) : (
+                voiceIndex + 1
+              )}
+            </button>
+            <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
+              {runs.map(([first, count]) => (
+                <span
+                  key={first}
+                  aria-hidden
+                  data-band
+                  className="-m-[0.25rem] rounded-full bg-pace-band"
+                  style={{
+                    gridRow: 1,
+                    gridColumn: `${first + 1} / span ${count}`,
+                  }}
+                />
+              ))}
+              {voice.pattern.map((dot, dotIndex) => {
+                const editing =
+                  options?.voiceIndex === voiceIndex &&
+                  options.dotIndex === dotIndex
+                return (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
+                    key={dotIndex}
+                    type="button"
+                    aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+                    data-on={dot.on}
+                    data-beyond={dotIndex >= voice.patternLength}
+                    data-reached={reached(dotIndex)}
+                    data-editing={editing}
+                    data-playing={playingDots?.[voiceIndex] === dotIndex}
+                    data-articulation={dot.articulation}
+                    data-accent={dot.accent}
+                    data-chance={dot.probability < 100}
+                    data-condition={dot.condition !== "always"}
+                    className={dotClass(
+                      dot,
+                      dotIndex >= voice.patternLength,
+                      editing,
+                    )}
+                    style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
+                    title={describe(dot, localized)}
+                    onClick={() => togglePatternDot(voiceIndex, dotIndex)}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      setOptions({
+                        voiceIndex,
+                        dotIndex,
+                        at: { x: event.clientX, y: event.clientY },
+                      })
+                    }}
+                  >
+                    {dot.ratchet > 1 ? dot.ratchet : ""}
+                    {playingDots?.[voiceIndex] === dotIndex && (
+                      // under the dot rather than on it, so it reads the same
+                      // on a dot that is on, off or hollow
+                      <span
+                        aria-hidden
+                        data-playhead
+                        className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
+                      />
+                    )}
+                  </button>
+                )
+              })}
+            </span>
+          </fieldset>
+        )
+      })}
+      <div className="flex items-center gap-1 pt-1 pb-4 pl-1">
+        <span className="flex-1 text-tiny text-fg-tertiary">
+          <Localized name="sequencer-dot-hint" />
+        </span>
+        <PatternFileButton
+          label={localized["sequencer-patterns-import"]}
+          onClick={importPatterns}
+        >
+          <ArrowCollapseDownIcon size={16} />
+        </PatternFileButton>
+        <PatternFileButton
+          label={localized["sequencer-patterns-export"]}
+          onClick={exportPatterns}
+        >
+          <ArrowExpandUpIcon size={16} />
+        </PatternFileButton>
       </div>
 
       {options !== null && (
         <StepOptions
-          voiceIndex={selected}
+          voiceIndex={options.voiceIndex}
           dotIndex={options.dotIndex}
-          dot={voice.pattern[options.dotIndex]}
+          dot={patch.voices[options.voiceIndex].pattern[options.dotIndex]}
           at={options.at}
           onClose={() => setOptions(null)}
         />
       )}
-    </Panel>
+    </section>
   )
 }
+
+const PatternFileButton: FC<{
+  label: string
+  onClick: () => void
+  children: ReactNode
+}> = ({ label, onClick, children }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    // a stepper button's size, with no fill until it is hovered
+    className="flex h-[1.6rem] w-[1.6rem] flex-none items-center justify-center rounded-sm text-fg-secondary hover:bg-highlight hover:text-fg"
+    onClick={onClick}
+  >
+    {children}
+  </button>
+)

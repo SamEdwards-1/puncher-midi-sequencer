@@ -51,6 +51,13 @@ export type ParseResult =
   | { ok: true; file: MidiseqFile; patch: PatchJSON }
   | { ok: false; error: string }
 
+// The first thing wrong with a file, and where, e.g. "patch.tempo: Too big".
+export const describeIssue = (error: z.ZodError): string => {
+  const issue = error.issues[0]
+  const where = issue.path.join(".")
+  return where === "" ? issue.message : `${where}: ${issue.message}`
+}
+
 /**
  * Brings a file up to the current version. Only version 1 exists so far;
  * later versions add their step here.
@@ -67,12 +74,7 @@ export const parseFile = (text: string): ParseResult => {
 
   const parsed = MidiseqFileSchema.safeParse(json)
   if (!parsed.success) {
-    const issue = parsed.error.issues[0]
-    const where = issue.path.join(".")
-    return {
-      ok: false,
-      error: where === "" ? issue.message : `${where}: ${issue.message}`,
-    }
+    return { ok: false, error: describeIssue(parsed.error) }
   }
   if (parsed.data.version > FILE_VERSION) {
     return {

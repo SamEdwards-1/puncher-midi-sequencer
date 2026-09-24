@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
+  dotsPerStep,
   migratePace,
   nearestPace,
+  onPaceGrid,
   PACE_BEATS,
+  PACE_GRID,
   PACE_LABELS,
   PACES,
   paceBeats,
@@ -45,5 +48,53 @@ describe("paces", () => {
     expect(nearestPace(1)).toBe("4th")
     expect(nearestPace(0.26)).toBe("16th")
     expect(nearestPace(1000)).toBe("16bar")
+  })
+
+  it("measures every pace in whole steps of the shared grid", () => {
+    for (const id of PACES) {
+      const steps = paceBeats(id) * PACE_GRID
+      expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-9)
+    }
+  })
+
+  it("lands triplets added together on the beat", () => {
+    const third = paceBeats("8thT")
+    let drifting = 0
+    let snapped = 0
+    for (let i = 0; i < 6; i++) {
+      drifting += third
+      snapped = onPaceGrid(snapped + third)
+    }
+    // six triplets fall just short of the second beat unless snapped
+    expect(drifting).toBeLessThan(2)
+    expect(snapped).toBe(2)
+  })
+
+  describe("dots per step", () => {
+    it("plays one dot every voice pace for the length of a step", () => {
+      // a bar of 8ths
+      expect(dotsPerStep("1bar", "8th", 16)).toBe(8)
+      expect(dotsPerStep("4th", "16th", 16)).toBe(4)
+      expect(dotsPerStep("4th", "4th", 16)).toBe(1)
+    })
+
+    it("counts a dot that starts before the step ends, though it runs past", () => {
+      // dots at beats 0 and 0.75 of a one-beat step
+      expect(dotsPerStep("4th", "8thD", 16)).toBe(2)
+      // a voice slower than the sequencer still plays its first dot
+      expect(dotsPerStep("16th", "1bar", 16)).toBe(1)
+    })
+
+    it("does not let triplet arithmetic add a dot", () => {
+      // 1 / (1/3) is 3.0000000000000004 in floating point
+      expect(dotsPerStep("4th", "8thT", 16)).toBe(3)
+      expect(dotsPerStep("2ndT", "4thT", 16)).toBe(2)
+    })
+
+    it("never counts more dots than the pattern holds", () => {
+      expect(dotsPerStep("1bar", "16th", 16)).toBe(16)
+      expect(dotsPerStep("1bar", "16th", 5)).toBe(5)
+      expect(dotsPerStep("16bar", "32ndT", 16)).toBe(16)
+    })
   })
 })

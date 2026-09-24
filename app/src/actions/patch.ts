@@ -14,6 +14,7 @@ import {
   StepState,
   setJump,
   setPatternStep,
+  setPatterns,
   setSequencer,
   setStepNote,
   setStepState,
@@ -23,6 +24,7 @@ import {
   trimStepsToLimit,
   updateStepCC,
   VoiceJSON,
+  VoicePattern,
 } from "@midiseq/core"
 import { useCallback } from "react"
 import { useStores } from "../hooks/useStores"
@@ -50,6 +52,11 @@ export function usePatchEditor() {
     editSequencer: useCallback(
       (changes: Partial<PatchJSON>, key?: string) =>
         apply(setSequencer(sequencerStore.patch, changes), key),
+      [apply, sequencerStore],
+    ),
+    replacePatterns: useCallback(
+      (voices: VoicePattern[]) =>
+        apply(setPatterns(sequencerStore.patch, voices)),
       [apply, sequencerStore],
     ),
     editVoice: useCallback(

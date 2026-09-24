@@ -98,11 +98,12 @@ export const StepOptions: FC<StepOptionsProps> = ({
     <div
       ref={popup}
       role="dialog"
-      aria-label={`${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+      aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
       className="fixed z-20 w-60 rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)]"
       style={{ left: at.x, top: at.y }}
     >
       <div className="pt-2 pb-1 text-small font-semibold text-fg">
+        <Localized name="sequencer-voice" /> {voiceIndex + 1} ·{" "}
         <Localized name="sequencer-voice-dot" /> {dotIndex + 1}
       </div>
       <Fields>

@@ -38,6 +38,11 @@ const START_DELAY_MS = 50
 export class SequencerPlayer {
   isPlaying = false
   position: StepIndex | null = null
+  // the dot each voice plays first on the sounding step, null when stopped
+  voiceDots: number[] | null = null
+  // the dot each voice is on right now; null for a voice yet to reach one,
+  // or for all of them when stopped
+  playingDots: (number | null)[] | null = null
   actions: EngineActions = createActions()
 
   private readonly engine: Engine
@@ -51,7 +56,12 @@ export class SequencerPlayer {
   private anchorBeat = 0
   // rendered events not yet due for scheduling, in beat order
   private pending: EngineEvent[] = []
-  private stepMarks: { time: number; position: StepIndex }[] = []
+  private stepMarks: {
+    time: number
+    position: StepIndex
+    voiceDots: number[]
+  }[] = []
+  private dotMarks: { time: number; voice: number; dot: number }[] = []
   private lastScheduledTime = 0
   private sendClock = false
   // the last clock tick handed to the router, counted from the start
@@ -75,6 +85,8 @@ export class SequencerPlayer {
     makeObservable(this, {
       isPlaying: observable,
       position: observable,
+      voiceDots: observable.ref,
+      playingDots: observable.ref,
       actions: observable.ref,
     })
   }
@@ -145,7 +157,7 @@ export class SequencerPlayer {
 
     const now = this.now()
     for (const event of events) {
-      if (event.type === "step") {
+      if (event.type === "step" || event.type === "dot") {
         continue
       }
       const time = now + event.beat * msPerBeat
@@ -168,6 +180,7 @@ export class SequencerPlayer {
     this.anchorBeat = 0
     this.pending = []
     this.stepMarks = []
+    this.dotMarks = []
     this.lastScheduledTime = now
     this.clockSent = -1
     this.engine.start(0)
@@ -194,8 +207,11 @@ export class SequencerPlayer {
     }
     this.pending = []
     this.stepMarks = []
+    this.dotMarks = []
     this.isPlaying = false
     this.position = null
+    this.voiceDots = null
+    this.playingDots = null
   }
 
   panic = () => {
@@ -230,7 +246,13 @@ export class SequencerPlayer {
       const event = this.pending[due++]
       const time = Math.max(this.timeAt(event.beat), now)
       if (event.type === "step") {
-        this.stepMarks.push({ time, position: event.position })
+        this.stepMarks.push({
+          time,
+          position: event.position,
+          voiceDots: event.voiceDots,
+        })
+      } else if (event.type === "dot") {
+        this.dotMarks.push({ time, voice: event.voice, dot: event.dot })
       } else {
         this.router.route(event, time)
       }
@@ -239,12 +261,29 @@ export class SequencerPlayer {
     this.pending = this.pending.slice(due)
 
     let position = this.position
+    let voiceDots = this.voiceDots
     while (this.stepMarks.length > 0 && this.stepMarks[0].time <= now) {
       position = this.stepMarks[0].position
+      voiceDots = this.stepMarks[0].voiceDots
       this.stepMarks.shift()
     }
     if (position !== this.position) {
       this.position = position
+    }
+    // a new array only when a step has sounded, so observers of an unchanged
+    // step are not woken every tick
+    if (voiceDots !== this.voiceDots) {
+      this.voiceDots = voiceDots
+    }
+
+    if (this.dotMarks.length > 0 && this.dotMarks[0].time <= now) {
+      const playingDots = [...(this.playingDots ?? [null, null, null, null])]
+      while (this.dotMarks.length > 0 && this.dotMarks[0].time <= now) {
+        const { voice, dot } = this.dotMarks[0]
+        playingDots[voice] = dot
+        this.dotMarks.shift()
+      }
+      this.playingDots = playingDots
     }
   }
 

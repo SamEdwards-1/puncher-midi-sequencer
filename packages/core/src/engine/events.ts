@@ -28,12 +28,24 @@ export interface CCOutEvent {
 }
 
 // Playhead move. `position` is the grid position; `step` is the stored step it
-// plays, which differs from the position while Flip is held.
+// plays, which differs from the position while Flip is held. `voiceDots` is
+// the pattern dot each voice plays first from here on, so a display can show
+// where every voice is while the sequencer sits on this step.
 export interface StepAdvanceEvent {
   type: "step"
   beat: number
   position: StepIndex
   step: StepIndex
+  voiceDots: number[]
+}
+
+// A voice reaching a dot of its pattern, whether the dot sounds or not, so a
+// display can follow each voice through its pattern. Sends nothing.
+export interface VoiceDotEvent {
+  type: "dot"
+  beat: number
+  voice: VoiceIndex
+  dot: number
 }
 
 export type EngineEvent =
@@ -41,3 +53,4 @@ export type EngineEvent =
   | NoteOffEvent
   | CCOutEvent
   | StepAdvanceEvent
+  | VoiceDotEvent

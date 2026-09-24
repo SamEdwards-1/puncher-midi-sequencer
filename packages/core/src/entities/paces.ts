@@ -49,6 +49,19 @@ export const PACE_LABELS: Record<PaceId, string> = {
 
 export const paceBeats = (id: PaceId): number => PACE_BEATS[id]
 
+// Every pace is a whole number of these, from the 32nd triplet (4) to the
+// dotted 32nd (9) and the straight 32nd (6).
+export const PACE_GRID = 48
+
+/**
+ * Puts a beat reached by adding paces back on the grid they all share.
+ * Adding triplets up otherwise drifts: six of them come to
+ * 1.9999999999999998, and a voice would tick just before the sequencer step
+ * it belongs to.
+ */
+export const onPaceGrid = (beat: number): number =>
+  Math.round(beat * PACE_GRID) / PACE_GRID
+
 const byDurationDescending = (a: PaceId, b: PaceId) =>
   PACE_BEATS[b] - PACE_BEATS[a]
 
@@ -56,6 +69,24 @@ const byDurationDescending = (a: PaceId, b: PaceId) =>
 export const PACES: PaceId[] = (Object.keys(PACE_BEATS) as PaceId[]).sort(
   byDurationDescending,
 )
+
+// absorbs float error in pace ratios, so 1 / (1/3) counts as 3 dots, not 4
+const DOT_EPSILON = 1e-9
+
+/**
+ * How many of a voice's dots it plays while the sequencer sits on one step:
+ * a dot starts every voice pace, from the step's start until the next step.
+ * The pattern wraps at its length, so no more than that many are distinct.
+ */
+export const dotsPerStep = (
+  sequencerPace: PaceId,
+  voicePace: PaceId,
+  patternLength: number,
+): number =>
+  Math.min(
+    Math.ceil(PACE_BEATS[sequencerPace] / PACE_BEATS[voicePace] - DOT_EPSILON),
+    patternLength,
+  )
 
 /**
  * Paces once included golden-ratio durations — a note times 1.618 — which no

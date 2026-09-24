@@ -223,10 +223,12 @@ describe("action buttons", () => {
 describe("step options", () => {
   it("opens on a right-click and edits the dot", () => {
     setup()
-    const dot = screen.getByRole("button", { name: "Dot 2" })
+    const dot = screen.getByRole("button", { name: "Voice 1 Dot 2" })
     fireEvent.contextMenu(dot)
 
-    const options = within(screen.getByRole("dialog", { name: "Dot 2" }))
+    const options = within(
+      screen.getByRole("dialog", { name: "Voice 1 Dot 2" }),
+    )
     fireEvent.change(options.getByLabelText("Ratchet"), {
       target: { value: "3" },
     })
@@ -243,18 +245,19 @@ describe("step options", () => {
       condition: "always",
       on: true,
     })
-    expect(screen.queryByRole("dialog", { name: "Dot 2" })).toBeNull()
+    expect(screen.queryByRole("dialog", { name: "Voice 1 Dot 2" })).toBeNull()
   })
 
   it("shows a dot's options on the dot itself", () => {
     setup()
-    const dot = () => screen.getByRole("button", { name: "Dot 2" })
+    const dot = () => screen.getByRole("button", { name: "Voice 1 Dot 2" })
     expect(dot()).toHaveAttribute("data-articulation", "none")
     expect(dot()).toHaveAttribute("data-chance", "false")
     expect(dot().textContent).toBe("")
 
     fireEvent.contextMenu(dot())
-    const options = () => within(screen.getByRole("dialog", { name: "Dot 2" }))
+    const options = () =>
+      within(screen.getByRole("dialog", { name: "Voice 1 Dot 2" }))
     fireEvent.change(options().getByLabelText("Ratchet"), {
       target: { value: "3" },
     })
@@ -282,15 +285,14 @@ describe("step options", () => {
 
   it("marks the dot being edited", () => {
     setup()
-    const dot = screen.getByRole("button", { name: "Dot 5" })
+    const dot = screen.getByRole("button", { name: "Voice 1 Dot 5" })
     expect(dot).toHaveAttribute("data-editing", "false")
 
     fireEvent.contextMenu(dot)
     expect(dot).toHaveAttribute("data-editing", "true")
-    expect(screen.getByRole("button", { name: "Dot 6" })).toHaveAttribute(
-      "data-editing",
-      "false",
-    )
+    expect(
+      screen.getByRole("button", { name: "Voice 1 Dot 6" }),
+    ).toHaveAttribute("data-editing", "false")
 
     fireEvent.keyDown(window, { key: "Escape" })
     expect(dot).toHaveAttribute("data-editing", "false")
@@ -298,10 +300,12 @@ describe("step options", () => {
 
   it("closes on Escape", () => {
     setup()
-    fireEvent.contextMenu(screen.getByRole("button", { name: "Dot 1" }))
-    expect(screen.getByRole("dialog", { name: "Dot 1" })).toBeInTheDocument()
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Voice 1 Dot 1" }))
+    expect(
+      screen.getByRole("dialog", { name: "Voice 1 Dot 1" }),
+    ).toBeInTheDocument()
 
     fireEvent.keyDown(window, { key: "Escape" })
-    expect(screen.queryByRole("dialog", { name: "Dot 1" })).toBeNull()
+    expect(screen.queryByRole("dialog", { name: "Voice 1 Dot 1" })).toBeNull()
   })
 })
