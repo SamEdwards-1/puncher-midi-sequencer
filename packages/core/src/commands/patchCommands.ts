@@ -5,7 +5,6 @@ import {
   MAX_NOTES_PER_STEP,
   ModOutJSON,
   ModSource,
-  NOTES_PER_STEP,
   PatchJSON,
   PatternStepJSON,
   StepIndex,
@@ -85,13 +84,13 @@ export const setStepNotes = (
     notes: [...new Set(notes.map(clampNote))].slice(0, MAX_NOTES_PER_STEP),
   })
 
-// A note past the step's four would belong to no voice, so it is refused.
+// A note past the step's limit would never sound, so it is refused.
 export const addStepNote = (
   patch: PatchJSON,
   index: StepIndex,
   note: number,
 ): PatchJSON =>
-  patch.steps[index].notes.length >= NOTES_PER_STEP
+  patch.steps[index].notes.length >= patch.maxNotesPerStep
     ? patch
     : setStepNotes(patch, index, [...patch.steps[index].notes, note])
 
@@ -248,17 +247,17 @@ export const setModOut = (
 export const trimStepsToLimit = (patch: PatchJSON): PatchJSON => ({
   ...patch,
   steps: patch.steps.map((step) =>
-    step.notes.length > NOTES_PER_STEP
+    step.notes.length > patch.maxNotesPerStep
       ? {
           ...step,
           notes: step.notes
             .filter((note) =>
               [...step.notes]
                 .sort((a, b) => a - b)
-                .slice(0, NOTES_PER_STEP)
+                .slice(0, patch.maxNotesPerStep)
                 .includes(note),
             )
-            .slice(0, NOTES_PER_STEP),
+            .slice(0, patch.maxNotesPerStep),
         }
       : step,
   ),

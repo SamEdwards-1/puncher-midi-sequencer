@@ -48,10 +48,15 @@ describe("MIDIDeviceStore", () => {
       "midiseq out",
       "Synth",
     ])
-    store.setOutputName("all", "midiseq out")
-    store.setOutputName(1, "Synth")
-    expect(store.assignment.all).toBe(loop)
+    store.toggleOutput("midiseq out", true)
+    store.toggleOutput("Synth", true)
+    store.setVoiceOutput(1, "Synth")
+    // every ticked port takes the whole sequence
+    expect(store.assignment.all).toEqual([loop, synth])
     expect(store.assignment.voices).toEqual([null, synth, null, null])
+
+    store.toggleOutput("Synth", false)
+    expect(store.assignment.all).toEqual([loop])
   })
 
   it("follows ports being unplugged and plugged back in", async () => {
@@ -61,26 +66,28 @@ describe("MIDIDeviceStore", () => {
       memoryStorage(),
     )
     await store.requestMIDIAccess()
-    store.setOutputName("all", "midiseq out")
+    store.toggleOutput("midiseq out", true)
 
     access.outputs.clear()
     access.onstatechange?.()
-    expect(store.assignment.all).toBeNull()
+    expect(store.assignment.all).toEqual([null])
 
     // a replugged port gets a new id but keeps its name
     const replugged = fakeOutput("c", "midiseq out")
     access.outputs.set("c", replugged)
     access.onstatechange?.()
-    expect(store.assignment.all).toBe(replugged)
+    expect(store.assignment.all).toEqual([replugged])
   })
 
   it("remembers the chosen port names", () => {
     const storage = memoryStorage()
     const first = new MIDIDeviceStore(null, storage)
-    first.setOutputName(2, "Synth")
+    first.setVoiceOutput(2, "Synth")
+    first.toggleOutput("midiseq out", true)
 
     const second = new MIDIDeviceStore(null, storage)
     expect(second.outputNames.voices[2]).toBe("Synth")
+    expect(second.outputNames.all).toEqual(["midiseq out"])
   })
 
   it("asks for access on startup unless the browser already refused", async () => {
@@ -117,7 +124,7 @@ describe("MIDIDeviceStore", () => {
     expect(deniedStore.permission).toBe("denied")
   })
 
-  it("resolves and remembers the input port and channel", async () => {
+  it("resolves and remembers the chosen inputs", async () => {
     const keyboard = { id: "k", name: "Keystation", state: "connected" }
     const access = {
       outputs: new Map(),
@@ -132,15 +139,39 @@ describe("MIDIDeviceStore", () => {
     await store.requestMIDIAccess()
 
     expect(store.connectedInputNames).toEqual(["Keystation"])
-    expect(store.inputPort).toBeNull()
+    expect(store.inputPorts).toEqual([])
 
-    store.setInputName("Keystation")
-    store.setReceiveChannel(3)
-    expect(store.inputPort).toBe(keyboard)
+    store.toggleInput("Keystation", true)
+    store.setFilter({ channels: [3], transpose: 12 })
+    expect(store.inputPorts).toEqual([keyboard])
 
     const reopened = new MIDIDeviceStore(null, storage)
-    expect(reopened.inputName).toBe("Keystation")
-    expect(reopened.receiveChannel).toBe(3)
+    expect(reopened.inputNames).toEqual(["Keystation"])
+    expect(reopened.filter.channels).toEqual([3])
+    expect(reopened.filter.transpose).toBe(12)
+  })
+
+  it("reads what older versions saved", () => {
+    const storage = memoryStorage()
+    // one input name beside a receive channel, and one output for everything
+    storage.setItem(
+      "midiseq.midiInput",
+      JSON.stringify({ name: "Keystation", channel: 3 }),
+    )
+    storage.setItem(
+      "midiseq.midiOutputs",
+      JSON.stringify({
+        all: "midiseq out",
+        voices: [null, "Synth", null, null],
+      }),
+    )
+
+    const store = new MIDIDeviceStore(null, storage)
+    expect(store.inputNames).toEqual(["Keystation"])
+    expect(store.outputNames.all).toEqual(["midiseq out"])
+    expect(store.outputNames.voices[1]).toBe("Synth")
+    // the old receive channel is not carried over; the filter starts open
+    expect(store.filter.channels).toHaveLength(16)
   })
 
   it("reports when Web MIDI is missing or refused", async () => {

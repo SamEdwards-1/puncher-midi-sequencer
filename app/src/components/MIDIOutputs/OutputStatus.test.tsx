@@ -17,7 +17,7 @@ describe("OutputStatus", () => {
     expect(status()).toHaveTextContent(/pick an output in MIDI/)
 
     act(() => {
-      rootStore.midiDeviceStore.setOutputName("all", "loopMIDI Port")
+      rootStore.midiDeviceStore.toggleOutput("loopMIDI Port", true)
     })
     expect(status()).toBeNull()
   })
@@ -27,7 +27,7 @@ describe("OutputStatus", () => {
     render(<App rootStore={rootStore} />)
 
     act(() => {
-      rootStore.midiDeviceStore.setOutputName(2, "loopMIDI Port")
+      rootStore.midiDeviceStore.setVoiceOutput(2, "loopMIDI Port")
     })
     expect(status()).toBeNull()
   })

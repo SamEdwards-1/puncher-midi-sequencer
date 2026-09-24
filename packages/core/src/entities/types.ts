@@ -6,8 +6,8 @@ export type OutputTarget = "all" | VoiceIndex
 
 export const VOICE_COUNT = 4
 
-// One note per voice: a step's notes are what voices 1-4 draw from, so there
-// are as many of them as there are voices.
+// A step's notes are what the voices draw from, so there can be no more of
+// them than there are voices. Step Notes may ask for fewer.
 export const NOTES_PER_STEP = VOICE_COUNT
 
 // What a step may still carry from a file saved while the count was a
@@ -50,7 +50,7 @@ export interface CCEventJSON {
 }
 
 export interface StepJSON {
-  // sorted ascending; the engine reads the lowest NOTES_PER_STEP of them
+  // sorted ascending; the engine reads the lowest maxNotesPerStep of them
   notes: number[]
   ccs: CCEventJSON[]
   state: StepState
@@ -139,6 +139,8 @@ export interface PatchJSON {
   name: string
   size: GridSize
   loop: LoopJSON
+  // 1 to NOTES_PER_STEP
+  maxNotesPerStep: number
   syncVoices: boolean
   pace: PaceId
   direction: Direction

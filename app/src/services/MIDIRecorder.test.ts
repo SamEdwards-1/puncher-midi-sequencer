@@ -2,7 +2,7 @@ import { createDefaultPatch } from "@midiseq/core"
 import { beforeEach, describe, expect, it } from "vitest"
 import { SequencerStore } from "../stores/SequencerStore"
 import { MIDIInput } from "./MIDIInput"
-import { MIDIRecorder, ReceiveChannel } from "./MIDIRecorder"
+import { MIDIRecorder } from "./MIDIRecorder"
 
 const noteOn = (note: number, channel = 1) => [0x90 + channel - 1, note, 100]
 const noteOff = (note: number, channel = 1) => [0x80 + channel - 1, note, 0]
@@ -11,7 +11,6 @@ describe("MIDIRecorder", () => {
   let store: SequencerStore
   let input: MIDIInput
   let recorder: MIDIRecorder
-  let channel: ReceiveChannel
 
   const play = (...messages: number[][]) => {
     for (const message of messages) {
@@ -23,8 +22,7 @@ describe("MIDIRecorder", () => {
     store = new SequencerStore()
     store.patch = createDefaultPatch()
     input = new MIDIInput()
-    channel = "omni"
-    recorder = new MIDIRecorder(store, input, () => channel)
+    recorder = new MIDIRecorder(store, input)
     recorder.setRecording(true)
   })
 
@@ -63,6 +61,15 @@ describe("MIDIRecorder", () => {
     expect(store.patch.steps[0].notes).toEqual([60, 64])
   })
 
+  it("fills to Step Notes when it asks for fewer than four", () => {
+    store.patch = { ...store.patch, maxNotesPerStep: 2 }
+    play(noteOn(60), noteOn(64), noteOn(67))
+
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+    expect(store.patch.steps[1].notes).toEqual([67])
+    expect(recorder.target).toBe(1)
+  })
+
   it("carries what won't fit onto the next step", () => {
     play(noteOn(67), noteOn(60), noteOn(64), noteOn(71), noteOn(72))
 
@@ -98,15 +105,6 @@ describe("MIDIRecorder", () => {
     play(noteOn(64), noteOff(64))
 
     expect(store.patch.steps[0].notes).toEqual([64])
-  })
-
-  it("ignores other channels unless omni", () => {
-    channel = 2
-    play(noteOn(60, 1), noteOff(60, 1))
-    expect(store.patch.steps[0].notes).toEqual([])
-
-    play(noteOn(62, 2), noteOff(62, 2))
-    expect(store.patch.steps[0].notes).toEqual([62])
   })
 
   it("ignores input until recording is armed", () => {

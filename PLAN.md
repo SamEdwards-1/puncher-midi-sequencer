@@ -23,22 +23,22 @@ to another when a condition is met.
 ### Layout
 | Area | Contents |
 |---|---|
-| Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, MIDI devices · later: Presets, Mod Outs, Keyboard, Settings |
+| Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
 | Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip) and the Jump editor |
 | Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons |
 | Right | Voice tabs 1–4 |
 
 ### Sequencer
-- **Steps** hold four notes — one for each voice to draw from — plus any
-  number of CC events. It is not a setting: a fifth note would belong to no
-  voice.
+- **Steps** hold up to *Step Notes* notes — 1 to 4, saved in the file — plus
+  any number of CC events. Four is the ceiling because a step's notes are what
+  the voices draw from, and a fifth would belong to no voice.
   - A file saved while the count was a setting keeps whatever it holds; the
     notes past the fourth are dimmed and ignored until "Trim to limit"
     (undoable).
-  - Recording fills all four before the target moves on, so notes land as
-    played whether they arrive together or one at a time. A fifth starts the
-    next step, and a pitch the step already holds adds nothing, since a step
-    keeps each pitch once.
+  - Recording fills a step to Step Notes before the target moves on, so notes
+    land as played whether they arrive together or one at a time. What won't
+    fit starts the next step, and a pitch the step already holds adds nothing,
+    since a step keeps each pitch once.
   - A step is `normal`, `rest` (visited, silent) or `skip` (never visited).
 - **Size:** Small 4×4 (steps 0–15) or Large 8×8 (0–63).
 - **Loop:** `Recorded` (up to the last step with notes, CCs or a rest), `All`,
@@ -82,7 +82,7 @@ to another when a condition is met.
   sequencer lands on the step, before that beat's notes — including on rests,
   never on skips, and not again while Hang holds. Copy/paste steps.
 - **Recording:** from MIDI input, the on-screen keyboard or the computer
-  keyboard; a step fills with all four notes before moving on; overdub while
+  keyboard; a step fills to Step Notes before moving on; overdub while
   playing; rest & advance,
   back & clear, octave, and a Clear menu.
 - **Undo/redo:** every patch change; a drag or a recording take is one entry.
@@ -92,11 +92,16 @@ Seq X, Seq Y (top is low), Phase (position in loop), Action OR, Voice 1–4
 Random. Each has enable, CC#, min/max and smoothing.
 
 ### MIDI I/O
-- Five outputs: All, plus one per voice, each routed to its own port.
+- Outputs are ticked, any number at once: every ticked port takes the whole
+  sequence, and a voice can name one port of its own besides.
+- Inputs are ticked the same way, so several keyboards can play at once.
 - The All output de-duplicates notes: one note-on for simultaneous identical
   notes, a note-off before a retrigger, and the final note-off only when the
   last voice releases.
-- Input port + channel (or omni) for recording. MIDI clock in and out.
+- An **input filter** decides what the ticked inputs may send in: which
+  channels, which notes (a range), transposed by so many semitones, and which
+  controllers. It describes the rig rather than the music, so it lives with
+  the settings and never enters a patch. MIDI clock in and out.
 - **Ableton Link** through a small local bridge (§3.5), so midiseq shares a
   tempo and beat grid with Live, Signal and other Link apps on the machine or
   LAN. Without the bridge running, everything else still works.
@@ -337,6 +342,33 @@ rest of Signal alone.
 while being edited, survives a reload, exports and re-imports, and the
 built-in dark and light are still there untouched as the starting points.
 
+## 5.4 Settings dialog and input filter (part of milestone 7)
+
+Everything about the rig moved out of a toolbar popup and into a Settings
+dialog, on Signal's pattern: a list of pages down the left, the page beside
+it. **General** holds the theme, which until now had no UI at all. **MIDI**
+holds the ports and the filter.
+
+**Ports are ticked, not picked.** Inputs and outputs are both checkbox lists,
+so several keyboards can play in and several ports can take the sequence at
+once. A voice can still name one port of its own, which is the one thing a
+flat list can't say. A port that was ticked but is now unplugged stays on the
+list, shown as disconnected, so its tick can be seen and taken off.
+
+**The input filter** decides what the ticked inputs may send in: the channels
+it listens on, the range of notes it keeps, a transpose applied after, and
+which of the 128 controllers are allowed. The range is judged on the note as
+it arrived and the transpose applied after, so a note and its note-off are
+always treated alike and nothing is left sounding.
+
+**Where it lives.** None of this is the music — it describes the keyboard and
+the ports — so it is kept with the other settings in local storage and never
+written into a patch, on the same reasoning as themes in §5.3.
+
+**Not yet true:** nothing consumes CC input, so the CC filter decides what
+reaches the app rather than what the app does with it. Recording CCs into a
+step is the milestone that gives it a job.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -344,7 +376,7 @@ built-in dark and light are still there untouched as the starting points.
 | Playable range | Loop setting: Recorded / All / Custom end step |
 | Hold vs Tie | Hold sustains with no retrigger; Tie overlaps into the new note |
 | Grid sizes | 4×4 and 8×8 only |
-| Notes per step | Four, one per voice, not a setting. Recording fills all four before advancing |
+| Notes per step | Step Notes, 1–4 with one per voice as the ceiling, default 4. Recording fills to it before advancing |
 | Step CC timing | Fires when the sequencer lands on the step |
 | Signal integration | loopMIDI now; a Signal tab later |
 | Ableton Link | Not possible in a browser |

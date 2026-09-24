@@ -1,15 +1,13 @@
-import { NOTES_PER_STEP, stepCount } from "@midiseq/core"
+import { stepCount } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { SequencerStore } from "../stores/SequencerStore"
-import { MIDIInput, MIDINoteMessage } from "./MIDIInput"
-
-export type ReceiveChannel = number | "omni"
+import { MIDIInput, MIDIInputMessage } from "./MIDIInput"
 
 /**
- * Records notes played on the MIDI input into the step grid. A step holds one
- * note per voice, and it fills with all four before the target moves on — so
- * notes land as they are played, whether they arrive as a chord or one at a
- * time, and a fifth starts the next step rather than being lost.
+ * Records notes played on the MIDI input into the step grid. A step fills to
+ * Step Notes before the target moves on — so notes land as they are played,
+ * whether they arrive as a chord or one at a time, and whatever won't fit
+ * starts the next step rather than being lost.
  */
 export class MIDIRecorder {
   isRecording = false
@@ -22,7 +20,6 @@ export class MIDIRecorder {
   constructor(
     private readonly sequencerStore: SequencerStore,
     input: MIDIInput,
-    private readonly receiveChannel: () => ReceiveChannel,
     // called once when a take starts, so the take is one undo entry
     private readonly beforeTake: () => void = () => {},
   ) {
@@ -54,12 +51,8 @@ export class MIDIRecorder {
     this.written = null
   }
 
-  onMessage = (message: MIDINoteMessage) => {
+  onMessage = (message: MIDIInputMessage) => {
     if (!this.isRecording || message.type !== "noteOn") {
-      return
-    }
-    const channel = this.receiveChannel()
-    if (channel !== "omni" && channel !== message.channel) {
       return
     }
     this.record(message.note)
@@ -76,7 +69,7 @@ export class MIDIRecorder {
     this.written = notes
     this.write(notes)
 
-    if (notes.length >= NOTES_PER_STEP) {
+    if (notes.length >= this.sequencerStore.patch.maxNotesPerStep) {
       this.advance()
     }
   }

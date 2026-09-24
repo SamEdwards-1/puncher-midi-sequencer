@@ -1,3 +1,10 @@
+import {
+  createDefaultMIDIFilter,
+  FilterableMessage,
+  filterMIDIMessage,
+  MIDIFilterJSON,
+} from "@midiseq/core"
+
 export interface MIDINoteMessage {
   type: "noteOn" | "noteOff"
   channel: number
@@ -5,44 +12,74 @@ export interface MIDINoteMessage {
   velocity: number
 }
 
-export type MIDIInputListener = (message: MIDINoteMessage) => void
+export interface MIDICCMessage {
+  type: "cc"
+  channel: number
+  cc: number
+  value: number
+}
 
-// Note messages only; everything else (clock, CC) is ignored until the
-// milestones that need it.
-export const parseNoteMessage = (
+export type MIDIInputMessage = MIDINoteMessage | MIDICCMessage
+
+export type MIDIInputListener = (message: MIDIInputMessage) => void
+
+// Notes and controllers; everything else (clock, program change) is ignored
+// until the milestones that need it.
+export const parseInputMessage = (
   data: Uint8Array | number[],
-): MIDINoteMessage | null => {
+): MIDIInputMessage | null => {
   if (data.length < 3) {
     return null
   }
   const status = data[0] & 0xf0
   const channel = (data[0] & 0x0f) + 1
-  const [, note, velocity] = data
-  if (status === 0x90 && velocity > 0) {
-    return { type: "noteOn", channel, note, velocity }
+  const [, first, second] = data
+  if (status === 0x90 && second > 0) {
+    return { type: "noteOn", channel, note: first, velocity: second }
   }
-  if (status === 0x80 || (status === 0x90 && velocity === 0)) {
-    return { type: "noteOff", channel, note, velocity: 0 }
+  if (status === 0x80 || (status === 0x90 && second === 0)) {
+    return { type: "noteOff", channel, note: first, velocity: 0 }
+  }
+  if (status === 0xb0) {
+    return { type: "cc", channel, cc: first, value: second }
   }
   return null
 }
 
-// Listens to one input port at a time and hands parsed notes to listeners.
+/** Kept for the callers that only ever wanted notes. */
+export const parseNoteMessage = (
+  data: Uint8Array | number[],
+): MIDINoteMessage | null => {
+  const message = parseInputMessage(data)
+  return message === null || message.type === "cc" ? null : message
+}
+
+/**
+ * Listens to the chosen input ports and hands what the filter allows to its
+ * listeners. Several ports can be open at once; a message is treated the same
+ * whichever one it came from.
+ */
 export class MIDIInput {
-  private port: MIDIInputPort | null = null
+  private ports: MIDIInputPort[] = []
+  private filter: MIDIFilterJSON = createDefaultMIDIFilter()
   private readonly listeners = new Set<MIDIInputListener>()
 
-  setPort(port: MIDIInputPort | null) {
-    if (this.port === port) {
-      return
+  setPorts(ports: MIDIInputPort[]) {
+    for (const port of this.ports) {
+      if (!ports.includes(port)) {
+        port.onmidimessage = null
+      }
     }
-    if (this.port !== null) {
-      this.port.onmidimessage = null
+    for (const port of ports) {
+      if (!this.ports.includes(port)) {
+        port.onmidimessage = (event) => this.handleMessage(event.data)
+      }
     }
-    this.port = port
-    if (port !== null) {
-      port.onmidimessage = (event) => this.handleMessage(event.data)
-    }
+    this.ports = [...ports]
+  }
+
+  setFilter(filter: MIDIFilterJSON) {
+    this.filter = filter
   }
 
   on(listener: MIDIInputListener): () => void {
@@ -56,12 +93,19 @@ export class MIDIInput {
     if (data === null) {
       return
     }
-    const message = parseNoteMessage(data)
-    if (message === null) {
+    const parsed = parseInputMessage(data)
+    if (parsed === null) {
+      return
+    }
+    const allowed = filterMIDIMessage(
+      parsed as FilterableMessage,
+      this.filter,
+    ) as MIDIInputMessage | null
+    if (allowed === null) {
       return
     }
     for (const listener of this.listeners) {
-      listener(message)
+      listener(allowed)
     }
   }
 }

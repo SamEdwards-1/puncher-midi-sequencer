@@ -1,14 +1,20 @@
-import { VOICE_COUNT, VoiceIndex } from "@midiseq/core"
+import {
+  createDefaultMIDIFilter,
+  MIDIFilterJSON,
+  VOICE_COUNT,
+  VoiceIndex,
+} from "@midiseq/core"
 import { computed, makeObservable, observable, reaction } from "mobx"
-import type { ReceiveChannel } from "../services/MIDIRecorder"
-import { OutputAssignment } from "../services/OutputRouter"
 
 export type OutputSlot = "all" | VoiceIndex
 
-// Ports are remembered by name, which survives replugging and restarts,
-// unlike Web MIDI port ids.
+/**
+ * Ports are remembered by name, which survives replugging and restarts,
+ * unlike Web MIDI port ids. `all` is every port that takes the whole
+ * sequence; a voice can name one port of its own as well.
+ */
 export interface OutputNames {
-  all: string | null
+  all: string[]
   voices: (string | null)[]
 }
 
@@ -21,26 +27,78 @@ export const BUILTIN_OUTPUT = "Built-in synth"
 
 const STORAGE_KEY = "midiseq.midiOutputs"
 const INPUT_STORAGE_KEY = "midiseq.midiInput"
+const FILTER_STORAGE_KEY = "midiseq.midiFilter"
 
-interface SavedInput {
-  name: string | null
-  channel: ReceiveChannel
+const read = (storage: Storage | null, key: string): unknown => {
+  try {
+    return JSON.parse(storage?.getItem(key) ?? "null")
+  } catch {
+    return null
+  }
 }
 
-const loadInput = (storage: Storage | null): SavedInput => {
+const write = (storage: Storage | null, key: string, value: unknown) => {
   try {
-    const saved = JSON.parse(storage?.getItem(INPUT_STORAGE_KEY) ?? "null")
-    if (
-      saved !== null &&
-      (typeof saved.name === "string" || saved.name === null) &&
-      (saved.channel === "omni" || typeof saved.channel === "number")
-    ) {
-      return saved as SavedInput
-    }
+    storage?.setItem(key, JSON.stringify(value))
   } catch {
-    // fall through to the defaults
+    // storage can be full or blocked; the choice just won't persist
   }
-  return { name: null, channel: "omni" }
+}
+
+const names = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((name) => typeof name === "string") : []
+
+/** Older versions kept one input name and a receive channel beside it. */
+const loadInputNames = (storage: Storage | null): string[] => {
+  const saved = read(storage, INPUT_STORAGE_KEY)
+  if (saved !== null && typeof saved === "object" && "name" in saved) {
+    const name = (saved as { name: unknown }).name
+    return typeof name === "string" ? [name] : []
+  }
+  return names(saved)
+}
+
+/** Older versions sent the whole sequence to at most one port. */
+const loadOutputNames = (storage: Storage | null): OutputNames => {
+  const empty: OutputNames = {
+    all: [],
+    voices: Array.from({ length: VOICE_COUNT }, () => null),
+  }
+  const saved = read(storage, STORAGE_KEY)
+  if (saved === null || typeof saved !== "object") {
+    return empty
+  }
+  const { all, voices } = saved as { all: unknown; voices: unknown }
+  return {
+    all: typeof all === "string" ? [all] : names(all),
+    voices:
+      Array.isArray(voices) && voices.length === VOICE_COUNT
+        ? (voices as (string | null)[])
+        : empty.voices,
+  }
+}
+
+const loadFilter = (storage: Storage | null): MIDIFilterJSON => {
+  const fallback = createDefaultMIDIFilter()
+  const saved = read(storage, FILTER_STORAGE_KEY)
+  if (saved === null || typeof saved !== "object") {
+    return fallback
+  }
+  const { channels, noteLow, noteHigh, transpose, ccs } =
+    saved as Partial<MIDIFilterJSON>
+  const numbers = (value: unknown, or: number[]) =>
+    Array.isArray(value) && value.every((n) => typeof n === "number")
+      ? value
+      : or
+  const number = (value: unknown, or: number) =>
+    typeof value === "number" ? value : or
+  return {
+    channels: numbers(channels, fallback.channels),
+    noteLow: number(noteLow, fallback.noteLow),
+    noteHigh: number(noteHigh, fallback.noteHigh),
+    transpose: number(transpose, fallback.transpose),
+    ccs: numbers(ccs, fallback.ccs),
+  }
 }
 
 const defaultRequestAccess = (): RequestMIDIAccess | null =>
@@ -67,28 +125,6 @@ const defaultStorage = (): Storage | null => {
   }
 }
 
-const emptyOutputNames = (): OutputNames => ({
-  all: null,
-  voices: Array.from({ length: VOICE_COUNT }, () => null),
-})
-
-const loadOutputNames = (storage: Storage | null): OutputNames => {
-  try {
-    const saved = JSON.parse(storage?.getItem(STORAGE_KEY) ?? "null")
-    if (
-      saved !== null &&
-      (typeof saved.all === "string" || saved.all === null) &&
-      Array.isArray(saved.voices) &&
-      saved.voices.length === VOICE_COUNT
-    ) {
-      return saved as OutputNames
-    }
-  } catch {
-    // fall through to the defaults
-  }
-  return emptyOutputNames()
-}
-
 export const portName = (port: MIDIPort): string => port.name ?? port.id
 
 export class MIDIDeviceStore {
@@ -100,8 +136,8 @@ export class MIDIDeviceStore {
   hasAccess = false
   permission: MIDIPermission = "unknown"
   outputNames: OutputNames
-  inputName: string | null
-  receiveChannel: ReceiveChannel
+  inputNames: string[]
+  filter: MIDIFilterJSON
 
   private readonly requestAccess: RequestMIDIAccess | null
   private readonly queryPermission: QueryMIDIPermission | null
@@ -114,9 +150,8 @@ export class MIDIDeviceStore {
     this.requestAccess = requestAccess
     this.queryPermission = queryPermission
     this.outputNames = loadOutputNames(storage)
-    const savedInput = loadInput(storage)
-    this.inputName = savedInput.name
-    this.receiveChannel = savedInput.channel
+    this.inputNames = loadInputNames(storage)
+    this.filter = loadFilter(storage)
 
     makeObservable(this, {
       outputs: observable.ref,
@@ -126,36 +161,27 @@ export class MIDIDeviceStore {
       hasAccess: observable,
       permission: observable,
       outputNames: observable.ref,
-      inputName: observable,
-      receiveChannel: observable,
+      inputNames: observable.ref,
+      filter: observable.ref,
       // keepAlive caches the value between reads outside a reaction, so React
       // gets the same array back until the ports actually change
       connectedOutputNames: computed({ keepAlive: true }),
       connectedInputNames: computed({ keepAlive: true }),
       assignment: computed({ keepAlive: true }),
-      inputPort: computed({ keepAlive: true }),
+      inputPorts: computed({ keepAlive: true }),
     })
 
     reaction(
       () => this.outputNames,
-      (names) => {
-        try {
-          storage?.setItem(STORAGE_KEY, JSON.stringify(names))
-        } catch {
-          // storage can be full or blocked; the choice just won't persist
-        }
-      },
+      (value) => write(storage, STORAGE_KEY, value),
     )
-
     reaction(
-      () => ({ name: this.inputName, channel: this.receiveChannel }),
-      (input) => {
-        try {
-          storage?.setItem(INPUT_STORAGE_KEY, JSON.stringify(input))
-        } catch {
-          // as above
-        }
-      },
+      () => this.inputNames,
+      (value) => write(storage, INPUT_STORAGE_KEY, value),
+    )
+    reaction(
+      () => this.filter,
+      (value) => write(storage, FILTER_STORAGE_KEY, value),
     )
   }
 
@@ -166,7 +192,7 @@ export class MIDIDeviceStore {
   /**
    * Asks for MIDI access as the app starts, which is where the browser shows
    * its permission prompt. A browser that already refused is left alone; the
-   * menu's Enable MIDI button asks again from a click.
+   * settings dialog's Enable MIDI button asks again from a click.
    */
   connectOnStart = async () => {
     await this.refreshPermission()
@@ -212,24 +238,28 @@ export class MIDIDeviceStore {
     }
   }
 
-  setOutputName = (slot: OutputSlot, name: string | null) => {
-    this.outputNames =
-      slot === "all"
-        ? { ...this.outputNames, all: name }
-        : {
-            ...this.outputNames,
-            voices: this.outputNames.voices.map((current, index) =>
-              index === slot ? name : current,
-            ),
-          }
+  // Ticking a port sends the whole sequence to it as well.
+  toggleOutput = (name: string, on: boolean) => {
+    const all = this.outputNames.all.filter((current) => current !== name)
+    this.outputNames = { ...this.outputNames, all: on ? [...all, name] : all }
   }
 
-  setInputName = (name: string | null) => {
-    this.inputName = name
+  setVoiceOutput = (voice: VoiceIndex, name: string | null) => {
+    this.outputNames = {
+      ...this.outputNames,
+      voices: this.outputNames.voices.map((current, index) =>
+        index === voice ? name : current,
+      ),
+    }
   }
 
-  setReceiveChannel = (channel: ReceiveChannel) => {
-    this.receiveChannel = channel
+  toggleInput = (name: string, on: boolean) => {
+    const rest = this.inputNames.filter((current) => current !== name)
+    this.inputNames = on ? [...rest, name] : rest
+  }
+
+  setFilter = (changes: Partial<MIDIFilterJSON>) => {
+    this.filter = { ...this.filter, ...changes }
   }
 
   get connectedInputNames(): string[] {
@@ -242,16 +272,12 @@ export class MIDIDeviceStore {
     ]
   }
 
-  // The chosen input, when it is connected.
-  get inputPort(): MIDIInput | null {
-    if (this.inputName === null) {
-      return null
-    }
-    return (
-      this.inputs.find(
-        (input) =>
-          input.state === "connected" && portName(input) === this.inputName,
-      ) ?? null
+  // The chosen inputs that are currently connected.
+  get inputPorts(): MIDIInput[] {
+    return this.inputs.filter(
+      (input) =>
+        input.state === "connected" &&
+        this.inputNames.includes(portName(input)),
     )
   }
 
@@ -266,8 +292,15 @@ export class MIDIDeviceStore {
     ]
   }
 
-  // The chosen ports that are currently connected.
-  get assignment(): OutputAssignment {
+  /**
+   * The chosen ports, resolved. `all` lines up with the chosen names, with a
+   * null where the port is missing or is the built-in synth, which the store
+   * knows nothing about.
+   */
+  get assignment(): {
+    all: (MIDIOutput | null)[]
+    voices: (MIDIOutput | null)[]
+  } {
     const resolve = (name: string | null) =>
       name === null || name === BUILTIN_OUTPUT
         ? null
@@ -276,7 +309,7 @@ export class MIDIDeviceStore {
               output.state === "connected" && portName(output) === name,
           ) ?? null)
     return {
-      all: resolve(this.outputNames.all),
+      all: this.outputNames.all.map(resolve),
       voices: this.outputNames.voices.map(resolve),
     }
   }

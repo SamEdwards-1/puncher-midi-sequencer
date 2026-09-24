@@ -1,5 +1,6 @@
 import { reaction } from "mobx"
 import type { MIDIInputPort } from "../services/MIDIInput"
+import { MIDISink } from "../services/MIDISink"
 import { OutputAssignment } from "../services/OutputRouter"
 import { BUILTIN_OUTPUT } from "./MIDIDeviceStore"
 import type RootStore from "./RootStore"
@@ -7,7 +8,9 @@ import type RootStore from "./RootStore"
 // Same ports in the same slots, so a hot-plug of an unrelated device doesn't
 // disturb playback.
 const sameAssignment = (a: OutputAssignment, b: OutputAssignment) =>
-  a.all === b.all && a.voices.every((voice, index) => voice === b.voices[index])
+  a.all.length === b.all.length &&
+  a.all.every((sink, index) => sink === b.all[index]) &&
+  a.voices.every((voice, index) => voice === b.voices[index])
 
 export const registerReactions = (rootStore: RootStore) => {
   const { midiDeviceStore, midiInput, player, sequencerStore, synthStore } =
@@ -18,10 +21,12 @@ export const registerReactions = (rootStore: RootStore) => {
   reaction(
     () => {
       const { assignment, outputNames } = midiDeviceStore
-      const sink = (name: string | null, port: OutputAssignment["all"]) =>
+      const sink = (name: string | null, port: MIDISink | null) =>
         name === BUILTIN_OUTPUT ? synthStore.synth : port
       return {
-        all: sink(outputNames.all, assignment.all),
+        all: assignment.all
+          .map((port, index) => sink(outputNames.all[index], port))
+          .filter((out): out is MIDISink => out !== null),
         voices: assignment.voices.map((port, index) =>
           sink(outputNames.voices[index], port),
         ),
@@ -36,7 +41,9 @@ export const registerReactions = (rootStore: RootStore) => {
   reaction(
     () => {
       const { outputNames } = midiDeviceStore
-      return [outputNames.all, ...outputNames.voices].includes(BUILTIN_OUTPUT)
+      return [...outputNames.all, ...outputNames.voices].includes(
+        BUILTIN_OUTPUT,
+      )
     },
     (wanted) => {
       if (wanted) {
@@ -73,9 +80,19 @@ export const registerReactions = (rootStore: RootStore) => {
   )
 
   reaction(
-    () => midiDeviceStore.inputPort,
+    () => midiDeviceStore.inputPorts,
     // a Web MIDI input is a wider type than the service needs
-    (port) => midiInput.setPort(port as MIDIInputPort | null),
+    (ports) => midiInput.setPorts(ports as MIDIInputPort[]),
+    {
+      fireImmediately: true,
+      equals: (a, b) =>
+        a.length === b.length && a.every((port, index) => port === b[index]),
+    },
+  )
+
+  reaction(
+    () => midiDeviceStore.filter,
+    (filter) => midiInput.setFilter(filter),
     { fireImmediately: true },
   )
 

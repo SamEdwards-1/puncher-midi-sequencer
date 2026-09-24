@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { PACE_BEATS } from "./paces"
-import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH } from "./types"
+import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH, NOTES_PER_STEP } from "./types"
 
 const midiValue = z.number().int().min(0).max(127)
 const channel = z.number().int().min(1).max(16)
@@ -130,6 +130,15 @@ export const PatchSchema = z.object({
     mode: z.enum(["recorded", "all", "custom"]),
     end: z.number().int().min(0).max(63),
   }),
+  // a file from when this was fixed at four, or could ask for sixteen, is
+  // read as whatever it meant within today's range
+  maxNotesPerStep: z.preprocess(
+    (value) =>
+      typeof value === "number"
+        ? Math.min(NOTES_PER_STEP, Math.max(1, Math.round(value)))
+        : value,
+    z.number().int().min(1).max(NOTES_PER_STEP).default(NOTES_PER_STEP),
+  ),
   syncVoices: z.boolean(),
   pace: PaceIdSchema,
   direction: z.enum(["fwd", "bwd", "fwdbwd", "bwdfwd", "random", "random+"]),

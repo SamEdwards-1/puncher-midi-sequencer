@@ -17,7 +17,8 @@ export const OutputStatus: FC = () => {
   const { outputNames } = useMIDIDevice()
 
   const routed =
-    outputNames.all !== null || outputNames.voices.some((name) => name !== null)
+    outputNames.all.length > 0 ||
+    outputNames.voices.some((name) => name !== null)
 
   const message =
     state === "loading" ? (

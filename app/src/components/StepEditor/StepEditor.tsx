@@ -1,4 +1,4 @@
-import { NOTES_PER_STEP, noteNumberToName, StepState } from "@midiseq/core"
+import { noteNumberToName, StepState } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
 import { FC, HTMLAttributes } from "react"
@@ -8,11 +8,11 @@ import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { cn } from "../ui/cn"
+import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { CCRow } from "./CCRow"
-import { parseNoteText, sanitizeNoteText } from "./noteInput"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"
@@ -43,7 +43,7 @@ export const StepEditor: FC = () => {
   } = usePatchEditor()
 
   const step = patch.steps[selected]
-  const beyondLimit = step.notes.length > NOTES_PER_STEP
+  const beyondLimit = step.notes.length > patch.maxNotesPerStep
 
   return (
     <>
@@ -110,7 +110,7 @@ export const StepEditor: FC = () => {
         )}
 
         {step.notes.map((note, position) => {
-          const beyond = position >= NOTES_PER_STEP
+          const beyond = position >= patch.maxNotesPerStep
           return (
             <Row
               key={note}

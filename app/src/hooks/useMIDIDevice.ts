@@ -24,18 +24,19 @@ export function useMIDIDevice() {
     get connectedOutputNames() {
       return useMobxGetter(midiDeviceStore, "connectedOutputNames")
     },
-    get inputName() {
-      return useMobxGetter(midiDeviceStore, "inputName")
-    },
-    get receiveChannel() {
-      return useMobxGetter(midiDeviceStore, "receiveChannel")
+    get inputNames() {
+      return useMobxGetter(midiDeviceStore, "inputNames")
     },
     get connectedInputNames() {
       return useMobxGetter(midiDeviceStore, "connectedInputNames")
     },
-    setInputName: midiDeviceStore.setInputName,
-    setReceiveChannel: midiDeviceStore.setReceiveChannel,
-    setOutputName: midiDeviceStore.setOutputName,
+    get filter() {
+      return useMobxGetter(midiDeviceStore, "filter")
+    },
+    toggleInput: midiDeviceStore.toggleInput,
+    toggleOutput: midiDeviceStore.toggleOutput,
+    setVoiceOutput: midiDeviceStore.setVoiceOutput,
+    setFilter: midiDeviceStore.setFilter,
     requestMIDIAccess: midiDeviceStore.requestMIDIAccess,
   }
 }

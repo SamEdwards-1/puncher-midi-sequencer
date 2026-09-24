@@ -46,7 +46,7 @@ describe("SequencerPlayer", () => {
       ticker,
       seed: 1,
     })
-    player.setOutputs({ all, voices: [voice0, null, null, null] })
+    player.setOutputs({ all: [all], voices: [voice0, null, null, null] })
   })
 
   it("schedules notes on the beat grid after the start delay", () => {
