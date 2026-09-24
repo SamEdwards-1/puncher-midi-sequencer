@@ -11,12 +11,13 @@ import { AllOutDedupe } from "./AllOutDedupe"
 import { MIDISink } from "./MIDISink"
 
 export interface OutputAssignment {
-  all: MIDISink | null
+  // every port that takes the whole sequence
+  all: MIDISink[]
   voices: (MIDISink | null)[]
 }
 
 export const emptyAssignment = (): OutputAssignment => ({
-  all: null,
+  all: [],
   voices: Array.from({ length: VOICE_COUNT }, () => null),
 })
 
@@ -24,15 +25,18 @@ const MIDI_CHANNELS = Array.from({ length: 16 }, (_, index) => index + 1)
 
 const sinksOf = (assignment: OutputAssignment): MIDISink[] => [
   ...new Set(
-    [assignment.all, ...assignment.voices].filter(
+    [...assignment.all, ...assignment.voices].filter(
       (sink): sink is MIDISink => sink !== null,
     ),
   ),
 ]
 
-// Sends engine events to the five outputs: every note goes to its voice's
-// port and, de-duplicated, to the All port. A port chosen for both only gets
-// the All stream.
+const sameSinks = (a: MIDISink[], b: MIDISink[]) =>
+  a.length === b.length && a.every((sink, index) => sink === b[index])
+
+// Sends engine events to the chosen outputs: every note goes to its voice's
+// port and, de-duplicated, to each port taking the whole sequence. A port
+// that is both only gets the whole-sequence stream.
 export class OutputRouter {
   private assignment = emptyAssignment()
   private readonly dedupe = new AllOutDedupe()
@@ -45,12 +49,14 @@ export class OutputRouter {
         this.silence(sink, now)
       }
     }
-    if (previous.all !== null && previous.all !== next.all) {
-      for (const { channel, note } of this.dedupe.heldNotes()) {
-        previous.all.send(noteOffBytes(channel, note), now)
+    if (!sameSinks(previous.all, next.all)) {
+      for (const sink of previous.all) {
+        if (!next.all.includes(sink)) {
+          for (const { channel, note } of this.dedupe.heldNotes()) {
+            sink.send(noteOffBytes(channel, note), now)
+          }
+        }
       }
-    }
-    if (previous.all !== next.all) {
       this.dedupe.reset()
     }
     this.assignment = next
@@ -61,13 +67,13 @@ export class OutputRouter {
     switch (event.type) {
       case "noteOn": {
         const voiceSink = voices[event.voice]
-        if (voiceSink !== null && voiceSink !== all) {
+        if (voiceSink !== null && !all.includes(voiceSink)) {
           voiceSink.send(
             noteOnBytes(event.channel, event.note, event.velocity),
             timestamp,
           )
         }
-        if (all !== null) {
+        if (all.length > 0) {
           const messages = this.dedupe.noteOn(
             event.voice,
             event.channel,
@@ -76,34 +82,41 @@ export class OutputRouter {
             timestamp,
           )
           for (const message of messages) {
-            all.send(message, timestamp)
+            for (const sink of all) {
+              sink.send(message, timestamp)
+            }
           }
         }
         break
       }
       case "noteOff": {
         const voiceSink = voices[event.voice]
-        if (voiceSink !== null && voiceSink !== all) {
+        if (voiceSink !== null && !all.includes(voiceSink)) {
           voiceSink.send(noteOffBytes(event.channel, event.note), timestamp)
         }
-        if (all !== null) {
+        if (all.length > 0) {
           const messages = this.dedupe.noteOff(
             event.voice,
             event.channel,
             event.note,
           )
           for (const message of messages) {
-            all.send(message, timestamp)
+            for (const sink of all) {
+              sink.send(message, timestamp)
+            }
           }
         }
         break
       }
       case "cc": {
-        const sink = event.output === "all" ? all : voices[event.output]
-        sink?.send(
-          controlChangeBytes(event.channel, event.cc, event.value),
-          timestamp,
-        )
+        const bytes = controlChangeBytes(event.channel, event.cc, event.value)
+        const sinks =
+          event.output === "all" ? all : [voices[event.output]].filter(
+            (sink): sink is MIDISink => sink !== null,
+          )
+        for (const sink of sinks) {
+          sink.send(bytes, timestamp)
+        }
         break
       }
       case "step":
@@ -129,16 +142,18 @@ export class OutputRouter {
     this.dedupe.reset()
 
     for (const time of [now, horizon]) {
-      if (all !== null) {
+      for (const sink of all) {
         for (const { channel, note } of held) {
-          all.send(noteOffBytes(channel, note), time)
+          sink.send(noteOffBytes(channel, note), time)
         }
       }
       for (const off of sounding) {
         const offBytes = noteOffBytes(off.channel, off.note)
-        all?.send(offBytes, time)
+        for (const sink of all) {
+          sink.send(offBytes, time)
+        }
         const voiceSink = voices[off.voice]
-        if (voiceSink !== null && voiceSink !== all) {
+        if (voiceSink !== null && !all.includes(voiceSink)) {
           voiceSink.send(offBytes, time)
         }
       }

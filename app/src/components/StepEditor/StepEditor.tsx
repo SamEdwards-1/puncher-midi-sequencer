@@ -12,7 +12,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { CCRow } from "./CCRow"
-import { parseNoteText, sanitizeNoteText } from "./noteInput"
+import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 
 const HEADER = "flex items-center gap-2"
 const TITLE = "grow"

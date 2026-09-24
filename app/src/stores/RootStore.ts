@@ -41,7 +41,6 @@ export default class RootStore {
     this.recorder = new MIDIRecorder(
       this.sequencerStore,
       this.midiInput,
-      () => this.midiDeviceStore.receiveChannel,
       // a whole take undoes in one go
       () => this.history.push(),
     )
