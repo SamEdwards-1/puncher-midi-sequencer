@@ -42,6 +42,7 @@ import {
   keyRange,
   linePath,
   Plot,
+  patchNoteSpan,
   timeAtX,
   toX,
   toY,
@@ -144,7 +145,7 @@ export const EnvelopeGraph: FC<{
     [patch, step, accentAmount],
   )
   const bars = lane.kind === "velocity" ? barsFor(notes, lane.voices, plot) : []
-  const keys = keyRange(notes.map((note) => note.note))
+  const keys = keyRange(patchNoteSpan(patch))
   const keyCount = keys.high - keys.low + 1
   const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / keyCount
   const keyY = (note: number) => PAD + (keys.high - note) * keyHeight
@@ -479,6 +480,7 @@ export const EnvelopeGraph: FC<{
       >
         <svg
           ref={svg}
+          data-keys={`${keys.low}-${keys.high}`}
           width={width}
           height={GRAPH_HEIGHT}
           className="block select-none"

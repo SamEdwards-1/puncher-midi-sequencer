@@ -1,4 +1,9 @@
-import { ENVELOPE_MAX_VALUE, EnvelopePointJSON } from "@midiseq/core"
+import {
+  ENVELOPE_MAX_VALUE,
+  EnvelopePointJSON,
+  PatchJSON,
+  stepCount,
+} from "@midiseq/core"
 
 /**
  * Where the envelope is drawn: the step runs left to right and the CC value
@@ -173,6 +178,29 @@ export const cellAt = (grid: number[], time: number): number => {
     }
   }
   return 0
+}
+
+/**
+ * The lowest and highest notes the whole patch can play: every step's notes
+ * the voices can reach, moved by the furthest offsets any voice has. Taken
+ * across all the steps rather than the one on show, so the piano roll holds
+ * still from step to step and while notes and dots are edited.
+ */
+export const patchNoteSpan = (patch: PatchJSON): number[] => {
+  const notes = patch.steps
+    .slice(0, stepCount(patch.size))
+    .flatMap((step) =>
+      [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
+    )
+  if (notes.length === 0) {
+    return []
+  }
+  const offsets = patch.voices.map((voice) => voice.offset)
+  const inRange = (note: number) => Math.min(127, Math.max(0, note))
+  return [
+    inRange(Math.min(...notes) + Math.min(...offsets)),
+    inRange(Math.max(...notes) + Math.max(...offsets)),
+  ]
 }
 
 /**

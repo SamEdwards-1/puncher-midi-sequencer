@@ -74,6 +74,9 @@ at a time. Turn Record off when you're done.
 voice to draw from, and any number of CC envelopes. Clicking one selects it, sounds it, and shows it in
 the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
+The grid and the step editor scroll together: as you scroll down, the grid
+stays at the top and shrinks to a compact size, and the editors carry on
+underneath it.
 
 **Clock.** midiseq sends MIDI clock — start, stop and 24 ticks a beat — to
 every ticked output, so anything listening follows its tempo. In
@@ -107,7 +110,9 @@ rule (up, down, random, highest, and so on), octave offset, velocity, channel
 and rhythm pattern. Because voices run at their own pace, a single chord step
 can become an arpeggio, a bass line and a lead at once. Right-click any
 pattern dot for its step options: articulation, accent, ratchet, probability
-and condition. The dot then shows what it carries.
+and condition. The dot then shows what it carries. Clicking or right-clicking
+a dot also selects its voice; clicking a row's number selects the voice
+without changing any dots.
 
 **Jumps** are what make a sequence wander. Any step can jump to any other step
 when its rule passes — always, every third visit, 25% of the time, and so on.

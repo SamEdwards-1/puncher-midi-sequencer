@@ -409,6 +409,21 @@ describe("the envelope editor", () => {
       expect(notes()).toHaveLength(3)
     })
 
+    it("keep the same keys from step to step", () => {
+      setup([], (start) =>
+        setStepNotes(setStepNotes(start, 0, [60]), 5, [72, 76]),
+      )
+      const keys = () => svg().getAttribute("data-keys")
+      // the whole patch's notes, a key either side
+      expect(keys()).toBe("59-77")
+
+      fireEvent.click(screen.getByRole("button", { name: "Step 6" }))
+      expect(keys()).toBe("59-77")
+      // and a step with nothing on it doesn't close them up either
+      fireEvent.click(screen.getByRole("button", { name: "Step 9" }))
+      expect(keys()).toBe("59-77")
+    })
+
     it("can't be dragged or clicked", () => {
       setup([], (start) => setStepNotes(start, 0, [60]))
       const before = patch()
@@ -552,6 +567,23 @@ describe("the envelope editor", () => {
       fireEvent.keyDown(frame(), { code: "KeyB" })
       expect(rootStore.player.actions.bump).toBe(true)
       fireEvent.keyUp(frame(), { code: "KeyB" })
+    })
+
+    it("follows the voice of a dot that is edited", () => {
+      setup(null, withNotes)
+      fireEvent.click(screen.getByRole("button", { name: "Voice 3 Dot 2" }))
+      expect(tab("Velocity 3")).toHaveAttribute("aria-selected", "true")
+
+      fireEvent.contextMenu(
+        screen.getByRole("button", { name: "Voice 2 Dot 1" }),
+      )
+      expect(tab("Velocity 2")).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("leaves an open CC where it is when a dot is edited", () => {
+      setup(ramp, withNotes)
+      fireEvent.click(screen.getByRole("button", { name: "Voice 3 Dot 2" }))
+      expect(tab("CC 74")).toHaveAttribute("aria-selected", "true")
     })
 
     it("follows an accent picked on the dot", () => {

@@ -1,3 +1,4 @@
+import { createDefaultPatch, setStepNotes } from "@midiseq/core"
 import { describe, expect, it } from "vitest"
 import {
   areaPath,
@@ -8,6 +9,7 @@ import {
   keyRange,
   linePath,
   Plot,
+  patchNoteSpan,
   timeAtX,
   toX,
   toY,
@@ -75,6 +77,29 @@ describe("envelope geometry", () => {
     expect(cellAt(grid, 0.75)).toBe(3)
     // the step's end belongs to the last cell
     expect(cellAt(grid, 1)).toBe(3)
+  })
+
+  it("spans the notes of every step, not just the one on show", () => {
+    let patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
+    patch = setStepNotes(patch, 9, [48])
+    patch = setStepNotes(patch, 40, [79])
+    expect(patchNoteSpan(patch)).toEqual([48, 79])
+  })
+
+  it("reaches as far as the voices' offsets take the notes", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
+    patch.voices[1].offset = -24
+    patch.voices[3].offset = 12
+    expect(patchNoteSpan(patch)).toEqual([36, 76])
+  })
+
+  it("leaves out notes no voice can play", () => {
+    // past the step's note limit, and on a step outside a small grid
+    let patch = setStepNotes(createDefaultPatch(), 0, [60, 62, 64, 65, 96])
+    patch = setStepNotes(patch, 20, [20])
+    patch = { ...patch, size: "small" }
+    expect(patchNoteSpan(patch)).toEqual([60, 65])
+    expect(patchNoteSpan(createDefaultPatch())).toEqual([])
   })
 
   it("shows the notes with a key either side, and at least an octave", () => {

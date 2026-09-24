@@ -21,7 +21,7 @@ import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
-import { useSelectedVoice } from "../../hooks/useSequencerView"
+import { useSelectedLane, useSelectedVoice } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { cn } from "../ui/cn"
@@ -313,8 +313,8 @@ const bands = (
 /**
  * Every voice's pattern at once, one row each and every dot editable, so the
  * voices can be written against each other without flipping through tabs.
- * A row's number selects its voice for the fields above; its dots edit the
- * pattern and leave the selection alone.
+ * A row's number selects its voice for the fields above without touching the
+ * pattern; editing one of its dots selects the voice as well.
  */
 const Patterns: FC<{
   selected: VoiceIndex
@@ -326,6 +326,16 @@ const Patterns: FC<{
   const playingDots = useMobxGetter(player, "playingDots")
   const { togglePatternDot } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
+  const [, setLane] = useSelectedLane()
+
+  // Editing a dot brings its voice up: its tab in the fields above, and its
+  // Velocity tab in the step editor if a Velocity tab is what is open there.
+  const focusVoice = (voice: VoiceIndex) => {
+    onSelect(voice)
+    setLane((lane) =>
+      lane?.kind === "velocity" ? { kind: "velocity", voice } : lane,
+    )
+  }
   const { exportPatterns, importPatterns } = usePatternFileActions()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
@@ -432,9 +442,13 @@ const Patterns: FC<{
                       playedVelocity(voice.velocity, accentAmount, dot),
                       localized,
                     )}
-                    onClick={() => togglePatternDot(voiceIndex, dotIndex)}
+                    onClick={() => {
+                      togglePatternDot(voiceIndex, dotIndex)
+                      focusVoice(voiceIndex)
+                    }}
                     onContextMenu={(event) => {
                       event.preventDefault()
+                      focusVoice(voiceIndex)
                       setOptions({
                         voiceIndex,
                         dotIndex,

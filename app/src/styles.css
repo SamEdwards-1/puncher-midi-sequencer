@@ -120,10 +120,6 @@
   --text-body: 0.8rem;
   --text-title: 0.9rem;
 
-  /* the step editor sits beside the grid rather than below it once there is
-     room for both */
-  --breakpoint-wide: 2000px;
-
   --color-theme: var(--midiseq-theme);
   --color-on-surface: var(--midiseq-on-surface);
   --color-fg: var(--midiseq-fg);

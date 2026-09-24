@@ -25,7 +25,7 @@ to another when a condition is met.
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
 | Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip) and the Jump editor |
-| Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons |
+| Center | 8×8 or 4×4 step grid, step editor, Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
 | Right | Voice tabs 1–4 |
 
 ### Sequencer
@@ -452,7 +452,9 @@ one message per landing.
 **The notes underneath** are the step rendered once through the engine, as a
 clicked step is auditioned: every voice starting together on its first dot.
 Chance and the random rules use a fixed seed, so the picture holds still
-while editing.
+while editing. The keys span the whole patch — every step's playable notes,
+moved by the voices' offsets — rather than the step on show, so the roll
+doesn't jump from step to step.
 
 **Velocity is the dot's.** Notes come from pattern dots, and a voice's
 pattern plays on every step, so a velocity bar edits its dot: every bar from

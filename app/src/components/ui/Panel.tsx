@@ -1,8 +1,8 @@
 import { FC, HTMLAttributes } from "react"
 import { cn } from "./cn"
 
-// Scrolling is left to each panel: two of them scroll as a whole, the middle
-// one holds a grid that shrinks instead.
+// Scrolling is left to each panel. The side panels scroll as a whole; the
+// middle one scrolls under a grid that sticks to its top and shrinks.
 export const Panel: FC<HTMLAttributes<HTMLElement>> = ({
   className,
   ...props
