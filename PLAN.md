@@ -69,11 +69,10 @@ to another when a condition is met.
   DownUp+ (ends repeat), Rise (up 2, down 1), Fall (down 2, up 1).
 - **Pattern:** 1–16 dots, each on/off with options:
   - Articulation: none / hold (sustain through the dot) / tie (legato overlap)
-  - Velocity: typed or stepped, 1–127, kept exactly (no snap, unlike a drawn
-    velocity); landing exactly on an accent's level makes that accent
   - Accent: none / + / − · Ratchet: 1–4 hits · Probability: 10–100%
   - Velocity: the voice's, unless the dot has its own (set in the Velocity
-    lane, §5.6). An accent moves it by the *accent amount*, a setting of the
+    lane, §5.6, or typed in its options, where it is kept exactly and is an
+    accent only on that accent's level). An accent moves it by the *accent amount*, a setting of the
     machine (General, 1–64, default 20).
   - Condition: Always, 2:2, 3:3, 4:4, 1x, 2x, 3x, Last, Not Last
   - Plays only when both probability and condition pass.
