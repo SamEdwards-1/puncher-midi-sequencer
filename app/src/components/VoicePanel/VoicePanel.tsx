@@ -9,10 +9,13 @@ import {
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
+import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import { CSSProperties, FC, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
@@ -272,6 +275,26 @@ export const VoicePanel: FC = () => {
 }
 
 /**
+ * The runs of dots `reach` long from `start`, as [first, count] grid spans.
+ * A run that passes the end of the pattern carries on from its first dot, as
+ * the voice does, so it comes back as two.
+ */
+const bands = (
+  start: number,
+  reach: number,
+  patternLength: number,
+): [number, number][] => {
+  const first = start % patternLength
+  const beforeEnd = Math.min(reach, patternLength - first)
+  return beforeEnd === reach
+    ? [[first, reach]]
+    : [
+        [first, beforeEnd],
+        [0, reach - beforeEnd],
+      ]
+}
+
+/**
  * Every voice's pattern at once, one row each and every dot editable, so the
  * voices can be written against each other without flipping through tabs.
  * Editing a dot selects its voice, keeping the fields above on the voice
@@ -282,6 +305,8 @@ const Patterns: FC<{
   onSelect: (index: VoiceIndex) => void
 }> = ({ selected, onSelect }) => {
   const patch = usePatch()
+  const { player } = useStores()
+  const voiceDots = useMobxGetter(player, "voiceDots")
   const { togglePatternDot } = usePatchEditor()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
@@ -297,11 +322,19 @@ const Patterns: FC<{
     >
       {VOICES.map((voiceIndex) => {
         const voice = patch.voices[voiceIndex]
-        // The dots the voice reaches while the sequencer sits on one step,
-        // counted from the step's start — where Sync Voices puts it on every
-        // step. Without sync the pattern runs on, so later steps take the
-        // next dots along instead.
+        // The dots the voice reaches while the sequencer sits on one step:
+        // from the dot it is on when the step sounds, or from its first when
+        // stopped, which is where playing starts.
         const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
+        const runs = bands(
+          voiceDots?.[voiceIndex] ?? 0,
+          reach,
+          voice.patternLength,
+        )
+        const reached = (dotIndex: number) =>
+          runs.some(
+            ([first, count]) => dotIndex >= first && dotIndex < first + count,
+          )
         return (
           <fieldset
             key={voiceIndex}
@@ -310,21 +343,34 @@ const Patterns: FC<{
             data-enabled={voice.enabled}
             data-reach={reach}
             className={cn(
-              "m-0 flex min-w-0 items-center gap-2 rounded px-1 py-[0.35rem]",
-              voiceIndex === selected && "bg-highlight",
+              "m-0 flex min-w-0 items-center gap-2 px-1 py-[0.35rem]",
               !voice.enabled && "opacity-55",
             )}
             style={voiceColor(voiceIndex)}
           >
-            <span aria-hidden className="w-3 flex-none text-tiny text-voice">
-              {voiceIndex + 1}
+            <span
+              aria-hidden
+              className="flex w-3 flex-none justify-center text-tiny text-voice"
+            >
+              {voiceIndex === selected ? (
+                <ChevronRightIcon size={14} />
+              ) : (
+                voiceIndex + 1
+              )}
             </span>
             <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
-              <span
-                aria-hidden
-                className="-m-[0.2rem] rounded-full bg-voice/20"
-                style={{ gridRow: 1, gridColumn: `1 / span ${reach}` }}
-              />
+              {runs.map(([first, count]) => (
+                <span
+                  key={first}
+                  aria-hidden
+                  data-band
+                  className="-m-[0.2rem] rounded-full bg-background-dark"
+                  style={{
+                    gridRow: 1,
+                    gridColumn: `${first + 1} / span ${count}`,
+                  }}
+                />
+              ))}
               {voice.pattern.map((dot, dotIndex) => {
                 const editing =
                   options?.voiceIndex === voiceIndex &&
@@ -337,7 +383,7 @@ const Patterns: FC<{
                     aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
                     data-on={dot.on}
                     data-beyond={dotIndex >= voice.patternLength}
-                    data-reached={dotIndex < reach}
+                    data-reached={reached(dotIndex)}
                     data-editing={editing}
                     data-articulation={dot.articulation}
                     data-accent={dot.accent}

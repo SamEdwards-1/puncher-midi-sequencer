@@ -1,4 +1,4 @@
-import { paceBeats } from "../entities/paces"
+import { onPaceGrid, paceBeats } from "../entities/paces"
 import {
   CCEventJSON,
   ModSource,
@@ -208,7 +208,7 @@ export class Engine {
 
   private tickSequencer(beat: number, events: EngineEvent[]) {
     const { patch, runtime } = this
-    runtime.nextSeqBeat = beat + paceBeats(patch.pace)
+    runtime.nextSeqBeat = onPaceGrid(beat + paceBeats(patch.pace))
 
     // Hang keeps the phase moving but never advances the step
     if (this.actions.hang) {
@@ -236,6 +236,12 @@ export class Engine {
       beat,
       position,
       step: viewIndex(position, patch.size, this.actions.flip),
+      // Voice ticks before this beat are already rendered and the ones on it
+      // come after the sequencer's, so each voice's next dot is the first it
+      // plays on this step — or the first of its pattern, once sync resets it.
+      voiceDots: voiceIndexes.map((index) =>
+        this.syncVoices ? 0 : runtime.voices[index].patternIndex,
+      ),
     })
 
     this.emitStepCCs(step.ccs, beat, events)
@@ -366,7 +372,7 @@ export class Engine {
     const voice = this.patch.voices[index]
     const runtime = this.runtime.voices[index]
     const pace = paceBeats(voice.pace)
-    runtime.nextBeat = beat + pace
+    runtime.nextBeat = onPaceGrid(beat + pace)
 
     const patternIndex = runtime.patternIndex
     runtime.patternIndex = (patternIndex + 1) % voice.patternLength

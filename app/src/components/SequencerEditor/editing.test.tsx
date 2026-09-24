@@ -1,5 +1,5 @@
 import { createDefaultPatch } from "@midiseq/core"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -78,11 +78,13 @@ describe("editing the sequencer", () => {
       screen.getByRole("button", { name: `Voice ${voice} Dot ${number}` })
     const colourOf = (element: HTMLElement) =>
       element.style.getPropertyValue("--midiseq-voice")
+    // the dot numbers the band wraps, in pattern order
     const reached = (voice: number) =>
       within(row(voice))
         .getAllByRole("button")
-        .map((button) => button.getAttribute("data-reached") === "true")
-        .lastIndexOf(true) + 1
+        .flatMap((button, index) =>
+          button.getAttribute("data-reached") === "true" ? [index + 1] : [],
+        )
     const setPace = (value: string, panel = sequencerPanel()) =>
       fireEvent.change(panel.getByLabelText("Pace"), { target: { value } })
 
@@ -141,18 +143,59 @@ describe("editing the sequencer", () => {
 
     it("highlights the dots a voice reaches in one sequencer step", () => {
       // the default patch: sequencer and voices both at 8ths, a dot a step
-      expect(reached(1)).toBe(1)
+      expect(reached(1)).toEqual([1])
 
       // a bar-long step gives an 8th-note voice eight dots
       setPace("1bar")
-      expect(reached(1)).toBe(8)
+      expect(reached(1)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
       expect(row(1)).toHaveAttribute("data-reach", "8")
 
       // and a faster voice more, on its row only
       selectVoice(2)
       setPace("16th", voicePanel())
-      expect(reached(2)).toBe(16)
-      expect(reached(1)).toBe(8)
+      expect(reached(2)).toHaveLength(16)
+      expect(reached(1)).toHaveLength(8)
+    })
+
+    it("moves the band to where each voice is on the sounding step", () => {
+      setPace("4th")
+      // 8th-note voices reach two dots a step
+      act(() => {
+        rootStore.player.voiceDots = [4, 15, 0, 9]
+      })
+      expect(reached(1)).toEqual([5, 6])
+      expect(reached(3)).toEqual([1, 2])
+      expect(reached(4)).toEqual([10, 11])
+    })
+
+    it("wraps the band past the end of the pattern, as the voice does", () => {
+      setPace("4th")
+      act(() => {
+        rootStore.player.voiceDots = [0, 15, 0, 0]
+      })
+      expect(reached(2)).toEqual([1, 16])
+      expect(row(2).querySelectorAll("[data-band]").length).toBe(2)
+    })
+
+    it("returns the band to the first dot once playing stops", () => {
+      setPace("4th")
+      act(() => {
+        rootStore.player.voiceDots = [6, 6, 6, 6]
+      })
+      act(() => {
+        rootStore.player.voiceDots = null
+      })
+      expect(reached(1)).toEqual([1, 2])
+    })
+
+    it("marks the selected voice's row with an arrow in place of its number", () => {
+      expect(row(1).querySelector("svg")).not.toBeNull()
+      expect(within(row(1)).queryByText("1")).toBeNull()
+      expect(within(row(2)).getByText("2")).toBeInTheDocument()
+
+      selectVoice(2)
+      expect(row(2).querySelector("svg")).not.toBeNull()
+      expect(within(row(1)).getByText("1")).toBeInTheDocument()
     })
 
     it("keeps the highlight inside the pattern's length", () => {
@@ -164,7 +207,7 @@ describe("editing the sequencer", () => {
         )
       }
       expect(patch().voices[3].patternLength).toBe(5)
-      expect(reached(4)).toBe(5)
+      expect(reached(4)).toEqual([1, 2, 3, 4, 5])
       expect(dot(4, 6)).toHaveAttribute("data-beyond", "true")
     })
   })

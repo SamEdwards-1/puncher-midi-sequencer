@@ -3,7 +3,9 @@ import {
   dotsPerStep,
   migratePace,
   nearestPace,
+  onPaceGrid,
   PACE_BEATS,
+  PACE_GRID,
   PACE_LABELS,
   PACES,
   paceBeats,
@@ -46,6 +48,26 @@ describe("paces", () => {
     expect(nearestPace(1)).toBe("4th")
     expect(nearestPace(0.26)).toBe("16th")
     expect(nearestPace(1000)).toBe("16bar")
+  })
+
+  it("measures every pace in whole steps of the shared grid", () => {
+    for (const id of PACES) {
+      const steps = paceBeats(id) * PACE_GRID
+      expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-9)
+    }
+  })
+
+  it("lands triplets added together on the beat", () => {
+    const third = paceBeats("8thT")
+    let drifting = 0
+    let snapped = 0
+    for (let i = 0; i < 6; i++) {
+      drifting += third
+      snapped = onPaceGrid(snapped + third)
+    }
+    // six triplets fall just short of the second beat unless snapped
+    expect(drifting).toBeLessThan(2)
+    expect(snapped).toBe(2)
   })
 
   describe("dots per step", () => {

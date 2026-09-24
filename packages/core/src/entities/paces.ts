@@ -49,6 +49,19 @@ export const PACE_LABELS: Record<PaceId, string> = {
 
 export const paceBeats = (id: PaceId): number => PACE_BEATS[id]
 
+// Every pace is a whole number of these, from the 32nd triplet (4) to the
+// dotted 32nd (9) and the straight 32nd (6).
+export const PACE_GRID = 48
+
+/**
+ * Puts a beat reached by adding paces back on the grid they all share.
+ * Adding triplets up otherwise drifts: six of them come to
+ * 1.9999999999999998, and a voice would tick just before the sequencer step
+ * it belongs to.
+ */
+export const onPaceGrid = (beat: number): number =>
+  Math.round(beat * PACE_GRID) / PACE_GRID
+
 const byDurationDescending = (a: PaceId, b: PaceId) =>
   PACE_BEATS[b] - PACE_BEATS[a]
 
