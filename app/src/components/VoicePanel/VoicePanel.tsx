@@ -1,4 +1,5 @@
 import {
+  dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
   PACE_LABELS,
@@ -35,10 +36,6 @@ const TAIL =
 // a condition is otherwise invisible, so it marks the corner
 const CONDITION_MARK =
   "after:absolute after:top-[-0.1rem] after:right-[-0.1rem] after:h-[0.3rem] after:w-[0.3rem] after:rounded-full after:bg-yellow after:content-['']"
-
-// The overview's dots are small enough that the step options would be noise,
-// so they show only whether a dot plays, and how surely.
-const MINI_DOT = "aspect-square rounded-full border"
 
 const RULES: { value: VoiceRule; label: string }[] = [
   { value: "nth", label: "Nth" },
@@ -113,12 +110,8 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
 export const VoicePanel: FC = () => {
   const patch = usePatch()
   const [selected, setSelected] = useSelectedVoice()
-  const { editVoice, togglePatternDot } = usePatchEditor()
+  const { editVoice } = usePatchEditor()
   const localized = useLocalization()
-  const [options, setOptions] = useState<{
-    dotIndex: number
-    at: { x: number; y: number }
-  } | null>(null)
   const voice = patch.voices[selected]
 
   return (
@@ -273,119 +266,125 @@ export const VoicePanel: FC = () => {
         </Field>
       </Fields>
 
-      <div
-        className="grid grid-cols-8 gap-[0.3rem] px-4 pb-4"
-        style={voiceColor(selected)}
-      >
-        {voice.pattern.map((dot, index) => (
-          <button
-            // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
-            key={index}
-            type="button"
-            aria-label={`${localized["sequencer-voice-dot"]} ${index + 1}`}
-            data-on={dot.on}
-            data-beyond={index >= voice.patternLength}
-            data-editing={options?.dotIndex === index}
-            data-articulation={dot.articulation}
-            data-accent={dot.accent}
-            data-chance={dot.probability < 100}
-            data-condition={dot.condition !== "always"}
-            className={dotClass(
-              dot,
-              index >= voice.patternLength,
-              options?.dotIndex === index,
-            )}
-            title={describe(dot, localized)}
-            onClick={() => togglePatternDot(selected, index)}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setOptions({
-                dotIndex: index,
-                at: { x: event.clientX, y: event.clientY },
-              })
-            }}
-          >
-            {dot.ratchet > 1 ? dot.ratchet : ""}
-          </button>
-        ))}
-      </div>
-      <div className="px-4 pb-4 text-tiny text-fg-tertiary">
-        <Localized name="sequencer-dot-hint" />
-      </div>
-
-      <PatternOverview selected={selected} onSelect={setSelected} />
-
-      {options !== null && (
-        <StepOptions
-          voiceIndex={selected}
-          dotIndex={options.dotIndex}
-          dot={voice.pattern[options.dotIndex]}
-          at={options.at}
-          onClose={() => setOptions(null)}
-        />
-      )}
+      <Patterns selected={selected} onSelect={setSelected} />
     </Panel>
   )
 }
 
 /**
- * Every voice's pattern at once, one row each, so how the voices interlock
- * can be read without flipping through the tabs. A row selects its voice.
+ * Every voice's pattern at once, one row each and every dot editable, so the
+ * voices can be written against each other without flipping through tabs.
+ * Editing a dot selects its voice, keeping the fields above on the voice
+ * being worked on.
  */
-const PatternOverview: FC<{
+const Patterns: FC<{
   selected: VoiceIndex
   onSelect: (index: VoiceIndex) => void
 }> = ({ selected, onSelect }) => {
   const patch = usePatch()
+  const { togglePatternDot } = usePatchEditor()
   const localized = useLocalization()
+  const [options, setOptions] = useState<{
+    voiceIndex: VoiceIndex
+    dotIndex: number
+    at: { x: number; y: number }
+  } | null>(null)
 
   return (
     <section
-      aria-label={localized["sequencer-voice-overview"]}
-      className="flex flex-col gap-[0.15rem] border-t border-divider px-3 py-3"
+      aria-label={localized["sequencer-voice-patterns"]}
+      className="flex flex-col gap-[0.35rem] border-t border-divider px-3 pt-3"
     >
-      {VOICES.map((index) => {
-        const voice = patch.voices[index]
+      {VOICES.map((voiceIndex) => {
+        const voice = patch.voices[voiceIndex]
+        // The dots the voice reaches while the sequencer sits on one step,
+        // counted from the step's start — where Sync Voices puts it on every
+        // step. Without sync the pattern runs on, so later steps take the
+        // next dots along instead.
+        const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
         return (
-          <button
-            key={index}
-            type="button"
-            aria-label={`${localized["sequencer-voice"]} ${index + 1} ${localized["sequencer-voice-overview-row"]}`}
-            aria-current={index === selected}
+          <fieldset
+            key={voiceIndex}
+            aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-pattern"]}`}
+            aria-current={voiceIndex === selected}
             data-enabled={voice.enabled}
+            data-reach={reach}
             className={cn(
-              "flex items-center gap-2 rounded px-1 py-[0.3rem]",
-              index === selected ? "bg-highlight" : "hover:bg-highlight",
+              "m-0 flex min-w-0 items-center gap-2 rounded px-1 py-[0.35rem]",
+              voiceIndex === selected && "bg-highlight",
               !voice.enabled && "opacity-55",
             )}
-            style={voiceColor(index)}
-            onClick={() => onSelect(index)}
+            style={voiceColor(voiceIndex)}
           >
-            <span className="w-3 flex-none text-tiny text-voice">
-              {index + 1}
+            <span aria-hidden className="w-3 flex-none text-tiny text-voice">
+              {voiceIndex + 1}
             </span>
-            <span className="grid flex-1 grid-cols-16 gap-[0.2rem]">
-              {voice.pattern.map((dot, dotIndex) => (
-                <span
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
-                  key={dotIndex}
-                  data-on={dot.on}
-                  data-beyond={dotIndex >= voice.patternLength}
-                  className={cn(
-                    MINI_DOT,
-                    dot.on
-                      ? dot.probability < 100
-                        ? "border-voice bg-transparent"
-                        : "border-transparent bg-voice"
-                      : "border-transparent bg-step",
-                    dotIndex >= voice.patternLength && "opacity-25",
-                  )}
-                />
-              ))}
+            <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
+              <span
+                aria-hidden
+                className="-m-[0.2rem] rounded-full bg-voice/20"
+                style={{ gridRow: 1, gridColumn: `1 / span ${reach}` }}
+              />
+              {voice.pattern.map((dot, dotIndex) => {
+                const editing =
+                  options?.voiceIndex === voiceIndex &&
+                  options.dotIndex === dotIndex
+                return (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
+                    key={dotIndex}
+                    type="button"
+                    aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+                    data-on={dot.on}
+                    data-beyond={dotIndex >= voice.patternLength}
+                    data-reached={dotIndex < reach}
+                    data-editing={editing}
+                    data-articulation={dot.articulation}
+                    data-accent={dot.accent}
+                    data-chance={dot.probability < 100}
+                    data-condition={dot.condition !== "always"}
+                    className={dotClass(
+                      dot,
+                      dotIndex >= voice.patternLength,
+                      editing,
+                    )}
+                    style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
+                    title={describe(dot, localized)}
+                    onClick={() => {
+                      onSelect(voiceIndex)
+                      togglePatternDot(voiceIndex, dotIndex)
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      onSelect(voiceIndex)
+                      setOptions({
+                        voiceIndex,
+                        dotIndex,
+                        at: { x: event.clientX, y: event.clientY },
+                      })
+                    }}
+                  >
+                    {dot.ratchet > 1 ? dot.ratchet : ""}
+                  </button>
+                )
+              })}
             </span>
-          </button>
+          </fieldset>
         )
       })}
+      <div className="px-1 pt-1 pb-4 text-tiny text-fg-tertiary">
+        <Localized name="sequencer-dot-hint" />
+      </div>
+
+      {options !== null && (
+        <StepOptions
+          voiceIndex={options.voiceIndex}
+          dotIndex={options.dotIndex}
+          dot={patch.voices[options.voiceIndex].pattern[options.dotIndex]}
+          at={options.at}
+          onClose={() => setOptions(null)}
+        />
+      )}
     </section>
   )
 }

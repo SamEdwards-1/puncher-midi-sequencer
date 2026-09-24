@@ -63,7 +63,7 @@ describe("editing the sequencer", () => {
   })
 
   it("toggles a pattern dot", () => {
-    const dot = voicePanel().getByRole("button", { name: "Dot 3" })
+    const dot = voicePanel().getByRole("button", { name: "Voice 1 Dot 3" })
 
     fireEvent.click(dot)
     expect(patch().voices[0].pattern[2].on).toBe(false)
@@ -71,50 +71,92 @@ describe("editing the sequencer", () => {
     expect(patch().voices[0].pattern[2].on).toBe(true)
   })
 
-  describe("voice colours and the pattern overview", () => {
-    const overviewRow = (number: number) =>
-      screen.getByRole("button", { name: `Voice ${number} pattern` })
+  describe("voice colours and the pattern rows", () => {
+    const row = (voice: number) =>
+      screen.getByRole("group", { name: `Voice ${voice} pattern` })
+    const dot = (voice: number, number: number) =>
+      screen.getByRole("button", { name: `Voice ${voice} Dot ${number}` })
     const colourOf = (element: HTMLElement) =>
       element.style.getPropertyValue("--midiseq-voice")
+    const reached = (voice: number) =>
+      within(row(voice))
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("data-reached") === "true")
+        .lastIndexOf(true) + 1
+    const setPace = (value: string, panel = sequencerPanel()) =>
+      fireEvent.change(panel.getByLabelText("Pace"), { target: { value } })
 
-    it("draws the selected voice's dots and tab in that voice's colour", () => {
-      selectVoice(3)
-      const dots = voicePanel().getByRole("button", { name: "Dot 1" })
-        .parentElement as HTMLElement
-      const tab = screen.getByRole("button", { name: "Voice 3" })
-
-      expect(colourOf(dots)).toBe("var(--midiseq-voice-2)")
-      expect(colourOf(tab)).toBe("var(--midiseq-voice-2)")
-      // the active tab is underlined in its voice's colour, not the theme's
-      expect(tab).toHaveClass("border-voice")
-      expect(tab).not.toHaveClass("border-theme")
-    })
-
-    it("gives every tab and overview row its own voice's colour", () => {
-      for (const number of [1, 2, 3, 4]) {
-        const expected = `var(--midiseq-voice-${number - 1})`
-        expect(
-          colourOf(screen.getByRole("button", { name: `Voice ${number}` })),
-        ).toBe(expected)
-        expect(colourOf(overviewRow(number))).toBe(expected)
+    it("gives every tab and pattern row its own voice's colour", () => {
+      for (const voice of [1, 2, 3, 4]) {
+        const expected = `var(--midiseq-voice-${voice - 1})`
+        const tab = screen.getByRole("button", { name: `Voice ${voice}` })
+        expect(colourOf(tab)).toBe(expected)
+        expect(colourOf(row(voice))).toBe(expected)
       }
     })
 
-    it("shows every voice's pattern under the selected one", () => {
-      // an edit on voice 2 shows in its row while voice 1 is selected
-      selectVoice(2)
-      fireEvent.click(voicePanel().getByRole("button", { name: "Dot 4" }))
-      selectVoice(1)
-
-      const row = overviewRow(2).querySelectorAll("[data-on]")
-      expect(row).toHaveLength(16)
-      expect(row[3]).toHaveAttribute("data-on", "false")
-      expect(row[2]).toHaveAttribute("data-on", "true")
-      expect(overviewRow(1)).toHaveAttribute("aria-current", "true")
-      expect(overviewRow(2)).toHaveAttribute("aria-current", "false")
+    it("underlines the active tab in its voice's colour, not the theme's", () => {
+      selectVoice(3)
+      const tab = screen.getByRole("button", { name: "Voice 3" })
+      expect(tab).toHaveClass("border-voice")
+      expect(tab).not.toHaveClass("border-theme")
+      expect(screen.getByRole("button", { name: "Voice 1" })).toHaveClass(
+        "border-transparent",
+      )
     })
 
-    it("dims the dots past a voice's pattern length in the overview", () => {
+    it("shows every voice's pattern as its own row of 16 dots", () => {
+      for (const voice of [1, 2, 3, 4]) {
+        expect(within(row(voice)).getAllByRole("button")).toHaveLength(16)
+      }
+      expect(row(1)).toHaveAttribute("aria-current", "true")
+      expect(row(2)).toHaveAttribute("aria-current", "false")
+    })
+
+    it("edits any voice's dot, and selects that voice", () => {
+      fireEvent.click(dot(3, 4))
+      expect(patch().voices[2].pattern[3].on).toBe(false)
+      // the other voices are untouched
+      expect(patch().voices[0].pattern[3].on).toBe(true)
+      expect(screen.getByRole("button", { name: "Voice 3" })).toHaveAttribute(
+        "data-active",
+        "true",
+      )
+      expect(row(3)).toHaveAttribute("aria-current", "true")
+    })
+
+    it("opens a dot's options for its own voice", () => {
+      fireEvent.contextMenu(dot(2, 5))
+      const options = within(
+        screen.getByRole("dialog", { name: "Voice 2 Dot 5" }),
+      )
+      fireEvent.change(options.getByLabelText("Ratchet"), {
+        target: { value: "2" },
+      })
+      expect(patch().voices[1].pattern[4].ratchet).toBe(2)
+      expect(patch().voices[0].pattern[4].ratchet).toBe(1)
+      expect(dot(2, 5)).toHaveAttribute("data-editing", "true")
+      expect(dot(1, 5)).toHaveAttribute("data-editing", "false")
+    })
+
+    it("highlights the dots a voice reaches in one sequencer step", () => {
+      // the default patch: sequencer and voices both at 8ths, a dot a step
+      expect(reached(1)).toBe(1)
+
+      // a bar-long step gives an 8th-note voice eight dots
+      setPace("1bar")
+      expect(reached(1)).toBe(8)
+      expect(row(1)).toHaveAttribute("data-reach", "8")
+
+      // and a faster voice more, on its row only
+      selectVoice(2)
+      setPace("16th", voicePanel())
+      expect(reached(2)).toBe(16)
+      expect(reached(1)).toBe(8)
+    })
+
+    it("keeps the highlight inside the pattern's length", () => {
+      setPace("1bar")
       selectVoice(4)
       for (let i = 0; i < 11; i++) {
         fireEvent.click(
@@ -122,18 +164,8 @@ describe("editing the sequencer", () => {
         )
       }
       expect(patch().voices[3].patternLength).toBe(5)
-
-      const row = overviewRow(4).querySelectorAll("[data-on]")
-      expect(row[4]).toHaveAttribute("data-beyond", "false")
-      expect(row[5]).toHaveAttribute("data-beyond", "true")
-    })
-
-    it("selects a voice from its overview row", () => {
-      fireEvent.click(overviewRow(3))
-      expect(screen.getByRole("button", { name: "Voice 3" })).toHaveAttribute(
-        "data-active",
-        "true",
-      )
+      expect(reached(4)).toBe(5)
+      expect(dot(4, 6)).toHaveAttribute("data-beyond", "true")
     })
   })
 

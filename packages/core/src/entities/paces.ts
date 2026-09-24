@@ -57,6 +57,24 @@ export const PACES: PaceId[] = (Object.keys(PACE_BEATS) as PaceId[]).sort(
   byDurationDescending,
 )
 
+// absorbs float error in pace ratios, so 1 / (1/3) counts as 3 dots, not 4
+const DOT_EPSILON = 1e-9
+
+/**
+ * How many of a voice's dots it plays while the sequencer sits on one step:
+ * a dot starts every voice pace, from the step's start until the next step.
+ * The pattern wraps at its length, so no more than that many are distinct.
+ */
+export const dotsPerStep = (
+  sequencerPace: PaceId,
+  voicePace: PaceId,
+  patternLength: number,
+): number =>
+  Math.min(
+    Math.ceil(PACE_BEATS[sequencerPace] / PACE_BEATS[voicePace] - DOT_EPSILON),
+    patternLength,
+  )
+
 /**
  * Paces once included golden-ratio durations — a note times 1.618 — which no
  * longer exist. A patch that names one is read as the pace closest to it in
