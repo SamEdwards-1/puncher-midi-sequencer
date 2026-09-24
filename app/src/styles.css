@@ -60,6 +60,10 @@
   --midiseq-voice-1: hsl(28, 80%, 52%);
   --midiseq-voice-2: hsl(155, 55%, 40%);
   --midiseq-voice-3: hsl(290, 55%, 58%);
+
+  /* behind the dots a voice reaches in one sequencer step: well below the
+     panel, so the band reads at a glance behind coloured dots */
+  --midiseq-pace-band: hsl(228, 12%, 7%);
 }
 
 :root[data-theme="light"] {
@@ -96,6 +100,7 @@
   --midiseq-voice-1: hsl(25, 80%, 45%);
   --midiseq-voice-2: hsl(155, 60%, 32%);
   --midiseq-voice-3: hsl(290, 50%, 48%);
+  --midiseq-pace-band: hsl(228, 14%, 80%);
 }
 
 /* Tailwind's tokens point at those variables rather than copying them, so a
@@ -138,6 +143,7 @@
   /* whichever voice an element belongs to, set on it or an ancestor by
      voiceColor() */
   --color-voice: var(--midiseq-voice);
+  --color-pace-band: var(--midiseq-pace-band);
 }
 
 @layer base {

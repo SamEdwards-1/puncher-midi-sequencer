@@ -297,8 +297,8 @@ const bands = (
 /**
  * Every voice's pattern at once, one row each and every dot editable, so the
  * voices can be written against each other without flipping through tabs.
- * Editing a dot selects its voice, keeping the fields above on the voice
- * being worked on.
+ * A row's number selects its voice for the fields above; its dots edit the
+ * pattern and leave the selection alone.
  */
 const Patterns: FC<{
   selected: VoiceIndex
@@ -343,28 +343,31 @@ const Patterns: FC<{
             data-enabled={voice.enabled}
             data-reach={reach}
             className={cn(
-              "m-0 flex min-w-0 items-center gap-2 px-1 py-[0.35rem]",
+              "m-0 flex min-w-0 items-center gap-2 px-0 py-[0.4rem]",
               !voice.enabled && "opacity-55",
             )}
             style={voiceColor(voiceIndex)}
           >
-            <span
-              aria-hidden
-              className="flex w-3 flex-none justify-center text-tiny text-voice"
+            <button
+              type="button"
+              aria-label={`${localized["sequencer-voice-select"]} ${voiceIndex + 1}`}
+              aria-pressed={voiceIndex === selected}
+              className="flex h-5 w-5 flex-none items-center justify-center rounded text-tiny text-voice hover:bg-highlight hover:brightness-125"
+              onClick={() => onSelect(voiceIndex)}
             >
               {voiceIndex === selected ? (
                 <ChevronRightIcon size={14} />
               ) : (
                 voiceIndex + 1
               )}
-            </span>
+            </button>
             <span className="grid flex-1 grid-cols-16 gap-[0.3rem]">
               {runs.map(([first, count]) => (
                 <span
                   key={first}
                   aria-hidden
                   data-band
-                  className="-m-[0.2rem] rounded-full bg-background-dark"
+                  className="-m-[0.25rem] rounded-full bg-pace-band"
                   style={{
                     gridRow: 1,
                     gridColumn: `${first + 1} / span ${count}`,
@@ -396,13 +399,9 @@ const Patterns: FC<{
                     )}
                     style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
                     title={describe(dot, localized)}
-                    onClick={() => {
-                      onSelect(voiceIndex)
-                      togglePatternDot(voiceIndex, dotIndex)
-                    }}
+                    onClick={() => togglePatternDot(voiceIndex, dotIndex)}
                     onContextMenu={(event) => {
                       event.preventDefault()
-                      onSelect(voiceIndex)
                       setOptions({
                         voiceIndex,
                         dotIndex,

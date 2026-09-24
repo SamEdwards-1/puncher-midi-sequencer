@@ -75,6 +75,7 @@ export default {
     "sequencer-dot-hint": "Right-click a dot for its step options.",
     "sequencer-voice-patterns": "Patterns",
     "sequencer-voice-pattern": "pattern",
+    "sequencer-voice-select": "Select voice",
     "sequencer-dot-articulation": "Articulation",
     "sequencer-dot-articulation-none": "None",
     "sequencer-dot-articulation-hold": "Hold",

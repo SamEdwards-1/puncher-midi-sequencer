@@ -81,7 +81,7 @@ describe("editing the sequencer", () => {
     // the dot numbers the band wraps, in pattern order
     const reached = (voice: number) =>
       within(row(voice))
-        .getAllByRole("button")
+        .getAllByRole("button", { name: /Dot/ })
         .flatMap((button, index) =>
           button.getAttribute("data-reached") === "true" ? [index + 1] : [],
         )
@@ -109,22 +109,42 @@ describe("editing the sequencer", () => {
 
     it("shows every voice's pattern as its own row of 16 dots", () => {
       for (const voice of [1, 2, 3, 4]) {
-        expect(within(row(voice)).getAllByRole("button")).toHaveLength(16)
+        expect(
+          within(row(voice)).getAllByRole("button", { name: /Dot/ }),
+        ).toHaveLength(16)
       }
       expect(row(1)).toHaveAttribute("aria-current", "true")
       expect(row(2)).toHaveAttribute("aria-current", "false")
     })
 
-    it("edits any voice's dot, and selects that voice", () => {
+    it("edits any voice's dot without changing the selected voice", () => {
       fireEvent.click(dot(3, 4))
       expect(patch().voices[2].pattern[3].on).toBe(false)
       // the other voices are untouched
       expect(patch().voices[0].pattern[3].on).toBe(true)
+      expect(screen.getByRole("button", { name: "Voice 1" })).toHaveAttribute(
+        "data-active",
+        "true",
+      )
+      expect(row(1)).toHaveAttribute("aria-current", "true")
+    })
+
+    it("selects a voice from its row's number, leaving its dots alone", () => {
+      const before = patch()
+      fireEvent.click(screen.getByRole("button", { name: "Select voice 3" }))
+
+      expect(patch()).toBe(before)
       expect(screen.getByRole("button", { name: "Voice 3" })).toHaveAttribute(
         "data-active",
         "true",
       )
       expect(row(3)).toHaveAttribute("aria-current", "true")
+      expect(
+        screen.getByRole("button", { name: "Select voice 3" }),
+      ).toHaveAttribute("aria-pressed", "true")
+      expect(
+        screen.getByRole("button", { name: "Select voice 1" }),
+      ).toHaveAttribute("aria-pressed", "false")
     })
 
     it("opens a dot's options for its own voice", () => {
