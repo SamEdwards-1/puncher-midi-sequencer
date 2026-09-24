@@ -56,9 +56,12 @@ export default {
     "sequencer-step-trim": "Trim to limit",
     "sequencer-step-ccs": "Velocity & CCs",
     "sequencer-step-add-cc": "Add CC",
+    "sequencer-step-more-lanes": "More lanes",
     "sequencer-step-remove-cc": "Remove CC",
-    "sequencer-velocity-hint":
-      "Drag a bar to set its note's velocity, or drag across bars to paint them. Near a dashed line a bar snaps onto that accent; a dot shows whichever level its velocity is nearest. One dot's bars move together.",
+    "sequencer-velocity-edit-hint":
+      "Each note is a point on the line. Drag a point or the line to set its velocity; click a point to return its note to the voice's. Near a dashed line a note snaps onto that accent; one dot's notes move together. B switches to Draw.",
+    "sequencer-velocity-draw-hint":
+      "Drag across the notes to paint their velocities. B switches back to Edit.",
     "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
     "sequencer-envelope": "Envelope",

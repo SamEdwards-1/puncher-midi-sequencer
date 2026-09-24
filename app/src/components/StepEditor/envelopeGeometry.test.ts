@@ -83,14 +83,28 @@ describe("envelope geometry", () => {
     let patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
     patch = setStepNotes(patch, 9, [48])
     patch = setStepNotes(patch, 40, [79])
-    expect(patchNoteSpan(patch)).toEqual([48, 79])
+    // only voice 1 plays, at no offset
+    expect(patchNoteSpan(patch)).toEqual([48, 48, 79, 79])
   })
 
-  it("spans the grid's keys alone, whatever offsets the voices play at", () => {
+  it("reaches as far as the playing voices' offsets take the keys", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
+    patch.voices[0].enabled = true
+    patch.voices[1].enabled = true
     patch.voices[1].offset = -24
+    patch.voices[2].offset = 36
+    patch.voices[3].enabled = true
     patch.voices[3].offset = 12
-    expect(patchNoteSpan(patch)).toEqual([60, 64])
+    // voice 3 is off, so its three octaves up play nothing
+    const span = patchNoteSpan(patch)
+    expect([Math.min(...span), Math.max(...span)]).toEqual([36, 76])
+  })
+
+  it("never reaches past the MIDI keys", () => {
+    const patch = setStepNotes(createDefaultPatch(), 0, [120])
+    patch.voices[0].enabled = true
+    patch.voices[0].offset = 24
+    expect(Math.max(...patchNoteSpan(patch))).toBe(127)
   })
 
   it("leaves out notes no voice can play", () => {
@@ -98,7 +112,7 @@ describe("envelope geometry", () => {
     let patch = setStepNotes(createDefaultPatch(), 0, [60, 62, 64, 65, 96])
     patch = setStepNotes(patch, 20, [20])
     patch = { ...patch, size: "small" }
-    expect(patchNoteSpan(patch)).toEqual([60, 65])
+    expect(patchNoteSpan(patch)).toEqual([60, 60, 65, 65])
     expect(patchNoteSpan(createDefaultPatch())).toEqual([])
   })
 

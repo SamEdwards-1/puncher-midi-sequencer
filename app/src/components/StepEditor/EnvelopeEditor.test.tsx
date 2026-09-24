@@ -82,12 +82,11 @@ const setup = (
   fireEvent.click(screen.getByRole("button", { name: "Step 1" }))
   // the voice, lane and tool are view state and live on past a render
   fireEvent.click(screen.getByRole("button", { name: "Voice 1" }))
-  if (shape !== null) {
-    fireEvent.click(screen.getByRole("tab", { name: "CC 74" }))
-    click("Edit")
-  } else {
-    fireEvent.click(screen.getByRole("tab", { name: "Velocity 1" }))
-  }
+  fireEvent.click(
+    screen.getByRole("tab", { name: shape !== null ? "CC 74" : "Velocity 1" }),
+  )
+  // both kinds of lane have the tools
+  click("Edit")
 }
 
 const tab = (name: string) => screen.queryByRole("tab", { name })
@@ -456,7 +455,7 @@ describe("the envelope editor", () => {
 
     it("keep their voice's own colour under an envelope", () => {
       setup(ramp, (start) => setStepNotes(start, 0, [60]))
-      expect(notes()[0]).toHaveAttribute("fill-opacity", "1")
+      expect(notes()[0]).not.toHaveAttribute("fill-opacity")
     })
 
     it("keep the same keys from step to step", () => {
@@ -486,14 +485,15 @@ describe("the envelope editor", () => {
       expect(keys()).toBe("66-76")
     })
 
-    it("leaves out a note a voice's offset takes past the grid's keys", () => {
+    it("reach every note a voice's offset takes past the grid's keys", () => {
       setup([], (start) => {
         const next = setStepNotes(start, 0, [60, 64])
         next.voices[1] = { ...next.voices[1], enabled: true, offset: 24 }
         return next
       })
+      expect(svg().getAttribute("data-keys")).toBe("60-88")
       const shown = notes().map((note) => note.getAttribute("data-voice"))
-      expect(shown).not.toContain("1")
+      expect(shown).toContain("1")
       expect(shown).toContain("0")
     })
 
@@ -508,24 +508,30 @@ describe("the envelope editor", () => {
   })
 
   describe("velocity", () => {
-    // voice 1 plays 8ths across the quarter-note step: bars at 0 and a half
+    // voice 1 plays 8ths across the quarter-note step: points at 0 and a half
     const withNotes = (start: PatchJSON) => setStepNotes(start, 0, [60, 64])
-    const bars = () => [...svg().querySelectorAll("[data-bar]")]
+    const velocityPoints = () => [...svg().querySelectorAll("[data-point]")]
     const velocities = () =>
-      bars().map((bar) => Number(bar.getAttribute("data-velocity")))
+      velocityPoints().map((point) =>
+        Number(point.getAttribute("data-velocity")),
+      )
     const dot = (number: number) =>
       screen.getByRole("button", { name: `Voice 1 Dot ${number}` })
-    const firstBar = X(0) + 2
-    const secondBar = X(0.5) + 2
+    const firstBar = X(0)
+    const secondBar = X(0.5)
 
-    it("shows a bar at each of the voice's notes, at its velocity", () => {
+    it("draws a line with a point at each of the voice's notes", () => {
       setup(null, withNotes)
       expect(tab("Velocity 1")).toHaveAttribute("aria-selected", "true")
       expect(velocities()).toEqual([64, 64])
-      expect(bars()[1]).toHaveAttribute("x", String(X(0.5)))
+      expect(velocityPoints()[1]).toHaveAttribute("cx", String(X(0.5)))
+      expect(svg().querySelector("[data-envelope-line]")).not.toBeNull()
+      // as for a CC, and no bars
+      expect(svg().querySelector("[data-bar]")).toBeNull()
+      expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
     })
 
-    it("marks where a bar is plain and where it is either accent", () => {
+    it("marks where a note is plain and where it is either accent", () => {
       setup(null, withNotes)
       const levels = [...svg().querySelectorAll("[data-level]")].map((line) =>
         Number(line.getAttribute("data-level")),
@@ -533,7 +539,7 @@ describe("the envelope editor", () => {
       expect(levels).toEqual([44, 64, 84])
     })
 
-    it("makes a bar dragged onto an accent's velocity that accent", () => {
+    it("makes a point dragged onto an accent's velocity that accent", () => {
       setup(null, withNotes)
       dragFrom([firstBar, Y(64)], [[firstBar, Y(84)]])
 
@@ -546,7 +552,7 @@ describe("the envelope editor", () => {
       expect(dot(1)).toHaveAttribute("data-accent", "+")
     })
 
-    it("snaps a bar dropped near an accent's velocity onto it", () => {
+    it("snaps a point dropped near an accent's velocity onto it", () => {
       setup(null, withNotes)
       // within a quarter of the accent amount: five either side of 44
       dragFrom([firstBar, Y(64)], [[firstBar, Y(40)]])
@@ -575,7 +581,7 @@ describe("the envelope editor", () => {
       expect(dot(2)).toHaveClass("scale-[1.15]")
     })
 
-    it("keeps a bar between the levels as the dot's own, at its size", () => {
+    it("keeps a point between the levels as the dot's own, at its size", () => {
       setup(null, withNotes)
       dragFrom([firstBar, Y(64)], [[firstBar, Y(72)]])
 
@@ -588,13 +594,40 @@ describe("the envelope editor", () => {
       expect(dot(1).title).toContain("Velocity 72")
     })
 
-    it("sets a bar as soon as it is pressed, like Signal", () => {
+    it("returns a clicked point's note to the voice's velocity", () => {
       setup(null, withNotes)
-      clickAt(secondBar, Y(100))
+      dragFrom([secondBar, Y(64)], [[secondBar, Y(100)]])
       expect(velocities()).toEqual([64, 100])
+
+      clickAt(secondBar, Y(100))
+      expect(velocities()).toEqual([64, 64])
+      expect(patch().voices[0].pattern[1]).toMatchObject({
+        accent: "none",
+        velocityOffset: 0,
+      })
     })
 
-    it("moves every bar from one dot together", () => {
+    it("adds no point where the line is clicked", () => {
+      setup(null, withNotes)
+      const before = patch()
+      clickAt(X(0.25), Y(64))
+      fireEvent.mouseDown(svg(), {
+        clientX: X(0.75),
+        clientY: Y(20),
+        detail: 2,
+      })
+      fireEvent.mouseUp(document)
+      expect(patch()).toBe(before)
+      expect(velocities()).toEqual([64, 64])
+    })
+
+    it("raises the notes at both ends of a stretch of line dragged", () => {
+      setup(null, withNotes)
+      dragFrom([X(0.25), Y(64)], [[X(0.25), Y(74)]])
+      expect(velocities()).toEqual([74, 74])
+    })
+
+    it("moves every point from one dot together", () => {
       setup(null, (start) => {
         const next = withNotes(start)
         next.voices[0].pattern[0] = { ...next.voices[0].pattern[0], ratchet: 2 }
@@ -606,8 +639,9 @@ describe("the envelope editor", () => {
       expect(velocities()).toEqual([30, 30, 64])
     })
 
-    it("paints every bar a stroke crosses from between them", () => {
+    it("paints every note a Draw stroke crosses", () => {
       setup(null, withNotes)
+      click("Draw")
       dragFrom(
         [X(0.25), Y(30)],
         [
@@ -615,7 +649,7 @@ describe("the envelope editor", () => {
           [X(0.75), Y(30)],
         ],
       )
-      // only the second bar lies on the stroke's way
+      // only the second note lies on the stroke's way
       expect(velocities()).toEqual([64, 30])
     })
 
@@ -634,11 +668,12 @@ describe("the envelope editor", () => {
       expect(patch()).toBe(before)
     })
 
-    it("leaves B as Bump, since Velocity has no tools", () => {
+    it("switches to Draw with B, as on an envelope", () => {
       setup(null, withNotes)
       frame().focus()
       fireEvent.keyDown(frame(), { code: "KeyB" })
-      expect(rootStore.player.actions.bump).toBe(true)
+      expect(frame()).toHaveAttribute("data-tool", "draw")
+      expect(rootStore.player.actions.bump).toBe(false)
       fireEvent.keyUp(frame(), { code: "KeyB" })
     })
 
@@ -690,7 +725,7 @@ describe("the envelope editor", () => {
       expect(velocities()).toEqual([95, 65])
     })
 
-    it("shows only its own voice's bars, even where an older patch shares a channel", () => {
+    it("shows only its own voice's notes, even where an older patch shares a channel", () => {
       setup(null, (start) => {
         const next = withNotes(start)
         next.voices[1] = {

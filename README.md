@@ -89,12 +89,16 @@ remove, retune or transpose them by hand. A note can be typed as well as
 stepped — `G#5`, or just `D` to stay in the octave it is already on. Steps
 can be copied and pasted.
 
-**Velocity & CCs.** Under the notes, each voice has a **Velocity** tab: a bar
-for every note it plays on the step, as in Signal. Press a bar and drag to set
-it, or drag across bars to paint them. Drop a bar near a dashed line and it
-snaps onto that accent; anywhere else the dot keeps a velocity of its own, and
+**Velocity & CCs.** Under the notes, each voice has a **Velocity** tab: a line
+with a point at every note it plays on the step, edited like a CC envelope.
+Drag a point, or the line between two, to set those notes' velocities; click
+a point to return its note to the voice's velocity; in **Draw**, drag across
+the notes to paint them. Points come from the notes, so none can be added.
+Drop a point near a dashed line and it snaps onto that accent; anywhere else the dot keeps a velocity of its own, and
 grows or shrinks for whichever level it is nearest. How far an accent reaches
 is **Settings → General → Accent amount**. Each tab's row sets its channel.
+When there are more tabs than fit on the row, the rest wait in a menu at its
+end, beside the **+**; the open tab always stays on the row.
 
 CCs each get a tab too, with their own number and channel, and an envelope: a
 line of breakpoints drawn across the step, over a piano roll of the notes the

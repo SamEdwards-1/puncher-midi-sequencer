@@ -50,7 +50,13 @@ import {
   valueAtY,
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
-import { BAR_WIDTH, barsAlong, barsAt, barsFor, dotKey } from "./velocityBars"
+import {
+  dotKey,
+  pointsAlong,
+  segmentEnds,
+  VelocityPoint,
+  velocityPoints,
+} from "./velocityLine"
 
 /**
  * What the graph edits: one of the channel's CC envelopes, or the velocity
@@ -58,7 +64,7 @@ import { BAR_WIDTH, barsAlong, barsAt, barsFor, dotKey } from "./velocityBars"
  */
 export type GraphLane =
   | { kind: "cc"; envelope: EnvelopeJSON | null }
-  | { kind: "velocity"; voices: VoiceIndex[] }
+  | { kind: "velocity"; voice: VoiceIndex }
 
 export const GRIDS = [
   { beats: 1, label: "1/4" },
@@ -73,6 +79,8 @@ export const GRAPH_HEIGHT = 240
 const PAD = 6
 // before the graph has been measured, and in tests
 const FALLBACK_WIDTH = 480
+// how far either side of a Draw press a note is caught
+const REACH = 4
 // a drag has to go this far sideways before a point leaves its time, so a
 // straight drag up or down never nudges a point off the grid
 const SIDEWAYS = 4
@@ -109,10 +117,12 @@ const useWidth = (ref: RefObject<HTMLElement | null>, fallback: number) => {
  * to delete it. Draw: drag to paint values across the grid. Points snap to
  * the grid unless Alt is held, and B switches between the two.
  *
- * Velocity works as Signal's velocity lane: a bar at each note, pressed to
- * set it and dragged to follow the mouse, or painted across from anywhere
- * between. A bar is its dot's velocity, so every bar from that dot moves
- * with it, and one landing near an accent's velocity makes that accent.
+ * Velocity is edited the same way, as a line with a point at each of the
+ * voice's notes. The points are the notes, so none are added: dragging a
+ * point or the line sets the notes' velocities, clicking a point returns its
+ * note to the voice's, and Draw paints across them. A point is its dot's
+ * velocity, so every point from that dot moves with it, and one landing near
+ * an accent's velocity makes that accent.
  */
 export const EnvelopeGraph: FC<{
   step: number
@@ -132,8 +142,7 @@ export const EnvelopeGraph: FC<{
   const [hover, setHover] = useState<{
     point: number | null
     segment: number | null
-    bar: boolean
-  }>({ point: null, segment: null, bar: false })
+  }>({ point: null, segment: null })
   // where the mouse is over the graph, for the value readout
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -148,12 +157,15 @@ export const EnvelopeGraph: FC<{
     () => stepNotes(patch, step, { accentAmount }),
     [patch, step, accentAmount],
   )
-  const bars = lane.kind === "velocity" ? barsFor(notes, lane.voices, plot) : []
+  const velocities =
+    lane.kind === "velocity" ? velocityPoints(notes, lane.voice) : []
   const keys = keyRange(patchNoteSpan(patch))
   const keyCount = keys.high - keys.low + 1
   const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / keyCount
   const keyY = (note: number) => PAD + (keys.high - note) * keyHeight
-  const points = envelope?.points ?? []
+  // the line drawn and edited: the envelope's, or one through the velocities
+  const points: EnvelopePointJSON[] =
+    lane.kind === "velocity" ? velocities : (envelope?.points ?? [])
   const span = { x: width - 2 * PAD, y: GRAPH_HEIGHT - 2 * PAD }
 
   // Lines as close as the grid allows; failing that beats, failing that bars.
@@ -180,13 +192,7 @@ export const EnvelopeGraph: FC<{
     if (event.button !== 0) {
       return
     }
-    if (lane.kind === "velocity") {
-      event.preventDefault()
-      frame.current?.focus()
-      editVelocities(event.nativeEvent)
-      return
-    }
-    if (envelope === null) {
+    if (lane.kind === "cc" && envelope === null) {
       return
     }
     // keeps the page from selecting text under a drag
@@ -198,6 +204,13 @@ export const EnvelopeGraph: FC<{
     })
 
     const down = event.nativeEvent
+    if (lane.kind === "velocity") {
+      editVelocities(down)
+      return
+    }
+    if (envelope === null) {
+      return
+    }
     const start = local(down)
     const original = envelope.points
     const commit = beginGesture()
@@ -343,60 +356,90 @@ export const EnvelopeGraph: FC<{
   }
 
   /**
-   * Signal's velocity lane: pressing a bar sets it to the height under the
-   * mouse and follows it; pressing between bars paints every bar the mouse
-   * then passes. Every bar drawn so far is applied again on each move, so a
-   * bar painted twice takes its last value.
+   * The velocity line takes the same gestures as an envelope, but its points
+   * are the notes: each edit sets the velocity of the dots behind them.
    */
   const editVelocities = (down: MouseEvent) => {
     const start = local(down)
     const commit = beginGesture()
+    const second = down.detail >= 2
+    const valueDelta = (dy: number) => (-dy / span.y) * ENVELOPE_MAX_VALUE
     const apply = (
-      drawn: Map<string, { voice: VoiceIndex; dot: number; value: number }>,
+      drawn: Map<string, { point: VelocityPoint; value: number }>,
     ) => {
       let next = sequencerStore.patch
-      for (const { voice, dot, value } of drawn.values()) {
-        next = setDotVelocity(next, voice, dot, value, accentAmount)
+      for (const { point, value } of drawn.values()) {
+        next = setDotVelocity(next, point.voice, point.dot, value, accentAmount)
       }
       commit(next)
     }
+    // the dots behind these points, each raised from where it started
+    const raise = (moved: VelocityPoint[], by: number) =>
+      apply(
+        new Map(
+          moved.map((point) => [
+            dotKey(point),
+            { point, value: point.value + by },
+          ]),
+        ),
+      )
 
-    const pressed = barsAt(bars, start.x)
-    if (pressed.length > 0) {
-      const setTo = (y: number) =>
-        apply(
-          new Map(
-            pressed.map((bar) => [
-              dotKey(bar),
-              { voice: bar.voice, dot: bar.dot, value: valueAtY(plot, y) },
-            ]),
-          ),
-        )
-      setTo(start.y)
-      observeDrag(down, { onMove: (_, delta) => setTo(start.y + delta.y) })
-      return
-    }
-
-    const painted = new Map<
-      string,
-      { voice: VoiceIndex; dot: number; value: number }
-    >()
-    let last = { x: start.x, value: valueAtY(plot, start.y) }
-    observeDrag(down, {
-      onMove: (_, delta) => {
-        const now = {
-          x: start.x + delta.x,
-          value: valueAtY(plot, start.y + delta.y),
+    if (tool === "draw") {
+      const painted = new Map<string, { point: VelocityPoint; value: number }>()
+      let last = { x: start.x, value: valueAtY(plot, start.y) }
+      const paintTo = (from: typeof last, to: typeof last) => {
+        for (const { point, value } of pointsAlong(
+          velocities,
+          plot,
+          from,
+          to,
+        )) {
+          painted.set(dotKey(point), { point, value })
         }
-        for (const { bar, value } of barsAlong(bars, last, now)) {
-          painted.set(dotKey(bar), { voice: bar.voice, dot: bar.dot, value })
-        }
-        last = now
         if (painted.size > 0) {
           apply(painted)
         }
-      },
-    })
+      }
+      // a press catches the notes just either side of it
+      paintTo(
+        { x: start.x - REACH, value: last.value },
+        { x: start.x + REACH, value: last.value },
+      )
+      observeDrag(down, {
+        onMove: (_, delta) => {
+          const now = {
+            x: start.x + delta.x,
+            value: valueAtY(plot, start.y + delta.y),
+          }
+          paintTo(last, now)
+          last = now
+        },
+      })
+      return
+    }
+
+    const pointIndex = hitPoint(velocities, plot, start.x, start.y)
+    if (pointIndex !== null) {
+      const point = velocities[pointIndex]
+      observeDrag(down, {
+        onMove: (_, delta) => raise([point], valueDelta(delta.y)),
+        onClick: () => {
+          if (!second) {
+            // back to the voice's own velocity
+            raise([point], patch.voices[point.voice].velocity - point.value)
+          }
+        },
+      })
+      return
+    }
+
+    const segmentIndex = hitSegment(velocities, plot, start.x, start.y)
+    if (segmentIndex !== null) {
+      const ends = segmentEnds(velocities, segmentIndex)
+      observeDrag(down, {
+        onMove: (_, delta) => raise(ends, valueDelta(delta.y)),
+      })
+    }
   }
 
   const onMouseMove = (event: ReactMouseEvent<SVGSVGElement>) => {
@@ -406,22 +449,16 @@ export const EnvelopeGraph: FC<{
     if (event.buttons !== 0) {
       return
     }
-    if (lane.kind === "velocity") {
-      setHover({ point: null, segment: null, bar: barsAt(bars, x).length > 0 })
-      return
-    }
     const point = hitPoint(points, plot, x, y)
     setHover({
       point,
       segment: point === null ? hitSegment(points, plot, x, y) : null,
-      bar: false,
     })
   }
 
-  // On an envelope B is Live's Draw key; everywhere else it stays Bump.
+  // On the graph B is Live's Draw key; everywhere else it stays Bump.
   const onKeyDown = (event: KeyboardEvent) => {
     if (
-      lane.kind !== "cc" ||
       event.code !== "KeyB" ||
       event.ctrlKey ||
       event.metaKey ||
@@ -437,31 +474,26 @@ export const EnvelopeGraph: FC<{
   }
 
   const onKeyUp = (event: KeyboardEvent) => {
-    if (lane.kind === "cc" && event.code === "KeyB") {
+    if (event.code === "KeyB") {
       event.stopPropagation()
     }
   }
 
   const cursor =
-    lane.kind === "velocity"
-      ? hover.bar
-        ? "ns-resize"
-        : "crosshair"
-      : envelope === null
-        ? "default"
-        : tool === "draw"
-          ? "crosshair"
-          : hover.point !== null
-            ? "pointer"
-            : hover.segment !== null
-              ? "ns-resize"
-              : "default"
+    lane.kind === "cc" && envelope === null
+      ? "default"
+      : tool === "draw"
+        ? "crosshair"
+        : hover.point !== null
+          ? "pointer"
+          : hover.segment !== null
+            ? "ns-resize"
+            : "default"
 
   // The envelope's value where the mouse is, shown beside it while it is over
   // the line or a point, or dragging.
   const readout = (() => {
     if (
-      envelope === null ||
       points.length === 0 ||
       pointer === null ||
       !(dragging || hover.point !== null || hover.segment !== null)
@@ -522,7 +554,7 @@ export const EnvelopeGraph: FC<{
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseLeave={() => {
-            setHover({ point: null, segment: null, bar: false })
+            setHover({ point: null, segment: null })
             setPointer(null)
           }}
         >
@@ -563,31 +595,23 @@ export const EnvelopeGraph: FC<{
             />
           ))}
 
-          {/* a voice's offset can take a note past the grid's keys; the
-              roll keeps to the grid's keys and leaves those out */}
-          {notes
-            .filter(({ note }) => note >= keys.low && note <= keys.high)
-            .map((note) => (
-              <rect
-                key={`${note.voice}-${note.note}-${note.start}`}
-                data-note={note.note}
-                data-voice={note.voice}
-                x={toX(plot, note.start)}
-                y={keyY(note.note) + 0.5}
-                width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
-                height={Math.max(1, keyHeight - 1)}
-                rx={2}
-                fill={`var(--midiseq-voice-${note.voice})`}
-                // behind velocity bars the notes only say where they are
-                // under an envelope the notes keep their voice's own colour;
-                // behind velocity bars they only say where the notes are
-                fillOpacity={lane.kind === "velocity" ? 0.16 : 1}
-              />
-            ))}
+          {notes.map((note) => (
+            <rect
+              key={`${note.voice}-${note.note}-${note.start}`}
+              data-note={note.note}
+              data-voice={note.voice}
+              x={toX(plot, note.start)}
+              y={keyY(note.note) + 0.5}
+              width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
+              height={Math.max(1, keyHeight - 1)}
+              rx={2}
+              fill={`var(--midiseq-voice-${note.voice})`}
+            />
+          ))}
 
           {lane.kind === "velocity" &&
-            lane.voices.map((voice) => {
-              // where a bar counts as plain, or as either accent
+            [lane.voice].map((voice) => {
+              // where a note counts as plain, or as either accent
               const base = patch.voices[voice].velocity
               return [base - accentAmount, base, base + accentAmount]
                 .filter((level) => level >= 1 && level <= 127)
@@ -606,22 +630,7 @@ export const EnvelopeGraph: FC<{
                 ))
             })}
 
-          {bars.map((bar) => (
-            <rect
-              key={`${dotKey(bar)}-${bar.x}`}
-              data-bar={dotKey(bar)}
-              data-voice={bar.voice}
-              data-velocity={bar.velocity}
-              x={bar.x}
-              y={toY(plot, bar.velocity)}
-              width={BAR_WIDTH}
-              height={toY(plot, 0) - toY(plot, bar.velocity)}
-              fill={`var(--midiseq-voice-${bar.voice})`}
-              fillOpacity={0.9}
-            />
-          ))}
-
-          {envelope !== null && points.length > 0 && (
+          {points.length > 0 && (
             <>
               <path
                 d={areaPath(points, plot)}
@@ -640,6 +649,11 @@ export const EnvelopeGraph: FC<{
                   // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
                   key={index}
                   data-point={index}
+                  data-velocity={
+                    lane.kind === "velocity"
+                      ? Math.round(point.value)
+                      : undefined
+                  }
                   cx={toX(plot, point.time)}
                   cy={toY(plot, point.value)}
                   r={hover.point === index ? 5 : 4}

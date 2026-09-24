@@ -85,15 +85,20 @@ to another when a condition is met.
   refused) and the step's CCs, each an **envelope** across the step (below).
   A step's CC belongs to no voice, so it goes out on its own channel to every
   output. Copy/paste steps.
-- **Velocity & CCs:** a tab per voice's **Velocity** — one bar per note,
-  as Signal's — and a tab per CC envelope on the step. The row above the
+- **Velocity & CCs:** a tab per voice's **Velocity** — a line through its
+  notes' velocities — and a tab per CC envelope on the step. Tabs that don't
+  fit the row go in a menu (the count and a chevron) before the +, which
+  stays on the row; the open tab is always kept on it. The row above the
   graph sets the lane's channel, 1–16: a Velocity tab's is its voice's,
   shared with the Voices panel, and no two voices may share one — a channel
   another voice has passes on to the next free one; a CC's is its own, and
   stays put when a voice moves. A CC added from a tab goes out on that tab's channel.
-- **Velocity lane:** press a bar to set its note's velocity and drag to
-  follow the mouse; press between bars to paint every bar the mouse passes.
-  A bar is its dot's velocity, so every bar from that dot moves with it.
+- **Velocity lane:** edited like an envelope, with the same Edit and Draw
+  tools and B key, but its points are the voice's notes: drag a point, or a
+  stretch of line to raise the notes at both ends; click a point to return
+  its note to the voice's velocity; Draw paints every note a stroke crosses.
+  No point can be added. A point is its dot's velocity, so every point from
+  that dot moves with it.
   Dropped within a quarter of the accent amount of the voice's velocity plus
   or minus that amount (±5 at 20), it snaps onto that accent; near the
   voice's own, onto a plain dot; anywhere else it is the dot's own velocity,
@@ -457,16 +462,20 @@ one message per landing.
 **The notes underneath** are the step rendered once through the engine, as a
 clicked step is auditioned: every voice starting together on its first dot.
 Chance and the random rules use a fixed seed, so the picture holds still
-while editing. The keys run exactly from the grid's lowest key to its
-highest, across every step rather than the step on show, so the roll doesn't
-jump from step to step; setting a key beyond them moves that edge. A note a
-voice's offset takes past the grid's keys is left off the roll.
+while editing. The keys run exactly from the lowest note anything plays to
+the highest: the grid's keys, and those keys moved by each playing voice's
+offset. They are taken across every step rather than the step on show, so the
+roll doesn't jump from step to step; setting a key or an offset beyond them
+moves that edge. (Keeping to the grid's keys alone, tried first, hid voices
+whose offsets took them outside.)
 
 **Velocity is the dot's.** Notes come from pattern dots, and a voice's
-pattern plays on every step, so a velocity bar edits its dot: every bar from
-that dot, on this step and every other, moves with it. The dot keeps an
+pattern plays on every step, so a velocity point edits its dot: every point
+from that dot, on this step and every other, moves with it. The lane first
+drew bars, as Signal does; it became a line so velocity edits the way the CC
+envelopes beside it do. The dot keeps an
 offset from its voice's velocity rather than a value of its own, so moving
-the voice's velocity moves every bar, and an accent stays an accent — its
+the voice's velocity moves every point, and an accent stays an accent — its
 size set by the accent amount, not frozen at what it was when drawn. The dot
 is drawn big or small for its accent, and a velocity of its own shows as
 whichever level it is nearest, as drawn or after the voice's velocity or the

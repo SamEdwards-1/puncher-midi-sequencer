@@ -181,24 +181,35 @@ export const cellAt = (grid: number[], time: number): number => {
 }
 
 /**
- * The lowest and highest keys held on any step of the grid — the notes the
- * voices draw from, as far as the step's note limit goes. Taken across all
- * the steps rather than the one on show, so the piano roll holds still from
- * step to step, and moves only when a note is set beyond it.
+ * The lowest and highest keys the grid holds or its voices play: every
+ * step's notes, as far as the note limit goes, and those notes moved by each
+ * playing voice's offset. Taken across all the steps rather than the one on
+ * show, so the piano roll holds still from step to step, and moves only when
+ * a note or an offset takes it further.
  */
 export const patchNoteSpan = (patch: PatchJSON): number[] => {
-  const notes = patch.steps
+  const keys = patch.steps
     .slice(0, stepCount(patch.size))
     .flatMap((step) =>
       [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
     )
-  return notes.length === 0 ? [] : [Math.min(...notes), Math.max(...notes)]
+  if (keys.length === 0) {
+    return []
+  }
+  const low = Math.min(...keys)
+  const high = Math.max(...keys)
+  const offsets = patch.voices
+    .filter(({ enabled }) => enabled)
+    .map(({ offset }) => offset)
+  return [low, high].flatMap((key) =>
+    [0, ...offsets].map((offset) => clamp(key + offset, 0, 127)),
+  )
 }
 
 /**
  * The keys the piano roll shows: exactly the lowest to the highest of
- * `notes`, so its bottom row is the lowest key in the grid and its top row
- * the highest. With no notes, the octave around middle C.
+ * `notes`, so its bottom row is the lowest note anything plays and its top
+ * row the highest. With no notes, the octave around middle C.
  */
 export const keyRange = (notes: number[]): { low: number; high: number } =>
   notes.length === 0
