@@ -62,8 +62,8 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 
 **Transport.** **Play** starts the sequencer and **Record** arms recording;
 stopping also silences anything still sounding. The tempo can be stepped or
-typed straight into. **Clear all**, **Undo** and **Redo** sit beside the File
-menu on the left.
+typed straight into. On the left, the **File** menu starts a new patch, opens
+and saves, and the **Edit** menu holds **Undo** and **Redo**.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
 A step fills to **Step notes** — four by default, one for each voice — and only
@@ -73,7 +73,11 @@ sequence plays, as a curve on the step you hear it on, from the moment it
 moved; while stopped, spread across the record step in the order you turned
 it. An envelope keeps its timing if you change the pace afterwards: a shorter
 step plays what fits, a longer one holds the last value. Turn Record off when
-you're done.
+you're done; pressing Play, or starting a new patch, opening or saving one,
+ends the take too. Knob messages that aren't a control's position — All Sound
+Off, All Notes Off and the other channel-mode messages, bank select, and
+RPN/NRPN data entry — are left out, so a DAW's start/stop burst can't fill a
+step with tabs.
 
 **The grid.** Each circle is a step holding up to four notes, one for each
 voice to draw from, and any number of CC envelopes. Clicking one selects it, sounds it, and shows it in
@@ -113,7 +117,9 @@ double-click anywhere; drag a point, or drag the line to raise it; click a
 point to delete it. In **Draw** (press **B** with the graph focused), drag to
 paint values across the grid. Points snap to the grid unless you hold **Alt**.
 An envelope sends its first value as the sequencer lands on the step, then
-follows its line until the next.
+follows its line until the next. The open tab stays open as you click from
+step to step: on a step without that CC it shows an empty, dimmed lane, and
+drawing into it adds the CC there.
 
 **Voices.** Each of the four voices has its own pace, gate length, note-picking
 rule (up, down, random, highest, and so on), octave offset, velocity, channel
