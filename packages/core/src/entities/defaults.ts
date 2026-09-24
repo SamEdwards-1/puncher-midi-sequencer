@@ -26,6 +26,7 @@ export const createDefaultPatternStep = (): PatternStepJSON => ({
   on: true,
   articulation: "none",
   accent: "none",
+  velocityOffset: 0,
   ratchet: 1,
   probability: 100,
   condition: "always",

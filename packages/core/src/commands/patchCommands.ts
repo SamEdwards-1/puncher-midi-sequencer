@@ -12,6 +12,7 @@ import {
   StepState,
   VoiceJSON,
 } from "../entities/types"
+import { velocityToDot } from "../entities/velocity"
 
 const clampNote = (note: number) => Math.min(127, Math.max(0, Math.round(note)))
 
@@ -47,6 +48,24 @@ export const setPatternStep = (
       current === dotIndex ? { ...dot, ...changes } : dot,
     ),
   })
+
+/**
+ * Sets the velocity a dot plays at, as drawn in the velocity lane: an accent
+ * where it lands on or near one, the dot's own velocity anywhere else.
+ */
+export const setDotVelocity = (
+  patch: PatchJSON,
+  voiceIndex: number,
+  dotIndex: number,
+  velocity: number,
+  accentAmount: number,
+): PatchJSON =>
+  setPatternStep(
+    patch,
+    voiceIndex,
+    dotIndex,
+    velocityToDot(patch.voices[voiceIndex].velocity, accentAmount, velocity),
+  )
 
 export const togglePatternStep = (
   patch: PatchJSON,
@@ -163,11 +182,15 @@ export const nextEnvelopeId = (patch: PatchJSON): number =>
   ) + 1
 
 // Brightness first, as the first CC added always was; after that the next
-// number the step isn't already using.
+// number the step isn't already using on that channel.
 const FIRST_CC = 74
 
-export const nextFreeCC = (step: StepJSON): number => {
-  const used = new Set(step.envelopes.map((envelope) => envelope.cc))
+export const nextFreeCC = (step: StepJSON, channel: number): number => {
+  const used = new Set(
+    step.envelopes
+      .filter((envelope) => envelope.channel === channel)
+      .map((envelope) => envelope.cc),
+  )
   for (let offset = 0; offset < 128; offset++) {
     const cc = (FIRST_CC + offset) % 128
     if (!used.has(cc)) {

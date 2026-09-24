@@ -8,6 +8,7 @@ import { SequencerPlayer } from "../services/SequencerPlayer"
 import { Ticker } from "../services/Ticker"
 import { HistoryStore } from "./HistoryStore"
 import { MIDIDeviceStore, RequestMIDIAccess } from "./MIDIDeviceStore"
+import { PlaybackSettingsStore } from "./PlaybackSettingsStore"
 import { registerReactions } from "./reactions"
 import { SequencerStore } from "./SequencerStore"
 import { SynthStore } from "./SynthStore"
@@ -29,6 +30,7 @@ export default class RootStore {
   readonly midiInput = new MIDIInput()
   readonly clockFollower: ClockFollower
   readonly midiDeviceStore: MIDIDeviceStore
+  readonly playbackSettings: PlaybackSettingsStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
   readonly synthStore: SynthStore
@@ -40,6 +42,7 @@ export default class RootStore {
       options.requestMIDIAccess,
       options.storage,
     )
+    this.playbackSettings = new PlaybackSettingsStore(options.storage)
     this.recorder = new MIDIRecorder(
       this.sequencerStore,
       this.midiInput,

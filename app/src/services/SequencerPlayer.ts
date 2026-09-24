@@ -2,6 +2,7 @@ import {
   CLOCKS_PER_BEAT,
   clockBytes,
   createActions,
+  DEFAULT_ACCENT_AMOUNT,
   Engine,
   EngineActions,
   EngineEvent,
@@ -65,6 +66,7 @@ export class SequencerPlayer {
   private dotMarks: { time: number; voice: number; dot: number }[] = []
   private lastScheduledTime = 0
   private sendClock = false
+  private accentAmount = DEFAULT_ACCENT_AMOUNT
   // the last clock tick handed to the router, counted from the start
   private clockSent = -1
 
@@ -130,6 +132,7 @@ export class SequencerPlayer {
 
     const engine = new Engine(oneStepPatch(patch, step), {
       seed: Math.floor(Math.random() * 2 ** 32),
+      accentAmount: this.accentAmount,
     })
     engine.start(0)
     const msPerBeat = 60000 / patch.tempo
@@ -153,6 +156,12 @@ export class SequencerPlayer {
 
   setSendClock = (send: boolean) => {
     this.sendClock = send
+  }
+
+  // How far an accent moves a velocity; the next note played hears it.
+  setAccentAmount = (amount: number) => {
+    this.accentAmount = amount
+    this.engine.accentAmount = amount
   }
 
   play = () => {

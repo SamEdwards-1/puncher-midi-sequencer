@@ -54,11 +54,14 @@ export default {
     "sequencer-step-over-limit":
       "Notes past the limit are dimmed and stay silent.",
     "sequencer-step-trim": "Trim to limit",
-    "sequencer-step-ccs": "CC envelopes",
+    "sequencer-step-ccs": "Velocity & CCs",
     "sequencer-step-add-cc": "Add CC",
     "sequencer-step-remove-cc": "Remove CC",
     "sequencer-step-no-ccs":
-      "No CCs on this step. Add one to draw its envelope over the step's notes.",
+      "No voice plays on this channel, and it has no CCs on this step. Add one to draw its envelope over the step's notes.",
+    "sequencer-velocity-hint":
+      "Drag a bar to set its note's velocity, or drag across bars to paint them. A bar near a dashed line becomes that accent; one dot's bars move together.",
+    "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
     "sequencer-envelope": "Envelope",
     "sequencer-envelope-cc-number": "CC number",
@@ -109,6 +112,9 @@ export default {
     "sequencer-settings-midi": "MIDI",
     "sequencer-settings-close": "Close",
     "sequencer-theme": "Theme",
+    "sequencer-accent-amount": "Accent amount",
+    "sequencer-accent-amount-hint":
+      "How far an accent moves a note's velocity, up or down.",
     "sequencer-theme-dark": "Dark",
     "sequencer-theme-light": "Light",
     "sequencer-midi-inputs-section": "Inputs",

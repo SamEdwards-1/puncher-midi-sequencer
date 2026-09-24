@@ -128,6 +128,20 @@ describe("SequencerPlayer", () => {
     expect(player.playingDots).toBeNull()
   })
 
+  it("accents by the amount it is given", () => {
+    const patch = makePatch()
+    patch.voices[0].pattern[0] = { ...patch.voices[0].pattern[0], accent: "+" }
+    player.setPatch(patch)
+    player.setAccentAmount(30)
+
+    // a clicked step, and the sequence playing, both hear it
+    player.previewStep(0)
+    player.play()
+    runFor(100)
+    const velocities = all.ofType(0x90).map((message) => message.data[2])
+    expect(velocities).toEqual([94, 94])
+  })
+
   it("follows a tempo change from the current beat", () => {
     player.play()
     runFor(1000)

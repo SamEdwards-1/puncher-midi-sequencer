@@ -5,7 +5,7 @@ import {
   PatchJSON,
   setStepNotes,
 } from "@midiseq/core"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -70,6 +70,8 @@ const setup = (
   rootStore = new RootStore({
     requestMIDIAccess: null,
     ticker: new ManualTicker(),
+    // settings such as the accent amount start fresh for every test
+    storage: null,
   })
   let start: PatchJSON = { ...createDefaultPatch(), pace: "4th" }
   if (shape !== null) {
@@ -78,39 +80,40 @@ const setup = (
   rootStore.sequencerStore.patch = change(start)
   render(<App rootStore={rootStore} />)
   fireEvent.click(screen.getByRole("button", { name: "Step 1" }))
-  // the tool is view state and lives on past a render
-  click("Edit")
+  // the channel, lane and tool are view state and live on past a render
+  pickChannel(1)
+  if (shape !== null) {
+    fireEvent.click(screen.getByRole("tab", { name: "CC 74" }))
+    click("Edit")
+  }
 }
+
+const channelPicker = () =>
+  screen.getByRole("combobox", { name: "Channel" }) as HTMLSelectElement
+const pickChannel = (channel: number) =>
+  fireEvent.change(channelPicker(), { target: { value: String(channel) } })
+const tab = (name: string) => screen.queryByRole("tab", { name })
 
 describe("the envelope editor", () => {
   describe("CCs", () => {
     it("adds a CC as a tab holding a flat line, and opens it", () => {
       setup(null)
-      expect(screen.getByText(/No CCs on this step/)).toBeInTheDocument()
+      expect(tab("CC 74")).toBeNull()
 
       click("Add CC")
       expect(envelopes()).toMatchObject([
         { cc: 74, channel: 1, points: [{ time: 0, value: 64 }] },
       ])
-      expect(screen.getByRole("tab", { name: "CC 74" })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      )
+      expect(tab("CC 74")).toHaveAttribute("aria-selected", "true")
 
       // the next takes the next number free, and opens in its place
       click("Add CC")
       expect(envelopes().map(({ cc }) => cc)).toEqual([74, 75])
-      expect(screen.getByRole("tab", { name: "CC 75" })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      )
-      expect(screen.getByRole("tab", { name: "CC 74" })).toHaveAttribute(
-        "aria-selected",
-        "false",
-      )
+      expect(tab("CC 75")).toHaveAttribute("aria-selected", "true")
+      expect(tab("CC 74")).toHaveAttribute("aria-selected", "false")
     })
 
-    it("switches between a step's CCs, each drawn on its own", () => {
+    it("switches between a channel's CCs, each drawn on its own", () => {
       setup(ramp, (start) =>
         addEnvelope(start, 0, {
           cc: 10,
@@ -125,26 +128,94 @@ describe("the envelope editor", () => {
       expect(svg().querySelectorAll("[data-point]")).toHaveLength(2)
     })
 
-    it("edits the open CC's number and channel, and names it", () => {
+    it("edits the open CC's number, and names it", () => {
       setup()
       expect(screen.getByText("Brightness")).toBeInTheDocument()
 
       click("CC number up")
       expect(envelopes()[0].cc).toBe(75)
-      expect(screen.getByRole("tab", { name: "CC 75" })).toBeInTheDocument()
+      expect(tab("CC 75")).toBeInTheDocument()
 
-      const typed = screen.getByLabelText("CC channel")
+      const typed = screen.getByLabelText("CC number")
       fireEvent.focus(typed)
-      fireEvent.change(typed, { target: { value: "12" } })
+      fireEvent.change(typed, { target: { value: "11" } })
       fireEvent.keyDown(typed, { key: "Enter" })
-      expect(envelopes()[0].channel).toBe(12)
+      expect(envelopes()[0].cc).toBe(11)
+      expect(screen.getByText("Expression (MSB)")).toBeInTheDocument()
     })
 
     it("removes the open CC", () => {
       setup()
       click("Remove CC")
       expect(envelopes()).toEqual([])
-      expect(screen.queryByRole("tab")).toBeNull()
+      expect(tab("CC 74")).toBeNull()
+    })
+  })
+
+  describe("channels", () => {
+    it("offers all 16 channels, naming the voices on each", () => {
+      setup(null)
+      const options = [...channelPicker().options].map(({ text }) => text)
+      expect(options).toHaveLength(16)
+      expect(options.slice(0, 5)).toEqual([
+        "1 · Voice 1",
+        "2 · Voice 2",
+        "3 · Voice 3",
+        "4 · Voice 4",
+        "5",
+      ])
+    })
+
+    it("gives every voice's channel a Velocity lane, open first", () => {
+      setup(null)
+      for (const channel of [1, 2, 3, 4]) {
+        pickChannel(channel)
+        expect(tab("Velocity")).toHaveAttribute("aria-selected", "true")
+      }
+    })
+
+    it("has no Velocity lane on a channel no voice plays on, and says so", () => {
+      setup(null)
+      pickChannel(5)
+      expect(tab("Velocity")).toBeNull()
+      expect(
+        screen.getByText(/No voice plays on this channel/),
+      ).toBeInTheDocument()
+    })
+
+    it("adds a CC on the chosen channel, and shows each channel its own", () => {
+      setup(null)
+      pickChannel(5)
+      click("Add CC")
+      expect(envelopes()).toMatchObject([{ cc: 74, channel: 5 }])
+      expect(tab("CC 74")).toHaveAttribute("aria-selected", "true")
+      expect(channelPicker().options[4].text).toBe("5 · 1 CC")
+
+      pickChannel(1)
+      expect(tab("CC 74")).toBeNull()
+      // and the same number is free again on another channel
+      click("Add CC")
+      expect(envelopes().map(({ cc, channel }) => [cc, channel])).toEqual([
+        [74, 5],
+        [74, 1],
+      ])
+    })
+
+    it("keeps a CC on its channel when a voice moves off it", () => {
+      setup(null, (start) =>
+        addEnvelope(start, 0, { cc: 1, channel: 2, points: [] }),
+      )
+      rootStore.sequencerStore.patch = {
+        ...patch(),
+        voices: patch().voices.map((voice, index) =>
+          index === 1 ? { ...voice, channel: 9 } : voice,
+        ),
+      }
+      pickChannel(2)
+      expect(tab("Velocity")).toBeNull()
+      expect(tab("CC 1")).toBeInTheDocument()
+      expect(channelPicker().options[1].text).toBe("2 · 1 CC")
+      expect(channelPicker().options[8].text).toBe("9 · Voice 2")
     })
   })
 
@@ -346,6 +417,172 @@ describe("the envelope editor", () => {
       fireEvent.mouseDown(note, { clientX: X(0.1), clientY: Y(64) })
       fireEvent.mouseUp(document)
       expect(patch()).toBe(before)
+    })
+  })
+
+  describe("velocity", () => {
+    // voice 1 plays 8ths across the quarter-note step: bars at 0 and a half
+    const withNotes = (start: PatchJSON) => setStepNotes(start, 0, [60, 64])
+    const bars = () => [...svg().querySelectorAll("[data-bar]")]
+    const velocities = () =>
+      bars().map((bar) => Number(bar.getAttribute("data-velocity")))
+    const dot = (number: number) =>
+      screen.getByRole("button", { name: `Voice 1 Dot ${number}` })
+    const firstBar = X(0) + 2
+    const secondBar = X(0.5) + 2
+
+    it("shows a bar at each of the channel's notes, at its velocity", () => {
+      setup(null, withNotes)
+      expect(tab("Velocity")).toHaveAttribute("aria-selected", "true")
+      expect(velocities()).toEqual([64, 64])
+      expect(bars()[1]).toHaveAttribute("x", String(X(0.5)))
+    })
+
+    it("marks where a bar is plain and where it is either accent", () => {
+      setup(null, withNotes)
+      const levels = [...svg().querySelectorAll("[data-level]")].map((line) =>
+        Number(line.getAttribute("data-level")),
+      )
+      expect(levels).toEqual([44, 64, 84])
+    })
+
+    it("makes a bar dragged onto an accent's velocity that accent", () => {
+      setup(null, withNotes)
+      dragFrom([firstBar, Y(64)], [[firstBar, Y(84)]])
+
+      expect(patch().voices[0].pattern[0]).toMatchObject({
+        accent: "+",
+        velocityOffset: 0,
+      })
+      expect(velocities()).toEqual([84, 64])
+      // and the dot grows to say so
+      expect(dot(1)).toHaveAttribute("data-accent", "+")
+    })
+
+    it("counts a couple either side of an accent as the accent", () => {
+      setup(null, withNotes)
+      dragFrom([firstBar, Y(64)], [[firstBar, Y(42)]])
+      expect(patch().voices[0].pattern[0]).toMatchObject({
+        accent: "-",
+        velocityOffset: 0,
+      })
+      expect(velocities()[0]).toBe(44)
+    })
+
+    it("keeps a bar between the levels as the dot's own, at its size", () => {
+      setup(null, withNotes)
+      dragFrom([firstBar, Y(64)], [[firstBar, Y(72)]])
+
+      expect(patch().voices[0].pattern[0]).toMatchObject({
+        accent: "none",
+        velocityOffset: 8,
+      })
+      expect(velocities()[0]).toBe(72)
+      expect(dot(1)).toHaveAttribute("data-accent", "none")
+      expect(dot(1).title).toContain("Velocity 72")
+    })
+
+    it("sets a bar as soon as it is pressed, like Signal", () => {
+      setup(null, withNotes)
+      clickAt(secondBar, Y(100))
+      expect(velocities()).toEqual([64, 100])
+    })
+
+    it("moves every bar from one dot together", () => {
+      setup(null, (start) => {
+        const next = withNotes(start)
+        next.voices[0].pattern[0] = { ...next.voices[0].pattern[0], ratchet: 2 }
+        return next
+      })
+      // the first dot's two hits, then the second dot
+      expect(velocities()).toEqual([64, 64, 64])
+      dragFrom([firstBar, Y(64)], [[firstBar, Y(30)]])
+      expect(velocities()).toEqual([30, 30, 64])
+    })
+
+    it("paints every bar a stroke crosses from between them", () => {
+      setup(null, withNotes)
+      dragFrom(
+        [X(0.25), Y(30)],
+        [
+          [X(0.4), Y(30)],
+          [X(0.75), Y(30)],
+        ],
+      )
+      // only the second bar lies on the stroke's way
+      expect(velocities()).toEqual([64, 30])
+    })
+
+    it("makes a whole drag one undo entry", () => {
+      setup(null, withNotes)
+      const before = patch()
+      dragFrom(
+        [firstBar, Y(64)],
+        [
+          [firstBar, Y(70)],
+          [firstBar, Y(90)],
+          [firstBar, Y(100)],
+        ],
+      )
+      click("Undo")
+      expect(patch()).toBe(before)
+    })
+
+    it("leaves B as Bump, since Velocity has no tools", () => {
+      setup(null, withNotes)
+      frame().focus()
+      fireEvent.keyDown(frame(), { code: "KeyB" })
+      expect(rootStore.player.actions.bump).toBe(true)
+      fireEvent.keyUp(frame(), { code: "KeyB" })
+    })
+
+    it("follows an accent picked on the dot", () => {
+      setup(null, withNotes)
+      fireEvent.contextMenu(dot(2))
+      const options = within(
+        screen.getByRole("dialog", { name: "Voice 1 Dot 2" }),
+      )
+      fireEvent.change(options.getByLabelText("Accent"), {
+        target: { value: "-" },
+      })
+      expect(velocities()).toEqual([64, 44])
+    })
+
+    it("follows the voice's velocity and the accent amount", () => {
+      setup(null, (start) => {
+        const next = withNotes(start)
+        next.voices[0].pattern[0] = {
+          ...next.voices[0].pattern[0],
+          accent: "+",
+        }
+        return next
+      })
+      expect(velocities()).toEqual([84, 64])
+
+      act(() => rootStore.playbackSettings.setAccentAmount(30))
+      expect(velocities()).toEqual([94, 64])
+
+      const voices = within(screen.getByRole("region", { name: "Voices" }))
+      fireEvent.click(voices.getByRole("button", { name: "Velocity up" }))
+      expect(velocities()).toEqual([95, 65])
+    })
+
+    it("shares one channel's lane between the voices on it", () => {
+      setup(null, (start) => {
+        const next = withNotes(start)
+        next.voices[1] = {
+          ...next.voices[1],
+          enabled: true,
+          channel: 1,
+          pace: "4th",
+          velocity: 100,
+        }
+        return next
+      })
+      expect(channelPicker().options[0].text).toBe("1 · Voices 1, 2")
+      const voicesOfBars = bars().map((bar) => bar.getAttribute("data-voice"))
+      expect(voicesOfBars.sort()).toEqual(["0", "0", "1"])
+      expect(velocities()).toContain(100)
     })
   })
 })

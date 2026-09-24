@@ -6,9 +6,12 @@ import {
   PatternStepJSON,
   Probability,
   Ratchet,
+  shownAccent,
 } from "@midiseq/core"
 import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
+import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { usePatch } from "../../hooks/usePatch"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
@@ -46,6 +49,8 @@ export const StepOptions: FC<StepOptionsProps> = ({
   onClose,
 }) => {
   const { editPatternStep } = usePatchEditor()
+  const { accentAmount } = useAccentAmount()
+  const voiceVelocity = usePatch().voices[voiceIndex].velocity
   const localized = useLocalization()
   const popup = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState(requestedAt)
@@ -124,9 +129,14 @@ export const StepOptions: FC<StepOptionsProps> = ({
 
         <Field label={localized["sequencer-dot-accent"]}>
           <Select
-            value={dot.accent}
+            value={shownAccent(voiceVelocity, accentAmount, dot)}
+            // an accent picked here is exactly that accent, so it clears any
+            // velocity of the dot's own
             onChange={(event) =>
-              change({ accent: event.target.value as Accent })
+              change({
+                accent: event.target.value as Accent,
+                velocityOffset: 0,
+              })
             }
           >
             {ACCENTS.map((value) => (

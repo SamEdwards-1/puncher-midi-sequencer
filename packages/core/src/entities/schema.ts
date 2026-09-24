@@ -106,6 +106,8 @@ export const PatternStepSchema = z.object({
   on: z.boolean(),
   articulation: z.enum(["none", "hold", "tie"]),
   accent: z.enum(["none", "+", "-"]),
+  // dots saved before they had velocities of their own play the voice's
+  velocityOffset: z.number().int().min(-126).max(126).default(0),
   ratchet: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   probability: ProbabilitySchema,
   condition: z.enum([

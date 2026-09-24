@@ -18,6 +18,7 @@ const patterned = () => {
     on: false,
     articulation: "tie",
     accent: "-",
+    velocityOffset: 9,
     ratchet: 3,
     probability: 33,
     condition: "last",

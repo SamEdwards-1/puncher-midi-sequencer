@@ -226,6 +226,62 @@ describe("the settings dialog", () => {
     expect(rootStore.sequencerStore.patch.tempo).toBe(90)
   })
 
+  describe("accent amount", () => {
+    const general = async () => {
+      const dialog = await open()
+      fireEvent.click(dialog.getByRole("button", { name: "General" }))
+      return dialog
+    }
+    const field = (dialog: ReturnType<typeof within>) =>
+      dialog.getByRole("textbox", { name: "Accent amount" }) as HTMLInputElement
+    const type = (dialog: ReturnType<typeof within>, text: string) => {
+      fireEvent.focus(field(dialog))
+      fireEvent.change(field(dialog), { target: { value: text } })
+      fireEvent.keyDown(field(dialog), { key: "Enter" })
+    }
+    const amount = () => rootStore.playbackSettings.accentAmount
+
+    it("starts at 20, shown as the swing either way", async () => {
+      const dialog = await general()
+      expect(amount()).toBe(20)
+      expect(field(dialog).value).toBe("±20")
+    })
+
+    it("steps and takes a typed amount, like the tempo", async () => {
+      const dialog = await general()
+      fireEvent.click(dialog.getByRole("button", { name: "Accent amount up" }))
+      expect(amount()).toBe(21)
+
+      type(dialog, "35")
+      expect(amount()).toBe(35)
+      expect(field(dialog).value).toBe("±35")
+
+      // "±12" means 12
+      type(dialog, "±12")
+      expect(amount()).toBe(12)
+    })
+
+    it("keeps the amount between 1 and 64, and ignores nonsense", async () => {
+      const dialog = await general()
+      type(dialog, "300")
+      expect(amount()).toBe(64)
+      type(dialog, "0")
+      expect(amount()).toBe(1)
+      type(dialog, "abc")
+      expect(amount()).toBe(1)
+    })
+
+    it("belongs to this machine rather than the patch", async () => {
+      const storage = memoryStorage()
+      const first = new RootStore({ ticker: new ManualTicker(), storage })
+      first.playbackSettings.setAccentAmount(33)
+
+      const again = new RootStore({ ticker: new ManualTicker(), storage })
+      expect(again.playbackSettings.accentAmount).toBe(33)
+      expect(first.sequencerStore.patch).not.toHaveProperty("accentAmount")
+    })
+  })
+
   it("closes on Escape", async () => {
     await open()
     fireEvent.keyDown(window, { key: "Escape" })

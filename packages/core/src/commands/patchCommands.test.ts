@@ -10,6 +10,7 @@ import {
   pasteStep,
   removeEnvelope,
   removeStepNote,
+  setDotVelocity,
   setJump,
   setModOut,
   setPatternStep,
@@ -156,21 +157,45 @@ describe("patch commands", () => {
     )
   })
 
-  it("offer the next CC a step isn't using, brightness first", () => {
+  it("offer the next CC a step isn't using on a channel, brightness first", () => {
     const patch = createDefaultPatch()
-    expect(nextFreeCC(patch.steps[0])).toBe(74)
+    expect(nextFreeCC(patch.steps[0], 1)).toBe(74)
 
     const one = addEnvelope(patch, 0, { cc: 74, channel: 1, points: [] })
-    expect(nextFreeCC(one.steps[0])).toBe(75)
-    // other steps' CCs don't count
-    expect(nextFreeCC(one.steps[1])).toBe(74)
+    expect(nextFreeCC(one.steps[0], 1)).toBe(75)
+    // other channels' and other steps' CCs don't count
+    expect(nextFreeCC(one.steps[0], 2)).toBe(74)
+    expect(nextFreeCC(one.steps[1], 1)).toBe(74)
 
     let full = patch
     for (let cc = 74; cc < 128; cc++) {
       full = addEnvelope(full, 0, { cc, channel: 1, points: [] })
     }
     // past 127 it starts again from 0
-    expect(nextFreeCC(full.steps[0])).toBe(0)
+    expect(nextFreeCC(full.steps[0], 1)).toBe(0)
+  })
+
+  it("set a dot's velocity as an accent or as its own", () => {
+    // voice 2 at 64, accents of 20
+    const patch = createDefaultPatch()
+    const accented = setDotVelocity(patch, 1, 3, 85, 20)
+    expect(accented.voices[1].pattern[3]).toMatchObject({
+      accent: "+",
+      velocityOffset: 0,
+    })
+
+    const own = setDotVelocity(accented, 1, 3, 70, 20)
+    expect(own.voices[1].pattern[3]).toMatchObject({
+      accent: "none",
+      velocityOffset: 6,
+    })
+    // relative to its own voice's velocity, and only that dot
+    const louder = setVoice(patch, 1, { velocity: 100 })
+    expect(
+      setDotVelocity(louder, 1, 3, 70, 20).voices[1].pattern[3],
+    ).toMatchObject({ velocityOffset: -30 })
+    expect(own.voices[1].pattern[2]).toBe(patch.voices[1].pattern[2])
+    expect(own.voices[0]).toBe(patch.voices[0])
   })
 
   it("copy a step onto another and clear one", () => {

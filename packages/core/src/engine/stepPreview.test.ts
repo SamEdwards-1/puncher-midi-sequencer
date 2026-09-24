@@ -16,9 +16,34 @@ describe("a step's notes", () => {
 
   it("places each voice's notes at its pace and length, across the step", () => {
     expect(stepNotes(patch, 5)).toEqual([
-      { voice: 0, note: 60, start: 0, end: 0.25 },
-      { voice: 0, note: 60, start: 0.5, end: 0.75 },
+      { voice: 0, note: 60, velocity: 64, dot: 0, start: 0, end: 0.25 },
+      { voice: 0, note: 60, velocity: 64, dot: 1, start: 0.5, end: 0.75 },
     ])
+  })
+
+  it("gives each note its velocity and the dot that played it", () => {
+    patch.pace = "2nd"
+    patch.voices[0].pattern[0] = {
+      ...patch.voices[0].pattern[0],
+      ratchet: 2,
+      accent: "+",
+    }
+    patch.voices[0].pattern[2] = {
+      ...patch.voices[0].pattern[2],
+      velocityOffset: -10,
+    }
+    const notes = stepNotes(patch, 5)
+
+    // both ratchet hits come from the first dot, accented
+    expect(notes.map(({ dot, velocity }) => [dot, velocity])).toEqual([
+      [0, 84],
+      [0, 84],
+      [1, 64],
+      [2, 54],
+      [3, 64],
+    ])
+    // and an accent follows the accent amount it is given
+    expect(stepNotes(patch, 5, { accentAmount: 30 })[0].velocity).toBe(94)
   })
 
   it("follows the voice's rule, offset and dots", () => {
@@ -48,7 +73,7 @@ describe("a step's notes", () => {
   it("cuts a note still sounding at the step's end", () => {
     patch.voices[0] = { ...patch.voices[0], pace: "2nd", length: 1 }
     expect(stepNotes(patch, 5)).toEqual([
-      { voice: 0, note: 60, start: 0, end: 1 },
+      { voice: 0, note: 60, velocity: 64, dot: 0, start: 0, end: 1 },
     ])
   })
 

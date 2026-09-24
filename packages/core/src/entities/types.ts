@@ -96,6 +96,9 @@ export interface PatternStepJSON {
   on: boolean
   articulation: Articulation
   accent: Accent
+  // the dot's own velocity, as an offset from its voice's; an accent moves
+  // it further (see velocity.ts)
+  velocityOffset: number
   ratchet: Ratchet
   probability: Probability
   condition: PatternCondition

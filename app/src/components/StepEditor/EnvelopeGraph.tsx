@@ -10,10 +10,12 @@ import {
   paceBeats,
   paintPoints,
   removePoint,
+  setDotVelocity,
   snapTime,
   stairsFor,
   stepNotes,
   updateEnvelope,
+  VoiceIndex,
 } from "@midiseq/core"
 import {
   FC,
@@ -26,6 +28,7 @@ import {
   useState,
 } from "react"
 import { usePatchGesture } from "../../actions/patch"
+import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { usePatch } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
@@ -45,6 +48,15 @@ import {
   valueAtY,
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
+import { BAR_WIDTH, barsAlong, barsAt, barsFor, dotKey } from "./velocityBars"
+
+/**
+ * What the graph edits: one of the channel's CC envelopes, or the velocity
+ * of the notes its voices play.
+ */
+export type GraphLane =
+  | { kind: "cc"; envelope: EnvelopeJSON | null }
+  | { kind: "velocity"; voices: VoiceIndex[] }
 
 export const GRIDS = [
   { beats: 1, label: "1/4" },
@@ -85,25 +97,31 @@ const useWidth = (ref: RefObject<HTMLElement | null>, fallback: number) => {
 }
 
 /**
- * One step's CC envelope over a piano roll of the notes the step plays.
- * The notes follow the voices — pace, pattern, ratchets, length, rule — and
- * can't be touched here; the envelope is edited as in Live, drawn as in
- * Signal's control pane.
+ * One step's CC envelope, or its notes' velocities, over a piano roll of the
+ * notes the step plays. The notes follow the voices — pace, pattern,
+ * ratchets, length, rule — and can't be touched here.
  *
- * Edit: click the line to add a point on it, double-click anywhere to place
- * one, drag a point to move it, drag the line to raise or lower it, click a
- * point to delete it. Draw: drag to paint values across the grid. Points
- * snap to the grid unless Alt is held, and B switches between the two.
+ * An envelope is edited as in Live, drawn as in Signal's control pane. Edit:
+ * click the line to add a point on it, double-click anywhere to place one,
+ * drag a point to move it, drag the line to raise or lower it, click a point
+ * to delete it. Draw: drag to paint values across the grid. Points snap to
+ * the grid unless Alt is held, and B switches between the two.
+ *
+ * Velocity works as Signal's velocity lane: a bar at each note, pressed to
+ * set it and dragged to follow the mouse, or painted across from anywhere
+ * between. A bar is its dot's velocity, so every bar from that dot moves
+ * with it, and one landing near an accent's velocity makes that accent.
  */
 export const EnvelopeGraph: FC<{
   step: number
-  envelope: EnvelopeJSON | null
-}> = ({ step, envelope }) => {
+  lane: GraphLane
+}> = ({ step, lane }) => {
   const patch = usePatch()
   const { sequencerStore } = useStores()
   const beginGesture = usePatchGesture()
   const [tool, setTool] = useEnvelopeTool()
   const [gridBeats] = useEnvelopeGrid()
+  const { accentAmount } = useAccentAmount()
   const localized = useLocalization()
   const frame = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -112,14 +130,20 @@ export const EnvelopeGraph: FC<{
   const [hover, setHover] = useState<{
     point: number | null
     segment: number | null
-  }>({ point: null, segment: null })
+    bar: boolean
+  }>({ point: null, segment: null, bar: false })
+  const envelope = lane.kind === "cc" ? lane.envelope : null
 
   const stepBeats = paceBeats(patch.pace)
   const grid = useMemo(
     () => gridTimes(stepBeats, gridBeats),
     [stepBeats, gridBeats],
   )
-  const notes = useMemo(() => stepNotes(patch, step), [patch, step])
+  const notes = useMemo(
+    () => stepNotes(patch, step, { accentAmount }),
+    [patch, step, accentAmount],
+  )
+  const bars = lane.kind === "velocity" ? barsFor(notes, lane.voices, plot) : []
   const keys = keyRange(notes.map((note) => note.note))
   const keyCount = keys.high - keys.low + 1
   const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / keyCount
@@ -148,7 +172,16 @@ export const EnvelopeGraph: FC<{
     free ? time : snapTime(time, stepBeats, gridBeats)
 
   const onMouseDown = (event: ReactMouseEvent<SVGSVGElement>) => {
-    if (envelope === null || event.button !== 0) {
+    if (event.button !== 0) {
+      return
+    }
+    if (lane.kind === "velocity") {
+      event.preventDefault()
+      frame.current?.focus()
+      editVelocities(event.nativeEvent)
+      return
+    }
+    if (envelope === null) {
       return
     }
     // keeps the page from selecting text under a drag
@@ -300,22 +333,85 @@ export const EnvelopeGraph: FC<{
     })
   }
 
+  /**
+   * Signal's velocity lane: pressing a bar sets it to the height under the
+   * mouse and follows it; pressing between bars paints every bar the mouse
+   * then passes. Every bar drawn so far is applied again on each move, so a
+   * bar painted twice takes its last value.
+   */
+  const editVelocities = (down: MouseEvent) => {
+    const start = local(down)
+    const commit = beginGesture()
+    const apply = (
+      drawn: Map<string, { voice: VoiceIndex; dot: number; value: number }>,
+    ) => {
+      let next = sequencerStore.patch
+      for (const { voice, dot, value } of drawn.values()) {
+        next = setDotVelocity(next, voice, dot, value, accentAmount)
+      }
+      commit(next)
+    }
+
+    const pressed = barsAt(bars, start.x)
+    if (pressed.length > 0) {
+      const setTo = (y: number) =>
+        apply(
+          new Map(
+            pressed.map((bar) => [
+              dotKey(bar),
+              { voice: bar.voice, dot: bar.dot, value: valueAtY(plot, y) },
+            ]),
+          ),
+        )
+      setTo(start.y)
+      observeDrag(down, { onMove: (_, delta) => setTo(start.y + delta.y) })
+      return
+    }
+
+    const painted = new Map<
+      string,
+      { voice: VoiceIndex; dot: number; value: number }
+    >()
+    let last = { x: start.x, value: valueAtY(plot, start.y) }
+    observeDrag(down, {
+      onMove: (_, delta) => {
+        const now = {
+          x: start.x + delta.x,
+          value: valueAtY(plot, start.y + delta.y),
+        }
+        for (const { bar, value } of barsAlong(bars, last, now)) {
+          painted.set(dotKey(bar), { voice: bar.voice, dot: bar.dot, value })
+        }
+        last = now
+        if (painted.size > 0) {
+          apply(painted)
+        }
+      },
+    })
+  }
+
   const onMouseMove = (event: ReactMouseEvent<SVGSVGElement>) => {
     // while a button is down, the drag has the mouse
     if (event.buttons !== 0) {
       return
     }
     const { x, y } = local(event.nativeEvent)
+    if (lane.kind === "velocity") {
+      setHover({ point: null, segment: null, bar: barsAt(bars, x).length > 0 })
+      return
+    }
     const point = hitPoint(points, plot, x, y)
     setHover({
       point,
       segment: point === null ? hitSegment(points, plot, x, y) : null,
+      bar: false,
     })
   }
 
-  // In here B is Live's Draw key; elsewhere it stays Bump.
+  // On an envelope B is Live's Draw key; everywhere else it stays Bump.
   const onKeyDown = (event: KeyboardEvent) => {
     if (
+      lane.kind !== "cc" ||
       event.code !== "KeyB" ||
       event.ctrlKey ||
       event.metaKey ||
@@ -331,21 +427,25 @@ export const EnvelopeGraph: FC<{
   }
 
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.code === "KeyB") {
+    if (lane.kind === "cc" && event.code === "KeyB") {
       event.stopPropagation()
     }
   }
 
   const cursor =
-    envelope === null
-      ? "default"
-      : tool === "draw"
-        ? "crosshair"
-        : hover.point !== null
-          ? "pointer"
-          : hover.segment !== null
-            ? "ns-resize"
-            : "default"
+    lane.kind === "velocity"
+      ? hover.bar
+        ? "ns-resize"
+        : "crosshair"
+      : envelope === null
+        ? "default"
+        : tool === "draw"
+          ? "crosshair"
+          : hover.point !== null
+            ? "pointer"
+            : hover.segment !== null
+              ? "ns-resize"
+              : "default"
 
   const gridLabel = GRIDS.find(({ beats }) => beats === gridBeats)?.label
 
@@ -385,7 +485,9 @@ export const EnvelopeGraph: FC<{
           style={{ cursor }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
-          onMouseLeave={() => setHover({ point: null, segment: null })}
+          onMouseLeave={() =>
+            setHover({ point: null, segment: null, bar: false })
+          }
         >
           <title>{localized["sequencer-envelope"]}</title>
           <rect
@@ -435,7 +537,44 @@ export const EnvelopeGraph: FC<{
               height={Math.max(1, keyHeight - 1)}
               rx={2}
               fill={`var(--midiseq-voice-${note.voice})`}
-              fillOpacity={0.4}
+              // behind velocity bars the notes only say where they are
+              fillOpacity={lane.kind === "velocity" ? 0.16 : 0.4}
+            />
+          ))}
+
+          {lane.kind === "velocity" &&
+            lane.voices.map((voice) => {
+              // where a bar counts as plain, or as either accent
+              const base = patch.voices[voice].velocity
+              return [base - accentAmount, base, base + accentAmount]
+                .filter((level) => level >= 1 && level <= 127)
+                .map((level) => (
+                  <line
+                    key={`${voice}-${level}`}
+                    data-level={level}
+                    x1={0}
+                    x2={width}
+                    y1={toY(plot, level)}
+                    y2={toY(plot, level)}
+                    stroke={`var(--midiseq-voice-${voice})`}
+                    strokeOpacity={level === base ? 0.45 : 0.3}
+                    strokeDasharray={level === base ? undefined : "3 3"}
+                  />
+                ))
+            })}
+
+          {bars.map((bar) => (
+            <rect
+              key={`${dotKey(bar)}-${bar.x}`}
+              data-bar={dotKey(bar)}
+              data-voice={bar.voice}
+              data-velocity={bar.velocity}
+              x={bar.x}
+              y={toY(plot, bar.velocity)}
+              width={BAR_WIDTH}
+              height={toY(plot, 0) - toY(plot, bar.velocity)}
+              fill={`var(--midiseq-voice-${bar.voice})`}
+              fillOpacity={0.9}
             />
           ))}
 

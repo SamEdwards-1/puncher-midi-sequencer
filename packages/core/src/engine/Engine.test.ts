@@ -538,6 +538,23 @@ describe("Engine", () => {
       expect(velocities).toEqual([84, 44])
     })
 
+    it("plays a dot's own velocity, with its accent on top, inside MIDI's range", () => {
+      patch.voices[0].pattern[0].velocityOffset = 10
+      patch.voices[0].pattern[1].velocityOffset = 10
+      patch.voices[0].pattern[1].accent = "+"
+      patch.voices[0].pattern[2].velocityOffset = 90
+      patch.voices[0].pattern[3].velocityOffset = -90
+      patch.voices[0].patternLength = 4
+
+      const engine = new Engine(patch, { accentAmount: 20 })
+      engine.start(0)
+      const velocities = engine
+        .render(3.1)
+        .filter((e): e is NoteOnEvent => e.type === "noteOn")
+        .map((e) => e.velocity)
+      expect(velocities).toEqual([74, 94, 127, 1])
+    })
+
     it("hold sustains the previous note through the dot", () => {
       patch.voices[0].length = 0.5
       patch.voices[0].patternLength = 2

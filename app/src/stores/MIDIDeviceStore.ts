@@ -5,6 +5,7 @@ import {
   VoiceIndex,
 } from "@midiseq/core"
 import { computed, makeObservable, observable, reaction } from "mobx"
+import { defaultStorage, read, write } from "./storage"
 
 export type OutputSlot = "all" | VoiceIndex
 
@@ -29,22 +30,6 @@ const STORAGE_KEY = "midiseq.midiOutputs"
 const INPUT_STORAGE_KEY = "midiseq.midiInput"
 const FILTER_STORAGE_KEY = "midiseq.midiFilter"
 const CLOCK_STORAGE_KEY = "midiseq.midiClock"
-
-const read = (storage: Storage | null, key: string): unknown => {
-  try {
-    return JSON.parse(storage?.getItem(key) ?? "null")
-  } catch {
-    return null
-  }
-}
-
-const write = (storage: Storage | null, key: string, value: unknown) => {
-  try {
-    storage?.setItem(key, JSON.stringify(value))
-  } catch {
-    // storage can be full or blocked; the choice just won't persist
-  }
-}
 
 const names = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((name) => typeof name === "string") : []
@@ -117,14 +102,6 @@ const defaultQueryPermission = (): QueryMIDIPermission | null =>
           // "midi" is a valid permission name but missing from the DOM types
         } as unknown as PermissionDescriptor)
     : null
-
-const defaultStorage = (): Storage | null => {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
 
 /**
  * midiseq keeps its own transport either way. It offers its clock unless that

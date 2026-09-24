@@ -64,6 +64,9 @@ to another when a condition is met.
 - **Pattern:** 1–16 dots, each on/off with options:
   - Articulation: none / hold (sustain through the dot) / tie (legato overlap)
   - Accent: none / + / − · Ratchet: 1–4 hits · Probability: 10–100%
+  - Velocity: the voice's, unless the dot has its own (set in the Velocity
+    lane, §5.6). An accent moves it by the *accent amount*, a setting of the
+    machine (General, 1–64, default 20).
   - Condition: Always, 2:2, 3:3, 4:4, 1x, 2x, 3x, Last, Not Last
   - Plays only when both probability and condition pass.
 
@@ -79,7 +82,20 @@ to another when a condition is met.
   refused) and the step's CCs, each an **envelope** across the step (below).
   A step's CC belongs to no voice, so it goes out on its own channel to every
   output. Copy/paste steps.
-- **CC envelopes:** a tab per CC (number and channel typed or stepped), each
+- **Velocity & CCs, by channel:** a picker for all 16 MIDI channels, named
+  by the voices on each. A channel a voice plays on has a **Velocity** lane,
+  open first — one bar per note, as Signal's — and any channel can hold CC
+  envelopes, a tab each, added on the channel picked; a CC keeps its channel
+  when a voice moves off it.
+- **Velocity lane:** press a bar to set its note's velocity and drag to
+  follow the mouse; press between bars to paint every bar the mouse passes.
+  A bar is its dot's velocity, so every bar from that dot moves with it.
+  Landing on, or within 2 of, the voice's velocity plus or minus the accent
+  amount makes that accent — the dot grows or shrinks — and near the voice's
+  own makes a plain dot; anywhere else is the dot's own velocity, kept as an
+  offset from the voice's, and the dot keeps its size. Dashed lines mark the
+  accent levels.
+- **CC envelopes:** a tab per CC (number typed or stepped), each
   an envelope in the manner of Live's: breakpoints joined by straight lines,
   the value held before the first point and after the last, two points at one
   time making a jump. Time runs across the step, 0 to 1, so an envelope
@@ -206,6 +222,7 @@ interface EnvelopeJSON { id: number; cc: number; channel: number; points: { time
 interface JumpJSON { rule: JumpRule; dest: StepIndex | null; normal: StepIndex | null }
 interface LoopJSON { mode: "recorded"|"all"|"custom"; end: StepIndex }
 interface VoiceJSON { enabled; pace; length; rule; offset; patternLength; pattern: PatternStepJSON[16]; velocity; channel }
+interface PatternStepJSON { on; articulation; accent: "none"|"+"|"-"; velocityOffset /* from the voice's velocity */; ratchet; probability; condition }
 interface PatchJSON {
   version: 1; name; size: "small"|"large"; loop: LoopJSON
   syncVoices; pace; direction; shiftAmt; tempo
@@ -435,6 +452,16 @@ one message per landing.
 clicked step is auditioned: every voice starting together on its first dot.
 Chance and the random rules use a fixed seed, so the picture holds still
 while editing.
+
+**Velocity is the dot's.** Notes come from pattern dots, and a voice's
+pattern plays on every step, so a velocity bar edits its dot: every bar from
+that dot, on this step and every other, moves with it. The dot keeps an
+offset from its voice's velocity rather than a value of its own, so moving
+the voice's velocity moves every bar, and an accent stays an accent — its
+size set by the accent amount, not frozen at what it was when drawn. The dot
+is drawn big or small for its accent, or for a velocity of its own that
+lands within 2 of one (as it can once the voice's velocity or the accent
+amount moves under it); between the levels it keeps its size.
 
 **What is not there yet:** selecting and moving several points at once;
 Live's inserting points at a time selection's edges when a segment is

@@ -1,4 +1,5 @@
 import {
+  Accent,
   dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
@@ -6,6 +7,8 @@ import {
   PACES,
   PaceId,
   PatternStepJSON,
+  playedVelocity,
+  shownAccent,
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
@@ -15,6 +18,7 @@ import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import { CSSProperties, FC, ReactNode, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
+import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
@@ -68,15 +72,19 @@ const voiceColor = (index: VoiceIndex): CSSProperties =>
 // Spells the options out on hover, since the marks are necessarily terse.
 const describe = (
   dot: PatternStepJSON,
+  accent: Accent,
+  velocity: number,
   localized: Record<string, string>,
 ): string => {
   const parts = [
     dot.articulation === "none"
       ? null
       : localized[`sequencer-dot-articulation-${dot.articulation}`],
-    dot.accent === "none"
+    accent === "none" ? null : `${localized["sequencer-dot-accent"]} ${accent}`,
+    // a velocity of its own is invisible on the dot unless it is an accent's
+    dot.velocityOffset === 0
       ? null
-      : `${localized["sequencer-dot-accent"]} ${dot.accent}`,
+      : `${localized["sequencer-voice-velocity"]} ${velocity}`,
     dot.ratchet > 1
       ? `${localized["sequencer-dot-ratchet"]} ${dot.ratchet}x`
       : null,
@@ -91,7 +99,12 @@ const describe = (
  * makes it bigger or smaller, a probability below 100% hollows it out, a hold
  * or tie draws a tail towards the next dot, and a condition marks the corner.
  */
-const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
+const dotClass = (
+  dot: PatternStepJSON,
+  accent: Accent,
+  beyond: boolean,
+  editing: boolean,
+) => {
   const chance = dot.probability < 100
   return cn(
     DOT,
@@ -102,8 +115,8 @@ const dotClass = (dot: PatternStepJSON, beyond: boolean, editing: boolean) => {
         : "border-transparent bg-voice text-on-surface"
       : "border-transparent bg-step text-on-surface",
     beyond && "opacity-25",
-    dot.accent === "+" && "scale-[1.15]",
-    dot.accent === "-" && "scale-80",
+    accent === "+" && "scale-[1.15]",
+    accent === "-" && "scale-80",
     // the dot whose options are open
     editing && "outline-2 outline-offset-2 outline-fg",
     dot.articulation === "hold" && cn(TAIL, "before:bg-voice"),
@@ -312,6 +325,7 @@ const Patterns: FC<{
   const voiceDots = useMobxGetter(player, "voiceDots")
   const playingDots = useMobxGetter(player, "playingDots")
   const { togglePatternDot } = usePatchEditor()
+  const { accentAmount } = useAccentAmount()
   const { exportPatterns, importPatterns } = usePatternFileActions()
   const localized = useLocalization()
   const [options, setOptions] = useState<{
@@ -383,6 +397,8 @@ const Patterns: FC<{
                 const editing =
                   options?.voiceIndex === voiceIndex &&
                   options.dotIndex === dotIndex
+                // a velocity landing on an accent's shows as that accent
+                const accent = shownAccent(voice.velocity, accentAmount, dot)
                 return (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
@@ -395,16 +411,27 @@ const Patterns: FC<{
                     data-editing={editing}
                     data-playing={playingDots?.[voiceIndex] === dotIndex}
                     data-articulation={dot.articulation}
-                    data-accent={dot.accent}
+                    data-accent={accent}
+                    data-velocity={playedVelocity(
+                      voice.velocity,
+                      accentAmount,
+                      dot,
+                    )}
                     data-chance={dot.probability < 100}
                     data-condition={dot.condition !== "always"}
                     className={dotClass(
                       dot,
+                      accent,
                       dotIndex >= voice.patternLength,
                       editing,
                     )}
                     style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
-                    title={describe(dot, localized)}
+                    title={describe(
+                      dot,
+                      accent,
+                      playedVelocity(voice.velocity, accentAmount, dot),
+                      localized,
+                    )}
                     onClick={() => togglePatternDot(voiceIndex, dotIndex)}
                     onContextMenu={(event) => {
                       event.preventDefault()

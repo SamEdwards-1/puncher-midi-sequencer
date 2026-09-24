@@ -8,6 +8,7 @@ import {
   VoiceIndex,
   VoiceJSON,
 } from "../entities/types"
+import { DEFAULT_ACCENT_AMOUNT, playedVelocity } from "../entities/velocity"
 import { nextStep } from "./direction"
 import { EngineEvent } from "./events"
 import { evalJumpRule } from "./jumpRules"
@@ -37,7 +38,6 @@ export interface EngineOptions {
   seed?: number
 }
 
-export const DEFAULT_ACCENT_AMOUNT = 20
 // guards against a pathological patch spinning the render loop forever
 const MAX_EVENTS_PER_RENDER = 10000
 
@@ -497,7 +497,11 @@ export class Engine {
       0,
       127,
     )
-    const velocity = this.velocityFor(voice, patternStep.accent)
+    const velocity = playedVelocity(
+      voice.velocity,
+      this.accentAmount,
+      patternStep,
+    )
     const hits = patternStep.ratchet
     const hitPace = pace / hits
     const holdBeats = this.holdBeatsAfter(voice, patternIndex)
@@ -576,15 +580,5 @@ export class Engine {
       held++
     }
     return held * pace
-  }
-
-  private velocityFor(voice: VoiceJSON, accent: "none" | "+" | "-"): number {
-    const delta =
-      accent === "+"
-        ? this.accentAmount
-        : accent === "-"
-          ? -this.accentAmount
-          : 0
-    return clamp(voice.velocity + delta, 1, 127)
   }
 }

@@ -55,6 +55,7 @@ const everySettingChanged = (): PatchJSON => {
         on: (dot + index) % 3 !== 0,
         articulation: pick(["hold", "tie", "none"] as const, dot + index),
         accent: pick(["+", "-", "none"] as const, dot + index),
+        velocityOffset: pick([0, 7, -12, 30] as const, dot + index),
         ratchet: pick([2, 3, 4, 1] as const, dot + index),
         probability: pick([50, 25, 90, 100] as const, dot + index),
         condition: pick(["2:2", "1x", "notLast", "always"] as const, dot),

@@ -86,9 +86,16 @@ remove, retune or transpose them by hand. A note can be typed as well as
 stepped — `G#5`, or just `D` to stay in the octave it is already on. Steps
 can be copied and pasted.
 
-**CC envelopes.** Under the notes, each CC on the step has a tab and an
-envelope: a line of breakpoints drawn across the step, over a piano roll of
-the notes the step plays. In **Edit**, click the line to add a point, or
+**Velocity & CCs.** Under the notes, pick a MIDI channel. Each channel a voice
+plays on has a **Velocity** lane: a bar for every note the step plays, as in
+Signal. Press a bar and drag to set it, or drag across bars to paint them.
+Drop a bar on (or near) a dashed line and its dot becomes an accent; anywhere
+else, the dot keeps a velocity of its own. How far an accent reaches is
+**Settings → General → Accent amount**.
+
+Any channel can also hold CCs, each with a tab and an envelope: a line of
+breakpoints drawn across the step, over a piano roll of the notes the step
+plays. In **Edit**, click the line to add a point, or
 double-click anywhere; drag a point, or drag the line to raise it; click a
 point to delete it. In **Draw** (press **B** with the graph focused), drag to
 paint values across the grid. Points snap to the grid unless you hold **Alt**.

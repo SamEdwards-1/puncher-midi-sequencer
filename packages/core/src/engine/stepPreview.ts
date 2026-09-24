@@ -25,9 +25,17 @@ export const oneStepPatch = (patch: PatchJSON, step: StepIndex): PatchJSON => ({
 export interface StepNote {
   voice: VoiceIndex
   note: number
+  velocity: number
+  // the voice's pattern dot that played it; ratchet hits share one
+  dot: number
   // from the step's start (0) to its end (1)
   start: number
   end: number
+}
+
+export interface StepNotesOptions {
+  seed?: number
+  accentAmount?: number
 }
 
 /**
@@ -40,10 +48,10 @@ export interface StepNote {
 export const stepNotes = (
   patch: PatchJSON,
   step: StepIndex,
-  seed = 1,
+  { seed = 1, accentAmount }: StepNotesOptions = {},
 ): StepNote[] => {
   const length = paceBeats(patch.pace)
-  const engine = new Engine(oneStepPatch(patch, step), { seed })
+  const engine = new Engine(oneStepPatch(patch, step), { seed, accentAmount })
   engine.start(0)
   const events = [
     ...engine.render(length - BEAT_EPSILON),
@@ -51,6 +59,8 @@ export const stepNotes = (
   ]
 
   const sounding = new Map<string, Omit<StepNote, "end">>()
+  // the dot each voice is on; its notes follow its mark
+  const dots = new Map<VoiceIndex, number>()
   const notes: StepNote[] = []
   const close = (key: string, beat: number) => {
     const open = sounding.get(key)
@@ -61,6 +71,10 @@ export const stepNotes = (
   }
 
   for (const event of events) {
+    if (event.type === "dot") {
+      dots.set(event.voice, event.dot)
+      continue
+    }
     if (event.type !== "noteOn" && event.type !== "noteOff") {
       continue
     }
@@ -71,6 +85,8 @@ export const stepNotes = (
       sounding.set(key, {
         voice: event.voice,
         note: event.note,
+        velocity: event.velocity,
+        dot: dots.get(event.voice) ?? 0,
         start: event.beat / length,
       })
     }
