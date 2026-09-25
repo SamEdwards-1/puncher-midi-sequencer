@@ -1,18 +1,24 @@
-import { MAX_ACCENT_AMOUNT, MIN_ACCENT_AMOUNT } from "@midiseq/core"
-import { FC, useState } from "react"
+import {
+  MAX_ACCENT_AMOUNT,
+  MIN_ACCENT_AMOUNT,
+  sequenceCCs,
+} from "@midiseq/core"
+import { FC, useMemo, useState } from "react"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { usePatch } from "../../hooks/usePatch"
 import { useSettings } from "../../hooks/useSettings"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { themeNames } from "../../theme/Theme"
+import { ExportOptions } from "../FileMenu/ExportOptions"
 import { cn } from "../ui/cn"
 import { Dialog } from "../ui/Dialog"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { MIDISettings } from "./MIDISettings"
 
-type Tab = "general" | "midi"
+type Tab = "general" | "midi" | "export"
 
-const TABS: Tab[] = ["general", "midi"]
+const TABS: Tab[] = ["general", "midi", "export"]
 
 const ROW = "grid grid-cols-[6rem_1fr] items-center gap-3"
 
@@ -68,6 +74,20 @@ const GeneralSettings: FC = () => {
   )
 }
 
+// The export's settings, with the CCs of the sequence as it stands.
+const ExportSettings: FC = () => {
+  const patch = usePatch()
+  const ccs = useMemo(() => sequenceCCs(patch), [patch])
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-small text-fg-tertiary">
+        <Localized name="sequencer-export-settings-hint" />
+      </p>
+      <ExportOptions ccs={ccs} passes />
+    </div>
+  )
+}
+
 export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   const [tab, setTab] = useState<Tab>("midi")
   const localized = useLocalization()
@@ -97,7 +117,13 @@ export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
         ))}
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
-        {tab === "general" ? <GeneralSettings /> : <MIDISettings />}
+        {tab === "general" ? (
+          <GeneralSettings />
+        ) : tab === "midi" ? (
+          <MIDISettings />
+        ) : (
+          <ExportSettings />
+        )}
       </div>
     </Dialog>
   )

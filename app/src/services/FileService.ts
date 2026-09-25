@@ -1,4 +1,8 @@
-import { FILE_EXTENSION, PATTERNS_EXTENSION } from "@midiseq/core"
+import {
+  FILE_EXTENSION,
+  MIDI_EXTENSION,
+  PATTERNS_EXTENSION,
+} from "@midiseq/core"
 
 export interface OpenedFile {
   name: string
@@ -14,7 +18,12 @@ interface FilePickers {
 export interface FileKind {
   description: string
   extension: string
+  // JSON unless it says otherwise
+  mimeType?: string
 }
+
+// A file's contents: text, or bytes for a binary format such as MIDI.
+export type FileContents = string | Uint8Array<ArrayBuffer>
 
 export const PATCH_FILE: FileKind = {
   description: "midiseq patch",
@@ -26,11 +35,19 @@ export const PATTERNS_FILE: FileKind = {
   extension: PATTERNS_EXTENSION,
 }
 
+export const MIDI_FILE: FileKind = {
+  description: "MIDI file",
+  extension: MIDI_EXTENSION,
+  mimeType: "audio/midi",
+}
+
+const mimeTypeOf = (kind: FileKind) => kind.mimeType ?? "application/json"
+
 const pickerOptions = (kind: FileKind) => ({
   types: [
     {
       description: kind.description,
-      accept: { "application/json": [kind.extension] },
+      accept: { [mimeTypeOf(kind)]: [kind.extension] },
     },
   ],
 })
@@ -112,21 +129,21 @@ export class FileService {
 
   // Writes a file without making it the one Save writes to.
   async saveCopy(
-    text: string,
+    contents: FileContents,
     suggestedName: string,
     kind: FileKind,
   ): Promise<string | null> {
-    return this.saveTo(text, suggestedName, kind, false)
+    return this.saveTo(contents, suggestedName, kind, false)
   }
 
   private async saveTo(
-    text: string,
+    text: FileContents,
     suggestedName: string,
     kind: FileKind,
     remember: boolean,
   ): Promise<string | null> {
     if (this.pickers.showSaveFilePicker === undefined) {
-      return this.download(text, suggestedName)
+      return this.download(text, suggestedName, kind)
     }
     try {
       const handle = await this.pickers.showSaveFilePicker({
@@ -144,7 +161,7 @@ export class FileService {
 
   private async write(
     handle: FileSystemFileHandle,
-    text: string,
+    text: FileContents,
   ): Promise<string> {
     const writable = await handle.createWritable()
     await writable.write(text)
@@ -170,9 +187,13 @@ export class FileService {
     })
   }
 
-  private download(text: string, name: string): string {
+  private download(
+    contents: FileContents,
+    name: string,
+    kind: FileKind = PATCH_FILE,
+  ): string {
     const url = URL.createObjectURL(
-      new Blob([text], { type: "application/json" }),
+      new Blob([contents], { type: mimeTypeOf(kind) }),
     )
     const link = document.createElement("a")
     link.href = url
