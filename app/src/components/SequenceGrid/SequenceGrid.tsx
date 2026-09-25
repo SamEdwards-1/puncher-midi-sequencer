@@ -14,6 +14,7 @@ import {
   usePreviewOnClick,
   useSelectedStep,
 } from "../../hooks/useSequencerView"
+import { useStepMidiDrag } from "../../hooks/useStepMidiDrag"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
@@ -71,6 +72,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const { editJump, editStepState } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const [preview, setPreview] = usePreviewOnClick()
+  // a step dragged out of the browser lands as its MIDI file
+  const dragStep = useStepMidiDrag()
 
   const size = useMobxSelector(
     () => sequencerStore.patch.size,
@@ -279,6 +282,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                       } as CSSProperties
                     }
                     onClick={() => onStepClick(index)}
+                    draggable
+                    onDragStart={(event) => dragStep(index, event)}
                   >
                     {index + 1}
                   </button>

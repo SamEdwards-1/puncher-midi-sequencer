@@ -63,7 +63,27 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 **Transport.** **Play** starts the sequencer and **Record** arms recording;
 stopping also silences anything still sounding. The tempo can be stepped or
 typed straight into. On the left, the **File** menu starts a new patch, opens
-and saves, and the **Edit** menu holds **Undo** and **Redo**.
+and saves, and exports MIDI — the sequence or one step — and the **Edit**
+menu holds **Undo** and **Redo**.
+
+**Export MIDI.** **File → Export MIDI…** writes the sequence as a standard
+MIDI file, as it plays from its start. Tick the voices to include — each on
+its own channel, with its instrument set — and the CCs: every controller the
+sequence sends, from the steps' envelopes and the mod outputs, is listed by
+number and channel, with **All CCs** to tick or clear the lot. Put each voice
+on a track of its own, with the CCs on one more, or everything on one track.
+Choose how many passes through the sequence to write; the dialog shows how
+many steps, bars and seconds that comes to. **File → Export Step MIDI…** does
+the same for the step in the editor alone: a step long, as the sequence
+first reaches it, with that step's CCs.
+
+These choices are kept, and shared: the two export dialogs and
+**Settings → MIDI Export** all show and change the same ones. They're also
+what a step dragged out of the grid holds — drag any step onto your desktop,
+a folder or another app and it lands as that step's MIDI file, straight
+away. Dragging a file out needs Chrome or Edge. It's worked out instantly and silently, nothing is
+sent to your outputs, and chance and the random rules are rolled afresh each
+time, as they would be in a performance.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
 A step fills to **Step notes** — four by default, one for each voice — and only

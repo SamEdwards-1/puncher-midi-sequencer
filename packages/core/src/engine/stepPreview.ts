@@ -102,26 +102,66 @@ const notesIn = (
   return notes.sort((a, b) => a.start - b.start || a.note - b.note)
 }
 
+// The events of one pass over a step, from `beat`, and where the voices
+// were when it landed.
+interface StepWindow {
+  events: EngineEvent[]
+  beat: number
+  length: number
+  voiceDots: number[]
+}
+
 /**
  * The step on its own, the voices starting together from their first dots:
- * for a step the sequence never reaches.
+ * for a step the sequence never reaches. Whatever still sounds at its end
+ * is released there.
  */
 const alone = (
   patch: PatchJSON,
   step: StepIndex,
   options: { seed: number; accentAmount?: number },
-): StepPreview => {
+): StepWindow => {
   const length = paceBeats(patch.pace)
   const engine = new Engine(oneStepPatch(patch, step), options)
   engine.start(0)
-  const events = [
-    ...engine.render(length - BEAT_EPSILON),
-    ...engine.stop(length),
-  ]
   return {
-    notes: notesIn(events, 0, length),
+    events: [...engine.render(length - BEAT_EPSILON), ...engine.stop(length)],
+    beat: 0,
+    length,
     voiceDots: patch.voices.map(() => 0),
   }
+}
+
+/**
+ * The step the first time the sequence reaches it from its start, played on
+ * from everything before it, or on its own if it is never reached.
+ */
+const landing = (
+  patch: PatchJSON,
+  step: StepIndex,
+  { seed = 1, accentAmount }: StepNotesOptions,
+): StepWindow => {
+  const options = { seed, accentAmount }
+  const reachable = playableSteps(patch, false).some(
+    (position) => viewIndex(position, patch.size, false) === step,
+  )
+  if (!reachable) {
+    return alone(patch, step, options)
+  }
+
+  const length = paceBeats(patch.pace)
+  const engine = new Engine(patch, options)
+  engine.start(0)
+  const searched = SEARCH_PASSES * stepCount(patch.size)
+  for (let count = 0; count < searched; count++) {
+    const beat = count * length
+    const events = engine.render(beat + length - BEAT_EPSILON)
+    const landed = events.find((event) => event.type === "step")
+    if (landed?.type === "step" && landed.step === step) {
+      return { events, beat, length, voiceDots: landed.voiceDots }
+    }
+  }
+  return alone(patch, step, options)
 }
 
 /**
@@ -138,32 +178,53 @@ const alone = (
 export const previewStep = (
   patch: PatchJSON,
   step: StepIndex,
-  { seed = 1, accentAmount }: StepNotesOptions = {},
+  options: StepNotesOptions = {},
 ): StepPreview => {
-  const options = { seed, accentAmount }
-  const reachable = playableSteps(patch, false).some(
-    (position) => viewIndex(position, patch.size, false) === step,
-  )
-  if (!reachable) {
-    return alone(patch, step, options)
-  }
+  const { events, beat, length, voiceDots } = landing(patch, step, options)
+  return { notes: notesIn(events, beat, length), voiceDots }
+}
 
-  const length = paceBeats(patch.pace)
-  const engine = new Engine(patch, options)
-  engine.start(0)
-  const searched = SEARCH_PASSES * stepCount(patch.size)
-  for (let count = 0; count < searched; count++) {
-    const beat = count * length
-    const events = engine.render(beat + length - BEAT_EPSILON)
-    const landing = events.find((event) => event.type === "step")
-    if (landing?.type === "step" && landing.step === step) {
-      return {
-        notes: notesIn(events, beat, length),
-        voiceDots: landing.voiceDots,
+/**
+ * The notes and CCs of one pass over a step, as the sequence reaches it (see
+ * previewStep), timed from the step's start: its own and nothing else. A
+ * note still sounding from the step before is left out, and one still
+ * sounding at its end is released there.
+ */
+export const stepEvents = (
+  patch: PatchJSON,
+  step: StepIndex,
+  options: StepNotesOptions = {},
+): EngineEvent[] => {
+  const window = landing(patch, step, options)
+  const sounding = new Set<string>()
+  const events: EngineEvent[] = []
+  const key = (event: { voice: VoiceIndex; channel: number; note: number }) =>
+    `${event.voice}:${event.channel}:${event.note}`
+  for (const event of window.events) {
+    const beat = Math.min(window.length, event.beat - window.beat)
+    if (event.type === "noteOn") {
+      sounding.add(key(event))
+      events.push({ ...event, beat })
+    } else if (event.type === "noteOff") {
+      if (sounding.delete(key(event))) {
+        events.push({ ...event, beat })
       }
+    } else if (event.type === "cc") {
+      events.push({ ...event, beat })
     }
   }
-  return alone(patch, step, options)
+  for (const event of [...events]) {
+    if (event.type === "noteOn" && sounding.delete(key(event))) {
+      events.push({
+        type: "noteOff",
+        beat: window.length,
+        voice: event.voice,
+        note: event.note,
+        channel: event.channel,
+      })
+    }
+  }
+  return events
 }
 
 /** The notes a step plays when the sequence reaches it: see previewStep. */

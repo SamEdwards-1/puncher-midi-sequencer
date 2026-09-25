@@ -13,21 +13,24 @@ const SIZES: Record<ButtonSize, string> = {
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize
   active?: boolean
+  // the action a dialog is for, filled in the theme colour
+  primary?: boolean
 }
 
 export const Button: FC<ButtonProps> = ({
   size = "md",
   active = false,
+  primary = false,
   className,
   ...props
 }) => (
   <button
     data-active={active}
     className={cn(
-      "flex items-center gap-[0.4rem] rounded-sm",
+      "flex items-center gap-[0.4rem] rounded-sm disabled:opacity-40",
       SIZES[size],
-      active
-        ? "bg-theme text-on-surface"
+      active || primary
+        ? "bg-theme text-on-surface enabled:hover:brightness-110"
         : "bg-background-secondary text-fg enabled:hover:bg-highlight",
       className,
     )}
