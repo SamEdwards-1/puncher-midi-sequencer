@@ -38,6 +38,7 @@ import { usePatch } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
+import { EnvelopeRuler, RULER_HEIGHT } from "./EnvelopeRuler"
 import {
   areaPath,
   cellAt,
@@ -51,9 +52,12 @@ import {
   timeAtX,
   toX,
   toY,
+  View,
   valueAtY,
+  WHOLE_STEP,
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
+import { PianoKeys } from "./PianoKeys"
 import {
   dotKey,
   pointsAlong,
@@ -142,7 +146,13 @@ export const EnvelopeGraph: FC<{
   const frame = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
   const width = useWidth(frame, FALLBACK_WIDTH)
-  const plot: Plot = { width, height: GRAPH_HEIGHT, pad: PAD }
+  // the stretch of the step zoomed in on, from the ruler; kept from step to
+  // step, as they all share one pace
+  const [view, setView] = useState<View>(WHOLE_STEP)
+  // the time the ruler was pressed on, ruled through the roll while it drags
+  const [mark, setMark] = useState<number | null>(null)
+  const viewLength = view.end - view.start
+  const plot: Plot = { width, height: GRAPH_HEIGHT, pad: PAD, view }
   const [hover, setHover] = useState<{
     point: number | null
     segment: number | null
@@ -178,7 +188,7 @@ export const EnvelopeGraph: FC<{
   const span = { x: width - 2 * PAD, y: GRAPH_HEIGHT - 2 * PAD }
 
   // Lines as close as the grid allows; failing that beats, failing that bars.
-  const lineGap = (beats: number) => (beats / stepBeats) * span.x
+  const lineGap = (beats: number) => (beats / stepBeats / viewLength) * span.x
   const lines =
     lineGap(gridBeats) >= MIN_LINE_GAP
       ? grid
@@ -249,7 +259,7 @@ export const EnvelopeGraph: FC<{
           const time =
             Math.abs(delta.x) < SIDEWAYS
               ? point.time
-              : snap(point.time + delta.x / span.x, move.altKey)
+              : snap(point.time + (delta.x / span.x) * viewLength, move.altKey)
           setPoints(
             movePoint(
               original,
@@ -528,193 +538,224 @@ export const EnvelopeGraph: FC<{
 
   return (
     <div className="flex gap-1">
+      <div style={{ marginTop: RULER_HEIGHT }}>
+        <PianoKeys keys={keys} height={GRAPH_HEIGHT} pad={PAD} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <EnvelopeRuler
+          plot={plot}
+          stepBeats={stepBeats}
+          mark={mark}
+          onView={setView}
+          onMark={setMark}
+        />
+        <div
+          ref={frame}
+          role="application"
+          aria-label={localized["sequencer-envelope"]}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: B switches tools while the graph has focus
+          tabIndex={0}
+          data-tool={tool}
+          className="rounded-sm outline-none focus-visible:outline-1 focus-visible:outline-theme"
+          onKeyDown={onKeyDown}
+          onKeyUp={onKeyUp}
+        >
+          <svg
+            ref={svg}
+            data-keys={`${keys.low}-${keys.high}`}
+            width={width}
+            height={GRAPH_HEIGHT}
+            className="block select-none"
+            style={{ cursor }}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseLeave={() => {
+              setHover({ point: null, segment: null })
+              setPointer(null)
+            }}
+          >
+            <title>{localized["sequencer-envelope"]}</title>
+            <rect
+              width={width}
+              height={GRAPH_HEIGHT}
+              fill="var(--midiseq-editor-background)"
+            />
+
+            {/* a row to each key, the black keys' darker, as the keyboard has */}
+            {Array.from(
+              { length: keyCount },
+              (_, offset) => keys.low + offset,
+            ).map((note) => (
+              <rect
+                key={note}
+                data-row={note}
+                x={0}
+                y={keyY(note)}
+                width={width}
+                height={keyHeight}
+                fill={
+                  isBlackKey(note)
+                    ? "var(--midiseq-roll-black)"
+                    : "var(--midiseq-roll-white)"
+                }
+              />
+            ))}
+
+            {lines.map((time) => (
+              <line
+                key={time}
+                x1={toX(plot, time)}
+                x2={toX(plot, time)}
+                y1={0}
+                y2={GRAPH_HEIGHT}
+                stroke={
+                  onBeat(time)
+                    ? "var(--midiseq-editor-grid)"
+                    : "var(--midiseq-editor-grid-secondary)"
+                }
+                strokeWidth={1}
+              />
+            ))}
+
+            {notes.map((note) => (
+              <rect
+                key={`${note.voice}-${note.note}-${note.start}`}
+                data-note={note.note}
+                data-voice={note.voice}
+                x={toX(plot, note.start)}
+                y={keyY(note.note) + 0.5}
+                width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
+                height={Math.max(1, keyHeight - 1)}
+                rx={2}
+                fill={`var(--midiseq-voice-${note.voice})`}
+              />
+            ))}
+
+            {lane.kind === "velocity" &&
+              [lane.voice].map((voice) => {
+                // where a note counts as plain, or as either accent
+                const base = patch.voices[voice].velocity
+                return [base - accentAmount, base, base + accentAmount]
+                  .filter((level) => level >= 1 && level <= 127)
+                  .map((level) => (
+                    <line
+                      key={`${voice}-${level}`}
+                      data-level={level}
+                      x1={0}
+                      x2={width}
+                      y1={toY(plot, level)}
+                      y2={toY(plot, level)}
+                      stroke={`var(--midiseq-voice-${voice})`}
+                      strokeOpacity={level === base ? 0.45 : 0.3}
+                      strokeDasharray={level === base ? undefined : "3 3"}
+                    />
+                  ))
+              })}
+
+            {points.length > 0 && (
+              <>
+                <path
+                  d={areaPath(points, plot)}
+                  fill="var(--midiseq-envelope)"
+                  fillOpacity={0.08}
+                />
+                <path
+                  data-envelope-line
+                  d={linePath(points, plot)}
+                  fill="none"
+                  stroke="var(--midiseq-envelope)"
+                  strokeWidth={hover.segment !== null ? 2.5 : 2}
+                />
+                {points.map((point, index) => (
+                  <circle
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
+                    key={index}
+                    data-point={index}
+                    data-velocity={
+                      lane.kind === "velocity"
+                        ? Math.round(point.value)
+                        : undefined
+                    }
+                    cx={toX(plot, point.time)}
+                    cy={toY(plot, point.value)}
+                    r={hover.point === index ? 5 : 4}
+                    fill={
+                      hover.point === index
+                        ? "var(--midiseq-envelope)"
+                        : "var(--midiseq-editor-background)"
+                    }
+                    stroke="var(--midiseq-envelope)"
+                    strokeWidth={2}
+                  />
+                ))}
+              </>
+            )}
+
+            {mark !== null && (
+              <line
+                data-zoom-mark
+                x1={toX(plot, mark)}
+                x2={toX(plot, mark)}
+                y1={0}
+                y2={GRAPH_HEIGHT}
+                stroke="var(--midiseq-fg)"
+                strokeOpacity={0.7}
+                pointerEvents="none"
+              />
+            )}
+
+            {readout !== null && (
+              <g data-envelope-value={readout.value} pointerEvents="none">
+                <rect
+                  x={readout.x}
+                  y={readout.y}
+                  width={readout.width}
+                  height={16}
+                  rx={3}
+                  fill="var(--midiseq-background-dark)"
+                  stroke="var(--midiseq-envelope)"
+                  strokeOpacity={0.7}
+                />
+                <text
+                  x={readout.x + readout.width / 2}
+                  y={readout.y + 12}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fill="var(--midiseq-fg)"
+                  fontFamily="var(--midiseq-mono-font)"
+                >
+                  {readout.value}
+                </text>
+              </g>
+            )}
+
+            <text
+              x={width - PAD - 2}
+              y={GRAPH_HEIGHT - PAD - 2}
+              textAnchor="end"
+              fontSize={11}
+              fill="var(--midiseq-fg-secondary)"
+              fontFamily="var(--midiseq-mono-font)"
+            >
+              {gridLabel}
+            </text>
+          </svg>
+        </div>
+      </div>
       <div
         aria-hidden
         className="relative w-7 flex-none font-mono text-micro text-fg-tertiary"
-        style={{ height: GRAPH_HEIGHT }}
+        style={{ height: GRAPH_HEIGHT, marginTop: RULER_HEIGHT }}
       >
         {AXIS.map((value) => (
           <span
             key={value}
-            className="absolute right-1 -translate-y-1/2"
+            className="absolute left-1 -translate-y-1/2"
             style={{ top: toY(plot, value) }}
           >
             {value}
           </span>
         ))}
-      </div>
-      <div
-        ref={frame}
-        role="application"
-        aria-label={localized["sequencer-envelope"]}
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: B switches tools while the graph has focus
-        tabIndex={0}
-        data-tool={tool}
-        className="min-w-0 flex-1 rounded-sm outline-none focus-visible:outline-1 focus-visible:outline-theme"
-        onKeyDown={onKeyDown}
-        onKeyUp={onKeyUp}
-      >
-        <svg
-          ref={svg}
-          data-keys={`${keys.low}-${keys.high}`}
-          width={width}
-          height={GRAPH_HEIGHT}
-          className="block select-none"
-          style={{ cursor }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseLeave={() => {
-            setHover({ point: null, segment: null })
-            setPointer(null)
-          }}
-        >
-          <title>{localized["sequencer-envelope"]}</title>
-          <rect
-            width={width}
-            height={GRAPH_HEIGHT}
-            fill="var(--midiseq-editor-background)"
-          />
-
-          {Array.from({ length: keyCount }, (_, offset) => keys.low + offset)
-            .filter(isBlackKey)
-            .map((note) => (
-              <rect
-                key={note}
-                x={0}
-                y={keyY(note)}
-                width={width}
-                height={keyHeight}
-                fill="var(--midiseq-editor-grid-secondary)"
-                opacity={0.6}
-              />
-            ))}
-
-          {lines.map((time) => (
-            <line
-              key={time}
-              x1={toX(plot, time)}
-              x2={toX(plot, time)}
-              y1={0}
-              y2={GRAPH_HEIGHT}
-              stroke={
-                onBeat(time)
-                  ? "var(--midiseq-editor-grid)"
-                  : "var(--midiseq-editor-grid-secondary)"
-              }
-              strokeWidth={1}
-            />
-          ))}
-
-          {notes.map((note) => (
-            <rect
-              key={`${note.voice}-${note.note}-${note.start}`}
-              data-note={note.note}
-              data-voice={note.voice}
-              x={toX(plot, note.start)}
-              y={keyY(note.note) + 0.5}
-              width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
-              height={Math.max(1, keyHeight - 1)}
-              rx={2}
-              fill={`var(--midiseq-voice-${note.voice})`}
-            />
-          ))}
-
-          {lane.kind === "velocity" &&
-            [lane.voice].map((voice) => {
-              // where a note counts as plain, or as either accent
-              const base = patch.voices[voice].velocity
-              return [base - accentAmount, base, base + accentAmount]
-                .filter((level) => level >= 1 && level <= 127)
-                .map((level) => (
-                  <line
-                    key={`${voice}-${level}`}
-                    data-level={level}
-                    x1={0}
-                    x2={width}
-                    y1={toY(plot, level)}
-                    y2={toY(plot, level)}
-                    stroke={`var(--midiseq-voice-${voice})`}
-                    strokeOpacity={level === base ? 0.45 : 0.3}
-                    strokeDasharray={level === base ? undefined : "3 3"}
-                  />
-                ))
-            })}
-
-          {points.length > 0 && (
-            <>
-              <path
-                d={areaPath(points, plot)}
-                fill="var(--midiseq-envelope)"
-                fillOpacity={0.08}
-              />
-              <path
-                data-envelope-line
-                d={linePath(points, plot)}
-                fill="none"
-                stroke="var(--midiseq-envelope)"
-                strokeWidth={hover.segment !== null ? 2.5 : 2}
-              />
-              {points.map((point, index) => (
-                <circle
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
-                  key={index}
-                  data-point={index}
-                  data-velocity={
-                    lane.kind === "velocity"
-                      ? Math.round(point.value)
-                      : undefined
-                  }
-                  cx={toX(plot, point.time)}
-                  cy={toY(plot, point.value)}
-                  r={hover.point === index ? 5 : 4}
-                  fill={
-                    hover.point === index
-                      ? "var(--midiseq-envelope)"
-                      : "var(--midiseq-editor-background)"
-                  }
-                  stroke="var(--midiseq-envelope)"
-                  strokeWidth={2}
-                />
-              ))}
-            </>
-          )}
-
-          {readout !== null && (
-            <g data-envelope-value={readout.value} pointerEvents="none">
-              <rect
-                x={readout.x}
-                y={readout.y}
-                width={readout.width}
-                height={16}
-                rx={3}
-                fill="var(--midiseq-background-dark)"
-                stroke="var(--midiseq-envelope)"
-                strokeOpacity={0.7}
-              />
-              <text
-                x={readout.x + readout.width / 2}
-                y={readout.y + 12}
-                textAnchor="middle"
-                fontSize={11}
-                fill="var(--midiseq-fg)"
-                fontFamily="var(--midiseq-mono-font)"
-              >
-                {readout.value}
-              </text>
-            </g>
-          )}
-
-          <text
-            x={width - PAD - 2}
-            y={GRAPH_HEIGHT - PAD - 2}
-            textAnchor="end"
-            fontSize={11}
-            fill="var(--midiseq-fg-secondary)"
-            fontFamily="var(--midiseq-mono-font)"
-          >
-            {gridLabel}
-          </text>
-        </svg>
       </div>
     </div>
   )

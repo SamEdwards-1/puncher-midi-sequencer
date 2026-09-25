@@ -25,6 +25,13 @@
   --midiseq-background-secondary: hsl(227, 10%, 22%);
   --midiseq-background-dark: hsl(228, 10%, 13%);
   --midiseq-editor-background: hsl(228, 10%, 13%);
+  --midiseq-ruler-background: hsl(228, 10%, 8%);
+  --midiseq-roll-white: hsl(228, 10%, 16%);
+  --midiseq-roll-black: hsl(228, 10%, 11%);
+  --midiseq-piano-white: hsl(228, 6%, 74%);
+  --midiseq-piano-black: hsl(228, 10%, 9%);
+  --midiseq-piano-edge: hsl(228, 6%, 52%);
+  --midiseq-piano-label: hsl(228, 10%, 22%);
   --midiseq-editor-grid: hsl(224, 12%, 26%);
   --midiseq-editor-grid-secondary: hsl(224, 12%, 19%);
   --midiseq-record: #dd3c3c;
@@ -83,6 +90,13 @@
   --midiseq-background-secondary: hsl(227, 20%, 95%);
   --midiseq-background-dark: hsl(228, 20%, 95%);
   --midiseq-editor-background: #ffffff;
+  --midiseq-ruler-background: hsl(228, 14%, 86%);
+  --midiseq-roll-white: #ffffff;
+  --midiseq-roll-black: hsl(228, 16%, 93%);
+  --midiseq-piano-white: #ffffff;
+  --midiseq-piano-black: hsl(228, 10%, 22%);
+  --midiseq-piano-edge: hsl(228, 10%, 78%);
+  --midiseq-piano-label: hsl(228, 10%, 40%);
   --midiseq-editor-grid: hsl(223, 12%, 86%);
   --midiseq-editor-grid-secondary: hsl(223, 12%, 92%);
   --midiseq-record: #ee6a6a;

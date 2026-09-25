@@ -5,28 +5,41 @@ import {
   stepCount,
 } from "@midiseq/core"
 
+/** The stretch of the step on show, as fractions of it. */
+export interface View {
+  start: number
+  end: number
+}
+
+export const WHOLE_STEP: View = { start: 0, end: 1 }
+
 /**
- * Where the envelope is drawn: the step runs left to right and the CC value
- * bottom to top, inset by `pad` so a point at an edge is whole and can be
- * grabbed.
+ * Where the envelope is drawn: the step — or the part of it zoomed in on —
+ * runs left to right and the CC value bottom to top, inset by `pad` so a
+ * point at an edge is whole and can be grabbed.
  */
 export interface Plot {
   width: number
   height: number
   pad: number
+  view?: View
 }
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
-export const toX = ({ width, pad }: Plot, time: number) =>
-  pad + time * (width - 2 * pad)
+export const toX = ({ width, pad, view = WHOLE_STEP }: Plot, time: number) =>
+  pad + ((time - view.start) / (view.end - view.start)) * (width - 2 * pad)
 
 export const toY = ({ height, pad }: Plot, value: number) =>
   pad + (1 - value / ENVELOPE_MAX_VALUE) * (height - 2 * pad)
 
-export const timeAtX = ({ width, pad }: Plot, x: number) =>
-  clamp((x - pad) / (width - 2 * pad), 0, 1)
+export const timeAtX = ({ width, pad, view = WHOLE_STEP }: Plot, x: number) =>
+  clamp(
+    view.start + ((x - pad) / (width - 2 * pad)) * (view.end - view.start),
+    0,
+    1,
+  )
 
 export const valueAtY = ({ height, pad }: Plot, y: number) =>
   clamp(

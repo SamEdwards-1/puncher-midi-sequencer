@@ -33,6 +33,16 @@ describe("envelope geometry", () => {
     expect(valueAtY(plot, toY(plot, 90))).toBeCloseTo(90)
   })
 
+  it("spreads the stretch zoomed in on across the plot", () => {
+    const zoomed: Plot = { ...plot, view: { start: 0.25, end: 0.75 } }
+    expect(toX(zoomed, 0.25)).toBe(10)
+    expect(toX(zoomed, 0.5)).toBe(60)
+    expect(toX(zoomed, 0.75)).toBe(110)
+    expect(timeAtX(zoomed, 60)).toBeCloseTo(0.5)
+    // what lies outside the view is still on the step
+    expect(timeAtX(zoomed, 500)).toBe(1)
+  })
+
   it("keeps a position outside the plot inside the step and the CC range", () => {
     expect(timeAtX(plot, -50)).toBe(0)
     expect(timeAtX(plot, 500)).toBe(1)

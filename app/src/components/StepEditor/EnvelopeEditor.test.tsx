@@ -951,4 +951,133 @@ describe("clicking between steps", () => {
     step(1)
     expect(openTab()).toBe("Velocity 1")
   })
+
+  describe("the piano keys", () => {
+    const piano = () => document.querySelector("[data-piano]") as SVGSVGElement
+    const keyAt = (note: number) =>
+      piano().querySelector(`[data-key="${note}"]`) as SVGRectElement
+
+    it("has a key for each row of the roll, naming each C", () => {
+      setup(ramp, (patch) => setStepNotes(patch, 0, [55, 72]))
+      const rows = svg().getAttribute("data-keys")?.split("-").map(Number)
+      const [low, high] = rows ?? []
+      expect(piano().querySelectorAll("[data-key]")).toHaveLength(
+        high - low + 1,
+      )
+      expect(
+        [...piano().querySelectorAll("text")].map((text) => text.textContent),
+      ).toContain("C4")
+    })
+
+    it("names the key under the mouse", () => {
+      setup(ramp, (patch) => setStepNotes(patch, 0, [55, 72]))
+      const key = keyAt(61)
+      fireEvent.mouseMove(piano(), {
+        clientY: Number(key.getAttribute("y")) + 1,
+      })
+      expect(piano().querySelector("[data-hover-note]")).toHaveAttribute(
+        "data-hover-note",
+        "C#4",
+      )
+      fireEvent.mouseLeave(piano())
+      expect(piano().querySelector("[data-hover-note]")).toBeNull()
+    })
+  })
+
+  describe("the ruler", () => {
+    const ruler = () =>
+      screen.getByTitle(/^Ruler/).closest("svg") as SVGSVGElement
+    const marks = () =>
+      [...ruler().querySelectorAll("[data-mark]")].map((mark) =>
+        mark.getAttribute("data-mark"),
+      )
+    const dragRuler = (x: number, dx: number, dy: number) => {
+      fireEvent.mouseDown(ruler(), { clientX: x, clientY: 10, button: 0 })
+      fireEvent.mouseMove(document, { clientX: x + dx, clientY: 10 + dy })
+      fireEvent.mouseUp(document, { clientX: x + dx, clientY: 10 + dy })
+    }
+    const pointX = (index: number) =>
+      Number(svg().querySelector(`[data-point="${index}"]`)?.getAttribute("cx"))
+
+    it("shows where on the step the graph is", () => {
+      setup()
+      // a one-beat step: its sixteenths
+      expect(marks()).toEqual(["1", "1.1.2", "1.1.3", "1.1.4", "1.2"])
+    })
+
+    it("zooms in dragging up, around the place pressed, and back out dragging down", () => {
+      setup()
+      expect(pointX(0)).toBeCloseTo(X(0.25))
+
+      // up a doubling, pressed halfway across: the middle half fills the graph
+      dragRuler(X(0.5), 0, -60)
+      expect(pointX(0)).toBeCloseTo(X(0))
+      expect(pointX(1)).toBeCloseTo(X(1))
+      expect(marks()).toEqual(["1.1.2", "1.1.3", "1.1.4"])
+
+      // and the pointer is hidden only while dragging
+      expect(document.querySelector(".cursor-none")).toBeNull()
+
+      dragRuler(X(0.5), 0, 200)
+      expect(pointX(0)).toBeCloseTo(X(0.25))
+    })
+
+    it("zooms or scrolls, one at a time, changing over mid-drag", () => {
+      setup()
+      const width = () => pointX(1) - pointX(0)
+      // mostly up, drifting right: only a zoom
+      dragRuler(X(0.5), 30, -60)
+      expect(pointX(0)).toBeCloseTo(X(0))
+      expect(pointX(1)).toBeCloseTo(X(1))
+
+      fireEvent.mouseDown(ruler(), { clientX: X(0.5), clientY: 10, button: 0 })
+      // up again, zooming in further
+      fireEvent.mouseMove(document, { clientX: X(0.5), clientY: -50 })
+      const zoomed = width()
+      expect(zoomed).toBeCloseTo(2 * (X(1) - X(0)))
+      // then, without letting go, left: a scroll, at the same zoom
+      fireEvent.mouseMove(document, { clientX: X(0.5) - 60, clientY: -50 })
+      expect(width()).toBeCloseTo(zoomed)
+      const scrolled = pointX(1)
+      // a wobble on the way isn't a zoom
+      fireEvent.mouseMove(document, { clientX: X(0.5) - 62, clientY: -47 })
+      expect(width()).toBeCloseTo(zoomed)
+      expect(pointX(1)).toBeCloseTo(scrolled - 2)
+      // and down, clearly, zooms back out
+      fireEvent.mouseMove(document, { clientX: X(0.5) - 62, clientY: 200 })
+      fireEvent.mouseUp(document, { clientX: X(0.5) - 62, clientY: 200 })
+      expect(width()).toBeCloseTo(X(1) - X(0.5))
+      expect(pointX(0)).toBeCloseTo(X(0.25))
+    })
+
+    it("rules the time pressed on through the roll while dragging", () => {
+      setup()
+      const rule = () => svg().querySelector("[data-zoom-mark]")
+      expect(rule()).toBeNull()
+
+      fireEvent.mouseDown(ruler(), { clientX: X(0.25), clientY: 10, button: 0 })
+      expect(rule()).toHaveAttribute("x1", String(X(0.25)))
+      // zooming holds it where it was pressed
+      fireEvent.mouseMove(document, { clientX: X(0.25), clientY: -50 })
+      expect(Number(rule()?.getAttribute("x1"))).toBeCloseTo(X(0.25))
+      // and the pointer is hidden meanwhile
+      expect(document.querySelector(".cursor-none")).not.toBeNull()
+
+      fireEvent.mouseUp(document, { clientX: X(0.25), clientY: -50 })
+      expect(rule()).toBeNull()
+      expect(document.querySelector(".cursor-none")).toBeNull()
+    })
+
+    it("scrolls dragging sideways, and edits where the zoomed graph shows", () => {
+      setup()
+      dragRuler(X(0.5), 0, -60)
+      // the roll follows the mouse left a quarter of the graph
+      dragRuler(X(0.5), -117, 0)
+      expect(pointX(1)).toBeCloseTo(X(0.75))
+
+      // a point dragged a quarter of the graph moves an eighth of the step
+      dragFrom([X(0.75), Y(96)], [[X(0.5), Y(96)]], { altKey: true })
+      expect(points()[1].time).toBeCloseTo(0.625)
+    })
+  })
 })
