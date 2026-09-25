@@ -1,7 +1,9 @@
-import { CC_NAMES, nextFreeCC, VoiceIndex } from "@midiseq/core"
+import { CC_NAMES, envelopeShape, nextFreeCC, VoiceIndex } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
 import PencilIcon from "mdi-react/PencilIcon"
+import SlopeUphillIcon from "mdi-react/SlopeUphillIcon"
+import SquareWaveIcon from "mdi-react/SquareWaveIcon"
 import { CSSProperties, FC, ReactNode, useEffect, useRef } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
@@ -291,6 +293,37 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
             <PencilIcon size={14} />
             <Localized name="sequencer-envelope-draw" />
           </Button>
+          {lane.kind === "cc" && envelope !== null && (
+            <>
+              <div className="mx-1 h-4 w-px bg-divider" />
+              <Button
+                type="button"
+                size="sm"
+                active={envelopeShape(envelope) === "steps"}
+                aria-pressed={envelopeShape(envelope) === "steps"}
+                title={localized["sequencer-envelope-steps-hint"]}
+                onClick={() =>
+                  editEnvelope(stepIndex, envelope.id, { shape: "steps" })
+                }
+              >
+                <SquareWaveIcon size={14} />
+                <Localized name="sequencer-envelope-steps" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                active={envelopeShape(envelope) === "ramps"}
+                aria-pressed={envelopeShape(envelope) === "ramps"}
+                title={localized["sequencer-envelope-ramps-hint"]}
+                onClick={() =>
+                  editEnvelope(stepIndex, envelope.id, { shape: "ramps" })
+                }
+              >
+                <SlopeUphillIcon size={14} />
+                <Localized name="sequencer-envelope-ramps" />
+              </Button>
+            </>
+          )}
           <div className="grow" />
           <label className="text-small" htmlFor="envelope-grid">
             <Localized name="sequencer-envelope-grid" />

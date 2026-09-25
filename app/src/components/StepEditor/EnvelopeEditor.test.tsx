@@ -24,6 +24,10 @@ const click = (name: string | RegExp) =>
 const X = (time: number) => 6 + time * 468
 const Y = (value: number) => 6 + (1 - value / 127) * 228
 
+// the middle of a point's square handle
+const centreX = (handle: Element) =>
+  Number(handle.getAttribute("x")) + Number(handle.getAttribute("width")) / 2
+
 const frame = () => screen.getByRole("application", { name: "Envelope" })
 const svg = () => frame().querySelector("svg") as SVGSVGElement
 const press = (x: number, y: number, init: MouseEventInit = {}) =>
@@ -76,7 +80,13 @@ const setup = (
   })
   let start: PatchJSON = { ...createDefaultPatch(), pace: "4th" }
   if (shape !== null) {
-    start = addEnvelope(start, 0, { cc: 74, channel: 1, points: shape })
+    // these tests were written for ramps; steps have their own below
+    start = addEnvelope(start, 0, {
+      cc: 74,
+      channel: 1,
+      shape: "ramps",
+      points: shape,
+    })
   }
   rootStore.sequencerStore.patch = change(start)
   render(<App rootStore={rootStore} />)
@@ -528,7 +538,7 @@ describe("the envelope editor", () => {
       setup(null, withNotes)
       expect(tab("Velocity 1")).toHaveAttribute("aria-selected", "true")
       expect(velocities()).toEqual([64, 64])
-      expect(velocityPoints()[1]).toHaveAttribute("cx", String(X(0.5)))
+      expect(centreX(velocityPoints()[1])).toBeCloseTo(X(0.5))
       expect(svg().querySelector("[data-envelope-line]")).not.toBeNull()
       // as for a CC, and no bars
       expect(svg().querySelector("[data-bar]")).toBeNull()
@@ -782,7 +792,7 @@ describe("recording into the editor", () => {
       .getAllByRole("tab")
       .find((tab) => tab.getAttribute("aria-selected") === "true")
       ?.textContent?.trim()
-  const handles = () => svg().querySelectorAll("circle").length
+  const handles = () => svg().querySelectorAll("[data-point]").length
 
   it("opens a knob's tab and shows its values as they arrive", () => {
     setup(null)
@@ -799,13 +809,15 @@ describe("recording into the editor", () => {
       rootStore.midiInput.handleMessage([0xb0, 30, 90])
       rootStore.midiInput.handleMessage([0xb0, 30, 40])
     })
-    // the three values it was turned to, across the step
-    expect(points()).toEqual([
-      { time: 0, value: 10 },
-      { time: 0.5, value: 90 },
-      { time: 1, value: 40 },
-    ])
+    // the three values it was turned to, each holding a third of the step
+    expect(points().map(({ value }) => value)).toEqual([10, 90, 40])
+    const times = points().map(({ time }) => time)
+    for (const [index, time] of [0, 1 / 3, 2 / 3].entries()) {
+      expect(times[index]).toBeCloseTo(time)
+    }
     expect(handles()).toBe(3)
+    // and both ends of each jump are drawn, as in Live
+    expect(svg().querySelectorAll("[data-corner]")).toHaveLength(2)
   })
 
   it("leaves a tab clicked away from while the knob still turns", () => {
@@ -861,10 +873,7 @@ describe("changing the pace under an envelope", () => {
     act(() => {
       rootStore.sequencerStore.patch = { ...patch(), pace }
     })
-  const drawnAt = () =>
-    [...svg().querySelectorAll("circle")].map((circle) =>
-      Number(circle.getAttribute("cx")),
-    )
+  const drawnAt = () => [...svg().querySelectorAll("[data-point]")].map(centreX)
 
   it("keeps each point at its beat on a longer step", () => {
     setup()
@@ -912,7 +921,7 @@ describe("clicking between steps", () => {
 
     step(2)
     expect(openTab()).toBe("CC 74")
-    expect(svg().querySelectorAll("circle")).toHaveLength(1)
+    expect(svg().querySelectorAll("[data-point]")).toHaveLength(1)
   })
 
   it("keeps it open on a step without that CC, ready to draw into", () => {
@@ -952,6 +961,40 @@ describe("clicking between steps", () => {
     expect(openTab()).toBe("Velocity 1")
   })
 
+  describe("steps and ramps", () => {
+    it("switches a CC between stepping and ramping", () => {
+      setup()
+      const line = () =>
+        svg().querySelector("[data-envelope-line]")?.getAttribute("d")
+      const ramped = line()
+      expect(screen.getByRole("button", { name: "Ramps" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      )
+      expect(svg().querySelectorAll("[data-corner]")).toHaveLength(0)
+
+      click("Steps")
+      expect(envelopes()[0].shape).toBe("steps")
+      expect(line()).not.toBe(ramped)
+      // both ends of the one jump
+      expect(svg().querySelectorAll("[data-corner]")).toHaveLength(1)
+
+      click("Ramps")
+      expect(envelopes()[0].shape).toBe("ramps")
+      expect(line()).toBe(ramped)
+    })
+
+    it("steps a CC drawn onto a step that had none", () => {
+      setup(null)
+      click("Add CC")
+      expect(envelopes()[0].shape).toBe("steps")
+      expect(screen.getByRole("button", { name: "Steps" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      )
+    })
+  })
+
   describe("the piano keys", () => {
     const piano = () => document.querySelector("[data-piano]") as SVGSVGElement
     const keyAt = (note: number) =>
@@ -967,6 +1010,58 @@ describe("clicking between steps", () => {
       expect(
         [...piano().querySelectorAll("text")].map((text) => text.textContent),
       ).toContain("C4")
+    })
+
+    it("collapses the scale to the keys the sequence plays, and back", () => {
+      setup(ramp, (patch) =>
+        setStepNotes(setStepNotes(patch, 0, [55, 72]), 3, [60]),
+      )
+      const keys = () =>
+        [...piano().querySelectorAll("[data-key]")].map((key) =>
+          Number(key.getAttribute("data-key")),
+        )
+      expect(keys()).toHaveLength(72 - 55 + 1)
+
+      click("Collapse scale — show only the keys the sequence plays")
+      expect(keys()).toEqual([72, 60, 55])
+      // the roll's rows follow, and its notes keep to them
+      expect(
+        [...svg().querySelectorAll("[data-row]")].map((row) =>
+          Number(row.getAttribute("data-row")),
+        ),
+      ).toEqual([72, 60, 55])
+      // with room, every key is named
+      expect(
+        [...piano().querySelectorAll("text")].map((text) => text.textContent),
+      ).toEqual(["C5", "C4", "G3"])
+
+      click("Collapse scale — show only the keys the sequence plays")
+      expect(keys()).toHaveLength(72 - 55 + 1)
+    })
+
+    it("shades the roll's columns in turn", () => {
+      setup()
+      // a one-beat step 468 pixels across: a band to each sixteenth, every
+      // other one shaded
+      const bands = [...svg().querySelectorAll("[data-band]")].map((band) =>
+        Number(band.getAttribute("data-band")),
+      )
+      expect(bands).toEqual([0.25, 0.75])
+    })
+
+    it("rules off each octave under its C, in a column of its own", () => {
+      setup(ramp, (patch) => setStepNotes(patch, 0, [55, 72]))
+      const c4 = keyAt(60)
+      // the keys sit right of the octaves' column
+      expect(Number(c4.getAttribute("x"))).toBeGreaterThan(0)
+      const bottom =
+        Number(c4.getAttribute("y")) + Number(c4.getAttribute("height"))
+      const rules = [...piano().querySelectorAll("line")].filter(
+        (line) =>
+          line.getAttribute("x1") === "0" &&
+          Math.abs(Number(line.getAttribute("y1")) - bottom) < 0.01,
+      )
+      expect(rules).toHaveLength(1)
     })
 
     it("names the key under the mouse", () => {
@@ -997,7 +1092,7 @@ describe("clicking between steps", () => {
       fireEvent.mouseUp(document, { clientX: x + dx, clientY: 10 + dy })
     }
     const pointX = (index: number) =>
-      Number(svg().querySelector(`[data-point="${index}"]`)?.getAttribute("cx"))
+      centreX(svg().querySelector(`[data-point="${index}"]`) as Element)
 
     it("shows where on the step the graph is", () => {
       setup()

@@ -1,6 +1,7 @@
 import {
   ENVELOPE_MAX_VALUE,
   EnvelopePointJSON,
+  EnvelopeShape,
   PatchJSON,
   stepCount,
 } from "@midiseq/core"
@@ -57,13 +58,30 @@ interface Segment {
 }
 
 // The whole line: the flat stretch into the first point, the lines between
-// points, and the flat stretch out of the last.
-const segmentsOf = (points: EnvelopePointJSON[]): Segment[] => {
+// points, and the flat stretch out of the last. Stepped, each point's value
+// runs flat to the next point's time instead; the rises between are left
+// to the points at either end of them.
+const segmentsOf = (
+  points: EnvelopePointJSON[],
+  shape: EnvelopeShape,
+): Segment[] => {
   if (points.length === 0) {
     return []
   }
   const first = points[0]
   const last = points[points.length - 1]
+  if (shape === "steps") {
+    return [
+      ...(first.time > 0
+        ? [{ index: -1, from: { ...first, time: 0 }, to: first }]
+        : []),
+      ...points.map((from, index) => ({
+        index,
+        from,
+        to: { time: points[index + 1]?.time ?? 1, value: from.value },
+      })),
+    ].filter(({ from, to }) => to.time > from.time)
+  }
   return [
     ...(first.time > 0
       ? [{ index: -1, from: { ...first, time: 0 }, to: first }]
@@ -129,11 +147,12 @@ export const hitSegment = (
   plot: Plot,
   x: number,
   y: number,
+  shape: EnvelopeShape = "ramps",
   tolerance = 5,
 ): number | null => {
   let found: number | null = null
   let nearest = tolerance
-  for (const { index, from, to } of segmentsOf(points)) {
+  for (const { index, from, to } of segmentsOf(points, shape)) {
     const distance = distanceToLine(
       x,
       y,
@@ -153,9 +172,27 @@ export const hitSegment = (
 // hundredths of a pixel are plenty, and keep float noise out of the path
 const px = (value: number) => Math.round(value * 100) / 100
 
+/**
+ * Where a stepped line turns to rise or fall: at each point's time, at the
+ * value held before it. Shown as handles in their own right, as Live shows
+ * both ends of a jump, though only the point after it moves.
+ */
+export const stepCorners = (points: EnvelopePointJSON[]): EnvelopePointJSON[] =>
+  points.slice(1).flatMap((point, index) => {
+    const before = points[index]
+    return point.value === before.value
+      ? []
+      : [{ time: point.time, value: before.value }]
+  })
+
 // The line across the whole step, flat before the first point and after the
-// last, as an SVG path.
-export const linePath = (points: EnvelopePointJSON[], plot: Plot): string => {
+// last, as an SVG path; stepped, flat from each point to the next and then
+// straight up or down.
+export const linePath = (
+  points: EnvelopePointJSON[],
+  plot: Plot,
+  shape: EnvelopeShape = "ramps",
+): string => {
   if (points.length === 0) {
     return ""
   }
@@ -163,7 +200,13 @@ export const linePath = (points: EnvelopePointJSON[], plot: Plot): string => {
   const last = points[points.length - 1]
   const corners = [
     { time: 0, value: first.value },
-    ...points,
+    ...(shape === "steps"
+      ? points.flatMap((point, index) =>
+          index === 0
+            ? [point]
+            : [{ time: point.time, value: points[index - 1].value }, point],
+        )
+      : points),
     { time: 1, value: last.value },
   ]
   return corners
@@ -175,12 +218,16 @@ export const linePath = (points: EnvelopePointJSON[], plot: Plot): string => {
 }
 
 // The line closed along the bottom, to shade what lies under it.
-export const areaPath = (points: EnvelopePointJSON[], plot: Plot): string => {
+export const areaPath = (
+  points: EnvelopePointJSON[],
+  plot: Plot,
+  shape: EnvelopeShape = "ramps",
+): string => {
   if (points.length === 0) {
     return ""
   }
   const bottom = px(toY(plot, 0))
-  return `${linePath(points, plot)} L${px(toX(plot, 1))},${bottom} L${px(toX(plot, 0))},${bottom} Z`
+  return `${linePath(points, plot, shape)} L${px(toX(plot, 1))},${bottom} L${px(toX(plot, 0))},${bottom} Z`
 }
 
 // The grid cell a time falls in, on lines from gridTimes.
@@ -217,6 +264,42 @@ export const patchNoteSpan = (patch: PatchJSON): number[] => {
   return [low, high].flatMap((key) =>
     [0, ...offsets].map((offset) => clamp(key + offset, 0, 127)),
   )
+}
+
+/**
+ * Every key the grid's notes sound on, with the scale collapsed: each
+ * step's notes, as far as the note limit goes, as they are and moved by
+ * each playing voice's offset — the keys patchNoteSpan spans.
+ */
+export const patchNoteKeys = (patch: PatchJSON): number[] => {
+  const offsets = patch.voices
+    .filter(({ enabled }) => enabled)
+    .map(({ offset }) => offset)
+  const keys = new Set(
+    patch.steps
+      .slice(0, stepCount(patch.size))
+      .flatMap((step) =>
+        [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
+      )
+      .flatMap((note) =>
+        [0, ...offsets].map((offset) => clamp(note + offset, 0, 127)),
+      ),
+  )
+  return [...keys].sort((a, b) => a - b)
+}
+
+/**
+ * The piano roll's rows, top to bottom: every key from the lowest to the
+ * highest the grid plays, or collapsed, only the keys it plays. With nothing
+ * played, collapsing leaves the whole range.
+ */
+export const pianoRows = (patch: PatchJSON, collapsed: boolean): number[] => {
+  const played = patchNoteKeys(patch)
+  if (collapsed && played.length > 0) {
+    return played.reverse()
+  }
+  const { low, high } = keyRange(patchNoteSpan(patch))
+  return Array.from({ length: high - low + 1 }, (_, offset) => high - offset)
 }
 
 /**

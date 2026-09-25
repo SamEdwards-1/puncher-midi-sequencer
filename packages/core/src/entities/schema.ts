@@ -55,6 +55,7 @@ export const EnvelopeSchema = z.object({
   cc: midiValue,
   // a file written when a CC could follow a voice's channel lands on 1
   channel: z.preprocess((value) => (value === "voice" ? 1 : value), channel),
+  shape: z.enum(["steps", "ramps"]).optional(),
   // Stable, so two points at one time keep the order that makes their jump.
   points: z
     .array(EnvelopePointSchema)

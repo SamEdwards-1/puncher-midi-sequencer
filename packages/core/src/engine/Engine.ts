@@ -1,4 +1,4 @@
-import { valueAt } from "../entities/envelope"
+import { envelopeShape, valueAt } from "../entities/envelope"
 import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
 import {
   ModSource,
@@ -388,9 +388,9 @@ export class Engine {
     // in beats, so a pace change shortens or lengthens what is heard of the
     // envelope rather than squeezing or stretching it
     const time = beat - envelope.startBeat
-    for (const { id, cc, channel, points } of this.patch.steps[envelope.step]
-      .envelopes) {
-      const exact = valueAt(points, time)
+    for (const each of this.patch.steps[envelope.step].envelopes) {
+      const { id, cc, channel, points } = each
+      const exact = valueAt(points, time, envelopeShape(each))
       if (exact === null) {
         continue
       }

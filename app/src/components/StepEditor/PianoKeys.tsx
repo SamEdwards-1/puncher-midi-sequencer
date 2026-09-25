@@ -2,33 +2,43 @@ import { noteNumberToName } from "@midiseq/core"
 import { FC, MouseEvent as ReactMouseEvent, useState } from "react"
 import { isBlackKey } from "./envelopeGeometry"
 
-export const PIANO_WIDTH = 40
+// the octaves' column on the left, the keys' on the right, as in Live
+const OCTAVE_WIDTH = 34
+const KEY_WIDTH = 22
+export const PIANO_WIDTH = OCTAVE_WIDTH + KEY_WIDTH
+// rows shorter than this are too close to name every one
+const LABEL_ROOM = 9
 
 /**
  * A keyboard beside the piano roll, as in Live: a row to each key, black
- * and white alike, level with the roll's.
- * Each C is named; the key under the mouse is lit and names itself.
+ * and white alike, level with the roll's — every key in its range, or with
+ * the scale collapsed only those the sequence plays. Beside the keys, a
+ * column marks each octave, ruled off under its C and named just above;
+ * collapsed, it names every key if there is room. The key under the mouse
+ * is lit and names itself there.
  */
 export const PianoKeys: FC<{
-  keys: { low: number; high: number }
+  // top to bottom
+  rows: number[]
+  collapsed: boolean
   height: number
   pad: number
-}> = ({ keys, height, pad }) => {
+}> = ({ rows, collapsed, height, pad }) => {
   const [hover, setHover] = useState<number | null>(null)
-  const count = keys.high - keys.low + 1
-  const keyHeight = (height - 2 * pad) / count
-  const keyY = (note: number) => pad + (keys.high - note) * keyHeight
-  const notes = Array.from({ length: count }, (_, offset) => keys.low + offset)
+  const keyHeight = (height - 2 * pad) / rows.length
+  const keyY = (index: number) => pad + index * keyHeight
 
   const onMouseMove = (event: ReactMouseEvent<SVGSVGElement>) => {
     const top = event.currentTarget.getBoundingClientRect().top
-    const row = Math.floor((event.clientY - top - pad) / keyHeight)
-    setHover(row >= 0 && row < count ? keys.high - row : null)
+    const index = Math.floor((event.clientY - top - pad) / keyHeight)
+    setHover(index >= 0 && index < rows.length ? index : null)
   }
 
-  const label = (note: number) => ({
-    y: keyY(note) + keyHeight / 2,
-    text: noteNumberToName(note),
+  const named = (note: number) =>
+    note % 12 === 0 || (collapsed && keyHeight >= LABEL_ROOM)
+  const label = (index: number) => ({
+    y: keyY(index) + keyHeight / 2,
+    text: noteNumberToName(rows[index]),
   })
   const hovered = hover === null ? null : label(hover)
 
@@ -36,7 +46,7 @@ export const PianoKeys: FC<{
     <svg
       data-piano
       // the notes are named in the step editor above; these are for the eye
-      aria-hidden
+      aria-hidden="true"
       width={PIANO_WIDTH}
       height={height}
       className="block flex-none select-none"
@@ -48,16 +58,23 @@ export const PianoKeys: FC<{
         height={height}
         fill="var(--midiseq-editor-background)"
       />
-      {notes.map((note) => (
+      <rect
+        x={0}
+        y={pad}
+        width={OCTAVE_WIDTH}
+        height={height - 2 * pad}
+        fill="var(--midiseq-piano-octave)"
+      />
+      {rows.map((note, index) => (
         <rect
           key={note}
           data-key={note}
-          x={0}
-          y={keyY(note)}
-          width={PIANO_WIDTH}
+          x={OCTAVE_WIDTH}
+          y={keyY(index)}
+          width={KEY_WIDTH}
           height={keyHeight}
           fill={
-            note === hover
+            index === hover
               ? "var(--midiseq-theme)"
               : isBlackKey(note)
                 ? "var(--midiseq-piano-black)"
@@ -65,50 +82,76 @@ export const PianoKeys: FC<{
           }
         />
       ))}
-      {/* between two white keys side by side, E and F or B and C */}
-      {notes
-        .filter(
-          (note) =>
-            note < keys.high && !isBlackKey(note) && !isBlackKey(note + 1),
-        )
-        .map((note) => (
+      {/* between two keys of a colour side by side: E and F, B and C, or
+          any two the collapsed scale has brought together */}
+      {rows
+        .slice(1)
+        .map((note, index) =>
+          isBlackKey(note) === isBlackKey(rows[index]) ? (
+            <line
+              key={note}
+              x1={OCTAVE_WIDTH}
+              x2={PIANO_WIDTH}
+              y1={keyY(index + 1)}
+              y2={keyY(index + 1)}
+              stroke="var(--midiseq-piano-edge)"
+            />
+          ) : null,
+        )}
+      <line
+        x1={OCTAVE_WIDTH - 0.5}
+        x2={OCTAVE_WIDTH - 0.5}
+        y1={pad}
+        y2={height - pad}
+        stroke="var(--midiseq-piano-edge)"
+      />
+      {/* each octave ruled off under its C */}
+      {rows.map((note, index) =>
+        note % 12 === 0 && index < rows.length - 1 ? (
           <line
             key={note}
             x1={0}
-            x2={PIANO_WIDTH}
-            y1={keyY(note)}
-            y2={keyY(note)}
+            x2={OCTAVE_WIDTH}
+            y1={keyY(index + 1)}
+            y2={keyY(index + 1)}
             stroke="var(--midiseq-piano-edge)"
           />
-        ))}
-      {notes
-        .filter((note) => note % 12 === 0 && note !== hover)
-        .map((note) => (
+        ) : null,
+      )}
+      {rows.map((note, index) =>
+        named(note) && index !== hover ? (
           <text
             key={note}
-            x={PIANO_WIDTH - 3}
-            y={label(note).y}
-            dominantBaseline="central"
-            textAnchor="end"
+            x={3}
+            // a C sits on its octave's rule; any other key in its row
+            y={
+              note % 12 === 0 && !collapsed
+                ? keyY(index) + keyHeight - 3
+                : label(index).y
+            }
+            dominantBaseline={
+              note % 12 === 0 && !collapsed ? "auto" : "central"
+            }
             fontSize={9}
             fill="var(--midiseq-piano-label)"
             fontFamily="var(--midiseq-mono-font)"
           >
-            {label(note).text}
+            {label(index).text}
           </text>
-        ))}
+        ) : null,
+      )}
       {hovered !== null && (
         <g data-hover-note={hovered.text} pointerEvents="none">
           <rect
-            x={PIANO_WIDTH - 30}
+            x={2}
             y={hovered.y - 7}
-            width={28}
+            width={OCTAVE_WIDTH - 4}
             height={14}
             rx={3}
             fill="var(--midiseq-background-dark)"
           />
           <text
-            x={PIANO_WIDTH - 16}
+            x={OCTAVE_WIDTH / 2}
             y={hovered.y}
             dominantBaseline="central"
             textAnchor="middle"

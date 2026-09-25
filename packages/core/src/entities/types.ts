@@ -51,16 +51,26 @@ export interface EnvelopePointJSON {
 }
 
 /**
- * A CC as a curve over one step: breakpoints joined by straight lines. The
- * value holds at the first point's before it and the last point's after it,
- * so a single point is a plain CC message sent on landing. Two points at the
- * same time make a jump.
+ * How an envelope gets from one point to the next: holding each value until
+ * the next point and jumping there, as a MIDI controller's messages do, or
+ * along a straight line.
+ */
+export type EnvelopeShape = "steps" | "ramps"
+
+/**
+ * A CC as a curve over one step: breakpoints, stepped or joined by straight
+ * lines. The value holds at the first point's before it and the last
+ * point's after it, so a single point is a plain CC message sent on
+ * landing. Two points at the same time make a jump.
  */
 export interface EnvelopeJSON {
   id: number
   cc: number
   // 1-16. A step's CC belongs to no voice, so it goes to every output.
   channel: number
+  // Ramps when missing: envelopes were only ever ramps before they could
+  // step, so an older file still plays as it did. New ones step.
+  shape?: EnvelopeShape
   // sorted by time
   points: EnvelopePointJSON[]
 }

@@ -9,7 +9,10 @@ import {
   keyRange,
   linePath,
   Plot,
+  patchNoteKeys,
   patchNoteSpan,
+  pianoRows,
+  stepCorners,
   timeAtX,
   toX,
   toY,
@@ -41,6 +44,25 @@ describe("envelope geometry", () => {
     expect(timeAtX(zoomed, 60)).toBeCloseTo(0.5)
     // what lies outside the view is still on the step
     expect(timeAtX(zoomed, 500)).toBe(1)
+  })
+
+  it("draws a stepped line flat to each point, then straight up or down", () => {
+    // 27 from the step's start to the jump at 0.8, then 127 to the end
+    expect(linePath(ramp, plot, "steps")).toBe(
+      "M10,110 L30,110 L90,110 L90,10 L110,10",
+    )
+    // the jump's lower end gets a handle of its own
+    expect(stepCorners(ramp)).toEqual([{ time: 0.8, value: 27 }])
+  })
+
+  it("finds a stepped line's flat stretches, each belonging to its point", () => {
+    // the held 27, well after the slope would have left it
+    expect(hitSegment(ramp, plot, toX(plot, 0.7), toY(plot, 27), "steps")).toBe(
+      0,
+    )
+    expect(
+      hitSegment(ramp, plot, toX(plot, 0.7), toY(plot, 27), "ramps"),
+    ).toBeNull()
   })
 
   it("keeps a position outside the plot inside the step and the CC range", () => {
@@ -108,6 +130,25 @@ describe("envelope geometry", () => {
     // voice 3 is off, so its three octaves up play nothing
     const span = patchNoteSpan(patch)
     expect([Math.min(...span), Math.max(...span)]).toEqual([36, 76])
+  })
+
+  it("collapses the scale to the keys the grid plays, top first", () => {
+    let patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
+    patch = setStepNotes(patch, 1, [67])
+    patch.voices[1].enabled = true
+    patch.voices[1].offset = 12
+    // voice 2 plays an octave up as well
+    expect(patchNoteKeys(patch)).toEqual([60, 64, 67, 72, 76, 79])
+    expect(pianoRows(patch, true)).toEqual([79, 76, 72, 67, 64, 60])
+    // uncollapsed, every key between
+    const all = pianoRows(patch, false)
+    expect(all).toHaveLength(79 - 60 + 1)
+    expect([all[0], all[all.length - 1]]).toEqual([79, 60])
+  })
+
+  it("keeps the whole range when there is nothing to collapse to", () => {
+    const patch = createDefaultPatch()
+    expect(pianoRows(patch, true)).toEqual(pianoRows(patch, false))
   })
 
   it("never reaches past the MIDI keys", () => {

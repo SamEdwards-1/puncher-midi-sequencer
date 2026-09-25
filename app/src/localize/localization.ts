@@ -72,6 +72,14 @@ export default {
     "sequencer-envelope-edit-tool": "Edit points",
     "sequencer-envelope-draw": "Draw",
     "sequencer-envelope-grid": "Grid",
+    "sequencer-envelope-steps": "Steps",
+    "sequencer-envelope-steps-hint":
+      "Steps: each value holds until the next point, then jumps",
+    "sequencer-envelope-ramps": "Ramps",
+    "sequencer-envelope-ramps-hint":
+      "Ramps: straight lines from each point to the next",
+    "sequencer-collapse-scale":
+      "Collapse scale — show only the keys the sequence plays",
     "sequencer-envelope-ruler":
       "Ruler — drag up to zoom in, down to zoom out, sideways to scroll",
     "sequencer-envelope-edit-hint":

@@ -123,6 +123,15 @@ describe("patch commands", () => {
 
   it("add, edit and remove a step's envelopes", () => {
     const patch = createDefaultPatch()
+    // a new envelope steps unless told otherwise
+    expect(
+      addEnvelope(patch, 3, { cc: 1, channel: 1, points: [] }).steps[3]
+        .envelopes[0].shape,
+    ).toBe("steps")
+    expect(
+      addEnvelope(patch, 3, { cc: 1, channel: 1, shape: "ramps", points: [] })
+        .steps[3].envelopes[0].shape,
+    ).toBe("ramps")
     const withCC = addEnvelope(patch, 3, {
       cc: 74,
       channel: 1,
