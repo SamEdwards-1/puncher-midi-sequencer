@@ -116,6 +116,13 @@ step plays. In **Edit**, click the line to add a point, or
 double-click anywhere; drag a point, or drag the line to raise it; click a
 point to delete it. In **Draw** (press **B** with the graph focused), drag to
 paint values across the grid. Points snap to the grid unless you hold **Alt**.
+A keyboard down the left has a row for every key, black and white alike,
+level with the roll's rows; each C is named, and the key under the mouse
+names itself. The CC values read down the right. The ruler along the top counts the step in bars, beats and sixteenths; drag
+on it to zoom and scroll as in Live — up zooms in around where you pressed,
+down zooms back out, and sideways scrolls — one at a time, changing over
+whenever the drag clearly turns. The pointer hides while you drag, and a line through the
+roll marks where you pressed.
 An envelope sends its first value as the sequencer lands on the step, then
 follows its line until the next. The open tab stays open as you click from
 step to step: on a step without that CC it shows an empty, dimmed lane, and

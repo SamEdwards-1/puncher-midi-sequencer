@@ -72,6 +72,8 @@ export default {
     "sequencer-envelope-edit-tool": "Edit points",
     "sequencer-envelope-draw": "Draw",
     "sequencer-envelope-grid": "Grid",
+    "sequencer-envelope-ruler":
+      "Ruler — drag up to zoom in, down to zoom out, sideways to scroll",
     "sequencer-envelope-edit-hint":
       "Click the line to add a point, or double-click anywhere. Drag a point or the line to move it; click a point to delete it. Alt skips the grid; B switches to Draw.",
     "sequencer-envelope-draw-hint":
