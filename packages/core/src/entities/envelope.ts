@@ -1,4 +1,4 @@
-import { EnvelopePointJSON } from "./types"
+import { EnvelopeJSON, EnvelopePointJSON, EnvelopeShape } from "./types"
 
 export const ENVELOPE_MAX_VALUE = 127
 
@@ -13,15 +13,21 @@ const TIME_DIGITS = 1e9
 const tidyTime = (time: number) =>
   Math.round(clampTime(time) * TIME_DIGITS) / TIME_DIGITS
 
+// An envelope saved before envelopes could step is a ramp.
+export const envelopeShape = (envelope: EnvelopeJSON): EnvelopeShape =>
+  envelope.shape ?? "ramps"
+
 /**
- * The envelope's value at `time`: straight lines between points, the first
- * point's value before it and the last point's after it. Where two points
- * share a time the later one wins, so a jump takes effect at its time. Null
- * for an envelope with no points, which sends nothing.
+ * The envelope's value at `time`: each point's value held until the next
+ * point, or straight lines between them; the first point's value before it
+ * and the last point's after it. Where two points share a time the later
+ * one wins, so a jump takes effect at its time. Null for an envelope with
+ * no points, which sends nothing.
  */
 export const valueAt = (
   points: EnvelopePointJSON[],
   time: number,
+  shape: EnvelopeShape = "ramps",
 ): number | null => {
   if (points.length === 0) {
     return null
@@ -33,7 +39,7 @@ export const valueAt = (
     const point = points[index]
     if (point.time <= time) {
       const next = points[index + 1]
-      if (next === undefined || next.time === point.time) {
+      if (shape === "steps" || next === undefined || next.time === point.time) {
         return point.value
       }
       const along = (time - point.time) / (next.time - point.time)
@@ -89,9 +95,12 @@ export const insertPoint = (
 export const insertPointOnLine = (
   points: EnvelopePointJSON[],
   time: number,
+  shape: EnvelopeShape = "ramps",
 ): EnvelopePointJSON[] => {
-  const value = valueAt(points, time)
-  return value === null ? points : insertPoint(points, { time, value })
+  const value = valueAt(points, time, shape)
+  // where a point already is, the line has its handle
+  const taken = points.some((point) => point.time === tidyTime(time))
+  return value === null || taken ? points : insertPoint(points, { time, value })
 }
 
 /**
@@ -115,20 +124,25 @@ export const movePoint = (
 
 /**
  * Raises or lowers a whole segment. Segment `index` runs from point `index`
- * to the next, so both move; -1 is the flat stretch before the first point
- * and the last index the stretch after the last, each moving its one point.
+ * to the next, so both move — or stepped, it is point `index` holding its
+ * value, and only that point moves; -1 is the flat stretch before the first
+ * point and the last index the stretch after the last, each moving its one
+ * point.
  */
 export const moveSegment = (
   points: EnvelopePointJSON[],
   index: number,
   delta: number,
+  shape: EnvelopeShape = "ramps",
 ): EnvelopePointJSON[] => {
   const ends =
     index < 0
       ? [0]
       : index >= points.length - 1
         ? [points.length - 1]
-        : [index, index + 1]
+        : shape === "steps"
+          ? [index]
+          : [index, index + 1]
   return points.map((point, current) =>
     ends.includes(current)
       ? { ...point, value: clampValue(point.value + delta) }
@@ -146,19 +160,22 @@ export const removePoint = (
  * envelope, replacing whatever was there. The shape either side is kept by
  * pinning the old value at both ends, so the painted stretch joins it with a
  * jump; points that come out identical to their neighbour are dropped.
+ * Stepped, the old value already holds up to the stroke, so only its end is
+ * pinned, and a painted point at the value before it adds nothing.
  */
 export const paintPoints = (
   points: EnvelopePointJSON[],
   from: number,
   to: number,
   stroke: EnvelopePointJSON[],
+  shape: EnvelopeShape = "ramps",
 ): EnvelopePointJSON[] => {
   const start = tidyTime(Math.min(from, to))
   const end = tidyTime(Math.max(from, to))
   const before = points.filter((point) => point.time < start)
   const after = points.filter((point) => point.time > end)
-  const oldStart = valueAt(points, start)
-  const oldEnd = valueAt(points, end)
+  const oldStart = valueAt(points, start, shape)
+  const oldEnd = valueAt(points, end, shape)
 
   const painted = [...stroke]
     .map((point) => ({
@@ -169,7 +186,7 @@ export const paintPoints = (
 
   // Nothing comes before the step's start or after its end, so there is no
   // old shape to keep there.
-  const keepStart = oldStart !== null && start > 0
+  const keepStart = oldStart !== null && start > 0 && shape === "ramps"
   const keepEnd = oldEnd !== null && end < 1
   const joined = [
     ...before,
@@ -184,6 +201,16 @@ export const paintPoints = (
       point.time !== joined[index - 1].time ||
       point.value !== joined[index - 1].value,
   )
+  if (shape === "steps") {
+    // each value holds until the next, so a repeat is no change at all
+    return distinct.filter(
+      (point, index) =>
+        index === 0 ||
+        point.time < start ||
+        point.time > end ||
+        point.value !== distinct[index - 1].value,
+    )
+  }
   // A painted run at one value needs only its two ends; the points between
   // would be handles on a flat line. Points outside the stroke are left be.
   return distinct.filter((point, index) => {
@@ -280,6 +307,16 @@ export const simplifyPoints = (
   }
   return points.filter((_, index) => keep[index])
 }
+
+/**
+ * Thins a run of stepped points to the ones where the value changes: each
+ * holds until the next, so a point at the value before it changes nothing.
+ * The first is always kept.
+ */
+export const dropRepeats = (points: EnvelopePointJSON[]): EnvelopePointJSON[] =>
+  points.filter(
+    (point, index) => index === 0 || point.value !== points[index - 1].value,
+  )
 
 /**
  * Stored times are beats from the step's start; the editing tools here work

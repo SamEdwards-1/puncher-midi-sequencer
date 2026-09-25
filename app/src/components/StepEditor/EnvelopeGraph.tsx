@@ -3,6 +3,8 @@ import {
   ENVELOPE_MAX_VALUE,
   EnvelopeJSON,
   EnvelopePointJSON,
+  EnvelopeShape,
+  envelopeShape,
   gridTimes,
   insertPoint,
   insertPointOnLine,
@@ -22,6 +24,8 @@ import {
   VoiceIndex,
   valueAt,
 } from "@midiseq/core"
+import UnfoldLessHorizontalIcon from "mdi-react/UnfoldLessHorizontalIcon"
+import UnfoldMoreHorizontalIcon from "mdi-react/UnfoldMoreHorizontalIcon"
 import {
   FC,
   KeyboardEvent,
@@ -38,6 +42,7 @@ import { usePatch } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
+import { IconButton } from "../ui/Button"
 import { EnvelopeRuler, RULER_HEIGHT } from "./EnvelopeRuler"
 import {
   areaPath,
@@ -45,10 +50,10 @@ import {
   hitPoint,
   hitSegment,
   isBlackKey,
-  keyRange,
   linePath,
   Plot,
-  patchNoteSpan,
+  pianoRows,
+  stepCorners,
   timeAtX,
   toX,
   toY,
@@ -57,7 +62,8 @@ import {
   WHOLE_STEP,
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
-import { PianoKeys } from "./PianoKeys"
+import { PIANO_WIDTH, PianoKeys } from "./PianoKeys"
+import { bandBeats } from "./rulerView"
 import {
   dotKey,
   pointsAlong,
@@ -95,6 +101,16 @@ const SIDEWAYS = 4
 // grid lines closer than this are left out, though points still snap to them
 const MIN_LINE_GAP = 4
 const AXIS = [127, 96, 64, 32, 0]
+// a point's square handle, this many pixels across
+const HANDLE = 6
+
+// a square of `size` centred on (x, y)
+const square = (x: number, y: number, size: number) => ({
+  x: x - size / 2,
+  y: y - size / 2,
+  width: size,
+  height: size,
+})
 
 const useWidth = (ref: RefObject<HTMLElement | null>, fallback: number) => {
   const [width, setWidth] = useState(0)
@@ -161,6 +177,14 @@ export const EnvelopeGraph: FC<{
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [dragging, setDragging] = useState(false)
   const envelope = lane.kind === "cc" ? lane.envelope : null
+  // A velocity line runs from note to note; an envelope has its own shape,
+  // and one about to be drawn onto the step will step, as new ones do.
+  const shape: EnvelopeShape =
+    lane.kind === "velocity"
+      ? "ramps"
+      : envelope === null
+        ? "steps"
+        : envelopeShape(envelope)
 
   const stepBeats = paceBeats(patch.pace)
   // Stored in beats, drawn and edited as fractions of the step as it is now:
@@ -178,10 +202,15 @@ export const EnvelopeGraph: FC<{
   )
   const velocities =
     lane.kind === "velocity" ? velocityPoints(notes, lane.voice) : []
-  const keys = keyRange(patchNoteSpan(patch))
-  const keyCount = keys.high - keys.low + 1
-  const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / keyCount
-  const keyY = (note: number) => PAD + (keys.high - note) * keyHeight
+  // the roll's keys top to bottom: all of them in range, or only those played
+  const [collapsed, setCollapsed] = useState(false)
+  const rows = useMemo(() => pianoRows(patch, collapsed), [patch, collapsed])
+  const rowOf = useMemo(
+    () => new Map(rows.map((note, index) => [note, index])),
+    [rows],
+  )
+  const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / rows.length
+  const keyY = (note: number) => PAD + (rowOf.get(note) ?? 0) * keyHeight
   // the line drawn and edited: the envelope's, or one through the velocities
   const points: EnvelopePointJSON[] =
     lane.kind === "velocity" ? velocities : envelopePoints
@@ -193,6 +222,17 @@ export const EnvelopeGraph: FC<{
     lineGap(gridBeats) >= MIN_LINE_GAP
       ? grid
       : gridTimes(stepBeats, lineGap(1) >= MIN_LINE_GAP ? 1 : 4)
+  // columns shaded in turn, by the bar or the beat as the zoom allows
+  const band = bandBeats(view, stepBeats, span.x)
+  const bands = Array.from(
+    { length: Math.ceil(stepBeats / band - 1e-9) },
+    (_, index) => index,
+  )
+    .filter((index) => index % 2 === 1)
+    .map((index) => ({
+      from: (index * band) / stepBeats,
+      to: Math.min(1, ((index + 1) * band) / stepBeats),
+    }))
   const onBeat = (time: number) =>
     Math.abs(time * stepBeats - Math.round(time * stepBeats)) < 1e-6
 
@@ -278,17 +318,20 @@ export const EnvelopeGraph: FC<{
       return
     }
 
-    const segmentIndex = hitSegment(original, plot, start.x, start.y)
+    const segmentIndex = hitSegment(original, plot, start.x, start.y, shape)
     if (segmentIndex !== null) {
       observeDrag(down, {
         onMove: (_, delta) =>
-          setPoints(moveSegment(original, segmentIndex, valueDelta(delta.y))),
+          setPoints(
+            moveSegment(original, segmentIndex, valueDelta(delta.y), shape),
+          ),
         onClick: (up) => {
           if (!second) {
             setPoints(
               insertPointOnLine(
                 original,
                 snap(timeAtX(plot, start.x), up.altKey),
+                shape,
               ),
             )
           }
@@ -345,7 +388,13 @@ export const EnvelopeGraph: FC<{
         }))
         const times = stroke.map((point) => point.time)
         setPoints(
-          paintPoints(original, Math.min(...times), Math.max(...times), stroke),
+          paintPoints(
+            original,
+            Math.min(...times),
+            Math.max(...times),
+            stroke,
+            shape,
+          ),
         )
       } else {
         const cell = cellAt(grid, time)
@@ -364,7 +413,7 @@ export const EnvelopeGraph: FC<{
         const stairs = stairsFor(grid, cells)
         if (stairs !== null) {
           setPoints(
-            paintPoints(original, stairs.from, stairs.to, stairs.stroke),
+            paintPoints(original, stairs.from, stairs.to, stairs.stroke, shape),
           )
         }
       }
@@ -474,7 +523,7 @@ export const EnvelopeGraph: FC<{
     const point = hitPoint(points, plot, x, y)
     setHover({
       point,
-      segment: point === null ? hitSegment(points, plot, x, y) : null,
+      segment: point === null ? hitSegment(points, plot, x, y, shape) : null,
     })
   }
 
@@ -523,7 +572,7 @@ export const EnvelopeGraph: FC<{
     const exact =
       hover.point !== null && !dragging
         ? points[hover.point].value
-        : valueAt(points, timeAtX(plot, pointer.x))
+        : valueAt(points, timeAtX(plot, pointer.x), shape)
     const value = Math.round(exact ?? 0)
     const labelWidth = 8 + 7 * String(value).length
     return {
@@ -538,8 +587,32 @@ export const EnvelopeGraph: FC<{
 
   return (
     <div className="flex gap-1">
-      <div style={{ marginTop: RULER_HEIGHT }}>
-        <PianoKeys keys={keys} height={GRAPH_HEIGHT} pad={PAD} />
+      <div className="flex flex-none flex-col">
+        <div
+          className="flex items-center justify-center"
+          style={{ height: RULER_HEIGHT, width: PIANO_WIDTH }}
+        >
+          <IconButton
+            className="h-[18px] w-[18px]"
+            title={localized["sequencer-collapse-scale"]}
+            aria-label={localized["sequencer-collapse-scale"]}
+            aria-pressed={collapsed}
+            active={collapsed}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? (
+              <UnfoldMoreHorizontalIcon size={14} />
+            ) : (
+              <UnfoldLessHorizontalIcon size={14} />
+            )}
+          </IconButton>
+        </div>
+        <PianoKeys
+          rows={rows}
+          collapsed={collapsed}
+          height={GRAPH_HEIGHT}
+          pad={PAD}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <EnvelopeRuler
@@ -562,7 +635,7 @@ export const EnvelopeGraph: FC<{
         >
           <svg
             ref={svg}
-            data-keys={`${keys.low}-${keys.high}`}
+            data-keys={`${rows[rows.length - 1]}-${rows[0]}`}
             width={width}
             height={GRAPH_HEIGHT}
             className="block select-none"
@@ -582,10 +655,7 @@ export const EnvelopeGraph: FC<{
             />
 
             {/* a row to each key, the black keys' darker, as the keyboard has */}
-            {Array.from(
-              { length: keyCount },
-              (_, offset) => keys.low + offset,
-            ).map((note) => (
+            {rows.map((note) => (
               <rect
                 key={note}
                 data-row={note}
@@ -598,6 +668,18 @@ export const EnvelopeGraph: FC<{
                     ? "var(--midiseq-roll-black)"
                     : "var(--midiseq-roll-white)"
                 }
+              />
+            ))}
+
+            {bands.map(({ from, to }) => (
+              <rect
+                key={from}
+                data-band={from}
+                x={toX(plot, from)}
+                y={0}
+                width={Math.max(0, toX(plot, to) - toX(plot, from))}
+                height={GRAPH_HEIGHT}
+                fill="var(--midiseq-roll-band)"
               />
             ))}
 
@@ -617,19 +699,24 @@ export const EnvelopeGraph: FC<{
               />
             ))}
 
-            {notes.map((note) => (
-              <rect
-                key={`${note.voice}-${note.note}-${note.start}`}
-                data-note={note.note}
-                data-voice={note.voice}
-                x={toX(plot, note.start)}
-                y={keyY(note.note) + 0.5}
-                width={Math.max(1, toX(plot, note.end) - toX(plot, note.start))}
-                height={Math.max(1, keyHeight - 1)}
-                rx={2}
-                fill={`var(--midiseq-voice-${note.voice})`}
-              />
-            ))}
+            {notes
+              .filter((note) => rowOf.has(note.note))
+              .map((note) => (
+                <rect
+                  key={`${note.voice}-${note.note}-${note.start}`}
+                  data-note={note.note}
+                  data-voice={note.voice}
+                  x={toX(plot, note.start)}
+                  y={keyY(note.note) + 0.5}
+                  width={Math.max(
+                    1,
+                    toX(plot, note.end) - toX(plot, note.start),
+                  )}
+                  height={Math.max(1, keyHeight - 1)}
+                  rx={2}
+                  fill={`var(--midiseq-voice-${note.voice})`}
+                />
+              ))}
 
             {lane.kind === "velocity" &&
               [lane.voice].map((voice) => {
@@ -655,19 +742,35 @@ export const EnvelopeGraph: FC<{
             {points.length > 0 && (
               <>
                 <path
-                  d={areaPath(points, plot)}
+                  d={areaPath(points, plot, shape)}
                   fill="var(--midiseq-envelope)"
                   fillOpacity={0.08}
                 />
                 <path
                   data-envelope-line
-                  d={linePath(points, plot)}
+                  d={linePath(points, plot, shape)}
                   fill="none"
                   stroke="var(--midiseq-envelope)"
-                  strokeWidth={hover.segment !== null ? 2.5 : 2}
+                  strokeWidth={hover.segment !== null ? 2 : 1.25}
                 />
+                {shape === "steps" &&
+                  stepCorners(points).map((corner) => (
+                    <rect
+                      key={`corner-${corner.time}-${corner.value}`}
+                      data-corner
+                      {...square(
+                        toX(plot, corner.time),
+                        toY(plot, corner.value),
+                        HANDLE,
+                      )}
+                      fill="var(--midiseq-editor-background)"
+                      stroke="var(--midiseq-envelope)"
+                      strokeWidth={1.25}
+                      pointerEvents="none"
+                    />
+                  ))}
                 {points.map((point, index) => (
-                  <circle
+                  <rect
                     // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
                     key={index}
                     data-point={index}
@@ -676,16 +779,18 @@ export const EnvelopeGraph: FC<{
                         ? Math.round(point.value)
                         : undefined
                     }
-                    cx={toX(plot, point.time)}
-                    cy={toY(plot, point.value)}
-                    r={hover.point === index ? 5 : 4}
+                    {...square(
+                      toX(plot, point.time),
+                      toY(plot, point.value),
+                      hover.point === index ? HANDLE + 2 : HANDLE,
+                    )}
                     fill={
                       hover.point === index
                         ? "var(--midiseq-envelope)"
                         : "var(--midiseq-editor-background)"
                     }
                     stroke="var(--midiseq-envelope)"
-                    strokeWidth={2}
+                    strokeWidth={1.25}
                   />
                 ))}
               </>
@@ -744,7 +849,8 @@ export const EnvelopeGraph: FC<{
       </div>
       <div
         aria-hidden
-        className="relative w-7 flex-none font-mono text-micro text-fg-tertiary"
+        // the envelope's own blue, as the values it reads off are its
+        className="relative w-7 flex-none font-mono text-micro text-[var(--midiseq-envelope)]"
         style={{ height: GRAPH_HEIGHT, marginTop: RULER_HEIGHT }}
       >
         {AXIS.map((value) => (

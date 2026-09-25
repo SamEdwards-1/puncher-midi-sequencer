@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  dropRepeats,
+  envelopeShape,
   gridTimes,
   insertPoint,
   insertPointOnLine,
@@ -274,5 +276,87 @@ describe("simplifyPoints", () => {
       { time: 0.3, value: 9 },
     ])
     expect(simplifyPoints([])).toEqual([])
+  })
+})
+
+describe("a stepped envelope", () => {
+  const stairs = [
+    { time: 0.25, value: 0 },
+    { time: 0.5, value: 100 },
+    { time: 0.75, value: 40 },
+  ]
+
+  it("holds each value until the next point, then jumps", () => {
+    expect(valueAt(stairs, 0, "steps")).toBe(0)
+    expect(valueAt(stairs, 0.4, "steps")).toBe(0)
+    expect(valueAt(stairs, 0.5, "steps")).toBe(100)
+    expect(valueAt(stairs, 0.7, "steps")).toBe(100)
+    expect(valueAt(stairs, 1, "steps")).toBe(40)
+    // a ramp between the same points goes by way of the line
+    expect(valueAt(stairs, 0.375, "ramps")).toBe(50)
+  })
+
+  it("is a ramp when saved before envelopes could step", () => {
+    expect(envelopeShape({ id: 1, cc: 74, channel: 1, points: [] })).toBe(
+      "ramps",
+    )
+    expect(
+      envelopeShape({ id: 1, cc: 74, channel: 1, shape: "steps", points: [] }),
+    ).toBe("steps")
+  })
+
+  it("adds a point on the line at the value held there", () => {
+    expect(insertPointOnLine(stairs, 0.6, "steps")).toEqual([
+      stairs[0],
+      stairs[1],
+      { time: 0.6, value: 100 },
+      stairs[2],
+    ])
+    // not where a point already is
+    expect(insertPointOnLine(stairs, 0.5, "steps")).toEqual(stairs)
+  })
+
+  it("raises one held stretch, moving only the point it holds from", () => {
+    expect(moveSegment(stairs, 1, -20, "steps")).toEqual([
+      stairs[0],
+      { time: 0.5, value: 80 },
+      stairs[2],
+    ])
+  })
+
+  it("paints without pinning the value before the stroke", () => {
+    const flat = [{ time: 0, value: 20 }]
+    expect(
+      paintPoints(
+        flat,
+        0.5,
+        0.75,
+        [
+          { time: 0.5, value: 90 },
+          { time: 0.6, value: 90 },
+        ],
+        "steps",
+      ),
+    ).toEqual([
+      { time: 0, value: 20 },
+      { time: 0.5, value: 90 },
+      { time: 0.75, value: 20 },
+    ])
+  })
+
+  it("thins a run to where its value changes", () => {
+    expect(
+      dropRepeats([
+        { time: 0, value: 5 },
+        { time: 0.1, value: 5 },
+        { time: 0.2, value: 6 },
+        { time: 0.3, value: 6 },
+        { time: 0.4, value: 5 },
+      ]),
+    ).toEqual([
+      { time: 0, value: 5 },
+      { time: 0.2, value: 6 },
+      { time: 0.4, value: 5 },
+    ])
   })
 })

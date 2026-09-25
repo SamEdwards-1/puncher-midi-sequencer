@@ -147,3 +147,25 @@ export const rulerMarks = (
   }
   return { every, marks }
 }
+
+// a band of the roll is at least this wide before it shades alone
+const MIN_BAND_WIDTH = 80
+// the lengths the roll's bands take, in beats: a beat's parts, then bars
+const BAND_BEATS = [0.25, 0.5, 1, 4, 8, 16, 32, 64]
+
+/**
+ * How long each of the roll's alternating bands is, in beats, as in Live:
+ * the shortest that is still wide enough to read as a column, so zoomed out
+ * the roll shades by the bar and zoomed in by the beat or its parts.
+ */
+export const bandBeats = (
+  view: View,
+  stepBeats: number,
+  pixels: number,
+): number => {
+  const perBeat = pixels / ((view.end - view.start) * stepBeats)
+  return (
+    BAND_BEATS.find((beats) => beats * perBeat >= MIN_BAND_WIDTH) ??
+    BAND_BEATS[BAND_BEATS.length - 1]
+  )
+}

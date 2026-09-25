@@ -335,6 +335,25 @@ describe("Engine", () => {
       expect(sent.at(-1)).toEqual({ beat: 1, value: 96 })
     })
 
+    it("steps from value to value when it is stepped", () => {
+      patch.steps[0].envelopes = [
+        envelope(
+          [
+            { time: 0, value: 0 },
+            { time: 0.5, value: 96 },
+          ],
+          { shape: "steps" },
+        ),
+      ]
+      const engine = new Engine(patch)
+      engine.start(0)
+      // nothing between: 0 on landing, 96 at the jump
+      expect(ccs(engine.render(0.999))).toEqual([
+        { beat: 0, value: 0 },
+        { beat: 0.5, value: 96 },
+      ])
+    })
+
     it("plays only what fits a shorter step", () => {
       // drawn over two beats, then the pace halved
       patch.steps[0].envelopes = [

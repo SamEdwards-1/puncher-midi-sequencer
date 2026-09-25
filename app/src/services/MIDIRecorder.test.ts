@@ -149,6 +149,15 @@ describe("MIDIRecorder", () => {
       at = { step, time, lengthBeats }
     }
     const envelopes = (step: number) => store.patch.steps[step].envelopes
+    // New envelopes step; these steps get one that ramps, empty, for CC 74
+    // on channel 1 to be recorded into.
+    const ramping = (...steps: number[]) => {
+      for (const step of steps) {
+        store.patch.steps[step].envelopes = [
+          { id: 100 + step, cc: 74, channel: 1, shape: "ramps", points: [] },
+        ]
+      }
+    }
 
     beforeEach(() => {
       at = null
@@ -174,7 +183,20 @@ describe("MIDIRecorder", () => {
         ])
       })
 
-      it("collects every value turned to, spread across the step", () => {
+      it("collects every value turned to, each holding an even share", () => {
+        play(cc(74, 10), cc(74, 80), cc(74, 20))
+
+        expect(envelopes(0)).toMatchObject([{ shape: "steps" }])
+        expect(envelopes(0)[0].points.map(({ value }) => value)).toEqual([
+          10, 80, 20,
+        ])
+        expect(envelopes(0)[0].points.map(({ time }) => time)).toEqual(
+          [0, 4 / 3, 8 / 3].map((time) => Math.round(time * 1e9) / 1e9),
+        )
+      })
+
+      it("ramped, collects every value turned to, spread across the step", () => {
+        ramping(0)
         play(cc(74, 10), cc(74, 80), cc(74, 20))
 
         expect(envelopes(0)).toHaveLength(1)
@@ -186,6 +208,7 @@ describe("MIDIRecorder", () => {
       })
 
       it("turns a sweep into a ramp across the step, however long it took", () => {
+        ramping(0)
         for (let value = 0; value <= 127; value++) {
           play(cc(74, value))
         }
@@ -205,6 +228,7 @@ describe("MIDIRecorder", () => {
       })
 
       it("starts a new collection on a newly picked step", () => {
+        ramping(0, 1)
         play(cc(74, 10), cc(74, 20))
         recorder.setTarget(1)
         play(cc(74, 90))
@@ -252,7 +276,24 @@ describe("MIDIRecorder", () => {
     })
 
     describe("while playing", () => {
-      it("writes a sweep where it is heard, holding the last value", () => {
+      it("writes a sweep where it is heard, stepping as the knob did", () => {
+        // a knob turned from 0 to 10 across the second half of step 5
+        for (let index = 0; index <= 10; index++) {
+          playingAt(5, 0.5 + index / 48)
+          play(cc(74, index))
+        }
+
+        const [envelope] = envelopes(5)
+        expect(envelope).toMatchObject({ cc: 74, channel: 1, shape: "steps" })
+        // a point where each value arrived, the last holding to the end
+        expect(envelope.points).toHaveLength(11)
+        expect(envelope.points[0]).toEqual({ time: 2, value: 0 })
+        expect(envelope.points[10].value).toBe(10)
+        expect(envelope.points[10].time).toBeCloseTo(2 + 10 / 12)
+      })
+
+      it("ramped, writes a sweep where it is heard, holding the last value", () => {
+        ramping(5)
         // a knob turned from 0 to 100 across the second half of step 5
         for (let index = 0; index <= 24; index++) {
           playingAt(5, 0.5 + index / 48)
@@ -271,6 +312,7 @@ describe("MIDIRecorder", () => {
       })
 
       it("keeps the shape of a hand-turned sweep, not its jitter", () => {
+        ramping(7)
         // a knob turned steadily, its messages arriving early and late
         const played: [number, number][] = []
         for (let index = 0; index <= 48; index++) {
@@ -354,9 +396,9 @@ describe("MIDIRecorder", () => {
         playingAt(0, 0.5)
         play(cc(74, 90))
 
+        // stepped, 30 already holds up to the new pass
         expect(envelopes(0)[0].points).toEqual([
           { time: 0, value: 30 },
-          { time: 2, value: 30 },
           { time: 2, value: 90 },
         ])
       })

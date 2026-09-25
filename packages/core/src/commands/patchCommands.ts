@@ -230,6 +230,7 @@ export const nextFreeCC = (step: StepJSON, channel: number): number => {
   return FIRST_CC
 }
 
+// A new envelope steps unless it is given a shape.
 export const addEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
@@ -238,7 +239,7 @@ export const addEnvelope = (
   setStep(patch, index, {
     envelopes: [
       ...patch.steps[index].envelopes,
-      { ...envelope, id: nextEnvelopeId(patch) },
+      { shape: "steps", ...envelope, id: nextEnvelopeId(patch) },
     ],
   })
 

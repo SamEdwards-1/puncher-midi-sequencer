@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { WHOLE_STEP } from "./envelopeGeometry"
 import {
+  bandBeats,
   moveRulerDrag,
   positionLabel,
   rulerMarks,
@@ -39,6 +40,15 @@ describe("the envelope ruler", () => {
     const { marks } = rulerMarks({ start: 0.5, end: 0.75 }, 4, 480)
     expect(marks[0].beat).toBe(2)
     expect(marks[marks.length - 1].beat).toBe(3)
+  })
+
+  it("shades the roll by the bar zoomed out and by the beat zoomed in", () => {
+    // four bars across 1024 pixels: 64 a beat, too narrow to shade alone
+    expect(bandBeats(WHOLE_STEP, 16, 1024)).toBe(4)
+    // two bars: 128 a beat
+    expect(bandBeats(WHOLE_STEP, 8, 1024)).toBe(1)
+    // and closer in, by parts of a beat
+    expect(bandBeats({ start: 0, end: 0.125 }, 4, 480)).toBe(0.25)
   })
 
   describe("zooming", () => {

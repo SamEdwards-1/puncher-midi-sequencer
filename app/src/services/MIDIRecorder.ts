@@ -1,7 +1,10 @@
 import {
   addEnvelope,
+  dropRepeats,
   ENVELOPE_RESOLUTION,
   EnvelopePointJSON,
+  EnvelopeShape,
+  envelopeShape,
   isControlPosition,
   nextEnvelopeId,
   paceBeats,
@@ -28,6 +31,7 @@ import type { StepProgress } from "./SequencerPlayer"
 interface CCPass {
   step: StepIndex
   id: number
+  shape: EnvelopeShape
   lengthBeats: number
   before: EnvelopePointJSON[]
   from: number
@@ -41,6 +45,7 @@ interface CCPass {
 interface CCCollection {
   step: StepIndex
   id: number
+  shape: EnvelopeShape
   values: number[]
 }
 
@@ -193,6 +198,7 @@ export class MIDIRecorder {
       pass = {
         step: progress.step,
         id,
+        shape: envelope === undefined ? "steps" : envelopeShape(envelope),
         lengthBeats: progress.lengthBeats,
         before: toStepTimes(envelope?.points ?? [], progress.lengthBeats),
         from: slot,
@@ -202,18 +208,20 @@ export class MIDIRecorder {
     }
     pass.slots.set(slot, value)
 
-    const stroke = simplifyPoints(
-      [...pass.slots]
-        .sort(([a], [b]) => a - b)
-        .map(([time, played]) => ({ time, value: played })),
-      RECORDED_TOLERANCE,
-    )
+    const played = [...pass.slots]
+      .sort(([a], [b]) => a - b)
+      .map(([time, value]) => ({ time, value }))
+    // stepped, as the knob sent it: a point wherever the value changed
+    const stroke =
+      pass.shape === "steps"
+        ? dropRepeats(played)
+        : simplifyPoints(played, RECORDED_TOLERANCE)
     // to the step's end: the last value holds until the knob moves again
     this.setPoints(
       pass.step,
       pass.id,
       toBeatTimes(
-        paintPoints(pass.before, pass.from, 1, stroke),
+        paintPoints(pass.before, pass.from, 1, stroke, pass.shape),
         pass.lengthBeats,
       ),
     )
@@ -226,19 +234,31 @@ export class MIDIRecorder {
     // a new target starts over there, and the first value of a take replaces
     // whatever the step held, as the first note does
     if (collection === undefined || collection.step !== step) {
+      const id = this.envelopeFor(step, cc, channel)
+      const envelope = this.sequencerStore.patch.steps[step].envelopes.find(
+        (each) => each.id === id,
+      )
       collection = {
         step,
-        id: this.envelopeFor(step, cc, channel),
+        id,
+        shape: envelope === undefined ? "steps" : envelopeShape(envelope),
         values: [],
       }
       this.collections.set(key, collection)
     }
     collection.values.push(value)
 
-    const { values } = collection
+    const { values, shape } = collection
     const last = values.length - 1
+    // Stepped, each value holds an even share of the step; ramped, the
+    // first is at its start and the last at its end.
     const spread = values.map((each, index) => ({
-      time: last === 0 ? 0 : index / last,
+      time:
+        shape === "steps"
+          ? index / values.length
+          : last === 0
+            ? 0
+            : index / last,
       value: each,
     }))
     // across the step at the pace it has now, which it then keeps
@@ -246,7 +266,9 @@ export class MIDIRecorder {
       step,
       collection.id,
       toBeatTimes(
-        simplifyPoints(spread, RECORDED_TOLERANCE),
+        shape === "steps"
+          ? dropRepeats(spread)
+          : simplifyPoints(spread, RECORDED_TOLERANCE),
         paceBeats(this.sequencerStore.patch.pace),
       ),
     )
