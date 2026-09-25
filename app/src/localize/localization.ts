@@ -98,6 +98,7 @@ export default {
     "sequencer-jump-none": "None",
     "sequencer-jump-next": "Next",
     "sequencer-jump-hint": "Click a step in the grid to set it.",
+    "sequencer-dot-collision": "Same note as another voice:",
     "sequencer-dot-hint": "Right-click a dot for its step options.",
     "sequencer-voice-patterns": "Patterns",
     "sequencer-voice-pattern": "pattern",

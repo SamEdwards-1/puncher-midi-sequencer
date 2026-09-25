@@ -62,6 +62,16 @@
   --midiseq-jump-6: #c3d24a;
   --midiseq-jump-7: #4fc3f7;
 
+  /* One per collision on the step in the editor, marking the dots of each
+     group of voices sounding one key at once. Bright, and clear of the
+     voices' own hues, so a mark never reads as a voice. */
+  --midiseq-collision-0: hsl(350, 90%, 66%);
+  --midiseq-collision-1: hsl(52, 95%, 58%);
+  --midiseq-collision-2: hsl(185, 85%, 55%);
+  --midiseq-collision-3: hsl(95, 75%, 58%);
+  --midiseq-collision-4: hsl(0, 0%, 94%);
+  --midiseq-collision-5: hsl(325, 85%, 72%);
+
   /* One per voice, so a voice's dots, its tab and its row in the overview
      read as the same thing. Filled dots carry white ratchet counts, so each
      stays dark enough for that. */
@@ -121,6 +131,12 @@
   --midiseq-jump-5: #7a52c7;
   --midiseq-jump-6: #8a9a1f;
   --midiseq-jump-7: #1b86b8;
+  --midiseq-collision-0: hsl(350, 80%, 48%);
+  --midiseq-collision-1: hsl(45, 95%, 40%);
+  --midiseq-collision-2: hsl(188, 85%, 36%);
+  --midiseq-collision-3: hsl(95, 70%, 34%);
+  --midiseq-collision-4: hsl(228, 12%, 20%);
+  --midiseq-collision-5: hsl(325, 70%, 50%);
   --midiseq-voice-0: hsl(230, 65%, 52%);
   --midiseq-voice-1: hsl(25, 80%, 45%);
   --midiseq-voice-2: hsl(155, 60%, 32%);
@@ -260,6 +276,18 @@
 }
 
 @layer components {
+  /* The collision marks of the dot under the mouse, and their partners on
+     the other voices' dots: a small, steady bob so the group stands out. */
+  .collision-bounce {
+    animation: midiseq-collision-bounce 0.9s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .collision-bounce {
+      animation: none;
+    }
+  }
+
   /* A range input's track and thumb are reachable only through vendor
      pseudo-elements, which utilities can't name. */
   .slider {
@@ -302,5 +330,15 @@
   .slider:focus-visible {
     outline: 2px solid var(--midiseq-theme);
     outline-offset: 2px;
+  }
+}
+
+@keyframes midiseq-collision-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
   }
 }

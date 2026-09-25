@@ -3,25 +3,34 @@ import {
   dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
+  NoteCollision,
+  noteCollisions,
+  noteNumberToName,
   PACE_LABELS,
   PACES,
   PaceId,
   PatternStepJSON,
   playedVelocity,
+  previewStep,
   shownAccent,
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
 import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
 import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
+import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
-import { CSSProperties, FC, ReactNode, useState } from "react"
+import { CSSProperties, FC, ReactNode, useMemo, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
-import { useSelectedLane, useSelectedVoice } from "../../hooks/useSequencerView"
+import {
+  useSelectedLane,
+  useSelectedStep,
+  useSelectedVoice,
+} from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { IconButton } from "../ui/Button"
@@ -64,6 +73,26 @@ const RULES: { value: VoiceRule; label: string }[] = [
 ]
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
+
+// the colours collisions take in turn, as styles.css defines them
+const COLLISION_COLORS = 6
+const collisionColor = (index: number) =>
+  `var(--midiseq-collision-${index % COLLISION_COLORS})`
+
+// Names what a dot collides with, for its tooltip: the key, and the other
+// voices sounding it.
+const describeCollision = (
+  collision: NoteCollision,
+  voice: VoiceIndex,
+  localized: Record<string, string>,
+): string => {
+  const others = [
+    ...new Set(
+      collision.dots.map((dot) => dot.voice).filter((other) => other !== voice),
+    ),
+  ].map((other) => other + 1)
+  return `${localized["sequencer-dot-collision"]} ${noteNumberToName(collision.note)} · ${localized["sequencer-voice"]} ${others.join(", ")}`
+}
 
 // Points the `voice` colour at one voice's, for the element and whatever is
 // inside it.
@@ -334,6 +363,31 @@ const Patterns: FC<{
   const { togglePatternDot } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
   const [, setLane] = useSelectedLane()
+  const [step] = useSelectedStep()
+
+  // The step in the editor as the sequence reaches it — which dots each
+  // voice has come round to by then, and what they play — and the voices
+  // sounding one key at once on it, each collision numbered in time order.
+  const preview = useMemo(
+    () => previewStep(patch, step, { accentAmount }),
+    [patch, step, accentAmount],
+  )
+  const collisions = useMemo(() => noteCollisions(preview.notes), [preview])
+  const collisionsAt = useMemo(() => {
+    const at = new Map<string, number[]>()
+    collisions.forEach((collision, index) => {
+      for (const { voice, dot } of collision.dots) {
+        const key = `${voice}:${dot}`
+        at.set(key, [...(at.get(key) ?? []), index])
+      }
+    })
+    return at
+  }, [collisions])
+  // the dot under the mouse, whose collisions bob wherever they're marked
+  const [hovered, setHovered] = useState<string | null>(null)
+  const bouncing = new Set(
+    hovered === null ? [] : (collisionsAt.get(hovered) ?? []),
+  )
 
   // Editing a dot brings its voice up: its tab in the fields above, and its
   // Velocity tab in the step editor if a Velocity tab is what is open there.
@@ -359,11 +413,11 @@ const Patterns: FC<{
       {VOICES.map((voiceIndex) => {
         const voice = patch.voices[voiceIndex]
         // The dots the voice reaches while the sequencer sits on one step:
-        // from the dot it is on when the step sounds, or from its first when
-        // stopped, which is where playing starts.
+        // from the dot it is on when the step playing sounds, or stopped,
+        // from the one it will have come round to by the step in the editor.
         const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
         const runs = bands(
-          voiceDots?.[voiceIndex] ?? 0,
+          (voiceDots ?? preview.voiceDots)[voiceIndex] ?? 0,
           reach,
           voice.patternLength,
         )
@@ -418,6 +472,8 @@ const Patterns: FC<{
                   options.dotIndex === dotIndex
                 // a velocity landing on an accent's shows as that accent
                 const accent = shownAccent(voice.velocity, accentAmount, dot)
+                const collided =
+                  collisionsAt.get(`${voiceIndex}:${dotIndex}`) ?? []
                 return (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
@@ -438,6 +494,9 @@ const Patterns: FC<{
                     )}
                     data-chance={dot.probability < 100}
                     data-condition={dot.condition !== "always"}
+                    data-collisions={
+                      collided.length > 0 ? collided.join(" ") : undefined
+                    }
                     className={dotClass(
                       dot,
                       accent,
@@ -445,16 +504,29 @@ const Patterns: FC<{
                       editing,
                     )}
                     style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
-                    title={describe(
-                      dot,
-                      accent,
-                      playedVelocity(voice.velocity, accentAmount, dot),
-                      localized,
-                    )}
+                    title={[
+                      describe(
+                        dot,
+                        accent,
+                        playedVelocity(voice.velocity, accentAmount, dot),
+                        localized,
+                      ),
+                      ...collided.map((index) =>
+                        describeCollision(
+                          collisions[index],
+                          voiceIndex,
+                          localized,
+                        ),
+                      ),
+                    ]
+                      .filter((part) => part !== "")
+                      .join("\n")}
                     onClick={() => {
                       togglePatternDot(voiceIndex, dotIndex)
                       focusVoice(voiceIndex)
                     }}
+                    onMouseEnter={() => setHovered(`${voiceIndex}:${dotIndex}`)}
+                    onMouseLeave={() => setHovered(null)}
                     onContextMenu={(event) => {
                       event.preventDefault()
                       focusVoice(voiceIndex)
@@ -466,6 +538,30 @@ const Patterns: FC<{
                     }}
                   >
                     {dot.ratchet > 1 ? dot.ratchet : ""}
+                    {collided.length > 0 && (
+                      // above the dot, one chevron per collision it is in,
+                      // each in that collision's colour
+                      <span
+                        aria-hidden
+                        data-collision-mark
+                        className="pointer-events-none absolute bottom-full left-1/2 flex -translate-x-1/2 -space-x-2"
+                      >
+                        {collided.map((index) => (
+                          <span
+                            key={index}
+                            data-collision={index}
+                            data-bouncing={bouncing.has(index)}
+                            className={cn(
+                              "flex",
+                              bouncing.has(index) && "collision-bounce",
+                            )}
+                            style={{ color: collisionColor(index) }}
+                          >
+                            <ChevronDownIcon size={16} />
+                          </span>
+                        ))}
+                      </span>
+                    )}
                     {playingDots?.[voiceIndex] === dotIndex && (
                       // under the dot rather than on it, so it reads the same
                       // on a dot that is on, off or hollow
