@@ -148,6 +148,21 @@ only if it lands on one. The dot then shows what it carries. Clicking or right-c
 a dot also selects its voice; clicking a row's number selects the voice
 without changing any dots.
 
+**Where a step comes in.** Voices run on through their patterns at their own
+paces from step to step, so a step usually comes in partway through them —
+with a bar-long step and 8th-note voices, step 1 plays dots 1–8 and step 2
+dots 9–16. The shaded band behind each pattern row marks the dots the step
+plays: while playing, the step sounding; while stopped, the step in the
+editor, as the sequence would first reach it. The piano roll and its
+Velocity lanes show the same notes. Sync Voices starts every step from the
+first dots instead.
+
+**Collisions.** When two or more voices sound the same note at the same time
+on the step in the editor, the dots that played it get a small downward
+chevron above them — one colour per collision, so separate ones stay apart.
+Hover a marked dot to name the note and the other voices, and to set every
+chevron of its collision bobbing.
+
 **Jumps** are what make a sequence wander. Any step can jump to any other step
 when its rule passes — always, every third visit, 25% of the time, and so on.
 A jump draws as a coloured pair in the grid: the source marked at its top
