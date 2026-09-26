@@ -10,7 +10,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome lint .",
     "format": "biome format . --write",
-    "check": "biome check ."
+    "check": "biome check .",
+    "theme": "npm run theme --workspace app --"
   },
   "workspaces": [
     "app",

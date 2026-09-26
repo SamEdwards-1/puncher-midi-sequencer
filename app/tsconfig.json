@@ -2,7 +2,9 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    // the theme utility runs under Node, which needs the .ts in its imports
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*", "scripts/**/*", "vite.config.ts", "vitest.config.ts"]
 }

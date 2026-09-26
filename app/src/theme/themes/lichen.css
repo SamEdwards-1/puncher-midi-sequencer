@@ -1,0 +1,63 @@
+/* Lichen, a dark theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in dark theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="lichen"] {
+  --midiseq-theme: #e7f98b;                 /* editorCursor.foreground, chosen */
+  --midiseq-on-surface: #000000;            /* derived */
+  --midiseq-fg: #a9bca9;                    /* editor.foreground */
+  --midiseq-fg-secondary: #82907e;          /* derived */
+  --midiseq-fg-tertiary: #5e655e;           /* syntax comment, lightened */
+  --midiseq-divider: #3e422e;               /* derived */
+  --midiseq-popup-border: #242618;          /* derived */
+  --midiseq-background: #2b2e1f;            /* editor.background, deepened */
+  --midiseq-background-secondary: #454c13;  /* derived, dramatised */
+  --midiseq-background-dark: #1f230b;       /* derived, dramatised */
+  --midiseq-editor-background: #1f230b;     /* derived, dramatised */
+  --midiseq-ruler-background: #0c0f00;      /* derived, dramatised */
+  --midiseq-ruler-label: #82907e;           /* fg-secondary */
+  --midiseq-roll-white: #2a2d1e;            /* derived */
+  --midiseq-roll-black: #252819;            /* derived */
+  --midiseq-roll-band: #00000024;           /* derived */
+  --midiseq-piano-octave: #333627;          /* derived */
+  --midiseq-piano-white: #4e523e;           /* derived */
+  --midiseq-piano-black: #424534;           /* derived */
+  --midiseq-piano-edge: #383b2b;            /* derived */
+  --midiseq-piano-label: #b1b6a0;           /* derived, lightened */
+  --midiseq-editor-grid: #434731;           /* derived */
+  --midiseq-editor-grid-secondary: #323624; /* derived */
+  --midiseq-record: #dd3c3c;                /* built-in */
+  --midiseq-shadow: #0000001a;              /* built-in */
+  --midiseq-highlight: #82907e1a;           /* derived */
+  --midiseq-green: #e7f98b;                 /* syntax string */
+  --midiseq-red: #de5267;                   /* built-in */
+  --midiseq-yellow: #e7f98b;                /* syntax string */
+  --midiseq-step: #4b5225;                  /* derived, dramatised, darkened */
+  --midiseq-step-rest: #909d4c;             /* derived from editorCursor.foreground, chosen, dramatised */
+  --midiseq-step-skip: #3c4129;             /* derived, dramatised */
+  --midiseq-scrollbar: #ffffff38;           /* built-in */
+  --midiseq-scrollbar-hover: #ffffff66;     /* built-in */
+  --midiseq-jump-0: #e0a33a;                /* built-in */
+  --midiseq-jump-1: #34c2b3;                /* built-in */
+  --midiseq-jump-2: #e3719c;                /* built-in */
+  --midiseq-jump-3: #6cc45a;                /* built-in */
+  --midiseq-jump-4: #e2794a;                /* built-in */
+  --midiseq-jump-5: #a583f0;                /* built-in */
+  --midiseq-jump-6: #99a659;                /* syntax keyword */
+  --midiseq-jump-7: #4fc3f7;                /* built-in */
+  --midiseq-collision-0: #f65a74;           /* built-in */
+  --midiseq-collision-1: #e7f98b;           /* syntax string */
+  --midiseq-collision-2: #2bdeee;           /* built-in */
+  --midiseq-collision-3: #99a659;           /* syntax keyword */
+  --midiseq-collision-4: #f6f9ee;           /* derived */
+  --midiseq-collision-5: #f47bc2;           /* built-in */
+  --midiseq-voice-0: #52a4ff;               /* charts.blue, chosen, made vivid */
+  --midiseq-voice-1: #f29b00;               /* symbolIcon.classForeground, chosen, made vivid */
+  --midiseq-voice-2: #46dd6c;               /* charts.green, chosen, made vivid */
+  --midiseq-voice-3: #bd6ef4;               /* charts.purple, chosen, made vivid */
+  --midiseq-pace-band: #0a0d00;             /* derived, dramatised */
+  --midiseq-envelope: #e7f98b;              /* editorCursor.foreground, chosen */
+  --midiseq-logo: #fbbbd1;                  /* built-in */
+}

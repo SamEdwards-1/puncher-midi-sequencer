@@ -1,0 +1,63 @@
+/* Rosewood, a dark theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in dark theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="rosewood"] {
+  --midiseq-theme: #d7827e;                 /* button.background, chosen */
+  --midiseq-on-surface: #000000;            /* derived */
+  --midiseq-fg: #faf4ed;                    /* editor.background, set */
+  --midiseq-fg-secondary: #9893a5;          /* breadcrumb.foreground, set */
+  --midiseq-fg-tertiary: #69576a;           /* derived */
+  --midiseq-divider: #592423;               /* derived */
+  --midiseq-popup-border: #370b0c;          /* derived */
+  --midiseq-background: #401313;            /* chosen, deepened */
+  --midiseq-background-secondary: #11556d;  /* set */
+  --midiseq-background-dark: #360105;       /* derived, dramatised */
+  --midiseq-editor-background: #360105;     /* derived, dramatised */
+  --midiseq-ruler-background: #160001;      /* derived, dramatised */
+  --midiseq-ruler-label: #9893a5;           /* fg-secondary */
+  --midiseq-roll-white: #3e1112;            /* derived */
+  --midiseq-roll-black: #380d0e;            /* derived */
+  --midiseq-roll-band: #00000024;           /* derived */
+  --midiseq-piano-octave: #491b1a;          /* derived */
+  --midiseq-piano-white: #693533;           /* derived */
+  --midiseq-piano-black: #5a2928;           /* derived */
+  --midiseq-piano-edge: #4f201f;            /* derived */
+  --midiseq-piano-label: #d19491;           /* derived */
+  --midiseq-editor-grid: #5f2928;           /* derived */
+  --midiseq-editor-grid-secondary: #4a1919; /* derived */
+  --midiseq-record: #b4637a;                /* errorForeground */
+  --midiseq-shadow: #0000001a;              /* built-in, widget.shadow being light */
+  --midiseq-highlight: #7975931a;           /* derived */
+  --midiseq-green: #31de53;                 /* built-in */
+  --midiseq-red: #b4637a;                   /* terminal.ansiRed */
+  --midiseq-yellow: #ea9d34;                /* editorWarning.foreground */
+  --midiseq-step: #0f3b4c;                  /* set */
+  --midiseq-step-rest: #d47e7a;             /* derived from button.background, chosen, dramatised */
+  --midiseq-step-skip: #592020;             /* derived, dramatised */
+  --midiseq-scrollbar: #6e6a8638;           /* scrollbarSlider.background, more opaque */
+  --midiseq-scrollbar-hover: #6e6a8666;     /* scrollbarSlider.hoverBackground, more opaque */
+  --midiseq-jump-0: #ea9d34;                /* syntax meta.property-value.css */
+  --midiseq-jump-1: #56949f;                /* syntax entity.name.section */
+  --midiseq-jump-2: #e3719c;                /* built-in */
+  --midiseq-jump-3: #6cc45a;                /* built-in */
+  --midiseq-jump-4: #e2794a;                /* built-in */
+  --midiseq-jump-5: #6c678f;                /* syntax meta.tag, lightened */
+  --midiseq-jump-6: #c3d24a;                /* built-in */
+  --midiseq-jump-7: #33738d;                /* syntax constant, lightened */
+  --midiseq-collision-0: #d7827e;           /* syntax constant.numeric */
+  --midiseq-collision-1: #fadf2e;           /* built-in */
+  --midiseq-collision-2: #2bdeee;           /* built-in */
+  --midiseq-collision-3: #87e444;           /* built-in */
+  --midiseq-collision-4: #ffe5e3;           /* derived */
+  --midiseq-collision-5: #b8677e;           /* syntax invalid, lightened */
+  --midiseq-voice-0: #00a1b5;               /* charts.blue, chosen, made vivid */
+  --midiseq-voice-1: #f19a00;               /* terminal.ansiYellow, chosen, made vivid */
+  --midiseq-voice-2: #188fff;               /* charts.green, chosen, made vivid in another hue */
+  --midiseq-voice-3: #ad67ee;               /* charts.purple, chosen, made vivid */
+  --midiseq-pace-band: #130001;             /* derived, dramatised */
+  --midiseq-envelope: #d7827e;              /* button.background, chosen */
+  --midiseq-logo: #fbbbd1;                  /* built-in */
+}

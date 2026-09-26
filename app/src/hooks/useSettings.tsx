@@ -1,19 +1,23 @@
-import { useAtomValue, useSetAtom } from "jotai"
+import { atom, useAtomValue, useSetAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { focusAtom } from "jotai-optics"
 import { Language } from "../localize/useLocalization"
-import { ThemeType } from "../theme/Theme"
+import {
+  DEFAULT_THEME_CHOICE,
+  ThemeChoice,
+  themeChoiceFrom,
+} from "../theme/Theme"
 
 export function useSettings() {
   return {
     get language() {
       return useAtomValue(languageAtom)
     },
-    get themeType() {
-      return useAtomValue(themeTypeAtom)
+    get themeChoice() {
+      return useAtomValue(themeChoiceAtom)
     },
     setLanguage: useSetAtom(languageAtom),
-    setThemeType: useSetAtom(themeTypeAtom),
+    setThemeChoice: useSetAtom(themeChoiceAtom),
   }
 }
 
@@ -23,16 +27,22 @@ const settingStorageAtom = atomWithStorage<{
 }>("midiseq.settings", {
   language: null,
 })
-const themeStorageAtom = atomWithStorage<{
-  themeType: ThemeType
-}>("midiseq.theme", {
-  themeType: "dark",
-})
+// as saved, which may be from an older version, or name a theme since gone
+const themeStorageAtom = atomWithStorage<unknown>(
+  "midiseq.theme",
+  DEFAULT_THEME_CHOICE,
+)
 
 // focused atoms
 const languageAtom = focusAtom(settingStorageAtom, (optic) =>
   optic.prop("language"),
 )
-const themeTypeAtom = focusAtom(themeStorageAtom, (optic) =>
-  optic.prop("themeType"),
+// the theme choice made whole; a change to part of it saves all of it
+const themeChoiceAtom = atom(
+  (get) => themeChoiceFrom(get(themeStorageAtom)),
+  (get, set, change: Partial<ThemeChoice>) =>
+    set(themeStorageAtom, {
+      ...themeChoiceFrom(get(themeStorageAtom)),
+      ...change,
+    }),
 )

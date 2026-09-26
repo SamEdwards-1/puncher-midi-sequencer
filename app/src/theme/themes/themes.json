@@ -1,0 +1,156 @@
+[
+  {
+    "id": "abyss",
+    "name": "Abyss",
+    "type": "dark"
+  },
+  {
+    "id": "bubblegum",
+    "name": "Bubblegum",
+    "type": "light"
+  },
+  {
+    "id": "clean-slate",
+    "name": "Clean Slate",
+    "type": "light"
+  },
+  {
+    "id": "dusk-orchid",
+    "name": "Dusk Orchid",
+    "type": "dark",
+    "drama": 1
+  },
+  {
+    "id": "ember-room",
+    "name": "Ember Room",
+    "type": "dark"
+  },
+  {
+    "id": "espresso",
+    "name": "Espresso",
+    "type": "dark"
+  },
+  {
+    "id": "frost",
+    "name": "Frost",
+    "type": "light"
+  },
+  {
+    "id": "lagoon",
+    "name": "Lagoon",
+    "type": "dark"
+  },
+  {
+    "id": "lavender-field",
+    "name": "Lavender Field",
+    "type": "light",
+    "drama": 1
+  },
+  {
+    "id": "lichen",
+    "name": "Lichen",
+    "type": "dark",
+    "drama": 1,
+    "accent": "editorCursor.foreground",
+    "voices": [
+      "charts.blue",
+      "symbolIcon.classForeground",
+      "charts.green",
+      "charts.purple"
+    ]
+  },
+  {
+    "id": "linen",
+    "name": "Linen",
+    "type": "light",
+    "accent": "textLink.foreground"
+  },
+  {
+    "id": "neon-orchard",
+    "name": "Neon Orchard",
+    "type": "dark",
+    "drama": 1,
+    "accent": "statusBar.background",
+    "tint": "button.background",
+    "voices": [
+      "charts.blue",
+      "editorGutter.modifiedBackground",
+      "extensionIcon.sponsorForeground",
+      "editorOverviewRuler.infoForeground"
+    ]
+  },
+  {
+    "id": "night-market",
+    "name": "Night Market",
+    "type": "dark",
+    "drama": 1
+  },
+  {
+    "id": "nightshade",
+    "name": "Nightshade",
+    "type": "dark"
+  },
+  {
+    "id": "parchment",
+    "name": "Parchment",
+    "type": "light",
+    "accent": "terminal.ansiBrightMagenta"
+  },
+  {
+    "id": "plum-dusk",
+    "name": "Plum Dusk",
+    "type": "dark"
+  },
+  {
+    "id": "rose-quartz",
+    "name": "Rose Quartz",
+    "type": "light",
+    "drama": 1,
+    "accent": "button.background",
+    "voices": [
+      "charts.blue",
+      "gitlens.decorations.statusPausedOperationReadyForegroundColor",
+      "terminal.ansiYellow",
+      "charts.purple"
+    ]
+  },
+  {
+    "id": "rosewood",
+    "name": "Rosewood",
+    "type": "dark",
+    "drama": 1,
+    "accent": "button.background",
+    "voices": [
+      "charts.blue",
+      "terminal.ansiYellow",
+      "charts.green",
+      "charts.purple"
+    ],
+    "background": "#391918",
+    "set": {
+      "fg": "editor.background",
+      "fg-secondary": "breadcrumb.foreground",
+      "background-secondary": "#11556d",
+      "step": "#0f3b4c"
+    }
+  },
+  {
+    "id": "sea-glass",
+    "name": "Sea Glass",
+    "type": "light",
+    "drama": 1,
+    "accent": "editorOverviewRuler.infoForeground",
+    "background": "activityBarBadge.background",
+    "set": {
+      "divider": "#1f6f64",
+      "popup-border": "#1f6f64",
+      "ruler-label": "#f7b83d"
+    }
+  },
+  {
+    "id": "velvet-night",
+    "name": "Velvet Night",
+    "type": "dark",
+    "drama": 1
+  }
+]

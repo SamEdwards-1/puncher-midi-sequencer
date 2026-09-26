@@ -117,7 +117,7 @@ export const EnvelopeRuler: FC<{
               x={at(beat) + 3}
               y={10}
               fontSize={10}
-              fill="var(--midiseq-fg-secondary)"
+              fill="var(--midiseq-ruler-label)"
               fontFamily="var(--midiseq-mono-font)"
             >
               {label}

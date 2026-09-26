@@ -3,14 +3,17 @@ import {
   MIN_ACCENT_AMOUNT,
   sequenceCCs,
 } from "@midiseq/core"
-import { FC, useMemo, useState } from "react"
+import { FC, useMemo } from "react"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useImportSettings } from "../../hooks/useImportSettings"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import { useSettings } from "../../hooks/useSettings"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { IMPORT_SNAPS } from "../../stores/ImportSettingsStore"
-import { themeNames } from "../../theme/Theme"
+import { SETTINGS_TABS } from "../../stores/SettingsTabStore"
+import { THEME_MODES, ThemeKind, themesOfKind } from "../../theme/Theme"
 import { ExportOptions } from "../FileMenu/ExportOptions"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
@@ -19,10 +22,6 @@ import { Dialog } from "../ui/Dialog"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { MIDISettings } from "./MIDISettings"
-
-type Tab = "general" | "midi" | "export" | "import"
-
-const TABS: Tab[] = ["general", "midi", "export", "import"]
 
 const ROW = "grid grid-cols-[6rem_1fr] items-center gap-3"
 
@@ -33,28 +32,11 @@ const parseAmount = (text: string) => {
 }
 
 const GeneralSettings: FC = () => {
-  const { themeType, setThemeType } = useSettings()
   const { accentAmount, setAccentAmount } = useAccentAmount()
   const localized = useLocalization()
 
   return (
     <div className="flex flex-col gap-3 text-body text-fg-secondary">
-      {/* biome-ignore lint/a11y/noLabelWithoutControl: the select is the row */}
-      <label className={ROW}>
-        {localized["sequencer-theme"]}
-        <Select
-          value={themeType}
-          onChange={(event) =>
-            setThemeType(event.target.value as (typeof themeNames)[number])
-          }
-        >
-          {themeNames.map((name) => (
-            <option key={name} value={name}>
-              {localized[`sequencer-theme-${name}`]}
-            </option>
-          ))}
-        </Select>
-      </label>
       <div className={ROW}>
         <span>{localized["sequencer-accent-amount"]}</span>
         <div className="flex items-center gap-3">
@@ -74,6 +56,63 @@ const GeneralSettings: FC = () => {
           </span>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Light, dark or the system's way, and the theme to wear for each: the
+// dark one's list is the dark themes, the light one's the light. Only the
+// ones the mode can reach are shown.
+const ThemeSettings: FC = () => {
+  const { themeChoice, setThemeChoice } = useSettings()
+  const localized = useLocalization()
+  const { mode } = themeChoice
+
+  const picker = (kind: ThemeKind) => (
+    // biome-ignore lint/a11y/noLabelWithoutControl: the select is the row
+    <label className={ROW}>
+      {localized[`sequencer-theme-${kind}-theme`]}
+      <Select
+        value={themeChoice[kind]}
+        onChange={(event) => setThemeChoice({ [kind]: event.target.value })}
+      >
+        {themesOfKind(kind).map((theme) => (
+          <option key={theme.id} value={theme.id}>
+            {"name" in theme
+              ? theme.name
+              : localized["sequencer-theme-default"]}
+          </option>
+        ))}
+      </Select>
+    </label>
+  )
+
+  return (
+    <div className="flex flex-col gap-3 text-body text-fg-secondary">
+      <div className={ROW}>
+        <span>{localized["sequencer-theme-mode"]}</span>
+        <div className="flex gap-1">
+          {THEME_MODES.map((option) => (
+            <Button
+              key={option}
+              type="button"
+              size="sm"
+              active={mode === option}
+              aria-pressed={mode === option}
+              onClick={() => setThemeChoice({ mode: option })}
+            >
+              <Localized name={`sequencer-theme-mode-${option}`} />
+            </Button>
+          ))}
+        </div>
+      </div>
+      {mode === "system" && (
+        <p className="m-0 -mt-1 pl-[calc(6rem+0.75rem)] text-small text-fg-tertiary">
+          <Localized name="sequencer-theme-system-hint" />
+        </p>
+      )}
+      {mode !== "light" && picker("dark")}
+      {mode !== "dark" && picker("light")}
     </div>
   )
 }
@@ -146,7 +185,10 @@ const ImportSettings: FC = () => {
 }
 
 export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [tab, setTab] = useState<Tab>("midi")
+  // General the first time, then the group that was open last
+  const { settingsTab } = useStores()
+  const tab = useMobxGetter(settingsTab, "tab")
+  const setTab = settingsTab.set
   const localized = useLocalization()
 
   return (
@@ -156,7 +198,7 @@ export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
       onClose={onClose}
     >
       <nav className="flex w-28 flex-none flex-col gap-1">
-        {TABS.map((name) => (
+        {SETTINGS_TABS.map((name) => (
           <button
             key={name}
             type="button"
@@ -176,6 +218,8 @@ export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         {tab === "general" ? (
           <GeneralSettings />
+        ) : tab === "theme" ? (
+          <ThemeSettings />
         ) : tab === "midi" ? (
           <MIDISettings />
         ) : tab === "export" ? (
