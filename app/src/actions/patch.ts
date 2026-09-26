@@ -4,9 +4,12 @@ import {
   clearStep,
   EnvelopeJSON,
   freeVoiceChannel,
+  importMidi,
   JumpJSON,
+  MidiImportOptions,
   PatchJSON,
   PatternStepJSON,
+  PreparedMidi,
   pasteStep,
   removeEnvelope,
   removeStepNote,
@@ -27,6 +30,7 @@ import {
   VoicePattern,
 } from "@midiseq/core"
 import { useCallback } from "react"
+import { useLandGrid } from "../hooks/useSequencerView"
 import { useStores } from "../hooks/useStores"
 
 /**
@@ -35,6 +39,7 @@ import { useStores } from "../hooks/useStores"
  */
 export function usePatchEditor() {
   const { sequencerStore, history, recorder } = useStores()
+  const landGrid = useLandGrid()
 
   const apply = useCallback(
     (next: PatchJSON, key?: string) => {
@@ -54,6 +59,17 @@ export function usePatchEditor() {
       (voices: VoicePattern[]) =>
         apply(setPatterns(sequencerStore.patch, voices)),
       [apply, sequencerStore],
+    ),
+    // A MIDI file into the steps, as one undoable edit, and the grid's
+    // steps bounce in to show it has landed. A take ends first, so the
+    // import isn't recorded over.
+    importMidi: useCallback(
+      (midi: PreparedMidi, options: MidiImportOptions) => {
+        recorder.setRecording(false)
+        apply(importMidi(sequencerStore.patch, midi, options))
+        landGrid()
+      },
+      [apply, recorder, sequencerStore, landGrid],
     ),
     editVoice: useCallback(
       (index: number, changes: Partial<VoiceJSON>, key?: string) => {

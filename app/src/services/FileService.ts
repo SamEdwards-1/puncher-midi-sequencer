@@ -9,6 +9,12 @@ export interface OpenedFile {
   text: string
 }
 
+// A binary file, such as MIDI, as it was read.
+export interface OpenedBinaryFile {
+  name: string
+  bytes: Uint8Array
+}
+
 interface FilePickers {
   showOpenFilePicker?: (options?: unknown) => Promise<FileSystemFileHandle[]>
   showSaveFilePicker?: (options?: unknown) => Promise<FileSystemFileHandle>
@@ -20,6 +26,8 @@ export interface FileKind {
   extension: string
   // JSON unless it says otherwise
   mimeType?: string
+  // other extensions it is also found under
+  alsoAccepts?: string[]
 }
 
 // A file's contents: text, or bytes for a binary format such as MIDI.
@@ -39,15 +47,21 @@ export const MIDI_FILE: FileKind = {
   description: "MIDI file",
   extension: MIDI_EXTENSION,
   mimeType: "audio/midi",
+  alsoAccepts: [".midi"],
 }
 
 const mimeTypeOf = (kind: FileKind) => kind.mimeType ?? "application/json"
+
+const extensionsOf = (kind: FileKind) => [
+  kind.extension,
+  ...(kind.alsoAccepts ?? []),
+]
 
 const pickerOptions = (kind: FileKind) => ({
   types: [
     {
       description: kind.description,
-      accept: { [mimeTypeOf(kind)]: [kind.extension] },
+      accept: { [mimeTypeOf(kind)]: extensionsOf(kind) },
     },
   ],
 })
@@ -94,6 +108,30 @@ export class FileService {
   // Reads a file without making it the one Save writes to.
   async openCopy(kind: FileKind): Promise<OpenedFile | null> {
     return this.pick(kind)
+  }
+
+  // Reads a binary file, such as MIDI, as bytes.
+  async openBinary(kind: FileKind): Promise<OpenedBinaryFile | null> {
+    const file = await this.pickFile(kind)
+    return file === null
+      ? null
+      : { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }
+  }
+
+  // The file picked, with nothing read from it yet, so whoever asked can
+  // say it is loading before reading it.
+  async pickFile(kind: FileKind): Promise<File | null> {
+    if (this.pickers.showOpenFilePicker === undefined) {
+      return this.fileFromInput(kind)
+    }
+    try {
+      const [handle] = await this.pickers.showOpenFilePicker(
+        pickerOptions(kind),
+      )
+      return await handle.getFile()
+    } catch (error) {
+      return dismissed(error)
+    }
   }
 
   private async pick(
@@ -169,19 +207,17 @@ export class FileService {
     return handle.name
   }
 
-  private openWithInput(kind: FileKind): Promise<OpenedFile | null> {
+  private async openWithInput(kind: FileKind): Promise<OpenedFile | null> {
+    const file = await this.fileFromInput(kind)
+    return file === null ? null : { name: file.name, text: await file.text() }
+  }
+
+  private fileFromInput(kind: FileKind): Promise<File | null> {
     return new Promise((resolve) => {
       const input = document.createElement("input")
       input.type = "file"
-      input.accept = kind.extension
-      input.onchange = async () => {
-        const file = input.files?.[0]
-        resolve(
-          file === undefined
-            ? null
-            : { name: file.name, text: await file.text() },
-        )
-      }
+      input.accept = extensionsOf(kind).join(",")
+      input.onchange = () => resolve(input.files?.[0] ?? null)
       input.oncancel = () => resolve(null)
       input.click()
     })

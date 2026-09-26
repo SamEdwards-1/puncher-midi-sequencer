@@ -63,8 +63,34 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 **Transport.** **Play** starts the sequencer and **Record** arms recording;
 stopping also silences anything still sounding. The tempo can be stepped or
 typed straight into. On the left, the **File** menu starts a new patch, opens
-and saves, and exports MIDI — the sequence or one step — and the **Edit**
-menu holds **Undo** and **Redo**.
+and saves, imports MIDI, and exports it — the sequence or one step — and the
+**Edit** menu holds **Undo** and **Redo**.
+
+**Import MIDI.** **File → Import MIDI…** reads a MIDI file into the steps,
+saying it is reading while it does. Its dialog keeps a preview of the file
+in view at the top while its options — which fold away, like its MIDI
+filter, leaving a line that sums them up — scroll underneath. The preview is
+a piano roll whose ruler zooms and scrolls it just as the envelope editor's
+does —
+drag up to zoom in, down to zoom out, sideways to scroll. On the ruler sits
+the stretch to import: drag its handles, which snap to bars or beats, or the
+stretch itself. Tick the parts to import (each track's notes on each
+channel; ticking several merges them) and the CCs, and choose how many notes
+a step takes and the step to start from. The notes that start in the
+stretch go into the steps in the order they play, that many to a step — a
+chord lowest first, each key once a step, however long the notes last — and
+shaded bands on the preview show which notes land in which step. The same
+**MIDI filter** as the MIDI input's — channels, note range, transpose and
+CCs — starts from your input's settings and can be changed for the import
+alone: notes it keeps out show gray and aren't counted. Notes that would go
+past the end of the grid, whatever its size, show red. The dialog says which
+steps they fill; **loop until the grid is full** goes round them again, and
+the file's tempo can come too. The CCs become stepped envelopes over each
+step's notes. The steps filled lose what they held, the notes a step
+becomes **Step notes**, the pace is left alone, and one undo takes the
+import back; the grid's steps bounce in as it lands. Where it starts —
+leaving out the drum channel, bringing in CCs, looping, taking the tempo,
+and what the stretch snaps to — is set in **Settings → MIDI Import**.
 
 **Export MIDI.** **File → Export MIDI…** writes the sequence as a standard
 MIDI file, as it plays from its start. Tick the voices to include — each on

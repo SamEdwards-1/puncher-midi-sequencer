@@ -95,8 +95,16 @@ export const moveRulerDrag = (
 
 // labels on the ruler are at least this far apart
 const MIN_LABEL_GAP = 44
-// the spacings a ruler labels at, in beats: sixteenths up to 16 bars
-const LABEL_BEATS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64]
+
+// The spacings a ruler labels at, in beats: sixteenths, eighths and beats,
+// two beats where a bar has an even number, then bars, doubling.
+const labelBeats = (beatsPerBar: number) => [
+  0.25,
+  0.5,
+  1,
+  ...(beatsPerBar > 2 && beatsPerBar % 2 === 0 ? [2] : []),
+  ...Array.from({ length: 10 }, (_, power) => beatsPerBar * 2 ** power),
+]
 
 export interface RulerMark {
   // beats from the step's start
@@ -105,15 +113,17 @@ export interface RulerMark {
 }
 
 /**
- * Where a position on the step falls, counted as Live counts: bar, beat and
- * sixteenth from 1, with a bar or beat on its own as just that.
+ * Where a position falls, counted as Live counts: bar, beat and sixteenth
+ * from 1, with a bar or beat on its own as just that. A bar is four beats
+ * unless it says otherwise.
  */
-export const positionLabel = (beat: number): string => {
+export const positionLabel = (beat: number, beatsPerBar = 4): string => {
   const sixteenths = Math.round(beat * 4)
-  const bar = Math.floor(sixteenths / 16) + 1
-  const inBar = Math.floor((sixteenths % 16) / 4) + 1
+  const perBar = Math.max(1, Math.round(beatsPerBar * 4))
+  const bar = Math.floor(sixteenths / perBar) + 1
+  const inBar = Math.floor((sixteenths % perBar) / 4) + 1
   const sixteenth = (sixteenths % 4) + 1
-  if (sixteenths % 16 === 0) {
+  if (sixteenths % perBar === 0) {
     return String(bar)
   }
   if (sixteenths % 4 === 0) {
@@ -130,20 +140,22 @@ export const rulerMarks = (
   view: View,
   stepBeats: number,
   pixels: number,
+  beatsPerBar = 4,
 ): { every: number; marks: RulerMark[] } => {
   const from = view.start * stepBeats
   const to = view.end * stepBeats
   const perBeat = pixels / (to - from)
+  const spacings = labelBeats(beatsPerBar)
   const every =
-    LABEL_BEATS.find((beats) => beats * perBeat >= MIN_LABEL_GAP) ??
-    LABEL_BEATS[LABEL_BEATS.length - 1]
+    spacings.find((beats) => beats * perBeat >= MIN_LABEL_GAP) ??
+    spacings[spacings.length - 1]
   const marks: RulerMark[] = []
   for (
     let beat = Math.ceil(from / every - 1e-9) * every;
     beat <= to + 1e-9;
     beat += every
   ) {
-    marks.push({ beat, label: positionLabel(beat) })
+    marks.push({ beat, label: positionLabel(beat, beatsPerBar) })
   }
   return { every, marks }
 }

@@ -1,4 +1,4 @@
-import { FC, MouseEvent as ReactMouseEvent, useState } from "react"
+import { FC, MouseEvent as ReactMouseEvent, ReactNode, useState } from "react"
 import { createPortal } from "react-dom"
 import { useLocalization } from "../../localize/useLocalization"
 import { Plot, toX, View, WHOLE_STEP } from "./envelopeGeometry"
@@ -15,6 +15,9 @@ export const RULER_HEIGHT = 20
  * turns. The
  * pointer hides while it drags, as the view is what moves, and a rule
  * through the roll marks the time it was pressed on.
+ *
+ * Anything else it carries — the MIDI import's range, say — goes in
+ * `children`, drawn on top, and takes its own presses.
  */
 export const EnvelopeRuler: FC<{
   plot: Plot
@@ -23,12 +26,24 @@ export const EnvelopeRuler: FC<{
   mark: number | null
   onView: (view: View) => void
   onMark: (time: number | null) => void
-}> = ({ plot, stepBeats, mark, onView, onMark }) => {
+  height?: number
+  beatsPerBar?: number
+  children?: ReactNode
+}> = ({
+  plot,
+  stepBeats,
+  mark,
+  onView,
+  onMark,
+  height = RULER_HEIGHT,
+  beatsPerBar = 4,
+  children,
+}) => {
   const localized = useLocalization()
   const [zooming, setZooming] = useState(false)
   const view = plot.view ?? WHOLE_STEP
   const across = plot.width - 2 * plot.pad
-  const { every, marks } = rulerMarks(view, stepBeats, across)
+  const { every, marks } = rulerMarks(view, stepBeats, across, beatsPerBar)
   const at = (beat: number) => toX(plot, beat / stepBeats)
 
   const onMouseDown = (event: ReactMouseEvent<SVGSVGElement>) => {
@@ -69,14 +84,14 @@ export const EnvelopeRuler: FC<{
       <svg
         data-view={`${view.start}-${view.end}`}
         width={plot.width}
-        height={RULER_HEIGHT}
+        height={height}
         className="block cursor-zoom-in select-none"
         onMouseDown={onMouseDown}
       >
         <title>{localized["sequencer-envelope-ruler"]}</title>
         <rect
           width={plot.width}
-          height={RULER_HEIGHT}
+          height={height}
           fill="var(--midiseq-ruler-background)"
         />
         {marks.map(({ beat }) => (
@@ -84,8 +99,8 @@ export const EnvelopeRuler: FC<{
             key={`half-${beat}`}
             x1={at(beat + every / 2)}
             x2={at(beat + every / 2)}
-            y1={RULER_HEIGHT - 4}
-            y2={RULER_HEIGHT}
+            y1={height - 4}
+            y2={height}
             stroke="var(--midiseq-editor-grid)"
           />
         ))}
@@ -94,8 +109,8 @@ export const EnvelopeRuler: FC<{
             <line
               x1={at(beat)}
               x2={at(beat)}
-              y1={RULER_HEIGHT - 9}
-              y2={RULER_HEIGHT}
+              y1={height - 9}
+              y2={height}
               stroke="var(--midiseq-fg-tertiary)"
             />
             <text
@@ -114,10 +129,11 @@ export const EnvelopeRuler: FC<{
             x1={toX(plot, mark)}
             x2={toX(plot, mark)}
             y1={0}
-            y2={RULER_HEIGHT}
+            y2={height}
             stroke="var(--midiseq-fg)"
           />
         )}
+        {children}
       </svg>
       {/* over everything while dragging, so no other cursor shows through */}
       {zooming &&

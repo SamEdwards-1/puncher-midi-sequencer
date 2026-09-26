@@ -11,6 +11,8 @@ import {
   PatchJSON,
   parseFile,
   parsePatternsFile,
+  prepareMidi,
+  readMidiFile,
   SequenceCC,
   StepIndex,
   sequenceCCs,
@@ -287,4 +289,56 @@ export function useMidiExport() {
       [stepFile, fileService],
     ),
   }
+}
+
+// Waits for the page to be drawn — so a loading indicator shows before
+// work that holds the page up — but no longer than a moment, since a tab in
+// the background draws nothing.
+const nextPaint = () =>
+  new Promise<void>((resolve) => {
+    let done = false
+    const go = () => {
+      if (!done) {
+        done = true
+        resolve()
+      }
+    }
+    requestAnimationFrame(() => setTimeout(go, 0))
+    setTimeout(go, 50)
+  })
+
+/**
+ * Picks a MIDI file and reads it, ready for the import dialog; nothing is
+ * changed until that dialog imports it. `onLoading` hears the file's name
+ * once it is picked, before it is read, so the wait can be shown. A file
+ * that can't be read says why.
+ */
+export function useMidiFileLoader() {
+  const { fileService } = useStores()
+  return useCallback(
+    async (onLoading: (name: string) => void) => {
+      const file = await attempt("open the MIDI file", () =>
+        fileService.pickFile(MIDI_FILE),
+      )
+      if (file === null) {
+        return null
+      }
+      onLoading(file.name)
+      await nextPaint()
+      const bytes = await attempt(
+        "read the MIDI file",
+        async () => new Uint8Array(await file.arrayBuffer()),
+      )
+      if (bytes === null) {
+        return null
+      }
+      const result = readMidiFile(bytes)
+      if (!result.ok) {
+        window.alert(`Couldn't import that file. ${result.error}`)
+        return null
+      }
+      return { name: file.name, prepared: prepareMidi(result.midi) }
+    },
+    [fileService],
+  )
 }

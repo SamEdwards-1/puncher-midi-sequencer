@@ -3,6 +3,7 @@ import {
   CSSProperties,
   FC,
   RefObject,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import {
+  useGridLanding,
   useGridMode,
   usePreviewOnClick,
   useSelectedStep,
@@ -35,6 +37,45 @@ const DEST_MARK =
   "before:absolute before:bottom-[10%] before:left-[10%] before:h-[0.32rem] before:w-[0.32rem] before:rounded-full before:bg-[var(--jump-dest-color)] before:content-['']"
 
 const JUMP_COLOURS = 8
+
+// A landing wave is over in 0.6s: each step's bounce takes 360ms, and the
+// steps start one after another across the 240ms left, so on a big grid
+// they overlap closely and on a small one less so. styles.css holds the
+// bounce's own length.
+const LAND_MS = 360
+const LAND_TOTAL_MS = 600
+
+/**
+ * The class that sets the steps bouncing in, from each import until the
+ * wave is over, and the gap between one step starting and the next. Each
+ * import takes the other of two classes: an animation starts again when its
+ * name changes, so one import following another mid-wave starts it over.
+ * Only an import made while the grid is shown sets it off.
+ */
+const useLanding = (count: number) => {
+  const landing = useGridLanding()
+  // an import from before the grid was shown — in another tab, say — has
+  // already landed
+  const shownAt = useRef(landing)
+  const [on, setOn] = useState(false)
+  const gap = (LAND_TOTAL_MS - LAND_MS) / Math.max(1, count - 1)
+  useEffect(() => {
+    if (landing === shownAt.current) {
+      return
+    }
+    setOn(true)
+    const done = setTimeout(() => setOn(false), LAND_TOTAL_MS + 50)
+    return () => clearTimeout(done)
+  }, [landing])
+  return {
+    className: on
+      ? landing % 2 === 0
+        ? "step-land"
+        : "step-land-again"
+      : null,
+    gap,
+  }
+}
 
 // The smallest the grid shrinks to as the column scrolls: eight steps of
 // about 26px, still big enough to hit and read.
@@ -116,6 +157,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
   const [selected, setSelected] = useSelectedStep()
+  const landing = useLanding(stepCount(size))
 
   const onStepClick = (index: number) => {
     // a mode takes over the click: set a jump target, or mark rests and skips
@@ -268,6 +310,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                           : "border-transparent",
                       source !== undefined && SOURCE_MARK,
                       dest !== undefined && DEST_MARK,
+                      landing.className,
                     )}
                     style={
                       {
@@ -279,6 +322,10 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                           dest === undefined
                             ? undefined
                             : `var(--midiseq-jump-${dest})`,
+                        animationDelay:
+                          landing.className === null
+                            ? undefined
+                            : `${index * landing.gap}ms`,
                       } as CSSProperties
                     }
                     onClick={() => onStepClick(index)}

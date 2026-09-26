@@ -8,6 +8,7 @@ import { SequencerPlayer } from "../services/SequencerPlayer"
 import { Ticker } from "../services/Ticker"
 import { ExportSettingsStore } from "./ExportSettingsStore"
 import { HistoryStore } from "./HistoryStore"
+import { ImportSettingsStore } from "./ImportSettingsStore"
 import { MIDIDeviceStore, RequestMIDIAccess } from "./MIDIDeviceStore"
 import { PlaybackSettingsStore } from "./PlaybackSettingsStore"
 import { registerReactions } from "./reactions"
@@ -33,6 +34,7 @@ export default class RootStore {
   readonly midiDeviceStore: MIDIDeviceStore
   readonly playbackSettings: PlaybackSettingsStore
   readonly exportSettings: ExportSettingsStore
+  readonly importSettings: ImportSettingsStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
   readonly synthStore: SynthStore
@@ -46,6 +48,7 @@ export default class RootStore {
     )
     this.playbackSettings = new PlaybackSettingsStore(options.storage)
     this.exportSettings = new ExportSettingsStore(options.storage)
+    this.importSettings = new ImportSettingsStore(options.storage)
     this.recorder = new MIDIRecorder(
       this.sequencerStore,
       this.midiInput,
