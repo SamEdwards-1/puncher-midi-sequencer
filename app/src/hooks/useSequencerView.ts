@@ -8,6 +8,18 @@ const selectedStepAtom = atom(0)
 // an in-app clipboard, so copying a step needs no clipboard permission
 const copiedStepAtom = atom<StepJSON | null>(null)
 
+// Counts imports, so the grid can greet each with its steps bouncing in.
+const gridLandingAtom = atom(0)
+
+export function useGridLanding() {
+  return useAtomValue(gridLandingAtom)
+}
+
+export function useLandGrid() {
+  const set = useSetAtom(gridLandingAtom)
+  return () => set((count) => count + 1)
+}
+
 /**
  * What a click on the grid does. Normally it selects a step; a mode makes it
  * set a jump target instead, or mark steps as rests or skips.

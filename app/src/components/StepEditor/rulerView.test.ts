@@ -17,6 +17,18 @@ describe("the envelope ruler", () => {
     expect(positionLabel(5.75)).toBe("2.2.4")
   })
 
+  it("counts bars of any length", () => {
+    // three beats a bar, as in 3/4
+    expect(positionLabel(3, 3)).toBe("2")
+    expect(positionLabel(4, 3)).toBe("2.2")
+    expect(positionLabel(4.5, 3)).toBe("2.2.3")
+    // and a whole file across the width, 5 pixels a beat: a label every
+    // four three-beat bars, the first spacing that leaves room
+    const { every, marks } = rulerMarks(WHOLE_STEP, 96, 480, 3)
+    expect(every).toBe(12)
+    expect(marks.slice(0, 3).map(({ label }) => label)).toEqual(["1", "5", "9"])
+  })
+
   it("labels as closely as there is room for", () => {
     // four beats across 480 pixels: a label every half beat
     const { every, marks } = rulerMarks(WHOLE_STEP, 4, 480)

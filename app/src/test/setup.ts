@@ -13,3 +13,7 @@ beforeAll(() => {
     writable: true,
   })
 })
+
+// jsdom has no canvas: drawing is skipped, as it is when a context can't be
+// had, rather than jsdom saying so on every render
+HTMLCanvasElement.prototype.getContext = () => null

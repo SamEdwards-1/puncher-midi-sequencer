@@ -5,20 +5,24 @@ import {
 } from "@midiseq/core"
 import { FC, useMemo, useState } from "react"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { useImportSettings } from "../../hooks/useImportSettings"
 import { usePatch } from "../../hooks/usePatch"
 import { useSettings } from "../../hooks/useSettings"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { IMPORT_SNAPS } from "../../stores/ImportSettingsStore"
 import { themeNames } from "../../theme/Theme"
 import { ExportOptions } from "../FileMenu/ExportOptions"
+import { Button } from "../ui/Button"
+import { Checkbox } from "../ui/Checkbox"
 import { cn } from "../ui/cn"
 import { Dialog } from "../ui/Dialog"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { MIDISettings } from "./MIDISettings"
 
-type Tab = "general" | "midi" | "export"
+type Tab = "general" | "midi" | "export" | "import"
 
-const TABS: Tab[] = ["general", "midi", "export"]
+const TABS: Tab[] = ["general", "midi", "export", "import"]
 
 const ROW = "grid grid-cols-[6rem_1fr] items-center gap-3"
 
@@ -88,6 +92,59 @@ const ExportSettings: FC = () => {
   )
 }
 
+// Where a MIDI import starts.
+const ImportSettings: FC = () => {
+  const settings = useImportSettings()
+  const localized = useLocalization()
+  return (
+    <div className="flex flex-col gap-2 text-body text-fg-secondary">
+      <p className="m-0 mb-2 text-small text-fg-tertiary">
+        <Localized name="sequencer-import-settings-hint" />
+      </p>
+      <Checkbox
+        label={localized["sequencer-import-skip-drums"]}
+        note={localized["sequencer-import-skip-drums-note"]}
+        checked={settings.skipDrums}
+        onChange={(on) => settings.set("skipDrums", on)}
+      />
+      <Checkbox
+        label={localized["sequencer-import-ccs-default"]}
+        checked={settings.ccs}
+        onChange={(on) => settings.set("ccs", on)}
+      />
+      <Checkbox
+        label={localized["sequencer-import-loop"]}
+        checked={settings.loop}
+        onChange={(on) => settings.set("loop", on)}
+      />
+      <Checkbox
+        label={localized["sequencer-import-tempo"]}
+        checked={settings.fileTempo}
+        onChange={(on) => settings.set("fileTempo", on)}
+      />
+      <div className="mt-2 flex items-center gap-3">
+        <span className="text-small">
+          <Localized name="sequencer-import-snap-setting" />
+        </span>
+        <div className="flex gap-1">
+          {IMPORT_SNAPS.map((snap) => (
+            <Button
+              key={snap}
+              type="button"
+              size="sm"
+              active={settings.snap === snap}
+              aria-pressed={settings.snap === snap}
+              onClick={() => settings.set("snap", snap)}
+            >
+              <Localized name={`sequencer-import-snap-${snap}`} />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   const [tab, setTab] = useState<Tab>("midi")
   const localized = useLocalization()
@@ -121,8 +178,10 @@ export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
           <GeneralSettings />
         ) : tab === "midi" ? (
           <MIDISettings />
-        ) : (
+        ) : tab === "export" ? (
           <ExportSettings />
+        ) : (
+          <ImportSettings />
         )}
       </div>
     </Dialog>

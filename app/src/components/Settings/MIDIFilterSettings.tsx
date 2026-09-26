@@ -4,6 +4,7 @@ import {
   ccName,
   MAX_NOTE_NUMBER,
   MAX_TRANSPOSE,
+  MIDIFilterJSON,
   MIN_NOTE_NUMBER,
   MIN_TRANSPOSE,
   noteNumberToName,
@@ -19,11 +20,12 @@ import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { Stepper } from "../ui/Stepper"
 
+// A setting's row; on a narrow screen, what it sets goes under its name.
 const Field: FC<{ label: string; children: ReactNode }> = ({
   label,
   children,
 }) => (
-  <div className="flex items-center gap-3 py-1">
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
     <span className="w-28 flex-none text-body text-fg-secondary">{label}</span>
     {children}
   </div>
@@ -41,6 +43,28 @@ const parseSigned = (text: string) => {
  */
 export const MIDIFilterSettings: FC = () => {
   const { filter, setFilter } = useMIDIDevice()
+  return (
+    <section className="flex flex-col gap-2 pt-4">
+      <h3 className="m-0 border-t border-divider pt-4 text-small font-semibold text-fg">
+        <Localized name="sequencer-filter" />
+      </h3>
+      <p className="m-0 text-tiny text-fg-tertiary">
+        <Localized name="sequencer-filter-hint" />
+      </p>
+      <MIDIFilterFields filter={filter} onChange={setFilter} />
+    </section>
+  )
+}
+
+/**
+ * A MIDI filter's settings: the channels let through, the notes kept and
+ * how far they are transposed, and the controllers kept. Shared by the MIDI
+ * input's settings and a MIDI import, which starts from those.
+ */
+export const MIDIFilterFields: FC<{
+  filter: MIDIFilterJSON
+  onChange: (changes: Partial<MIDIFilterJSON>) => void
+}> = ({ filter, onChange: setFilter }) => {
   const localized = useLocalization()
   const [ccsOpen, setCCsOpen] = useState(false)
 
@@ -59,14 +83,7 @@ export const MIDIFilterSettings: FC = () => {
     })
 
   return (
-    <section className="flex flex-col gap-2 pt-4">
-      <h3 className="m-0 border-t border-divider pt-4 text-small font-semibold text-fg">
-        <Localized name="sequencer-filter" />
-      </h3>
-      <p className="m-0 text-tiny text-fg-tertiary">
-        <Localized name="sequencer-filter-hint" />
-      </p>
-
+    <div className="flex flex-col gap-2">
       <Field label={localized["sequencer-filter-channels"]}>
         <div className="grid max-w-[20rem] flex-1 grid-cols-8 gap-1">
           {ALL_CHANNELS.map((channel) => {
@@ -203,6 +220,6 @@ export const MIDIFilterSettings: FC = () => {
           </div>
         </div>
       )}
-    </section>
+    </div>
   )
 }
