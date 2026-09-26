@@ -15,12 +15,15 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean
   // the action a dialog is for, filled in the theme colour
   primary?: boolean
+  // one of a set of tools: no fill until it is hovered or on
+  quiet?: boolean
 }
 
 export const Button: FC<ButtonProps> = ({
   size = "md",
   active = false,
   primary = false,
+  quiet = false,
   className,
   ...props
 }) => (
@@ -31,7 +34,9 @@ export const Button: FC<ButtonProps> = ({
       SIZES[size],
       active || primary
         ? "bg-theme text-on-surface enabled:hover:brightness-110"
-        : "bg-background-secondary text-fg enabled:hover:bg-highlight",
+        : quiet
+          ? "text-fg enabled:hover:bg-highlight"
+          : "bg-background-secondary text-fg enabled:hover:bg-highlight",
       className,
     )}
     {...props}

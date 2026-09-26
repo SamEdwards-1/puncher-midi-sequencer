@@ -9,142 +9,151 @@
 
 /* The palette. Every colour is a variable, so switching themes is a swap of
    values with no rebuild, and a custom theme is a matter of writing these.
-   Names follow Signal's Theme so the two stay comparable. */
+   Names follow Signal's Theme so the two stay comparable.
+
+   The two here, Default dark and Default light, are Deep Harbor and
+   Overcast, made from VS Code themes like the rest under theme/themes/.
+   Those are built on the layout in theme/layout.css: a colour added here
+   needs adding there too, and npm run theme -- --all makes them again. */
 :root {
   --midiseq-font: Inter, -apple-system, BlinkMacSystemFont, Avenir, Lato;
   --midiseq-mono-font: "Roboto Mono", monospace;
 
-  --midiseq-theme: hsl(230, 70%, 55%);
+  --midiseq-theme: #4b76cf;
   --midiseq-on-surface: #ffffff;
-  --midiseq-fg: #ffffff;
-  --midiseq-fg-secondary: hsl(223, 12%, 60%);
-  --midiseq-fg-tertiary: #5a6173;
-  --midiseq-divider: hsl(224, 12%, 24%);
-  --midiseq-popup-border: hsl(228, 10%, 13%);
-  --midiseq-background: hsl(228, 10%, 16%);
-  --midiseq-background-secondary: hsl(227, 10%, 22%);
-  --midiseq-background-dark: hsl(228, 10%, 13%);
-  --midiseq-editor-background: hsl(228, 10%, 13%);
-  --midiseq-ruler-background: hsl(228, 10%, 8%);
-  --midiseq-roll-white: hsl(228, 10%, 15.5%);
-  --midiseq-roll-black: hsl(228, 10%, 13.5%);
-  --midiseq-roll-band: rgba(0, 0, 0, 0.14);
-  --midiseq-piano-octave: hsl(228, 8%, 19%);
-  --midiseq-piano-white: hsl(228, 8%, 30%);
-  --midiseq-piano-black: hsl(228, 8%, 25%);
-  --midiseq-piano-edge: hsl(228, 8%, 21%);
-  --midiseq-piano-label: hsl(228, 8%, 68%);
-  --midiseq-editor-grid: hsl(224, 12%, 26%);
-  --midiseq-editor-grid-secondary: hsl(224, 12%, 19%);
-  --midiseq-record: #dd3c3c;
-  --midiseq-shadow: rgba(0, 0, 0, 0.1);
-  --midiseq-highlight: #8388a51a;
-  --midiseq-green: #31de53;
-  --midiseq-red: #de5267;
-  --midiseq-yellow: #deb126;
-  --midiseq-step: hsl(224, 12%, 30%);
-  --midiseq-step-rest: hsl(210, 30%, 45%);
-  --midiseq-step-skip: hsl(228, 10%, 20%);
+  --midiseq-fg: #97a7c8;
+  --midiseq-fg-secondary: #818ca6;
+  --midiseq-fg-tertiary: #506686;
+  --midiseq-divider: #323b4e;
+  --midiseq-popup-border: #1a1f2e;
+  --midiseq-background: #212836;
+  --midiseq-background-secondary: #303b50;
+  --midiseq-background-dark: #1c212e;
+  --midiseq-editor-background: #1c212e;
+  --midiseq-ruler-background: #141820;
+  --midiseq-ruler-label: #818ca6;
+  --midiseq-roll-white: #222735;
+  --midiseq-roll-black: #1d222f;
+  --midiseq-roll-band: #00000024;
+  --midiseq-piano-octave: #2b303e;
+  --midiseq-piano-white: #444b5e;
+  --midiseq-piano-black: #383f4f;
+  --midiseq-piano-edge: #2f3544;
+  --midiseq-piano-label: #a5adc2;
+  --midiseq-editor-grid: #394055;
+  --midiseq-editor-grid-secondary: #293040;
+  --midiseq-record: #f44747;
+  --midiseq-shadow: #0000001a;
+  --midiseq-highlight: #818ca61a;
+  --midiseq-green: #70ca8e;
+  --midiseq-red: #ef596f;
+  --midiseq-yellow: #e3c18a;
+  --midiseq-step: #3f4a60;
+  --midiseq-step-rest: #5b6f97;
+  --midiseq-step-skip: #2a3242;
 
   /* translucent, so scrollbars float over the content, macOS style */
-  --midiseq-scrollbar: rgba(255, 255, 255, 0.22);
-  --midiseq-scrollbar-hover: rgba(255, 255, 255, 0.4);
+  --midiseq-scrollbar: #ffffff38;
+  --midiseq-scrollbar-hover: #ffffff66;
 
   /* One per jump, so a source and its destination share a colour. They keep
-     clear of the theme blue and the record red, and stay apart from each
-     other in hue. */
-  --midiseq-jump-0: #e0a33a;
-  --midiseq-jump-1: #34c2b3;
-  --midiseq-jump-2: #e3719c;
-  --midiseq-jump-3: #6cc45a;
-  --midiseq-jump-4: #e2794a;
-  --midiseq-jump-5: #a583f0;
-  --midiseq-jump-6: #c3d24a;
-  --midiseq-jump-7: #4fc3f7;
+     clear of the accent and the record red, and stay apart from each other
+     in hue. */
+  --midiseq-jump-0: #e5c07b;
+  --midiseq-jump-1: #4ff2f8;
+  --midiseq-jump-2: #ff5ba2;
+  --midiseq-jump-3: #89ca78;
+  --midiseq-jump-4: #dc9656;
+  --midiseq-jump-5: #ac58ff;
+  --midiseq-jump-6: #ffff63;
+  --midiseq-jump-7: #3bb3e2;
 
   /* One per collision on the step in the editor, marking the dots of each
      group of voices sounding one key at once. Bright, and clear of the
      voices' own hues, so a mark never reads as a voice. */
-  --midiseq-collision-0: hsl(350, 90%, 66%);
-  --midiseq-collision-1: hsl(52, 95%, 58%);
-  --midiseq-collision-2: hsl(185, 85%, 55%);
-  --midiseq-collision-3: hsl(95, 75%, 58%);
-  --midiseq-collision-4: hsl(0, 0%, 94%);
-  --midiseq-collision-5: hsl(325, 85%, 72%);
+  --midiseq-collision-0: #ff2a56;
+  --midiseq-collision-1: #ffff63;
+  --midiseq-collision-2: #4ff2f8;
+  --midiseq-collision-3: #82c600;
+  --midiseq-collision-4: #ecf2fd;
+  --midiseq-collision-5: #ba8baf;
 
   /* One per voice, so a voice's dots, its tab and its row in the overview
-     read as the same thing. Filled dots carry white ratchet counts, so each
-     stays dark enough for that. */
-  --midiseq-voice-0: hsl(230, 70%, 60%);
-  --midiseq-voice-1: hsl(28, 80%, 52%);
-  --midiseq-voice-2: hsl(155, 55%, 40%);
-  --midiseq-voice-3: hsl(290, 55%, 58%);
+     read as the same thing. Filled dots carry ratchet counts in the on-surface
+     colour, so each stays legible under them. */
+  --midiseq-voice-0: #aa68f1;
+  --midiseq-voice-1: #d97d00;
+  --midiseq-voice-2: #00a975;
+  --midiseq-voice-3: #ec5ab0;
 
   /* behind the dots a voice reaches in one sequencer step: well below the
      panel, so the band reads at a glance behind coloured dots */
-  --midiseq-pace-band: hsl(228, 12%, 7%);
+  --midiseq-pace-band: #0d121c;
 
   /* a step's CC envelope, apart from every voice's colour since it lies over
      their notes */
-  --midiseq-envelope: hsl(188, 72%, 52%);
+  --midiseq-envelope: #517dd6;
 
   /* the Puncher logo in the top bar */
-  --midiseq-logo: hsl(340, 90%, 86%);
+  --midiseq-logo: #fbbbd1;
 }
 
 :root[data-theme="light"] {
+  --midiseq-theme: #007acc;
+  --midiseq-on-surface: #ffffff;
   --midiseq-fg: #000000;
-  --midiseq-fg-secondary: hsl(223, 12%, 40%);
-  --midiseq-fg-tertiary: #7a7f8b;
-  --midiseq-divider: hsl(223, 12%, 80%);
-  --midiseq-popup-border: #e0e0e0;
-  --midiseq-background: #ffffff;
-  --midiseq-background-secondary: hsl(227, 20%, 95%);
-  --midiseq-background-dark: hsl(228, 20%, 95%);
-  --midiseq-editor-background: #ffffff;
-  --midiseq-ruler-background: hsl(228, 14%, 86%);
-  --midiseq-roll-white: #ffffff;
-  --midiseq-roll-black: hsl(228, 20%, 97.5%);
-  --midiseq-roll-band: rgba(20, 30, 60, 0.035);
-  --midiseq-piano-octave: hsl(228, 12%, 93%);
-  --midiseq-piano-white: hsl(228, 15%, 96%);
-  --midiseq-piano-black: hsl(228, 12%, 90%);
-  --midiseq-piano-edge: hsl(228, 10%, 83%);
-  --midiseq-piano-label: hsl(228, 10%, 40%);
-  --midiseq-editor-grid: hsl(223, 12%, 86%);
-  --midiseq-editor-grid-secondary: hsl(223, 12%, 92%);
-  --midiseq-record: #ee6a6a;
-  --midiseq-highlight: #f5f5fa;
-  --midiseq-green: #56de83;
-  --midiseq-red: #de8287;
-  --midiseq-yellow: #debe56;
-  --midiseq-step: hsl(223, 12%, 86%);
-  --midiseq-step-rest: hsl(210, 60%, 80%);
-  --midiseq-step-skip: hsl(228, 20%, 95%);
-  --midiseq-scrollbar: rgba(0, 0, 0, 0.25);
-  --midiseq-scrollbar-hover: rgba(0, 0, 0, 0.45);
-  --midiseq-jump-0: #b07c1f;
-  --midiseq-jump-1: #17897d;
-  --midiseq-jump-2: #c2447a;
-  --midiseq-jump-3: #3f9a30;
-  --midiseq-jump-4: #c1541f;
-  --midiseq-jump-5: #7a52c7;
-  --midiseq-jump-6: #8a9a1f;
-  --midiseq-jump-7: #1b86b8;
-  --midiseq-collision-0: hsl(350, 80%, 48%);
-  --midiseq-collision-1: hsl(45, 95%, 40%);
-  --midiseq-collision-2: hsl(188, 85%, 36%);
-  --midiseq-collision-3: hsl(95, 70%, 34%);
-  --midiseq-collision-4: hsl(228, 12%, 20%);
-  --midiseq-collision-5: hsl(325, 70%, 50%);
-  --midiseq-voice-0: hsl(230, 65%, 52%);
-  --midiseq-voice-1: hsl(25, 80%, 45%);
-  --midiseq-voice-2: hsl(155, 60%, 32%);
-  --midiseq-voice-3: hsl(290, 50%, 48%);
-  --midiseq-pace-band: hsl(228, 14%, 80%);
-  --midiseq-envelope: hsl(190, 80%, 34%);
-  /* light pink vanishes on the light bar, so it deepens here */
-  --midiseq-logo: hsl(335, 65%, 58%);
+  --midiseq-fg-secondary: #333333;
+  --midiseq-fg-tertiary: #9ba198;
+  --midiseq-divider: #b5bcc3;
+  --midiseq-popup-border: #d1d1d1;
+  --midiseq-background: #f0f0f0;
+  --midiseq-background-secondary: #dfe3e6;
+  --midiseq-background-dark: #dfe3e6;
+  --midiseq-editor-background: #f0f0f0;
+  --midiseq-ruler-background: #c5cbd1;
+  --midiseq-ruler-label: #333333;
+  --midiseq-roll-white: #f0f0f0;
+  --midiseq-roll-black: #e8e9eb;
+  --midiseq-roll-band: #0a133009;
+  --midiseq-piano-octave: #dbdee0;
+  --midiseq-piano-white: #e3e5e7;
+  --midiseq-piano-black: #d2d6da;
+  --midiseq-piano-edge: #bec4c9;
+  --midiseq-piano-label: #4f5363;
+  --midiseq-editor-grid: #c7ccd1;
+  --midiseq-editor-grid-secondary: #d8dbde;
+  --midiseq-record: #be5046;
+  --midiseq-shadow: #0000001a;
+  --midiseq-highlight: #e3e7eb;
+  --midiseq-green: #339e2f;
+  --midiseq-red: #ca1243;
+  --midiseq-yellow: #986801;
+  --midiseq-step: #c7ccd1;
+  --midiseq-step-rest: #adcceb;
+  --midiseq-step-skip: #dfe3e6;
+  --midiseq-scrollbar: #00000040;
+  --midiseq-scrollbar-hover: #00000073;
+  --midiseq-jump-0: #986801;
+  --midiseq-jump-1: #3397a3;
+  --midiseq-jump-2: #d622d0;
+  --midiseq-jump-3: #339e2f;
+  --midiseq-jump-4: #d27100;
+  --midiseq-jump-5: #9743f7;
+  --midiseq-jump-6: #839211;
+  --midiseq-jump-7: #0a36e6;
+  --midiseq-collision-0: #ca1243;
+  --midiseq-collision-1: #957000;
+  --midiseq-collision-2: #11828d;
+  --midiseq-collision-3: #408500;
+  --midiseq-collision-4: #1e262d;
+  --midiseq-collision-5: #d8258e;
+  --midiseq-voice-0: #4a3cc3;
+  --midiseq-voice-1: #c16f00;
+  --midiseq-voice-2: #0fa21f;
+  --midiseq-voice-3: #c54ebe;
+  --midiseq-pace-band: #b2bbc4;
+  --midiseq-envelope: #0079ca;
+  --midiseq-logo: #d94e88;
 }
 
 /* Tailwind's tokens point at those variables rather than copying them, so a

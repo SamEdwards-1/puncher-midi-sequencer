@@ -99,6 +99,7 @@ describe("App", () => {
 
     render(<App rootStore={rootStore} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(screen.getByText(/Permission denied/)).toBeInTheDocument()
 
     await act(async () => {
@@ -110,6 +111,7 @@ describe("App", () => {
   it("explains when Web MIDI is unavailable", () => {
     render(<App rootStore={createStore()} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(
       screen.getByText(/This browser doesn't support Web MIDI/),
     ).toBeInTheDocument()

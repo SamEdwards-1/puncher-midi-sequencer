@@ -1,0 +1,63 @@
+/* Abyss, a dark theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in dark theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="abyss"] {
+  --midiseq-theme: #40d4e7;                 /* activityBar.activeBorder */
+  --midiseq-on-surface: #0f1415;            /* activityBarBadge.foreground */
+  --midiseq-fg: #b2cacd;                    /* editor.foreground */
+  --midiseq-fg-secondary: #929ea0;          /* descriptionForeground */
+  --midiseq-fg-tertiary: #4e6b6e;           /* editorLineNumber.foreground */
+  --midiseq-divider: #000000;               /* editorGroup.border */
+  --midiseq-popup-border: #010d10;          /* derived */
+  --midiseq-background: #031417;            /* editor.background */
+  --midiseq-background-secondary: #052529;  /* input.background */
+  --midiseq-background-dark: #021012;       /* sideBar.background */
+  --midiseq-editor-background: #021012;     /* sideBar.background */
+  --midiseq-ruler-background: #000507;      /* derived */
+  --midiseq-ruler-label: #929ea0;           /* fg-secondary */
+  --midiseq-roll-white: #041618;            /* derived */
+  --midiseq-roll-black: #021113;            /* derived */
+  --midiseq-roll-band: #00000024;           /* derived */
+  --midiseq-piano-octave: #0c1e20;          /* derived */
+  --midiseq-piano-white: #21393b;           /* derived */
+  --midiseq-piano-black: #182d2f;           /* derived */
+  --midiseq-piano-edge: #102325;            /* derived */
+  --midiseq-piano-label: #7e9699;           /* derived */
+  --midiseq-editor-grid: #142f32;           /* derived */
+  --midiseq-editor-grid-secondary: #081e21; /* derived */
+  --midiseq-record: #e34e1c;                /* errorForeground */
+  --midiseq-shadow: #0000001a;              /* built-in, widget.shadow being light */
+  --midiseq-highlight: #929ea01a;           /* derived */
+  --midiseq-green: #16b673;                 /* gitDecoration.addedResourceForeground */
+  --midiseq-red: #e34e1c;                   /* gitDecoration.deletedResourceForeground */
+  --midiseq-yellow: #e69533;                /* editorWarning.foreground */
+  --midiseq-step: #18353a;                  /* derived */
+  --midiseq-step-rest: #3a7a84;             /* derived from activityBar.activeBorder */
+  --midiseq-step-skip: #081d21;             /* derived */
+  --midiseq-scrollbar: #6a90955b;           /* scrollbarSlider.background */
+  --midiseq-scrollbar-hover: #169fb166;     /* scrollbarSlider.hoverBackground, more opaque */
+  --midiseq-jump-0: #d5971a;                /* syntax constant */
+  --midiseq-jump-1: #009999;                /* button.background */
+  --midiseq-jump-2: #df769b;                /* syntax keyword */
+  --midiseq-jump-3: #15ac31;                /* settings.modifiedItemIndicator */
+  --midiseq-jump-4: #ffa487;                /* list.warningForeground */
+  --midiseq-jump-5: #7060eb;                /* syntax constant.numeric */
+  --midiseq-jump-6: #8ce99a;                /* editorGutter.addedBackground */
+  --midiseq-jump-7: #49ace9;                /* syntax source.js constant.other.object.key.js string.unquoted.label.js */
+  --midiseq-collision-0: #e34e1c;           /* editorError.foreground */
+  --midiseq-collision-1: #fadf2e;           /* built-in */
+  --midiseq-collision-2: #40d4e7;           /* breadcrumb.focusForeground */
+  --midiseq-collision-3: #15ac31;           /* settings.modifiedItemIndicator */
+  --midiseq-collision-4: #c8d4d6;           /* derived */
+  --midiseq-collision-5: #e798b3;           /* terminal.ansiBrightMagenta */
+  --midiseq-voice-0: #00adfb;               /* terminal.ansiBlue, made vivid */
+  --midiseq-voice-1: #ffa91f;               /* terminal.ansiYellow, made vivid */
+  --midiseq-voice-2: #00e098;               /* terminal.ansiGreen, made vivid */
+  --midiseq-voice-3: #f95b9a;               /* terminal.ansiMagenta, made vivid */
+  --midiseq-pace-band: #000203;             /* derived */
+  --midiseq-envelope: #40d4e7;              /* activityBar.activeBorder */
+  --midiseq-logo: #fbbbd1;                  /* built-in */
+}

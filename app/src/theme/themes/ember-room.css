@@ -1,0 +1,63 @@
+/* Ember Room, a dark theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in dark theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="ember-room"] {
+  --midiseq-theme: #cc0000;                 /* inputOption.activeBorder */
+  --midiseq-on-surface: #ffffff;            /* derived */
+  --midiseq-fg: #f8f8f8;                    /* editor.foreground */
+  --midiseq-fg-secondary: #cfbfbc;          /* derived */
+  --midiseq-fg-tertiary: #a33f3f;           /* editorLineNumber.foreground */
+  --midiseq-divider: #611414;               /* editorGroup.border */
+  --midiseq-popup-border: #2d0000;          /* derived */
+  --midiseq-background: #390000;            /* editor.background */
+  --midiseq-background-secondary: #580000;  /* dropdown.background */
+  --midiseq-background-dark: #330000;       /* sideBar.background */
+  --midiseq-editor-background: #330000;     /* sideBar.background */
+  --midiseq-ruler-background: #1f0000;      /* derived */
+  --midiseq-ruler-label: #cfbfbc;           /* fg-secondary */
+  --midiseq-roll-white: #3b0402;            /* derived */
+  --midiseq-roll-black: #350100;            /* derived */
+  --midiseq-roll-band: #00000024;           /* derived */
+  --midiseq-piano-octave: #450f0a;          /* derived */
+  --midiseq-piano-white: #662922;           /* derived */
+  --midiseq-piano-black: #571e17;           /* derived */
+  --midiseq-piano-edge: #4b140e;            /* derived */
+  --midiseq-piano-label: #cf897e;           /* derived */
+  --midiseq-editor-grid: #5b1d16;           /* derived */
+  --midiseq-editor-grid-secondary: #460c07; /* derived */
+  --midiseq-record: #fc5f60;                /* syntax storage, darkened */
+  --midiseq-shadow: #0000001a;              /* built-in */
+  --midiseq-highlight: #cfbfbc1a;           /* derived */
+  --midiseq-green: #41a83e;                 /* syntax meta.selector.css entity.other.attribute-name.class */
+  --midiseq-red: #eb939a;                   /* syntax support.constant */
+  --midiseq-yellow: #fec758;                /* syntax entity */
+  --midiseq-step: #642019;                  /* derived */
+  --midiseq-step-rest: #936159;             /* derived from inputOption.activeBorder */
+  --midiseq-step-skip: #450805;             /* derived */
+  --midiseq-scrollbar: #ffffff38;           /* built-in */
+  --midiseq-scrollbar-hover: #ffffff66;     /* built-in */
+  --midiseq-jump-0: #fec758;                /* syntax entity */
+  --midiseq-jump-1: #34c2b3;                /* built-in */
+  --midiseq-jump-2: #eb939a;                /* syntax support.constant */
+  --midiseq-jump-3: #41a83e;                /* syntax meta.selector.css entity.other.attribute-name.class */
+  --midiseq-jump-4: #aa5507;                /* syntax entity.other.inherited-class */
+  --midiseq-jump-5: #a583f0;                /* built-in */
+  --midiseq-jump-6: #edef7d;                /* syntax string variable */
+  --midiseq-jump-7: #4fc3f7;                /* built-in */
+  --midiseq-collision-0: #ff6262;           /* syntax storage */
+  --midiseq-collision-1: #ffe862;           /* syntax string constant */
+  --midiseq-collision-2: #2bdeee;           /* built-in */
+  --midiseq-collision-3: #96dd3b;           /* syntax support.type.property-name.css */
+  --midiseq-collision-4: #ffd2ca;           /* derived */
+  --midiseq-collision-5: #eb939a;           /* syntax support.constant */
+  --midiseq-voice-0: #3096ff;               /* charts.blue (commented out), made vivid */
+  --midiseq-voice-1: #da7e00;               /* syntax variable, made vivid */
+  --midiseq-voice-2: #12ac31;               /* syntax support, made vivid, darkened */
+  --midiseq-voice-3: #bd6ef4;               /* charts.purple (commented out), made vivid */
+  --midiseq-pace-band: #150000;             /* derived */
+  --midiseq-envelope: #e22b20;              /* inputOption.activeBorder, lightened */
+  --midiseq-logo: #fbbbd1;                  /* built-in */
+}

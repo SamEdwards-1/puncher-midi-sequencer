@@ -272,6 +272,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
           <Button
             type="button"
             size="sm"
+            quiet
             active={tool === "edit"}
             aria-pressed={tool === "edit"}
             // "Edit" alone is the menu in the bar
@@ -285,6 +286,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
           <Button
             type="button"
             size="sm"
+            quiet
             active={tool === "draw"}
             aria-pressed={tool === "draw"}
             title={`${localized["sequencer-envelope-draw"]} (B)`}

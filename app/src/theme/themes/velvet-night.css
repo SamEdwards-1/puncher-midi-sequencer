@@ -1,0 +1,63 @@
+/* Velvet Night, a dark theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in dark theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="velvet-night"] {
+  --midiseq-theme: #cba6f7;                 /* tab.activeBorderTop */
+  --midiseq-on-surface: #11111b;            /* button.foreground */
+  --midiseq-fg: #cdd6f4;                    /* editor.foreground */
+  --midiseq-fg-secondary: #6f7389;          /* tab.inactiveForeground, lightened */
+  --midiseq-fg-tertiary: #565971;           /* derived */
+  --midiseq-divider: #585b70;               /* editorGroup.border */
+  --midiseq-popup-border: #16152e;          /* derived */
+  --midiseq-background: #1d1c37;            /* editor.background, deepened */
+  --midiseq-background-secondary: #453d6a;  /* list.inactiveSelectionBackground, dramatised */
+  --midiseq-background-dark: #141327;       /* sideBar.background, dramatised */
+  --midiseq-editor-background: #141327;     /* sideBar.background, dramatised */
+  --midiseq-ruler-background: #090819;      /* activityBar.background, dramatised */
+  --midiseq-ruler-label: #73788e;           /* fg-secondary, lightened */
+  --midiseq-roll-white: #1e1e2c;            /* derived */
+  --midiseq-roll-black: #191926;            /* derived */
+  --midiseq-roll-band: #00000024;           /* derived */
+  --midiseq-piano-octave: #262735;          /* derived */
+  --midiseq-piano-white: #404153;           /* derived */
+  --midiseq-piano-black: #343545;           /* derived */
+  --midiseq-piano-edge: #2b2b3a;            /* derived */
+  --midiseq-piano-label: #9fa0b5;           /* derived */
+  --midiseq-editor-grid: #36364b;           /* derived */
+  --midiseq-editor-grid-secondary: #262637; /* derived */
+  --midiseq-record: #f38ba8;                /* errorForeground */
+  --midiseq-shadow: #0000001a;              /* built-in, widget.shadow being light */
+  --midiseq-highlight: #6f73891a;           /* derived */
+  --midiseq-green: #a6e3a1;                 /* gitDecoration.untrackedResourceForeground */
+  --midiseq-red: #f38ba8;                   /* gitDecoration.deletedResourceForeground */
+  --midiseq-yellow: #f9e2af;                /* gitDecoration.modifiedResourceForeground */
+  --midiseq-step: #3f396c;                  /* derived, dramatised, darkened */
+  --midiseq-step-rest: #ab8bd2;             /* derived from tab.activeBorderTop, dramatised */
+  --midiseq-step-skip: #2d2c50;             /* derived, dramatised */
+  --midiseq-scrollbar: #585b7080;           /* scrollbarSlider.background */
+  --midiseq-scrollbar-hover: #6c7086;       /* scrollbarSlider.hoverBackground */
+  --midiseq-jump-0: #f9e2af;                /* syntax entity.name.class */
+  --midiseq-jump-1: #94e2d5;                /* syntax keyword.operator */
+  --midiseq-jump-2: #a6738c;                /* debugIcon.breakpointUnverifiedForeground */
+  --midiseq-jump-3: #a6e3a1;                /* syntax string */
+  --midiseq-jump-4: #fab387;                /* syntax constant.numeric */
+  --midiseq-jump-5: #a583f0;                /* built-in */
+  --midiseq-jump-6: #c3d24a;                /* built-in */
+  --midiseq-jump-7: #74c7ec;                /* syntax heading.5.markdown punctuation.definition.heading.markdown */
+  --midiseq-collision-0: #f38ba8;           /* syntax constant.language */
+  --midiseq-collision-1: #f9e2af;           /* syntax entity.name.class */
+  --midiseq-collision-2: #94e2d5;           /* syntax keyword.operator */
+  --midiseq-collision-3: #a6e3a1;           /* syntax string */
+  --midiseq-collision-4: #e3e4ff;           /* derived */
+  --midiseq-collision-5: #f5c2e7;           /* syntax constant.character.escape */
+  --midiseq-voice-0: #72a8ff;               /* terminal.ansiBrightBlue, made vivid */
+  --midiseq-voice-1: #ffa56b;               /* charts.orange, made vivid */
+  --midiseq-voice-2: #63dd5e;               /* charts.green, made vivid */
+  --midiseq-voice-3: #00d3f8;               /* terminal.ansiMagenta, made vivid in another hue */
+  --midiseq-pace-band: #030016;             /* derived, dramatised */
+  --midiseq-envelope: #cba6f7;              /* tab.activeBorderTop */
+  --midiseq-logo: #fbbbd1;                  /* built-in */
+}

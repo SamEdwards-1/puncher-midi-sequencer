@@ -1,0 +1,63 @@
+/* Bubblegum, a light theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in light theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="bubblegum"] {
+  --midiseq-theme: #ff4574;                 /* button.background */
+  --midiseq-on-surface: #ffffff;            /* activityBarBadge.foreground */
+  --midiseq-fg: #333333;                    /* editor.foreground */
+  --midiseq-fg-secondary: #707070;          /* tab.inactiveForeground */
+  --midiseq-fg-tertiary: #a7a7a7;           /* derived */
+  --midiseq-divider: #f4b4cc;               /* sideBar.border */
+  --midiseq-popup-border: #e0e0e0;          /* derived */
+  --midiseq-background: #ffffff;            /* editor.background */
+  --midiseq-background-secondary: #f5f0f0;  /* derived */
+  --midiseq-background-dark: #fceaf1;       /* sideBar.background */
+  --midiseq-editor-background: #ffffff;     /* derived */
+  --midiseq-ruler-background: #f4b4cc;      /* sideBarSectionHeader.background */
+  --midiseq-ruler-label: #535353;           /* fg-secondary, darkened */
+  --midiseq-roll-white: #ffffff;            /* derived */
+  --midiseq-roll-black: #faf7f7;            /* derived */
+  --midiseq-roll-band: #141e3c09;           /* derived */
+  --midiseq-piano-octave: #efebeb;          /* derived */
+  --midiseq-piano-white: #f6f3f3;           /* derived */
+  --midiseq-piano-black: #e8e2e3;           /* derived */
+  --midiseq-piano-edge: #d8cfd0;            /* derived */
+  --midiseq-piano-label: #5c6070;           /* derived */
+  --midiseq-editor-grid: #dfd7d8;           /* derived */
+  --midiseq-editor-grid-secondary: #ede8e9; /* derived */
+  --midiseq-record: #a31515;                /* syntax markup.deleted */
+  --midiseq-shadow: #0000001a;              /* built-in, widget.shadow being light */
+  --midiseq-highlight: #faf4f4;             /* derived */
+  --midiseq-green: #057f42;                 /* debugIcon.continueForeground */
+  --midiseq-red: #d16969;                   /* syntax punctuation.definition.group.regexp */
+  --midiseq-yellow: #795e26;                /* syntax entity.name.function */
+  --midiseq-step: #dfd7d8;                  /* derived */
+  --midiseq-step-rest: #e9babf;             /* derived from button.background */
+  --midiseq-step-skip: #f5eff0;             /* derived */
+  --midiseq-scrollbar: #00000040;           /* built-in */
+  --midiseq-scrollbar-hover: #00000073;     /* built-in */
+  --midiseq-jump-0: #795e26;                /* syntax entity.name.function */
+  --midiseq-jump-1: #328267;                /* syntax variable.other.constant */
+  --midiseq-jump-2: #974283;                /* breadcrumb.foreground */
+  --midiseq-jump-3: #008000;                /* syntax comment */
+  --midiseq-jump-4: #cd3131;                /* syntax invalid */
+  --midiseq-jump-5: #39007f;                /* breadcrumb.activeSelectionForeground */
+  --midiseq-jump-6: #5ea45b;                /* debugIcon.breakpointStackframeForeground, darkened */
+  --midiseq-jump-7: #267f99;                /* syntax meta.return-type */
+  --midiseq-collision-0: #ed3166;           /* activityBarBadge.background, darkened */
+  --midiseq-collision-1: #a17900;           /* built-in, darkened */
+  --midiseq-collision-2: #267f99;           /* syntax meta.return-type */
+  --midiseq-collision-3: #488f13;           /* built-in, darkened */
+  --midiseq-collision-4: #382c2e;           /* derived */
+  --midiseq-collision-5: #811f3f;           /* syntax constant.regexp */
+  --midiseq-voice-0: #1745c2;               /* syntax meta.diff.header, made vivid */
+  --midiseq-voice-1: #7f5c00;               /* syntax entity.name.function, made vivid */
+  --midiseq-voice-2: #008657;               /* syntax constant.numeric, made vivid */
+  --midiseq-voice-3: #a042c0;               /* syntax keyword.control, made vivid */
+  --midiseq-pace-band: #d3c4c6;             /* derived */
+  --midiseq-envelope: #ed3166;              /* button.background, darkened */
+  --midiseq-logo: #da4e88;                  /* built-in */
+}

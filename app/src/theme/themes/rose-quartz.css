@@ -1,0 +1,63 @@
+/* Rose Quartz, a light theme made from a VS Code theme by
+   `npm run theme`. Beside each colour is where it came from: a VS Code
+   colour, a syntax colour, or "derived" from the theme's background, text
+   and accent as the built-in light theme places it. Rerunning the
+   utility replaces this file, so a lasting change belongs in the utility or
+   the VS Code theme it reads. */
+:root[data-theme="rose-quartz"] {
+  --midiseq-theme: #d7827e;                 /* button.background, chosen */
+  --midiseq-on-surface: #000000;            /* derived */
+  --midiseq-fg: #575279;                    /* editor.foreground */
+  --midiseq-fg-secondary: #797593;          /* descriptionForeground */
+  --midiseq-fg-tertiary: #a39dae;           /* derived */
+  --midiseq-divider: #cfbda8;               /* derived */
+  --midiseq-popup-border: #e0d4c7;          /* derived */
+  --midiseq-background: #fff3e5;            /* editor.background, deepened */
+  --midiseq-background-secondary: #ffd1b5;  /* derived, dramatised */
+  --midiseq-background-dark: #f1dbc0;       /* derived, dramatised */
+  --midiseq-editor-background: #fff3e5;     /* sideBar.background, dramatised */
+  --midiseq-ruler-background: #c8b59f;      /* derived, dramatised */
+  --midiseq-ruler-label: #4a4662;           /* fg-secondary, darkened */
+  --midiseq-roll-white: #faf4ed;            /* derived */
+  --midiseq-roll-black: #f4ede4;            /* derived */
+  --midiseq-roll-band: #0b153909;           /* derived */
+  --midiseq-piano-octave: #e9e1d7;          /* derived */
+  --midiseq-piano-white: #f0e9e0;           /* derived */
+  --midiseq-piano-black: #e2d8ce;           /* derived */
+  --midiseq-piano-edge: #d1c6b9;            /* derived */
+  --midiseq-piano-label: #52576e;           /* derived */
+  --midiseq-editor-grid: #d8cec2;           /* derived */
+  --midiseq-editor-grid-secondary: #e7ded4; /* derived */
+  --midiseq-record: #b4637a;                /* errorForeground */
+  --midiseq-shadow: #0000001a;              /* built-in, widget.shadow being light */
+  --midiseq-highlight: #f8e9d7;             /* derived */
+  --midiseq-green: #00a350;                 /* built-in, darkened */
+  --midiseq-red: #b4637a;                   /* terminal.ansiRed */
+  --midiseq-yellow: #c67e00;                /* editorWarning.foreground, darkened */
+  --midiseq-step: #eccaad;                  /* derived, dramatised, lightened */
+  --midiseq-step-rest: #e99b96;             /* derived from button.background, chosen, dramatised */
+  --midiseq-step-skip: #ecd8c1;             /* derived, dramatised */
+  --midiseq-scrollbar: #6e6a8640;           /* scrollbarSlider.background, more opaque */
+  --midiseq-scrollbar-hover: #6e6a8673;     /* scrollbarSlider.hoverBackground, more opaque */
+  --midiseq-jump-0: #c67e00;                /* syntax meta.property-value.css, darkened */
+  --midiseq-jump-1: #56949f;                /* syntax entity.name.section */
+  --midiseq-jump-2: #c2447a;                /* built-in */
+  --midiseq-jump-3: #3f9a30;                /* built-in */
+  --midiseq-jump-4: #c1541f;                /* built-in */
+  --midiseq-jump-5: #575279;                /* syntax meta.tag */
+  --midiseq-jump-6: #869617;                /* built-in, darkened */
+  --midiseq-jump-7: #286983;                /* syntax constant */
+  --midiseq-collision-0: #b2615e;           /* syntax constant.numeric, darkened */
+  --midiseq-collision-1: #997300;           /* built-in, darkened */
+  --midiseq-collision-2: #286983;           /* syntax constant */
+  --midiseq-collision-3: #428803;           /* built-in, darkened */
+  --midiseq-collision-4: #352511;           /* derived */
+  --midiseq-collision-5: #d9268e;           /* built-in */
+  --midiseq-voice-0: #0097aa;               /* charts.blue, chosen, made vivid */
+  --midiseq-voice-1: #00a242;               /* gitlens.decorations.statusPausedOperationReadyForegroundColor, chosen, made vivid */
+  --midiseq-voice-2: #b97500;               /* terminal.ansiYellow, chosen, made vivid */
+  --midiseq-voice-3: #a35ce3;               /* charts.purple, chosen, made vivid */
+  --midiseq-pace-band: #baa080;             /* derived, dramatised */
+  --midiseq-envelope: #b3615e;              /* button.background, chosen, darkened */
+  --midiseq-logo: #d54a85;                  /* built-in, darkened */
+}

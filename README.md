@@ -139,6 +139,10 @@ every ticked output, so anything listening follows its tempo. In
 *tempo* from a clock arriving at a ticked input instead. Only the tempo:
 start and stop are ignored, so playing and stopping stay yours.
 
+**Themes.** **Settings → Theme** goes **Light**, **Dark**, or **System**,
+which follows your computer's light or dark setting. Under it you pick the
+dark theme and the light theme to wear, each from the themes of its kind.
+
 **The step editor** lists the selected step's notes by name, so you can add,
 remove, retune or transpose them by hand. A note can be typed as well as
 stepped — `G#5`, or just `D` to stay in the octave it is already on. Steps
@@ -254,6 +258,7 @@ few seconds, so a crash doesn't lose it.
 | `npm test` | all tests |
 | `npm run typecheck` | `tsc --noEmit` everywhere |
 | `npm run check` | Biome lint and format |
+| `npm run theme -- <theme.json>` | a theme from a VS Code theme (below) |
 
 - `packages/core` — the sequencer itself: entities, the engine, patch
   commands and the file format. No React, no MobX, fully unit-tested.
@@ -263,3 +268,64 @@ few seconds, so a crash doesn't lose it.
 The engine works in floating-point beats and hands the player timestamped
 events; the player schedules about 100 ms ahead from a Web Worker, so playback
 keeps time even when the tab is in the background.
+
+### Themes
+
+Every colour is a CSS variable, and a theme is a set of them selected by
+`data-theme` on the page. The defaults, Deep Harbor for dark and Overcast for
+light, live in `app/src/styles.css`. More can be made from any VS Code colour
+theme:
+
+```bash
+npm run theme -- path/to/theme.json --name "Midnight"
+```
+
+The theme's JSON can have comments, as VS Code's often do. The name defaults
+to the theme's own, or else its file's; `--id` and `--type dark|light`
+override what the utility works out. It needs Node 22.18 or later, which runs
+the TypeScript as it is.
+
+The two don't name the same things, and most VS Code themes set only some of
+their colours, so nothing is copied across one for one. A layout of the
+same kind, in `app/src/theme/layout.css`, is the pattern: how much darker
+the ruler is than the background, how far secondary text sits from primary,
+which hue each voice and jump has. That layout is rebuilt on the VS Code theme's background, text
+and accent. A VS Code colour is taken wherever it plays the same part and
+sits where ours does, the title bar for the top bar say, and the rest is
+tinted with the theme's hue.
+
+The accent, the colour controls light when they're on, is the theme's own
+mark for what's active: the active activity-bar or tab border, then its
+button and badge. Red is left to recording unless the theme's buttons are red
+themselves. A CC's envelope is drawn in the accent too. The voices take the
+theme's chart colours, then its terminal's blue, yellow, green and magenta,
+then its nearest syntax colours. Jumps and collision marks take the syntax
+colours nearest their built-in hues, no two alike, and none so close to the
+accent, recording or a voice as to be taken for it. Where a theme leaves a
+key to VS Code, the colour on its commented-out line (as VS Code exports
+them) stands in for the accent and the voices.
+
+Then everything is checked for legibility: text against its background, the
+step counts against the voice colours, the ruler's numbers against the ruler.
+Anything short of that is lightened or darkened just far enough.
+
+Where the utility's choices don't suit a theme, it can be told:
+
+| Option                        | Does                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `--drama 0-1`                 | Pushes the grid's steps and the backgrounds apart, and colours them more               |
+| `--accent key-or-colour`      | The accent, in place of the theme's own mark for what's active                         |
+| `--tint key-or-colour`        | What the drama draws the grid toward, in place of the accent                           |
+| `--voices a,b,c,d`            | The four voices, each a key or a colour, where the theme's names mislead               |
+| `--background key-or-colour`  | The background, in place of `editor.background`                                        |
+| `--set name=key-or-colour`    | Any of our colours outright, `--set ruler-label=#f7b83d` say; as many times as wanted |
+
+A key is one of the VS Code theme's, commented-out ones included. What was
+asked is kept in `themes.json`, so `--all` makes the theme the same way again.
+
+It writes `app/src/theme/themes/<id>.css`, with a comment beside each colour
+saying where it came from, and lists the theme in `themes.json`, which
+Settings → Theme reads, offering it among the dark themes or the light. The
+VS Code theme is kept beside it as `<id>.vscode.json`, so
+`npm run theme -- --all` can make every theme again: after a colour is added
+to the layout, say. A test fails until that has been done.
