@@ -8,10 +8,14 @@ import { App } from "../App/App"
 let rootStore: RootStore
 
 const patch = () => rootStore.sequencerStore.patch
+// The grid's panel holds the steps, the action buttons and the step editor.
+// Queries look there rather than the whole app: a role query names every
+// button it passes, and in jsdom that takes a computed style per element.
+const grid = () => within(screen.getByRole("region", { name: "Grid" }))
 const click = (name: string | RegExp) =>
-  fireEvent.click(screen.getByRole("button", { name }))
+  fireEvent.click(grid().getByRole("button", { name }))
 // the step editor, and so a step's jump, sits under the grid
-const stepEditor = () => within(screen.getByRole("region", { name: "Grid" }))
+const stepEditor = grid
 
 const setup = () => {
   rootStore = new RootStore({
@@ -89,8 +93,8 @@ describe("jumps", () => {
     click("Pick destination")
     click("Step 5")
 
-    const source = screen.getByRole("button", { name: "Step 1" })
-    const dest = screen.getByRole("button", { name: "Step 5" })
+    const source = grid().getByRole("button", { name: "Step 1" })
+    const dest = grid().getByRole("button", { name: "Step 5" })
     const colour = source.getAttribute("data-jump-source")
 
     expect(colour).toBeTruthy()
@@ -111,10 +115,10 @@ describe("jumps", () => {
     click("Pick destination")
     click("Step 6")
 
-    const first = screen
+    const first = grid()
       .getByRole("button", { name: "Step 1" })
       .getAttribute("data-jump-source")
-    const second = screen
+    const second = grid()
       .getByRole("button", { name: "Step 2" })
       .getAttribute("data-jump-source")
     expect(first).not.toBe(second)
@@ -167,9 +171,18 @@ describe("preview on click", () => {
 })
 
 describe("marking rests and skips", () => {
+  // the modes sit in the sequencer's panel, not the grid's
+  const clickMode = (name: "Rest" | "Skip") =>
+    fireEvent.click(
+      within(screen.getByRole("region", { name: "Sequencer" })).getByRole(
+        "button",
+        { name },
+      ),
+    )
+
   it("marks and unmarks steps while the mode is on", () => {
     setup()
-    click("Rest")
+    clickMode("Rest")
     click("Step 2")
     click("Step 3")
     expect(patch().steps[1].state).toBe("rest")
@@ -179,14 +192,14 @@ describe("marking rests and skips", () => {
     click("Step 2")
     expect(patch().steps[1].state).toBe("normal")
 
-    click("Rest")
+    clickMode("Rest")
     click("Step 4")
     expect(patch().steps[3].state).toBe("normal")
   })
 
   it("marks skips", () => {
     setup()
-    click("Skip")
+    clickMode("Skip")
     click("Step 6")
     expect(patch().steps[5].state).toBe("skip")
   })
@@ -195,7 +208,7 @@ describe("marking rests and skips", () => {
 describe("action buttons", () => {
   it("holds an action while the button is down", () => {
     setup()
-    const hang = screen.getByRole("button", { name: "Hang" })
+    const hang = grid().getByRole("button", { name: "Hang" })
 
     fireEvent.pointerDown(hang)
     expect(rootStore.player.actions.hang).toBe(true)
@@ -228,7 +241,7 @@ describe("action buttons", () => {
     setup()
     setLatch(true)
 
-    const bump = screen.getByRole("button", { name: "Bump" })
+    const bump = grid().getByRole("button", { name: "Bump" })
     fireEvent.pointerDown(bump)
     fireEvent.pointerUp(bump)
     expect(rootStore.player.actions.bump).toBe(true)
@@ -242,7 +255,7 @@ describe("action buttons", () => {
     setup()
     setLatch(true)
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Shift" }))
+    fireEvent.pointerDown(grid().getByRole("button", { name: "Shift" }))
     expect(rootStore.player.actions.shift).toBe(true)
 
     setLatch(false)
@@ -251,9 +264,16 @@ describe("action buttons", () => {
 })
 
 describe("step options", () => {
+  // a voice's dots sit in the patterns' panel
+  const patternDot = (n: number) =>
+    within(screen.getByRole("region", { name: "Patterns" })).getByRole(
+      "button",
+      { name: `Voice 1 Dot ${n}` },
+    )
+
   it("opens on a right-click and edits the dot", () => {
     setup()
-    const dot = screen.getByRole("button", { name: "Voice 1 Dot 2" })
+    const dot = patternDot(2)
     fireEvent.contextMenu(dot)
 
     const options = within(
@@ -280,7 +300,7 @@ describe("step options", () => {
 
   it("shows a dot's options on the dot itself", () => {
     setup()
-    const dot = () => screen.getByRole("button", { name: "Voice 1 Dot 2" })
+    const dot = () => patternDot(2)
     expect(dot()).toHaveAttribute("data-articulation", "none")
     expect(dot()).toHaveAttribute("data-chance", "false")
     expect(dot().textContent).toBe("")
@@ -315,14 +335,12 @@ describe("step options", () => {
 
   it("marks the dot being edited", () => {
     setup()
-    const dot = screen.getByRole("button", { name: "Voice 1 Dot 5" })
+    const dot = patternDot(5)
     expect(dot).toHaveAttribute("data-editing", "false")
 
     fireEvent.contextMenu(dot)
     expect(dot).toHaveAttribute("data-editing", "true")
-    expect(
-      screen.getByRole("button", { name: "Voice 1 Dot 6" }),
-    ).toHaveAttribute("data-editing", "false")
+    expect(patternDot(6)).toHaveAttribute("data-editing", "false")
 
     fireEvent.keyDown(window, { key: "Escape" })
     expect(dot).toHaveAttribute("data-editing", "false")
@@ -330,7 +348,7 @@ describe("step options", () => {
 
   it("closes on Escape", () => {
     setup()
-    fireEvent.contextMenu(screen.getByRole("button", { name: "Voice 1 Dot 1" }))
+    fireEvent.contextMenu(patternDot(1))
     expect(
       screen.getByRole("dialog", { name: "Voice 1 Dot 1" }),
     ).toBeInTheDocument()
