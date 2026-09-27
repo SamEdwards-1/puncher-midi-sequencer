@@ -7,6 +7,7 @@ import { Loading } from "../ui/Loading"
 import { MenuBarMenu, MenuItem } from "../ui/Menu"
 import { ExportMidiDialog } from "./ExportMidiDialog"
 import { ImportMidiDialog } from "./ImportMidiDialog"
+import { RenderAudioDialog } from "./RenderAudioDialog"
 
 export const FileMenu: FC = () => {
   const { newPatch, open, save, saveAs } = useFileActions()
@@ -15,6 +16,7 @@ export const FileMenu: FC = () => {
   const [exporting, setExporting] = useState<
     { kind: "sequence" } | { kind: "step"; step: number } | null
   >(null)
+  const [rendering, setRendering] = useState(false)
   const [selectedStep] = useSelectedStep()
   const loadMidiFile = useMidiFileLoader()
   // a MIDI file picked: being read, then waiting for its import options
@@ -64,6 +66,9 @@ export const FileMenu: FC = () => {
             >
               <Localized name="sequencer-file-export-step-midi" />
             </MenuItem>
+            <MenuItem close={close} onSelect={() => setRendering(true)}>
+              <Localized name="sequencer-file-render-audio" />
+            </MenuItem>
           </>
         )}
       </MenuBarMenu>
@@ -85,6 +90,7 @@ export const FileMenu: FC = () => {
           onClose={() => setExporting(null)}
         />
       )}
+      {rendering && <RenderAudioDialog onClose={() => setRendering(false)} />}
     </>
   )
 }

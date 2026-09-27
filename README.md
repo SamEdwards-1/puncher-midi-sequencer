@@ -63,8 +63,8 @@ settings (the icon at the left of the address bar), then press **Enable MIDI**.
 **Transport.** **Play** starts the sequencer and **Record** arms recording;
 stopping also silences anything still sounding. The tempo can be stepped or
 typed straight into. On the left, the **File** menu starts a new patch, opens
-and saves, imports MIDI, and exports it — the sequence or one step — and the
-**Edit** menu holds **Undo** and **Redo**.
+and saves, imports MIDI, exports it — the sequence or one step — and renders
+it to audio, and the **Edit** menu holds **Undo** and **Redo**.
 
 **Import MIDI.** **File → Import MIDI…** reads a MIDI file into the steps,
 saying it is reading while it does. Its dialog keeps a preview of the file
@@ -110,6 +110,21 @@ a folder or another app and it lands as that step's MIDI file, straight
 away. Dragging a file out needs Chrome or Edge. It's worked out instantly and silently, nothing is
 sent to your outputs, and chance and the random rules are rolled afresh each
 time, as they would be in a performance.
+
+**Render Audio.** **File → Render Audio…** plays the sequence from its start
+through the built-in sound's SoundFont — the one chosen in
+**Settings → SoundFont**, whichever outputs you play through — and writes it
+as a WAV or MP3 file. Name the file, then choose the sample rate (44.1 or
+48 kHz), the bit depth for a WAV (16-bit, 24-bit, or 32-bit float) or the
+bitrate for an MP3 (128–320 kbps), stereo or mono, how many passes, and a
+tail of up to ten seconds for the last notes and the reverb to ring out;
+the dialog shows how long that comes to. **Normalize**, on by default,
+brings the loudest moment up to −1 dB, as the synth on its own plays well
+under full level. **Render** asks where the file goes, then renders on a
+thread of its own, so the app stays responsive, showing how far along it is
+— loading the SoundFont, rendering, encoding — until the file is written.
+**Cancel** stops it. Chance and the random rules are rolled afresh, as for an
+export; the choices are kept for next time.
 
 **Recording.** Arm **Record**, click the step you want to start from, and play.
 A step fills to **Step notes** — four by default, one for each voice — and only
