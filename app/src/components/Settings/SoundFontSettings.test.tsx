@@ -85,6 +85,14 @@ describe("the SoundFont settings", () => {
     const { dialog } = await open()
     const list = within(dialog.getByRole("radiogroup", { name: "SoundFonts" }))
     expect(list.getByRole("radio", { name: FACTORY })).toBeChecked()
+    // credited as its licence asks
+    expect(
+      list.getByRole("radio", { name: FACTORY }),
+    ).toHaveAccessibleDescription("By Milton Paredes · GNU GPL v2")
+    expect(dialog.getByRole("link", { name: "GNU GPL v2" })).toHaveAttribute(
+      "href",
+      "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+    )
     // the app's own can't be removed
     expect(dialog.queryByRole("button", { name: /Remove/ })).toBeNull()
     expect(
