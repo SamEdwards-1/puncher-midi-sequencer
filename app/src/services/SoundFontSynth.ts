@@ -29,13 +29,8 @@ export interface SynthLike {
 
 export interface SoundFontSynthOptions {
   createSynth?: (context: AudioContext) => Promise<SynthLike>
-  fetchSoundFont?: () => Promise<ArrayBuffer>
   now?: () => number
 }
-
-// The GM set Signal uses, so the built-in sound needs nothing bundled.
-export const DEFAULT_SOUNDFONT_URL =
-  "https://cdn.jsdelivr.net/gh/ryohey/signal@6959f35/public/A320U.sf2"
 
 const defaultCreateSynth = async (
   context: AudioContext,
@@ -51,21 +46,18 @@ const defaultCreateSynth = async (
   return synth as unknown as SynthLike
 }
 
-const defaultFetchSoundFont = async (): Promise<ArrayBuffer> => {
-  const response = await fetch(DEFAULT_SOUNDFONT_URL)
-  if (!response.ok) {
-    throw new Error(`Couldn't fetch the SoundFont (${response.status})`)
-  }
-  return response.arrayBuffer()
-}
-
 /**
  * The built-in sound: a SoundFont synth on an AudioWorklet, voiced per MIDI
  * channel the way Signal voices its tracks. It takes the same bytes a MIDI
  * port does, so the router can send to it like any other output.
+ *
+ * It can be made, and given its SoundFont, while the audio context is still
+ * waiting for a click to start, so it is ready the moment one comes.
  */
 export class SoundFontSynth implements MIDISink {
   private synth: SynthLike | null = null
+  private created: Promise<SynthLike> | null = null
+  private loaded = false
 
   constructor(
     private readonly context: AudioContext,
@@ -73,21 +65,30 @@ export class SoundFontSynth implements MIDISink {
   ) {}
 
   get isLoaded(): boolean {
-    return this.synth !== null
+    return this.loaded
   }
 
-  async load() {
-    if (this.synth !== null) {
-      return
-    }
-    const create = this.options.createSynth ?? defaultCreateSynth
-    const fetchFont = this.options.fetchSoundFont ?? defaultFetchSoundFont
-
-    const synth = await create(this.context)
-    synth.connect(this.context.destination)
-    await synth.soundBankManager.addSoundBank(await fetchFont(), "main")
+  /** Swaps in a SoundFont, the first one or another. */
+  async loadSoundFont(data: ArrayBuffer) {
+    this.created ??= (this.options.createSynth ?? defaultCreateSynth)(
+      this.context,
+    ).then(
+      (synth) => {
+        synth.connect(this.context.destination)
+        return synth
+      },
+      (error) => {
+        // tried afresh next time, rather than failing for good
+        this.created = null
+        throw error
+      },
+    )
+    const synth = await this.created
+    // a copy, as the bytes may be handed over to the worklet's thread
+    await synth.soundBankManager.addSoundBank(data.slice(0), "main")
     await synth.isReady
     this.synth = synth
+    this.loaded = true
   }
 
   // Channels arrive 1-based, as the rest of the app uses them.

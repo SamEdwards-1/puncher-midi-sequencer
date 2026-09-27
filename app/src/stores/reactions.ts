@@ -21,6 +21,7 @@ export const registerReactions = (rootStore: RootStore) => {
     playbackSettings,
     recorder,
     sequencerStore,
+    soundFonts,
     synthStore,
   } = rootStore
 
@@ -44,27 +45,35 @@ export const registerReactions = (rootStore: RootStore) => {
     { fireImmediately: true, equals: sameAssignment },
   )
 
-  // Choosing the built-in sound starts it; the click that chose it counts as
-  // the gesture audio needs.
+  /**
+   * The built-in sound loads its SoundFont as soon as it is wanted, at
+   * startup when it was chosen last time, and again whenever another font is
+   * picked. Choosing it is a click, which lets its audio start; at startup
+   * the first click anywhere does.
+   */
   reaction(
     () => {
       const { outputNames } = midiDeviceStore
-      return [...outputNames.all, ...outputNames.voices].includes(
+      const wanted = [...outputNames.all, ...outputNames.voices].includes(
         BUILTIN_OUTPUT,
       )
+      return wanted ? soundFonts.selectedId : null
     },
-    (wanted) => {
-      if (wanted) {
-        void synthStore.enable()
+    (id) => {
+      if (id !== null) {
+        void synthStore.use(id, soundFonts.bytes)
+        synthStore.resume()
       }
     },
     { fireImmediately: true },
   )
 
-  // Each voice's instrument follows its channel and program.
+  // Each voice's instrument follows its channel and program, and is set
+  // again on each SoundFont loaded.
   reaction(
     () => ({
       ready: synthStore.synth,
+      font: synthStore.fontId,
       voices: sequencerStore.patch.voices.map((voice) => ({
         channel: voice.channel,
         program: voice.program,
@@ -79,6 +88,7 @@ export const registerReactions = (rootStore: RootStore) => {
       fireImmediately: true,
       equals: (a, b) =>
         a.ready === b.ready &&
+        a.font === b.font &&
         a.voices.every(
           (voice, index) =>
             voice.channel === b.voices[index].channel &&

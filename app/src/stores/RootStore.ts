@@ -14,6 +14,7 @@ import { PlaybackSettingsStore } from "./PlaybackSettingsStore"
 import { registerReactions } from "./reactions"
 import { SequencerStore } from "./SequencerStore"
 import { SettingsTabStore } from "./SettingsTabStore"
+import { SoundFontStore } from "./SoundFontStore"
 import { SynthStore } from "./SynthStore"
 
 export interface RootStoreOptions {
@@ -23,6 +24,7 @@ export interface RootStoreOptions {
   now?: () => number
   fileService?: FileService
   synthStore?: SynthStore
+  soundFonts?: SoundFontStore
   autoSave?: AutoSaveService
 }
 
@@ -40,6 +42,7 @@ export default class RootStore {
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
   readonly synthStore: SynthStore
+  readonly soundFonts: SoundFontStore
   readonly fileService: FileService
   readonly autoSave: AutoSaveService
 
@@ -67,6 +70,8 @@ export default class RootStore {
     )
     this.clockFollower = new ClockFollower(options.now)
     this.synthStore = options.synthStore ?? new SynthStore()
+    this.soundFonts =
+      options.soundFonts ?? new SoundFontStore(undefined, options.storage)
     this.fileService = options.fileService ?? new FileService()
     this.autoSave =
       options.autoSave ??
@@ -80,6 +85,8 @@ export default class RootStore {
 
   init() {
     void this.midiDeviceStore.connectOnStart()
+    void this.soundFonts.init()
+    this.synthStore.resumeOnGesture(window)
 
     // A patch left behind by a crash or a closed tab comes back as unsaved
     // work, rather than being lost.

@@ -7,16 +7,22 @@ import {
 export type SynthState = "off" | "loading" | "ready" | "error"
 
 /**
- * The built-in sound. Audio can only start from something the user did, so
- * the context and the SoundFont are created the first time it is chosen as
- * an output.
+ * The built-in sound. It is made, and given its SoundFont, as soon as it is
+ * wanted — at startup, if it was chosen last time — with its audio context
+ * waiting, since audio only starts from something the user did. The first
+ * click or key press starts it, by which time it has long since loaded.
  */
 export class SynthStore {
   state: SynthState = "off"
   error: string | null = null
   synth: SoundFontSynth | null = null
+  // the SoundFont it plays, once one has loaded
+  fontId: number | null = null
 
   private context: AudioContext | null = null
+  // made once; `synth` shows it to the router once it has a sound
+  private sound: SoundFontSynth | null = null
+  private request = 0
 
   constructor(
     private readonly createContext: () => AudioContext = () =>
@@ -27,27 +33,65 @@ export class SynthStore {
       state: observable,
       error: observable,
       synth: observable.ref,
+      fontId: observable,
     })
   }
 
-  // Safe to call whenever the built-in sound might be needed.
-  enable = async () => {
-    if (this.state === "loading" || this.state === "ready") {
-      await this.context?.resume()
+  /**
+   * Plays the SoundFont `id`, whose bytes `bytes` gives. Asked again before
+   * one has finished, only the last is loaded.
+   */
+  use = async (id: number, bytes: (id: number) => Promise<ArrayBuffer>) => {
+    if (id === this.fontId && this.state === "ready") {
       return
     }
+    const request = ++this.request
     this.state = "loading"
     this.error = null
     try {
       this.context ??= this.createContext()
-      await this.context.resume()
-      const synth = new SoundFontSynth(this.context, this.synthOptions)
-      await synth.load()
+      this.sound ??= new SoundFontSynth(this.context, this.synthOptions)
+      const synth = this.sound
+      const data = await bytes(id)
+      if (request !== this.request) {
+        return
+      }
+      await synth.loadSoundFont(data)
+      // it plays this one, whatever has been asked for since
       this.synth = synth
-      this.state = "ready"
+      this.fontId = id
+      if (request === this.request) {
+        this.state = "ready"
+      }
     } catch (error) {
+      if (request !== this.request) {
+        return
+      }
       this.error = error instanceof Error ? error.message : String(error)
       this.state = "error"
+    }
+  }
+
+  /** Starts the audio; it only takes, as browsers see it, during a gesture. */
+  resume = () => {
+    if (this.context !== null && this.context.state !== "running") {
+      void this.context.resume().catch(() => undefined)
+    }
+  }
+
+  /**
+   * Starts the audio with the user's first click or key press anywhere, as
+   * the one that chose the sound may have been in an earlier visit.
+   */
+  resumeOnGesture = (target: EventTarget) => {
+    const events = ["pointerdown", "keydown"]
+    for (const event of events) {
+      target.addEventListener(event, this.resume, { capture: true })
+    }
+    return () => {
+      for (const event of events) {
+        target.removeEventListener(event, this.resume, { capture: true })
+      }
     }
   }
 }

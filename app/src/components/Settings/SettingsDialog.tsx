@@ -22,6 +22,7 @@ import { Dialog } from "../ui/Dialog"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { MIDISettings } from "./MIDISettings"
+import { SoundFontSettings } from "./SoundFontSettings"
 
 const ROW = "grid grid-cols-[6rem_1fr] items-center gap-3"
 
@@ -222,6 +223,8 @@ export const SettingsDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
           <ThemeSettings />
         ) : tab === "midi" ? (
           <MIDISettings />
+        ) : tab === "soundfont" ? (
+          <SoundFontSettings />
         ) : tab === "export" ? (
           <ExportSettings />
         ) : (

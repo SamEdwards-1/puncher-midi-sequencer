@@ -204,6 +204,7 @@ export default {
     "sequencer-settings-general": "General",
     "sequencer-settings-theme": "Theme",
     "sequencer-settings-midi": "MIDI",
+    "sequencer-settings-soundfont": "SoundFont",
     "sequencer-settings-export": "MIDI Export",
     "sequencer-settings-import": "MIDI Import",
     "sequencer-settings-close": "Close",
@@ -268,6 +269,18 @@ export default {
       "Nothing is routed — pick an output in MIDI to hear this",
     "sequencer-synth-loading": "Starting the built-in sound…",
     "sequencer-synth-error": "The built-in sound didn't start:",
+    "sequencer-soundfont-hint":
+      "The sounds the built-in synth plays. Add your own SF2, SF3 or DLS files.",
+    "sequencer-soundfont-list": "SoundFonts",
+    "sequencer-soundfont-add": "Add",
+    "sequencer-soundfont-adding": "Adding…",
+    "sequencer-soundfont-remove": "Remove",
+    "sequencer-soundfont-loading": "Loading…",
+    "sequencer-soundfont-add-error": "Couldn't add it:",
+    "sequencer-soundfont-saved-notice":
+      "SoundFonts you add are saved in this browser.",
+    "sequencer-soundfont-off-hint":
+      "Heard once the built-in synth is chosen as an output in MIDI.",
     "sequencer-midi-no-outputs":
       "No MIDI outputs found. On Windows, create a port in loopMIDI.",
   },

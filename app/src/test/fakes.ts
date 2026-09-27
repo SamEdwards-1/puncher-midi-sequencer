@@ -49,3 +49,7 @@ export class FakeClock {
 
   now = () => this.time
 }
+
+// The start of a SoundFont, or with another kind, some other RIFF file.
+export const soundBank = (kind = "sfbk") =>
+  new TextEncoder().encode(`RIFF\0\0\0\0${kind}rest`).buffer as ArrayBuffer
