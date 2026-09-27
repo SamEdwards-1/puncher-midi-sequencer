@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
+import { makeScale } from "../../theory/scales"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -1012,6 +1013,16 @@ describe("clicking between steps", () => {
       expect(
         [...piano().querySelectorAll("text")].map((text) => text.textContent),
       ).toContain("C4")
+    })
+
+    it("tints the keys in the patch's scale", () => {
+      setup(ramp, (patch) => ({
+        ...setStepNotes(patch, 0, [60, 72]),
+        scale: makeScale(0, "major"),
+      }))
+      expect(keyAt(60)).toHaveAttribute("data-in-scale", "true")
+      expect(keyAt(61)).toHaveAttribute("data-in-scale", "false")
+      expect(keyAt(71)).toHaveAttribute("data-in-scale", "true")
     })
 
     it("collapses the scale to the keys the sequence plays, and back", () => {

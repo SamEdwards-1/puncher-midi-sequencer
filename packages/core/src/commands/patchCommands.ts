@@ -1,4 +1,5 @@
 import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
+import { ScaleJSON } from "../entities/scale"
 import {
   EnvelopeJSON,
   JumpJSON,
@@ -133,15 +134,42 @@ export const setStepNotes = (
     notes: [...new Set(notes.map(clampNote))].slice(0, MAX_NOTES_PER_STEP),
   })
 
-// A note past the step's limit would never sound, so it is refused.
+/**
+ * The first pitch from `target` the step doesn't hold yet, carrying on the
+ * way `direction` goes, or null when the keyboard runs out first.
+ */
+const freePitch = (
+  taken: (pitch: number) => boolean,
+  target: number,
+  direction: 1 | -1,
+): number | null => {
+  let free = target
+  while (taken(free)) {
+    free += direction
+    if (free < 0 || free > 127) {
+      return null
+    }
+  }
+  return free
+}
+
+/**
+ * A note past the step's limit would never sound, so it is refused. Moved up
+ * to the next free pitch if the step already holds it. A scale doesn't hold
+ * an edit to it; a note outside it is only marked.
+ */
 export const addStepNote = (
   patch: PatchJSON,
   index: StepIndex,
   note: number,
-): PatchJSON =>
-  patch.steps[index].notes.length >= patch.maxNotesPerStep
-    ? patch
-    : setStepNotes(patch, index, [...patch.steps[index].notes, note])
+): PatchJSON => {
+  const notes = patch.steps[index].notes
+  if (notes.length >= patch.maxNotesPerStep) {
+    return patch
+  }
+  const free = freePitch((pitch) => notes.includes(pitch), clampNote(note), 1)
+  return free === null ? patch : setStepNotes(patch, index, [...notes, free])
+}
 
 /**
  * Moving a note onto a pitch the step already holds would merge the two, so
@@ -161,13 +189,10 @@ export const setStepNote = (
     )
 
   const target = clampNote(note)
-  const step = target < notes[position] ? -1 : 1
-  let free = target
-  while (isTaken(free)) {
-    free += step
-    if (free < 0 || free > 127) {
-      return patch
-    }
+  const direction = target < notes[position] ? -1 : 1
+  const free = freePitch(isTaken, target, direction)
+  if (free === null) {
+    return patch
   }
 
   return setStepNotes(
@@ -198,6 +223,16 @@ export const transposeStep = (
     index,
     patch.steps[index].notes.map((note) => note + semitones),
   )
+
+/**
+ * The scale the patch is in, or none. The notes the steps hold are let be:
+ * those outside it are only marked, and the scale's `fit` waits for the
+ * notes imported or recorded.
+ */
+export const setScale = (
+  patch: PatchJSON,
+  scale: ScaleJSON | null,
+): PatchJSON => ({ ...patch, scale })
 
 // Unique across the patch, so an envelope keeps its identity when its step
 // is copied elsewhere.

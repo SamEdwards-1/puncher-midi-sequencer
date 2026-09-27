@@ -610,6 +610,7 @@ export const EnvelopeGraph: FC<{
         <PianoKeys
           rows={rows}
           collapsed={collapsed}
+          scale={patch.scale}
           height={GRAPH_HEIGHT}
           pad={PAD}
         />

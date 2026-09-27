@@ -164,6 +164,23 @@ const ImportSettings: FC = () => {
       />
       <div className="mt-2 flex items-center gap-3">
         <span className="text-small">
+          <Localized name="sequencer-import-min-velocity" />
+        </span>
+        <div className="w-32 flex-none">
+          <Stepper
+            label={localized["sequencer-import-min-velocity"]}
+            value={settings.minVelocity}
+            min={1}
+            max={127}
+            onChange={(value) => settings.set("minVelocity", value)}
+          />
+        </div>
+        <span className="text-small text-fg-tertiary">
+          <Localized name="sequencer-import-min-velocity-note" />
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <span className="text-small">
           <Localized name="sequencer-import-snap-setting" />
         </span>
         <div className="flex gap-1">

@@ -10,7 +10,7 @@ export const PATTERNS_VERSION = 1
 export const PATTERNS_EXTENSION = ".midiseqpat.json"
 
 // A voice whole: its dots and every setting that shapes how it plays them —
-// pace, length, rule, offset, velocity, channel, instrument. The sequencer
+// pace, length, rule, offset and its fit, velocity, channel, instrument. The sequencer
 // and its steps stay with the patch, so a set of voices can be tried against
 // another sequence. Files from before the settings came along hold only the
 // dots and their length; those still open, and change only that.

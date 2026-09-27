@@ -34,6 +34,7 @@ import {
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
+import { FitSelect } from "../Scale/ScalePicker"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
@@ -274,6 +275,14 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
             onChange={(offset) =>
               editVoice(selected, { offset }, `offset-${selected}`)
             }
+          />
+        </Field>
+
+        <Field label={localized["sequencer-voice-offset-fit"]}>
+          <FitSelect
+            value={voice.offsetFit}
+            scale={patch.scale}
+            onChange={(offsetFit) => editVoice(selected, { offsetFit })}
           />
         </Field>
 

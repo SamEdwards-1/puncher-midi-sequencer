@@ -3,6 +3,7 @@ import { stepCount } from "../engine/loopRange"
 import { dropRepeats } from "../entities/envelope"
 import { MAX_NOTE_NUMBER, MIN_NOTE_NUMBER } from "../entities/noteName"
 import { MAX_PACE_BEATS } from "../entities/paces"
+import { fitToScale, ScaleJSON } from "../entities/scale"
 import {
   EnvelopeJSON,
   NOTES_PER_STEP,
@@ -109,7 +110,8 @@ export const midiCCs = (midi: ImportedMidi): MidiFileCC[] => {
  * Every note of every track in one list, by start and then key, kept as
  * columns of numbers — its start and end in beats, its key and channel,
  * and which of `sources` it belongs to — so going through them all, on
- * every drag of the range, is quick; the longest note's length, so what
+ * every drag of the range, is quick; each note's velocity too; the
+ * longest note's length, so what
  * sounds at a time can be found from the start times alone; each
  * controller's changes in time order; and the parts and controllers to
  * choose from.
@@ -120,6 +122,7 @@ export interface PreparedMidi {
   starts: Float64Array
   ends: Float64Array
   keys: Uint8Array
+  velocities: Uint8Array
   channels: Uint8Array
   sourceOf: Uint16Array
   longest: number
@@ -142,15 +145,17 @@ export const prepareMidi = (midi: ImportedMidi): PreparedMidi => {
   const starts = new Float64Array(count)
   const ends = new Float64Array(count)
   const keys = new Uint8Array(count)
+  const velocities = new Uint8Array(count)
   const channels = new Uint8Array(count)
   const sourceOf = new Uint16Array(count)
   let at = 0
   let longest = 0
   for (const track of midi.tracks) {
-    for (const { channel, note, start, end } of track.notes) {
+    for (const { channel, note, velocity, start, end } of track.notes) {
       starts[at] = start
       ends[at] = end
       keys[at] = note
+      velocities[at] = velocity
       channels[at] = channel
       sourceOf[at] =
         sourceIndex.get(sourceKey({ track: track.index, channel })) ?? 0
@@ -195,6 +200,7 @@ export const prepareMidi = (midi: ImportedMidi): PreparedMidi => {
     starts: sorted(starts),
     ends: sorted(ends),
     keys: sorted(keys),
+    velocities: sorted(velocities),
     channels: sorted(channels),
     sourceOf: sorted(sourceOf),
     longest,
@@ -242,6 +248,11 @@ export interface MidiImportOptions {
   loop: boolean
   // the tempo to take, or null to keep the patch's
   bpm: number | null
+  // the quietest a note may be played and still go in, 1 taking them all
+  minVelocity?: number
+  // the scale the notes are fitted to, which the patch then keeps; none
+  // takes the patch's away, and leaving it out leaves the patch's be
+  scale?: ScaleJSON | null
 }
 
 /**
@@ -256,6 +267,8 @@ export interface ImportChunk {
 }
 
 // What became of a note, where it isn't dealt into a step.
+export const NOTE_QUIET = -5
+export const NOTE_OFF_SCALE = -4
 export const NOTE_UNCHOSEN = -3
 export const NOTE_FILTERED = -2
 export const NOTE_OUTSIDE = -1
@@ -263,9 +276,12 @@ export const NOTE_OUTSIDE = -1
 export interface Dealt {
   chunks: ImportChunk[]
   // one for each prepared note: the chunk it went to, or why it went
-  // nowhere — its part wasn't chosen, the filter kept it out, or it starts
-  // outside the stretch
+  // nowhere — its part wasn't chosen, the filter kept it out, it was
+  // played too softly, it starts outside the stretch, or the scale leaves
+  // it out
   fates: Int32Array
+  // how many of the notes dealt the scale moved
+  shifted: number
 }
 
 /**
@@ -275,16 +291,27 @@ export interface Dealt {
  * each key once, as recording does: a note it already has adds nothing, and
  * it waits for the rest. Every note's fate is kept, for the preview. The
  * filter is the MIDI input's: a note's channel and key as it is, then
- * transposed, dropped if that takes it off the keyboard.
+ * transposed, dropped if that takes it off the keyboard. Notes played
+ * more softly than `minVelocity` are left out. A scale then fits
+ * what is left: a note outside it moved up or down to the nearest in it, or
+ * left out.
  */
 export const dealNotes = (
   prepared: PreparedMidi,
   options: Pick<
     MidiImportOptions,
-    "sources" | "start" | "end" | "notesPerStep" | "filter"
+    | "sources"
+    | "start"
+    | "end"
+    | "notesPerStep"
+    | "filter"
+    | "minVelocity"
+    | "scale"
   >,
 ): Dealt => {
-  const { count, starts, keys, channels, sourceOf } = prepared
+  const scale = options.scale ?? null
+  const minVelocity = options.minVelocity ?? 1
+  const { count, starts, keys, velocities, channels, sourceOf } = prepared
   const chosen = new Uint8Array(prepared.sources.length)
   const wanted = new Set(options.sources.map(sourceKey))
   prepared.sources.forEach((source, index) => {
@@ -305,6 +332,7 @@ export const dealNotes = (
   const per = Math.max(1, options.notesPerStep)
 
   const fates = new Int32Array(count)
+  let shifted = 0
   const chunkStarts: number[] = []
   const chunkKeys: number[][] = []
   let current: number[] | null = null
@@ -314,21 +342,35 @@ export const dealNotes = (
       continue
     }
     const key = keys[index]
-    const moved = key + transpose
+    const transposed = key + transpose
     if (
       heard[channels[index]] === 0 ||
       key < low ||
       key > high ||
-      moved < MIN_NOTE_NUMBER ||
-      moved > MAX_NOTE_NUMBER
+      transposed < MIN_NOTE_NUMBER ||
+      transposed > MAX_NOTE_NUMBER
     ) {
       fates[index] = NOTE_FILTERED
+      continue
+    }
+    if (velocities[index] < minVelocity) {
+      fates[index] = NOTE_QUIET
       continue
     }
     const start = starts[index]
     if (start < options.start || start >= options.end) {
       fates[index] = NOTE_OUTSIDE
       continue
+    }
+    // fitted to the scale last, as the note the filter hands on
+    const moved =
+      scale === null ? transposed : fitToScale(scale, transposed, scale.fit)
+    if (moved === null) {
+      fates[index] = NOTE_OFF_SCALE
+      continue
+    }
+    if (moved !== transposed) {
+      shifted++
     }
     if (current === null) {
       current = []
@@ -352,7 +394,40 @@ export const dealNotes = (
       end: chunkStarts[index + 1] ?? options.end,
     })),
     fates,
+    shifted,
   }
+}
+
+/**
+ * How much each pitch class sounds among the notes an import would take,
+ * before any scale fits them — chosen, through the filter, loud enough and
+ * starting in the stretch — by how long each lasts: what a scale is found from.
+ */
+export const importPitchWeights = (
+  prepared: PreparedMidi,
+  options: Pick<
+    MidiImportOptions,
+    "sources" | "start" | "end" | "filter" | "minVelocity"
+  >,
+): number[] => {
+  const { fates } = dealNotes(prepared, {
+    ...options,
+    notesPerStep: NOTES_PER_STEP,
+    scale: null,
+  })
+  const transpose = options.filter?.transpose ?? 0
+  const weights = new Array<number>(12).fill(0)
+  for (let index = 0; index < prepared.count; index++) {
+    if (fates[index] >= 0) {
+      const key = prepared.keys[index] + transpose
+      // a note of no length still counts for something
+      weights[key % 12] += Math.max(
+        1 / 16,
+        prepared.ends[index] - prepared.starts[index],
+      )
+    }
+  }
+  return weights
 }
 
 export interface ImportPlan extends Dealt {
@@ -395,7 +470,9 @@ export const importPlan = (
  * the value in force as it opens and timed in beats from there, as
  * envelopes are. A filled step's notes and envelopes are replaced and it
  * plays normally; its jump is kept. Step Notes becomes the count dealt, and
- * the tempo the file's if asked; the pace is left alone.
+ * the tempo the file's if asked; the pace is left alone. A scale the notes
+ * were fitted to is kept by the patch; the steps the import doesn't fill
+ * keep their notes as they are.
  */
 export const importMidi = (
   patch: PatchJSON,
@@ -459,6 +536,7 @@ export const importMidi = (
       NOTES_PER_STEP,
       Math.max(1, options.notesPerStep),
     ),
+    scale: options.scale === undefined ? patch.scale : options.scale,
     tempo:
       options.bpm === null
         ? patch.tempo

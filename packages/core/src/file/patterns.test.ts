@@ -59,6 +59,7 @@ describe("pattern files", () => {
       "enabled",
       "length",
       "offset",
+      "offsetFit",
       "pace",
       "pattern",
       "patternLength",

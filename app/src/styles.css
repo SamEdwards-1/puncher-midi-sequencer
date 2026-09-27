@@ -177,6 +177,8 @@
   --color-editor-grid: var(--midiseq-editor-grid);
   --color-editor-grid-secondary: var(--midiseq-editor-grid-secondary);
   --color-record: var(--midiseq-record);
+  /* the themes take errorForeground as the record colour */
+  --color-error: var(--midiseq-record);
   --color-highlight: var(--midiseq-highlight);
   --color-green: var(--midiseq-green);
   --color-red: var(--midiseq-red);

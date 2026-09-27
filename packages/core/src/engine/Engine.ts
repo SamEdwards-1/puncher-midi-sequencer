@@ -1,5 +1,6 @@
 import { envelopeShape, valueAt } from "../entities/envelope"
 import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
+import { fitToScale, ScaleFit } from "../entities/scale"
 import {
   ModSource,
   PatchJSON,
@@ -492,13 +493,14 @@ export class Engine {
       return
     }
 
-    const note = clamp(
-      picked.note +
-        voice.offset +
-        (this.actions.shift ? this.patch.shiftAmt : 0),
-      0,
-      127,
-    )
+    const offset = this.transposed(picked.note, voice.offset, voice.offsetFit)
+    const note =
+      offset !== null && this.actions.shift
+        ? this.transposed(offset, this.patch.shiftAmt, this.patch.shiftFit)
+        : offset
+    if (note === null) {
+      return
+    }
     const velocity = playedVelocity(
       voice.velocity,
       this.accentAmount,
@@ -568,6 +570,21 @@ export class Engine {
       beat,
       events,
     )
+  }
+
+  // A note moved by the voice's offset or the shift. A note that moves is
+  // fitted to the patch's scale as that move's fit says, or null where the
+  // fit leaves it out; one that stays plays as written, in the scale or not.
+  private transposed(
+    note: number,
+    semitones: number,
+    fit: ScaleFit,
+  ): number | null {
+    const moved = clamp(note + semitones, 0, 127)
+    const { scale } = this.patch
+    return semitones === 0 || scale === null
+      ? moved
+      : fitToScale(scale, moved, fit)
   }
 
   // Extra sustain contributed by the hold dots that follow this one.

@@ -5,6 +5,7 @@ import {
   EnvelopePointJSON,
   EnvelopeShape,
   envelopeShape,
+  fitToScale,
   isControlPosition,
   nextEnvelopeId,
   paceBeats,
@@ -141,7 +142,14 @@ export class MIDIRecorder {
     }
   }
 
-  private record(note: number) {
+  private record(played: number) {
+    // fitted to the patch's scale, as its fit says; a note the fit leaves
+    // out is not written at all
+    const { scale } = this.sequencerStore.patch
+    const note = scale === null ? played : fitToScale(scale, played, scale.fit)
+    if (note === null) {
+      return
+    }
     // A step keeps each pitch once, so playing one it already has adds
     // nothing and leaves the step waiting for the rest of its notes.
     if (this.written?.includes(note) === true) {

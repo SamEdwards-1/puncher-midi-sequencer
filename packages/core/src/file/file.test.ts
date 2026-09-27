@@ -21,7 +21,14 @@ const everySettingChanged = (): PatchJSON => {
     pace: "16thT",
     direction: "random+",
     shiftAmt: -7,
+    shiftFit: "down",
     tempo: 93.5,
+    scale: {
+      tonic: 9,
+      name: "harmonicMinor",
+      steps: [0, 2, 3, 5, 7, 8, 11],
+      fit: "exclude",
+    },
     steps: patch.steps.map((step, index) =>
       index === 5
         ? {
@@ -50,6 +57,7 @@ const everySettingChanged = (): PatchJSON => {
       length: 0.35,
       rule: pick(["fall", "updown+", "random", "highest"] as const, index),
       offset: index * 5 - 12,
+      offsetFit: pick(["exclude", "ignore", "down", "exclude"] as const, index),
       patternLength: 3 + index * 4,
       pattern: voice.pattern.map((_, dot) => ({
         on: (dot + index) % 3 !== 0,
@@ -138,6 +146,26 @@ describe("the file format", () => {
     expect(saved(16)).toBe(4)
     // and from when it was fixed at four and not written at all
     expect(saved(undefined)).toBe(4)
+  })
+
+  it("fits the offset and shift up in a file from before they had fits", () => {
+    const file = JSON.parse(serializeFile(createFile(createDemoPatch())))
+    delete file.patch.shiftFit
+    for (const voice of file.patch.voices) {
+      delete voice.offsetFit
+    }
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.patch.shiftFit).toBe("up")
+      expect(result.patch.voices.map((voice) => voice.offsetFit)).toEqual([
+        "up",
+        "up",
+        "up",
+        "up",
+      ])
+    }
   })
 
   it("opens a file of CC events as one-point envelopes", () => {

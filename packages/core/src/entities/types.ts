@@ -1,4 +1,5 @@
 import type { PaceId } from "./paces"
+import type { ScaleFit, ScaleJSON } from "./scale"
 
 export type StepIndex = number
 export type VoiceIndex = 0 | 1 | 2 | 3
@@ -136,6 +137,8 @@ export interface VoiceJSON {
   length: number
   rule: VoiceRule
   offset: number
+  // how a note the offset moves out of the patch's scale is fitted to it
+  offsetFit: ScaleFit
   patternLength: number
   pattern: PatternStepJSON[]
   velocity: number
@@ -174,7 +177,12 @@ export interface PatchJSON {
   pace: PaceId
   direction: Direction
   shiftAmt: number
+  // how a note the shift moves out of the scale is fitted to it
+  shiftFit: ScaleFit
   tempo: number
+  // the scale the patch is in, if any: notes outside it are marked, and
+  // those imported or recorded are fitted to it as its fit says
+  scale: ScaleJSON | null
   steps: StepJSON[]
   voices: VoiceJSON[]
   modOuts: ModOutJSON[]
