@@ -394,7 +394,7 @@ describe("Engine", () => {
       expect(ccs(engine.render(1.1))).toEqual([{ beat: 1 + 1 / 48, value: 40 }])
     })
 
-    it("plays out once and then holds while Hang keeps the step", () => {
+    it("plays out once and then holds while Hold keeps the step", () => {
       patch.steps[0].envelopes = [
         envelope([
           { time: 0, value: 0 },
@@ -404,7 +404,7 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       engine.render(0.5)
-      engine.setActions({ hang: true })
+      engine.setActions({ hold: true })
       const later = ccs(engine.render(3.9))
       // the rest of the first step's line, then nothing more
       expect(later.at(-1)).toEqual({ beat: 47 / 48, value: 47 })
@@ -469,18 +469,18 @@ describe("Engine", () => {
   })
 
   describe("actions", () => {
-    it("hang freezes the step while the voice keeps playing", () => {
+    it("hold freezes the step while the voice keeps playing", () => {
       const engine = new Engine(patch)
       engine.start(0)
       engine.render(0.1)
-      engine.setActions({ hang: true })
+      engine.setActions({ hold: true })
       const held = engine.render(2.9)
 
       expect(positions(held)).toEqual([])
       expect(notesOn(held)).toEqual([60, 60])
 
-      // releasing hang resumes in phase rather than catching up
-      engine.setActions({ hang: false })
+      // releasing hold resumes in phase rather than catching up
+      engine.setActions({ hold: false })
       expect(positions(engine.render(3.1))).toEqual([1])
     })
 
@@ -565,24 +565,61 @@ describe("Engine", () => {
       })
     })
 
-    it("bump inverts sync voices while held", () => {
-      patch.pace = "2nd"
-      patch.steps[0].notes = [60, 64, 67]
-      patch.steps[1].notes = [60, 64, 67]
-      patch.voices[0].rule = "up"
+    describe("sync", () => {
+      // a step every two beats; the voice arpeggiates a note a beat
+      beforeEach(() => {
+        patch.pace = "2nd"
+        patch.steps[0].notes = [60, 64, 67]
+        patch.steps[1].notes = [60, 64, 67]
+        patch.voices[0].rule = "up"
+      })
 
-      const running = new Engine(patch)
-      running.start(0)
-      expect(notesOn(running.render(1.9))).toEqual([60, 64])
-      // with sync off the arpeggio carries on over the step change
-      expect(notesOn(running.render(3.9))).toEqual([67, 60])
+      it("plays the selected voice a note a step while it is held", () => {
+        const engine = new Engine(patch)
+        engine.setActions({ sync: true })
+        engine.start(0)
+        const events = engine.render(3.9)
+        expect(notesOn(events)).toEqual([60, 64])
+        expect(beatsOf(events, "noteOn")).toEqual([0, 2])
+        // the gate is the voice's length of the sequencer's step
+        expect(beatsOf(events, "noteOff")).toEqual([1, 3])
+      })
 
-      const bumped = new Engine(patch)
-      bumped.start(0)
-      bumped.render(1.9)
-      bumped.setActions({ bump: true })
-      // bump switches sync on, so the next step restarts the arpeggio
-      expect(notesOn(bumped.render(3.9))).toEqual([60, 64])
+      it("leaves the voices that aren't selected at their own pace", () => {
+        const engine = new Engine(patch)
+        engine.setActions({ sync: true })
+        engine.selectedVoice = 1
+        engine.start(0)
+        expect(notesOn(engine.render(3.9))).toEqual([60, 64, 67, 60])
+      })
+
+      it("waits for the next step when it goes on in the middle of one", () => {
+        const engine = new Engine(patch)
+        engine.start(0)
+        expect(notesOn(engine.render(0.9))).toEqual([60])
+        engine.setActions({ sync: true })
+        expect(beatsOf(engine.render(3.9), "noteOn")).toEqual([2])
+      })
+
+      it("picks the voice's own pace up again as soon as it lets go", () => {
+        const engine = new Engine(patch)
+        engine.setActions({ sync: true })
+        engine.start(0)
+        engine.render(2.1)
+        engine.setActions({ sync: false })
+        expect(beatsOf(engine.render(3.9), "noteOn")).toEqual([3])
+      })
+
+      it("keeps to the sequencer's pace while Hold keeps the step", () => {
+        const engine = new Engine(patch)
+        engine.setActions({ sync: true })
+        engine.start(0)
+        engine.render(0.1)
+        engine.setActions({ hold: true })
+        const held = engine.render(5.9)
+        expect(positions(held)).toEqual([])
+        expect(beatsOf(held, "noteOn")).toEqual([2, 4])
+      })
     })
   })
 

@@ -41,6 +41,8 @@ export interface EngineRuntime {
   // the first sequencer tick lands on the current step instead of advancing
   pendingFirstStep: boolean
   nextSeqBeat: number
+  // where the sequencer last ticked, landing a step or holding one
+  seqBeat: number
   directionState: DirectionState
   jumpCounts: number[]
   lastJumpResult: boolean | null
@@ -63,6 +65,7 @@ export const createRuntime = (patch: PatchJSON): EngineRuntime => ({
   position: 0,
   pendingFirstStep: true,
   nextSeqBeat: 0,
+  seqBeat: Number.NEGATIVE_INFINITY,
   directionState: initialDirectionState(patch.direction),
   jumpCounts: Array.from({ length: patch.steps.length }, () => 0),
   lastJumpResult: null,

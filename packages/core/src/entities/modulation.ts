@@ -103,8 +103,8 @@ export const modulationChoices = (
       return PATTERN_LENGTHS
     case "scale":
       return SCALES
-    case "hang":
-    case "bump":
+    case "hold":
+    case "sync":
     case "flip":
     case "shift":
       return ACTION_STATES
@@ -491,7 +491,7 @@ export interface ModulatedSetting {
 /**
  * Every setting `step` modulates, `time` beats in, and what it has them at:
  * those with an envelope for their CC on the step. The sequencer's pace and
- * a voice's Bump are as the step landed, since that is the only time they
+ * a voice's Sync are as the step landed, since that is the only time they
  * are read.
  */
 export const modulatedSettings = (
@@ -503,7 +503,7 @@ export const modulatedSettings = (
     const { target, cc } = modulation
     const landed =
       (target.kind === "sequencer" && target.setting === "pace") ||
-      target.setting === "bump"
+      target.setting === "sync"
     const ccValue = envelopeCC(patch.steps[step], cc, landed ? 0 : time)
     return ccValue === null
       ? []

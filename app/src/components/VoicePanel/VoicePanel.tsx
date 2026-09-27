@@ -55,7 +55,7 @@ import { Toggle } from "../ui/Toggle"
 import { StepOptions } from "./StepOptions"
 
 const TAB =
-  "h-9 flex-1 border-b-[0.15rem] bg-transparent text-body hover:bg-highlight"
+  "flex h-9 flex-1 items-center justify-center gap-[0.4rem] whitespace-nowrap border-b-[0.15rem] bg-transparent text-body hover:bg-highlight"
 
 const DOT =
   "relative aspect-square rounded-full border-2 font-mono text-micro leading-none transition-transform duration-100"
@@ -191,7 +191,6 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
             type="button"
             data-active={index === selected}
             data-enabled={patch.voices[index].enabled}
-            aria-label={`${localized["sequencer-voice"]} ${index + 1}`}
             className={cn(
               TAB,
               index === selected
@@ -202,7 +201,12 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
             style={voiceColor(index)}
             onClick={() => setSelected(index)}
           >
-            {index + 1}
+            {/* the voice's colour, as its dots and notes have it */}
+            <span
+              aria-hidden
+              className="h-2 w-2 flex-none rounded-full bg-voice"
+            />
+            {localized["sequencer-voice"]} {index + 1}
           </button>
         ))}
       </div>

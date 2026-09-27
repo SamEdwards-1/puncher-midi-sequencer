@@ -16,6 +16,7 @@ import {
   sameModulationValue,
   sameTarget,
   stepPace,
+  VoiceIndex,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
@@ -150,7 +151,13 @@ export class SequencerPlayer {
     this.engine.setActions(actions)
   }
 
-  // Hang, Bump, Flip and Shift, held or latched from the UI.
+  // The voice Sync keeps to the sequencer's pace: the one the UI has
+  // selected.
+  setSelectedVoice = (voice: VoiceIndex) => {
+    this.engine.selectedVoice = voice
+  }
+
+  // Hold, Sync, Flip and Shift, held or latched from the UI.
   setAction = (action: keyof EngineActions, held: boolean) => {
     this.setActions({ [action]: held })
   }

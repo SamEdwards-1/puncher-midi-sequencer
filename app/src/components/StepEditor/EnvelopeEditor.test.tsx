@@ -427,23 +427,17 @@ describe("the envelope editor", () => {
       ])
     })
 
-    it("switches tools with B while the graph has focus, leaving Bump alone", () => {
+    it("switches tools with B while the graph has focus", () => {
       setup()
       const draw = screen.getByRole("button", { name: "Draw" })
       frame().focus()
 
       fireEvent.keyDown(frame(), { code: "KeyB" })
       expect(draw).toHaveAttribute("aria-pressed", "true")
-      expect(rootStore.player.actions.bump).toBe(false)
       fireEvent.keyUp(frame(), { code: "KeyB" })
 
       fireEvent.keyDown(frame(), { code: "KeyB" })
       expect(draw).toHaveAttribute("aria-pressed", "false")
-
-      // anywhere else, B is still Bump
-      fireEvent.keyDown(document.body, { code: "KeyB" })
-      expect(rootStore.player.actions.bump).toBe(true)
-      fireEvent.keyUp(document.body, { code: "KeyB" })
     })
   })
 
@@ -755,7 +749,6 @@ describe("the envelope editor", () => {
       frame().focus()
       fireEvent.keyDown(frame(), { code: "KeyB" })
       expect(frame()).toHaveAttribute("data-tool", "draw")
-      expect(rootStore.player.actions.bump).toBe(false)
       fireEvent.keyUp(frame(), { code: "KeyB" })
     })
 

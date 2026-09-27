@@ -4,16 +4,12 @@ import { FC, MouseEvent as ReactMouseEvent, useRef, useState } from "react"
 import { useStores } from "../../hooks/useStores"
 import { observeDrag } from "../StepEditor/observeDrag"
 import { cn } from "./cn"
+import { dragTravel } from "./dragSpeed"
 
 const STEP =
   "flex h-[1.6rem] w-[1.6rem] items-center justify-center rounded-sm bg-background-secondary text-fg enabled:hover:bg-highlight disabled:text-fg-tertiary"
 
 const VALUE = "grow text-center font-mono text-body"
-
-// A drag up or down the typed-in value steps it: a short range gets more
-// room per step, a long one less, so either can be crossed in a few hundred
-// pixels without a small one leaping about.
-const dragPixels = (steps: number) => Math.min(12, Math.max(2, 240 / steps))
 
 // A plain number is typed as one: "3", "+3" and "3.2" all read as 3.
 const parseWhole = (text: string) => {
@@ -69,7 +65,8 @@ export const Stepper: FC<StepperProps> = ({
     }
     event.preventDefault()
     const from = value
-    const pixels = dragPixels((max - min) / step)
+    // a slow drag steps by one, a quick one sweeps the range
+    const travel = dragTravel((max - min) / step)
     let held = false
     dragged.current = from
     observeDrag(event.nativeEvent, {
@@ -77,8 +74,16 @@ export const Stepper: FC<StepperProps> = ({
         if (!held) {
           held = true
           history?.hold()
+          // the mouse is hidden, and the page ignores it, until the drag ends
+          document.documentElement.dataset.midiseqDragging = ""
         }
-        const next = clamp(from - Math.round(y / pixels) * step)
+        const travelled = from + Math.round(travel.move(y)) * step
+        const next = clamp(travelled)
+        // Only a drag past a limit is pulled back to it. One that merely
+        // starts at a limit moves off it, however small its first moves.
+        if (next !== travelled) {
+          travel.set((next - from) / step)
+        }
         if (next !== dragged.current) {
           dragged.current = next
           onChange(next)
@@ -87,6 +92,7 @@ export const Stepper: FC<StepperProps> = ({
       onUp: () => {
         if (held) {
           history?.release()
+          delete document.documentElement.dataset.midiseqDragging
         }
       },
       onClick: () => input.focus(),

@@ -435,8 +435,8 @@ describe("modulating an action", () => {
   it("offers a gear on each action's button under the grid, and none on the title bar's icons", () => {
     setup()
     for (const name of [
-      "Actions · Hang",
-      "Voice 1 · Bump",
+      "Actions · Hold",
+      "Voice 1 · Sync",
       "Actions · Flip",
       "Actions · Shift",
     ]) {
@@ -480,37 +480,37 @@ describe("modulating an action", () => {
     expect(gear("Actions · Flip")).toHaveAttribute("data-modulated", "true")
   })
 
-  it("gives Bump to the voice selected, so each voice has its own", () => {
+  it("gives Sync to the voice selected, so each voice has its own", () => {
     setup()
-    fireEvent.click(gear("Voice 1 · Bump"))
+    fireEvent.click(gear("Voice 1 · Sync"))
     fireEvent.click(
-      popover("Voice 1 · Bump").getByRole("button", { name: "Modulate" }),
+      popover("Voice 1 · Sync").getByRole("button", { name: "Modulate" }),
     )
     expect(patch().modulations[0].target).toEqual({
       kind: "action",
-      setting: "bump",
+      setting: "sync",
       voice: 0,
     })
-    expect(selectedTab()).toEqual(["Bump 1"])
+    expect(selectedTab()).toEqual(["Sync 1"])
 
     // Voice 2's is another, not yet modulated, on a CC of its own
     fireEvent.click(screen.getByRole("button", { name: "Voice 2" }))
-    expect(gear("Voice 2 · Bump")).toHaveAttribute("data-modulated", "false")
-    fireEvent.click(gear("Voice 2 · Bump"))
+    expect(gear("Voice 2 · Sync")).toHaveAttribute("data-modulated", "false")
+    fireEvent.click(gear("Voice 2 · Sync"))
     expect(
-      popover("Voice 2 · Bump").getByLabelText("Voice 2 · Bump CC"),
+      popover("Voice 2 · Sync").getByLabelText("Voice 2 · Sync CC"),
     ).toHaveValue("9")
   })
 
   describe("while the sequence plays", () => {
-    // Hang on CC 3, which the first step has on
+    // Hold on CC 3, which the first step has on
     const hung = (each: PatchJSON): PatchJSON => {
       const next = addEnvelope(
         {
           ...each,
           modulations: [
             {
-              target: { kind: "action", setting: "hang" },
+              target: { kind: "action", setting: "hold" },
               cc: 3,
               from: false,
               to: true,
@@ -528,8 +528,8 @@ describe("modulating an action", () => {
 
     it("shows the action as the sounding step has it, and the button's own while pointed at", () => {
       setup(hung)
-      const hang = action("Hang")
-      expect(live(hang)).toBe("false")
+      const hold = action("Hold")
+      expect(live(hold)).toBe("false")
 
       act(() => rootStore.player.play())
       act(() => {
@@ -538,21 +538,21 @@ describe("modulating an action", () => {
           ticker.tick()
         }
       })
-      expect(live(hang)).toBe("true")
-      expect(hang.className).toContain("bg-envelope")
+      expect(live(hold)).toBe("true")
+      expect(hold.className).toContain("bg-envelope")
       // the title bar's icon shows it too
       expect(
-        within(icons()).getByRole("button", { name: "Hang", hidden: true }),
+        within(icons()).getByRole("button", { name: "Hold", hidden: true }),
       ).toHaveAttribute("data-live", "true")
 
-      fireEvent.mouseEnter(hang)
-      expect(live(hang)).toBe("false")
-      expect(hang.className).not.toContain("bg-theme")
-      fireEvent.mouseLeave(hang)
-      expect(live(hang)).toBe("true")
+      fireEvent.mouseEnter(hold)
+      expect(live(hold)).toBe("false")
+      expect(hold.className).not.toContain("bg-theme")
+      fireEvent.mouseLeave(hold)
+      expect(live(hold)).toBe("true")
 
       act(() => rootStore.player.stop())
-      expect(live(hang)).toBe("false")
+      expect(live(hold)).toBe("false")
     })
   })
 })

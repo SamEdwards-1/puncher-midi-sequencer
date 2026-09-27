@@ -121,8 +121,8 @@ describe("a modulation", () => {
         ["pace", "scale", "shiftFit"].map(
           (setting) => ({ kind: "sequencer", setting }) as ModulationTarget,
         ),
-        { kind: "action", setting: "hang" },
-        { kind: "action", setting: "bump", voice: 0 },
+        { kind: "action", setting: "hold" },
+        { kind: "action", setting: "sync", voice: 0 },
       )
     for (const target of targets) {
       const choices = modulationChoices(target)
@@ -293,12 +293,12 @@ describe("modulated settings", () => {
     expect(modulatedSettings(patch, 1, 0)).toEqual([])
   })
 
-  it("turn an action on or off, a voice's Bump for that voice alone", () => {
-    const bump = (voice: 0 | 1) =>
-      ({ kind: "action", setting: "bump", voice }) as const
+  it("turn an action on or off, a voice's Sync for that voice alone", () => {
+    const sync = (voice: 0 | 1) =>
+      ({ kind: "action", setting: "sync", voice }) as const
     let patch = withModulation(
       createDefaultPatch(),
-      { target: bump(1), cc: 3, from: false, to: true },
+      { target: sync(1), cc: 3, from: false, to: true },
       [
         [0, 127],
         [1, 0],
@@ -312,15 +312,15 @@ describe("modulated settings", () => {
         { time: 1, value: 0 },
       ],
     })
-    expect(modulatedAction(patch, 0, 0, bump(1))).toBe(true)
-    expect(modulatedAction(patch, 1, 0, bump(1))).toBe(false)
-    // no envelope, or another voice's Bump: as the button has it
-    expect(modulatedAction(patch, 3, 0, bump(1))).toBeUndefined()
-    expect(modulatedAction(patch, 0, 0, bump(0))).toBeUndefined()
-    expect(modulationOf(patch, bump(0))).toBeUndefined()
+    expect(modulatedAction(patch, 0, 0, sync(1))).toBe(true)
+    expect(modulatedAction(patch, 1, 0, sync(1))).toBe(false)
+    // no envelope, or another voice's Sync: as the button has it
+    expect(modulatedAction(patch, 3, 0, sync(1))).toBeUndefined()
+    expect(modulatedAction(patch, 0, 0, sync(0))).toBeUndefined()
+    expect(modulationOf(patch, sync(0))).toBeUndefined()
     // read only as the step lands, so as it was then
     expect(modulatedSettings(patch, 2, 1)).toMatchObject([
-      { target: bump(1), ccValue: 127, value: true },
+      { target: sync(1), ccValue: 127, value: true },
     ])
   })
 })

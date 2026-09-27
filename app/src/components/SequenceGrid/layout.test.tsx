@@ -22,7 +22,7 @@ describe("the centre column", () => {
   it("scrolls the grid, the actions and the step editor as one", () => {
     const column = within(scroller())
     expect(column.getByRole("button", { name: "Step 1" })).toBeInTheDocument()
-    expect(column.getByRole("button", { name: "Hang" })).toBeInTheDocument()
+    expect(column.getByRole("button", { name: "Hold" })).toBeInTheDocument()
     expect(column.getByText(/Step Editor/)).toBeInTheDocument()
   })
 

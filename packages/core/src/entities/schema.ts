@@ -188,8 +188,22 @@ const voiceIndex = z.union([
   z.literal(3),
 ])
 
+// Hold and Sync were Hang and Bump; a patch saved then reads as now.
+const RENAMED_ACTIONS: Record<string, string> = { hang: "hold", bump: "sync" }
+
+const renamedAction = (value: unknown) =>
+  typeof value === "object" &&
+  value !== null &&
+  "kind" in value &&
+  value.kind === "action" &&
+  "setting" in value &&
+  typeof value.setting === "string" &&
+  value.setting in RENAMED_ACTIONS
+    ? { ...value, setting: RENAMED_ACTIONS[value.setting] }
+    : value
+
 // a plain union, since an action is one kind whether or not it has a voice
-export const ModulationTargetSchema = z.union([
+const CurrentModulationTargetSchema = z.union([
   z.object({
     kind: z.literal("voice"),
     voice: voiceIndex,
@@ -208,14 +222,19 @@ export const ModulationTargetSchema = z.union([
   }),
   z.object({
     kind: z.literal("action"),
-    setting: z.literal("bump"),
+    setting: z.literal("sync"),
     voice: voiceIndex,
   }),
   z.object({
     kind: z.literal("action"),
-    setting: z.enum(["hang", "flip", "shift"]),
+    setting: z.enum(["hold", "flip", "shift"]),
   }),
 ])
+
+export const ModulationTargetSchema = z.preprocess(
+  renamedAction,
+  CurrentModulationTargetSchema,
+)
 
 const ModulationValueSchema = z.union([
   z.null(),

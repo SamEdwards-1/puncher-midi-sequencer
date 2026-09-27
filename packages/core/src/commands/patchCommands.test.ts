@@ -441,13 +441,13 @@ describe("modulation commands", () => {
       from: "1bar",
       to: "8th",
     }
-    const bump: ModulationJSON = {
-      target: { kind: "action", setting: "bump", voice: 2 },
+    const sync: ModulationJSON = {
+      target: { kind: "action", setting: "sync", voice: 2 },
       cc: 10,
       from: false,
       to: true,
     }
-    const patch = setModulation(setModulation(modulated(), sequencer), bump)
-    expect(clearPatch(patch).modulations).toEqual([sequencer, bump])
+    const patch = setModulation(setModulation(modulated(), sequencer), sync)
+    expect(clearPatch(patch).modulations).toEqual([sequencer, sync])
   })
 })

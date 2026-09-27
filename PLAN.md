@@ -25,7 +25,7 @@ to another when a condition is met.
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
 | Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Grid · Voices · Sequencer |
-| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hang/Bump/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
+| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hold/Sync/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
 | Right | Voice tabs 1–4, 100px wider than their first 18–22rem so the dots are bigger; below 1200px, tabbed with the sequencer settings. Dots fill the column, up to 1.75rem |
 
 ### Sequencer
@@ -78,8 +78,9 @@ to another when a condition is met.
   - Plays only when both probability and condition pass.
 
 ### Actions (momentary, optionally latching)
-- **Hang:** the step stops advancing; voices keep playing.
-- **Bump:** inverts Sync Voices.
+- **Hold:** the step stops advancing; voices keep playing.
+- **Sync:** the selected voice plays at the sequencer's pace, one dot per
+  sequencer tick, while held.
 - **Flip:** swaps rows and columns.
 - **Shift:** transposes new notes by Shift Amt.
 
@@ -123,14 +124,13 @@ to another when a condition is met.
   - *Edit:* click the line to add a point on it, double-click anywhere to
     place one, drag a point (never past its neighbours; a straight vertical
     drag keeps its time), drag the line to raise or lower a segment, click a
-    point to delete it. *Draw* (B while the graph has focus — elsewhere B is
-    Bump): drag to paint, one flat value per grid cell crossed, cells a quick
+    point to delete it. *Draw* (B while the graph has focus): drag to paint, one flat value per grid cell crossed, cells a quick
     stroke skips filled in along it, as Signal's pencil does. Points snap to
     the grid (1/4 to 1/32, and triplets) unless Alt is held. A drag is one
     undo entry.
   - *Playback:* on landing each envelope sends its opening value, in list
     order and before that beat's notes — including on rests, never on skips,
-    and not again while Hang holds the step. It then follows its line, read
+    and not again while Hold keeps the step. It then follows its line, read
     live every 1/48 beat and sent only when the whole value changes, so an
     envelope redrawn mid-step is heard at once. A one-point envelope is
     exactly the CC event it replaced; older files open that way.
