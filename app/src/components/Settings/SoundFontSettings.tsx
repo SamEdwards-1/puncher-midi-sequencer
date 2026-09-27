@@ -1,6 +1,6 @@
 import DeleteOutlineIcon from "mdi-react/DeleteOutlineIcon"
 import InformationOutlineIcon from "mdi-react/InformationOutlineIcon"
-import { ChangeEvent, FC, useState } from "react"
+import { ChangeEvent, FC, useId, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
@@ -138,35 +138,57 @@ const SoundFontRow: FC<{
 }> = ({ file, selected, loading, onSelect, onRemove }) => {
   const localized = useLocalization()
   const remove = `${localized["sequencer-soundfont-remove"]} ${file.name}`
+  const creditId = useId()
+  const { credit } = file
 
   return (
-    <div className="flex min-h-8 items-center gap-2">
-      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-[0.3rem] text-body text-fg">
-        <span className="relative inline-flex h-4 w-4 flex-none items-center justify-center rounded-full border border-divider bg-background has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-theme">
-          <input
-            type="radio"
-            name="soundfont"
-            checked={selected}
-            onChange={onSelect}
-            className="absolute inset-0 z-[1] m-0 h-full w-full cursor-pointer opacity-0"
-          />
-          {selected && <span className="h-2 w-2 rounded-full bg-fg" />}
-        </span>
-        <span className="min-w-0 truncate">{file.name}</span>
-        {loading && (
-          <output className="flex flex-none items-center gap-2 text-small text-fg-tertiary">
-            <span
-              aria-hidden
-              className="h-3 w-3 rounded-full border-2 border-fg-tertiary border-t-theme motion-safe:animate-spin"
+    <div className="flex flex-col">
+      <div className="flex min-h-8 items-center gap-2">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-[0.3rem] text-body text-fg">
+          <span className="relative inline-flex h-4 w-4 flex-none items-center justify-center rounded-full border border-divider bg-background has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-theme">
+            <input
+              type="radio"
+              name="soundfont"
+              checked={selected}
+              onChange={onSelect}
+              aria-describedby={credit === undefined ? undefined : creditId}
+              className="absolute inset-0 z-[1] m-0 h-full w-full cursor-pointer opacity-0"
             />
-            <Localized name="sequencer-soundfont-loading" />
-          </output>
+            {selected && <span className="h-2 w-2 rounded-full bg-fg" />}
+          </span>
+          <span className="min-w-0 truncate">{file.name}</span>
+          {loading && (
+            <output className="flex flex-none items-center gap-2 text-small text-fg-tertiary">
+              <span
+                aria-hidden
+                className="h-3 w-3 rounded-full border-2 border-fg-tertiary border-t-theme motion-safe:animate-spin"
+              />
+              <Localized name="sequencer-soundfont-loading" />
+            </output>
+          )}
+        </label>
+        {!file.builtIn && (
+          <IconButton aria-label={remove} title={remove} onClick={onRemove}>
+            <DeleteOutlineIcon size={16} />
+          </IconButton>
         )}
-      </label>
-      {!file.builtIn && (
-        <IconButton aria-label={remove} title={remove} onClick={onRemove}>
-          <DeleteOutlineIcon size={16} />
-        </IconButton>
+      </div>
+      {credit !== undefined && (
+        // under the name: past the radio, its border and the gap
+        <p
+          id={creditId}
+          className="m-0 pb-1 pl-[calc(1.75rem+2px)] text-small text-fg-tertiary"
+        >
+          {localized["sequencer-soundfont-by"]} {credit.author} ·{" "}
+          <a
+            href={credit.licenceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-fg-secondary underline hover:text-fg"
+          >
+            {credit.licence}
+          </a>
+        </p>
       )}
     </div>
   )

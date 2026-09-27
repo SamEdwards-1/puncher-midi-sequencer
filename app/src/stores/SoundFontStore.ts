@@ -12,6 +12,8 @@ export interface SoundFontFile {
   name: string
   // one of the app's own, which can't be removed
   builtIn: boolean
+  // who made it, and under what licence, for the ones the app offers
+  credit?: { author: string; licence: string; licenceUrl: string }
 }
 
 // The GM set Signal ships, so the built-in sound needs nothing bundled.
@@ -23,6 +25,12 @@ export const FACTORY_SOUNDFONT: SoundFontFile = {
   id: -1,
   name: "A320U.sf2 (Signal Factory Sound)",
   builtIn: true,
+  // as the licence file Signal ships beside it says
+  credit: {
+    author: "Milton Paredes",
+    licence: "GNU GPL v2",
+    licenceUrl: "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+  },
 }
 
 // What a file picker offers: SoundFont 2 and 3, Ogg-packed SoundFonts, DLS.

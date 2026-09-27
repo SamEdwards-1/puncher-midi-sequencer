@@ -275,6 +275,7 @@ export default {
     "sequencer-soundfont-add": "Add",
     "sequencer-soundfont-adding": "Adding…",
     "sequencer-soundfont-remove": "Remove",
+    "sequencer-soundfont-by": "By",
     "sequencer-soundfont-loading": "Loading…",
     "sequencer-soundfont-add-error": "Couldn't add it:",
     "sequencer-soundfont-saved-notice":
