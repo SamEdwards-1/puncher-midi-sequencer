@@ -11,6 +11,7 @@ export function useImportSettings() {
     loop: useMobxGetter(importSettings, "loop"),
     fileTempo: useMobxGetter(importSettings, "fileTempo"),
     snap: useMobxGetter(importSettings, "snap"),
+    minVelocity: useMobxGetter(importSettings, "minVelocity"),
     set: importSettings.set,
   }
 }

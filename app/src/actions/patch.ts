@@ -13,11 +13,13 @@ import {
   pasteStep,
   removeEnvelope,
   removeStepNote,
+  ScaleJSON,
   StepJSON,
   StepState,
   setJump,
   setPatternStep,
   setPatterns,
+  setScale,
   setSequencer,
   setStepNote,
   setStepState,
@@ -53,6 +55,11 @@ export function usePatchEditor() {
     editSequencer: useCallback(
       (changes: Partial<PatchJSON>, key?: string) =>
         apply(setSequencer(sequencerStore.patch, changes), key),
+      [apply, sequencerStore],
+    ),
+    // the scale the patch is in; the notes the steps hold are let be
+    editScale: useCallback(
+      (scale: ScaleJSON | null) => apply(setScale(sequencerStore.patch, scale)),
       [apply, sequencerStore],
     ),
     replacePatterns: useCallback(

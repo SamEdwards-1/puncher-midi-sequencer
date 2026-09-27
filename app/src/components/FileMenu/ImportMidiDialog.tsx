@@ -4,6 +4,7 @@ import {
   CC_NAMES,
   DRUM_CHANNEL,
   ENVELOPE_RESOLUTION,
+  importPitchWeights,
   importPlan,
   MAX_NOTE_NUMBER,
   MIDIFilterJSON,
@@ -11,9 +12,12 @@ import {
   MidiFileCC,
   MidiImportOptions,
   MidiSource,
+  NOTE_OFF_SCALE,
+  NOTE_QUIET,
   NOTES_PER_STEP,
   noteNumberToName,
   PreparedMidi,
+  ScaleJSON,
   sourceKey,
   stepCount,
 } from "@midiseq/core"
@@ -35,6 +39,8 @@ import { usePatch } from "../../hooks/usePatch"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { IMPORT_SNAPS, ImportSnap } from "../../stores/ImportSettingsStore"
+import { guessScales } from "../../theory/scales"
+import { FitButtons, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { MIDIFilterFields } from "../Settings/MIDIFilterSettings"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
@@ -44,6 +50,7 @@ import { Stepper } from "../ui/Stepper"
 import {
   ImportRange,
   MidiPreview,
+  NoteRange,
   PREVIEW_HEIGHT,
   sourceColour,
 } from "./MidiPreview"
@@ -106,10 +113,35 @@ const Parts: FC<{
   chosen: Set<string>
   heard: (channel: number) => boolean
   onToggle: (key: string, on: boolean) => void
-}> = memo(({ sources, chosen, heard, onToggle }) => {
+  onAll: (on: boolean) => void
+}> = memo(({ sources, chosen, heard, onToggle, onAll }) => {
   const localized = useLocalization()
   return (
-    <Section label={localized["sequencer-import-parts"]}>
+    <Section
+      label={localized["sequencer-import-parts"]}
+      aside={
+        sources.length > 0 && (
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              size="sm"
+              disabled={chosen.size === sources.length}
+              onClick={() => onAll(true)}
+            >
+              <Localized name="sequencer-import-all-parts" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={chosen.size === 0}
+              onClick={() => onAll(false)}
+            >
+              <Localized name="sequencer-import-no-parts" />
+            </Button>
+          </div>
+        )
+      }
+    >
       {sources.length === 0 ? (
         <p className="m-0 py-[0.3rem] text-small text-fg-tertiary">
           <Localized name="sequencer-import-no-notes" />
@@ -331,6 +363,9 @@ export const ImportMidiDialog: FC<{
     settings.fileTempo && midi.bpm !== null,
   )
   const [snapTo, setSnapTo] = useState<ImportSnap>(settings.snap)
+  const [minVelocity, setMinVelocity] = useState(settings.minVelocity)
+  // the sequencer's own scale to start; the import then sets it
+  const [scale, setScale] = useState<ScaleJSON | null>(patch.scale)
 
   const snap =
     snapTo === "bar" ? beatsPerBar : snapTo === "beat" ? 1 : ENVELOPE_RESOLUTION
@@ -362,8 +397,12 @@ export const ImportMidiDialog: FC<{
       loop,
       notesPerStep,
       bpm: fileTempo ? midi.bpm : null,
+      minVelocity,
+      scale,
     }),
     [
+      minVelocity,
+      scale,
       sources,
       ccs,
       chosen,
@@ -382,16 +421,38 @@ export const ImportMidiDialog: FC<{
     () => importPlan(patch, prepared, options),
     [patch, prepared, options],
   )
-  // the notes dealt past the grid's end
-  const cut = useMemo(() => {
-    let count = 0
+  // the notes dealt past the grid's end, and those too soft or that the
+  // scale leaves out
+  const { cut, quiet, offScale } = useMemo(() => {
+    const counts = { cut: 0, quiet: 0, offScale: 0 }
     for (const fate of plan.fates) {
       if (fate >= plan.placed) {
-        count++
+        counts.cut++
+      } else if (fate === NOTE_QUIET) {
+        counts.quiet++
+      } else if (fate === NOTE_OFF_SCALE) {
+        counts.offScale++
       }
     }
-    return count
+    return counts
   }, [plan])
+  // The scales that best fit the notes the import would take, as they are
+  // before any scale fits them. Kept apart from the scale itself, so
+  // choosing one doesn't move the guesses.
+  const { sources: chosenSources, start, end } = options
+  const guesses = useMemo(
+    () =>
+      guessScales(
+        importPitchWeights(prepared, {
+          sources: chosenSources,
+          start,
+          end,
+          filter,
+          minVelocity,
+        }),
+      ),
+    [prepared, chosenSources, start, end, filter, minVelocity],
+  )
   const dealt = plan.chunks.length
   const steps = stepCount(patch.size)
   const canImport =
@@ -400,6 +461,11 @@ export const ImportMidiDialog: FC<{
   const toggleSource = useCallback(
     (key: string, on: boolean) => setChosen((set) => toggled(set, key, on)),
     [],
+  )
+  // every part, or none, drums and all
+  const allSources = useCallback(
+    (on: boolean) => setChosen(new Set(on ? sources.map(sourceKey) : [])),
+    [sources],
   )
   const toggleCC = useCallback(
     (key: string, on: boolean) => setChosenCCs((set) => toggled(set, key, on)),
@@ -415,12 +481,24 @@ export const ImportMidiDialog: FC<{
       setFilter((current) => ({ ...current, ...changes })),
     [],
   )
+  // the filter's keys, set on the preview as well as in its fields
+  const noteRange = useMemo(
+    () => ({ low: filter.noteLow, high: filter.noteHigh }),
+    [filter.noteLow, filter.noteHigh],
+  )
+  const changeNotes = useCallback(
+    ({ low, high }: NoteRange) =>
+      setFilter((current) => ({ ...current, noteLow: low, noteHigh: high })),
+    [],
+  )
   const labels = useMemo(
     () => ({
       start: localized["sequencer-import-start"],
       end: localized["sequencer-import-end"],
       bar: localized["sequencer-import-bar"],
       preview: `${localized["sequencer-import-preview"]}: ${name}`,
+      low: localized["sequencer-import-note-low"],
+      high: localized["sequencer-import-note-high"],
     }),
     [localized, name],
   )
@@ -440,6 +518,9 @@ export const ImportMidiDialog: FC<{
     `${notesPerStep} ${localized[notesPerStep === 1 ? "sequencer-import-note-a-step" : "sequencer-import-notes-a-step"]}`,
     `${localized["sequencer-import-from"]} ${fromStep + 1}`,
     ...(loop ? [localized["sequencer-import-looping"]] : []),
+    ...(minVelocity > 1
+      ? [`${localized["sequencer-import-min-velocity"]} ${minVelocity}`]
+      : []),
     ...(options.bpm === null
       ? []
       : [`${Math.round(options.bpm)} ${localized["sequencer-bpm"]}`]),
@@ -479,6 +560,37 @@ export const ImportMidiDialog: FC<{
       }
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 text-body text-fg-secondary">
+        {/* the scale the notes are fitted to, found from them or chosen */}
+        <section
+          data-import-scale
+          aria-label={localized["sequencer-scale"]}
+          className="flex flex-none flex-col gap-1 text-small"
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>
+              <Localized name="sequencer-scale" />
+            </span>
+            <div className="w-60 min-w-0">
+              <ScaleSelects scale={scale} onScale={setScale} />
+            </div>
+            <span>
+              <Localized name="sequencer-scale-fit" />
+            </span>
+            <FitButtons scale={scale} onScale={setScale} />
+            {scale !== null && (
+              <span className="text-fg-tertiary" data-scale-summary>
+                {`${plan.shifted} ${localized["sequencer-scale-moved"]} · ${offScale} ${localized["sequencer-scale-left-out"]}`}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span title={localized["sequencer-import-scale-hint"]}>
+              <Localized name="sequencer-scale-detected" />
+            </span>
+            <ScaleGuesses guesses={guesses} scale={scale} onScale={setScale} />
+          </div>
+        </section>
+
         {/* the preview stays in view; the options under it scroll */}
         <div className="flex flex-none flex-col gap-1" data-import-preview>
           <div className="flex items-center justify-between gap-3 text-small">
@@ -513,6 +625,8 @@ export const ImportMidiDialog: FC<{
             totalBeats={totalBeats}
             beatsPerBar={beatsPerBar}
             snap={snap}
+            notes={noteRange}
+            onNotes={changeNotes}
             labels={labels}
             height={rollHeight}
           />
@@ -536,6 +650,7 @@ export const ImportMidiDialog: FC<{
                   chosen={chosen}
                   heard={heard}
                   onToggle={toggleSource}
+                  onAll={allSources}
                 />
                 <Controllers
                   ccs={ccs}
@@ -572,6 +687,26 @@ export const ImportMidiDialog: FC<{
                       onChange={(value) => setFromStep(value - 1)}
                     />
                   </div>
+                  <div className="grid grid-cols-[6rem_1fr] items-center gap-3 text-small">
+                    <span>
+                      <Localized name="sequencer-import-min-velocity" />
+                    </span>
+                    <Stepper
+                      label={localized["sequencer-import-min-velocity"]}
+                      value={minVelocity}
+                      min={1}
+                      max={127}
+                      onChange={setMinVelocity}
+                    />
+                  </div>
+                  <p
+                    className="m-0 pl-[calc(6rem+0.75rem)] text-small text-fg-tertiary"
+                    data-quiet-count
+                  >
+                    {minVelocity > 1
+                      ? `${quiet} ${localized[quiet === 1 ? "sequencer-import-note" : "sequencer-import-notes"]} ${localized["sequencer-import-quiet"]}`
+                      : localized["sequencer-import-min-velocity-note"]}
+                  </p>
                 </Section>
                 <Checkbox
                   label={localized["sequencer-import-loop"]}

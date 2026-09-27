@@ -1,4 +1,5 @@
-import { noteNumberToName, StepState } from "@midiseq/core"
+import { inScale, noteNumberToName, StepState } from "@midiseq/core"
+import AlertIcon from "mdi-react/AlertIcon"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
 import { FC, HTMLAttributes, useState } from "react"
@@ -6,6 +7,8 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { scaleLabel } from "../../theory/scales"
+import { ScaleKeys } from "../Scale/ScaleKeys"
 import { Button, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
@@ -45,6 +48,7 @@ export const StepEditor: FC = () => {
   const [openedJump, setOpenedJump] = useState<number | null>(null)
 
   const step = patch.steps[selected]
+  const scale = patch.scale
   const jumpShown = hasJump(step.jump) || openedJump === selected
   const beyondLimit = step.notes.length > patch.maxNotesPerStep
 
@@ -54,6 +58,20 @@ export const StepEditor: FC = () => {
         <span className={TITLE}>
           <Localized name="sequencer-step-editor" /> {selected + 1}
         </span>
+        <Select
+          compact
+          aria-label={localized["sequencer-step-state"]}
+          value={step.state}
+          onChange={(event) =>
+            editStepState(selected, event.target.value as StepState)
+          }
+        >
+          {STATES.map((state) => (
+            <option key={state} value={state}>
+              {localized[`sequencer-step-state-${state}`]}
+            </option>
+          ))}
+        </Select>
         <Button type="button" size="sm" onClick={() => setCopiedStep(step)}>
           <Localized name="sequencer-step-copy" />
         </Button>
@@ -76,22 +94,12 @@ export const StepEditor: FC = () => {
 
       <div className="flex flex-col gap-2 px-4 pt-2 pb-4 text-body text-fg-secondary">
         <Row>
-          <label className="w-12" htmlFor="step-state">
-            <Localized name="sequencer-step-state" />
-          </label>
-          <Select
-            id="step-state"
-            value={step.state}
-            onChange={(event) =>
-              editStepState(selected, event.target.value as StepState)
-            }
-          >
-            {STATES.map((state) => (
-              <option key={state} value={state}>
-                {localized[`sequencer-step-state-${state}`]}
-              </option>
-            ))}
-          </Select>
+          {/* the scale the patch is in */}
+          {scale !== null && (
+            <span className="text-small text-fg-tertiary" data-step-scale>
+              {scaleLabel(scale)}
+            </span>
+          )}
           <div className="grow" />
           {[-12, -1, 1, 12].map((semitones) => (
             <Button
@@ -106,42 +114,71 @@ export const StepEditor: FC = () => {
           ))}
         </Row>
 
-        {step.notes.length === 0 && (
-          <div className="text-fg-tertiary">
-            <Localized name="sequencer-step-no-notes" />
-          </div>
-        )}
-
-        {step.notes.map((note, position) => {
-          const beyond = position >= patch.maxNotesPerStep
-          return (
-            <Row
-              key={note}
-              className={cn(beyond && "opacity-45")}
-              data-beyond={beyond}
-            >
-              <div className="grow">
-                <Stepper
-                  label={`${localized["sequencer-step-note"]} ${position + 1}`}
-                  value={note}
-                  min={0}
-                  max={127}
-                  format={noteNumberToName}
-                  parse={(text) => parseNoteText(text, note)}
-                  sanitize={sanitizeNoteText}
-                  onChange={(next) => editNote(selected, position, next)}
-                />
+        {/* the scale's keys beside the notes, those out of it marked */}
+        <div className="flex items-start gap-3">
+          {scale !== null && <ScaleKeys scale={scale} />}
+          <div className="flex min-w-0 grow flex-col gap-2">
+            {step.notes.length === 0 && (
+              <div className="text-fg-tertiary">
+                <Localized name="sequencer-step-no-notes" />
               </div>
-              <IconButton
-                aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
-                title={localized["sequencer-step-remove-note"]}
-                onClick={() => removeNote(selected, position)}
-              >
-                <CloseIcon size={16} />
-              </IconButton>
-            </Row>
-          )
-        })}
+            )}
+
+            {step.notes.map((note, position) => {
+              const beyond = position >= patch.maxNotesPerStep
+              const outside = scale !== null && !inScale(scale, note)
+              return (
+                <Row
+                  key={note}
+                  className={cn(beyond && "opacity-45")}
+                  data-beyond={beyond}
+                  data-out-of-scale={outside}
+                >
+                  <div className="grow">
+                    <Stepper
+                      label={`${localized["sequencer-step-note"]} ${position + 1}`}
+                      value={note}
+                      min={0}
+                      max={127}
+                      format={noteNumberToName}
+                      parse={(text) => parseNoteText(text, note)}
+                      sanitize={sanitizeNoteText}
+                      invalid={outside}
+                      onChange={(next) => editNote(selected, position, next)}
+                    />
+                  </div>
+                  {/* kept for every note while there is a scale, so the
+                      notes line up whether or not they are in it */}
+                  {scale !== null && (
+                    <span
+                      className="flex w-4 flex-none justify-center text-error"
+                      title={
+                        outside
+                          ? localized["sequencer-step-out-of-scale"]
+                          : undefined
+                      }
+                    >
+                      {outside && (
+                        <AlertIcon
+                          size={16}
+                          role="img"
+                          aria-label={localized["sequencer-step-out-of-scale"]}
+                        />
+                      )}
+                    </span>
+                  )}
+                  <IconButton
+                    aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
+                    title={localized["sequencer-step-remove-note"]}
+                    onClick={() => removeNote(selected, position)}
+                  >
+                    <CloseIcon size={16} />
+                  </IconButton>
+                </Row>
+              )
+            })}
+          </div>
+        </div>
 
         {beyondLimit && (
           <Row>

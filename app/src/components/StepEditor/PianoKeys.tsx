@@ -1,4 +1,4 @@
-import { noteNumberToName } from "@midiseq/core"
+import { inScale, noteNumberToName, ScaleJSON } from "@midiseq/core"
 import { FC, MouseEvent as ReactMouseEvent, useState } from "react"
 import { isBlackKey } from "./envelopeGeometry"
 
@@ -9,21 +9,31 @@ export const PIANO_WIDTH = OCTAVE_WIDTH + KEY_WIDTH
 // rows shorter than this are too close to name every one
 const LABEL_ROOM = 9
 
+// a key in the scale takes on some of the theme colour
+const keyFill = (note: number, lit: boolean) => {
+  const fill = isBlackKey(note)
+    ? "var(--midiseq-piano-black)"
+    : "var(--midiseq-piano-white)"
+  return lit ? `color-mix(in srgb, var(--midiseq-theme) 45%, ${fill})` : fill
+}
+
 /**
  * A keyboard beside the piano roll, as in Live: a row to each key, black
  * and white alike, level with the roll's — every key in its range, or with
  * the scale collapsed only those the sequence plays. Beside the keys, a
  * column marks each octave, ruled off under its C and named just above;
- * collapsed, it names every key if there is room. The key under the mouse
- * is lit and names itself there.
+ * collapsed, it names every key if there is room. The keys in the scale
+ * are tinted; the key under the mouse is lit and names itself there.
  */
 export const PianoKeys: FC<{
   // top to bottom
   rows: number[]
   collapsed: boolean
+  // the scale whose keys are tinted, if any
+  scale?: ScaleJSON | null
   height: number
   pad: number
-}> = ({ rows, collapsed, height, pad }) => {
+}> = ({ rows, collapsed, scale = null, height, pad }) => {
   const [hover, setHover] = useState<number | null>(null)
   const keyHeight = (height - 2 * pad) / rows.length
   const keyY = (index: number) => pad + index * keyHeight
@@ -73,12 +83,11 @@ export const PianoKeys: FC<{
           y={keyY(index)}
           width={KEY_WIDTH}
           height={keyHeight}
+          data-in-scale={scale !== null && inScale(scale, note)}
           fill={
             index === hover
               ? "var(--midiseq-theme)"
-              : isBlackKey(note)
-                ? "var(--midiseq-piano-black)"
-                : "var(--midiseq-piano-white)"
+              : keyFill(note, scale !== null && inScale(scale, note))
           }
         />
       ))}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
+import { ScaleJSON } from "../entities/scale"
 import {
   addEnvelope,
   addStepNote,
@@ -15,6 +16,7 @@ import {
   setJump,
   setModOut,
   setPatternStep,
+  setScale,
   setSequencer,
   setStepNote,
   setStepNotes,
@@ -105,6 +107,38 @@ describe("patch commands", () => {
   it("keep every note when transposing over a neighbour", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [59, 60])
     expect(transposeStep(patch, 0, 1).steps[0].notes).toEqual([60, 61])
+  })
+
+  describe("with a scale", () => {
+    const C_MAJOR: ScaleJSON = {
+      tonic: 0,
+      name: "major",
+      steps: [0, 2, 4, 5, 7, 9, 11],
+      fit: "up",
+    }
+    const scaled = (notes: number[]) => ({
+      ...setStepNotes(createDefaultPatch(), 0, notes),
+      scale: C_MAJOR,
+    })
+
+    it("edit notes by semitones, in the scale or out of it", () => {
+      const patch = scaled([64])
+      expect(setStepNote(patch, 0, 0, 66).steps[0].notes).toEqual([66])
+      expect(transposeStep(patch, 0, 1).steps[0].notes).toEqual([65])
+      expect(addStepNote(patch, 0, 61).steps[0].notes).toEqual([64, 61])
+    })
+
+    it("add a note above one already there", () => {
+      expect(addStepNote(scaled([64]), 0, 64).steps[0].notes).toEqual([64, 65])
+    })
+
+    it("leave the notes be as a scale is chosen", () => {
+      const patch = setStepNotes(createDefaultPatch(), 0, [60, 61, 66])
+      const chosen = setScale(patch, C_MAJOR)
+      expect(chosen.scale).toBe(C_MAJOR)
+      expect(chosen.steps).toBe(patch.steps)
+      expect(setScale(chosen, null).scale).toBeNull()
+    })
   })
 
   it("keep notes inside the MIDI range and the 16-note store", () => {

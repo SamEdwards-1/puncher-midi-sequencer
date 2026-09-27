@@ -1,8 +1,13 @@
 import {
   firstAtOrAfter,
   ImportPlan,
+  MAX_NOTE_NUMBER,
+  MIN_NOTE_NUMBER,
   NOTE_FILTERED,
+  NOTE_OFF_SCALE,
+  NOTE_QUIET,
   NOTE_UNCHOSEN,
+  noteNumberToName,
   PreparedMidi,
   sourceKey,
 } from "@midiseq/core"
@@ -33,10 +38,45 @@ const FALLBACK_WIDTH = 600
 const MIN_STEP_LABEL = 18
 const SOURCE_COLOURS = 8
 const BLACK_KEYS = new Set([1, 3, 6, 8, 10])
+// the note range's column, beside the keys, and how far its arrows reach
+const NOTE_RANGE_WIDTH = 14
+const ARROW = 8
 
 export interface ImportRange {
   start: number
   end: number
+}
+
+// The keys a note filter lets through, lowest and highest.
+export interface NoteRange {
+  low: number
+  high: number
+}
+
+// Kept out of a step, for one reason or another, and drawn in gray.
+const GRAYED = new Set([NOTE_FILTERED, NOTE_QUIET, NOTE_OFF_SCALE])
+
+/**
+ * A drag handle's arrow, pointing into what it bounds from the edge it
+ * stands on: its base `length` long along that edge, its tip `ARROW` in.
+ */
+const arrow = (
+  x: number,
+  y: number,
+  length: number,
+  pointing: "right" | "left" | "down" | "up",
+) => {
+  const half = length / 2
+  switch (pointing) {
+    case "right":
+      return `M ${x} ${y - half} L ${x + ARROW} ${y} L ${x} ${y + half} Z`
+    case "left":
+      return `M ${x} ${y - half} L ${x - ARROW} ${y} L ${x} ${y + half} Z`
+    case "down":
+      return `M ${x - half} ${y} L ${x} ${y + ARROW} L ${x + half} ${y} Z`
+    case "up":
+      return `M ${x - half} ${y} L ${x} ${y - ARROW} L ${x + half} ${y} Z`
+  }
 }
 
 export const sourceColour = (index: number) =>
@@ -94,6 +134,13 @@ const readColours = (element: Element) => {
  * to `snap` beats — or the stretch itself to slide it along; arrow keys move
  * a handle a snap at a time.
  *
+ * Beside the keys, a column sets the keys the filter lets through the same
+ * way: a handle at the top and bottom to drag, or the band between them to
+ * slide. A handle taken to the end of the keys shown lets everything past
+ * it through. What the range keeps out is dimmed. The handles are arrows,
+ * each pointing in to what it bounds. Notes left out for being played too
+ * softly, or by the scale, are gray too.
+ *
  * The roll is drawn on a canvas, and only the notes in view: a file can
  * hold tens of thousands, and every drag of the range redraws it.
  */
@@ -106,7 +153,17 @@ export const MidiPreview: FC<{
   totalBeats: number
   beatsPerBar: number
   snap: number
-  labels: { start: string; end: string; bar: string; preview: string }
+  // the keys the filter lets through, set by the handles beside the keys
+  notes: NoteRange
+  onNotes: (notes: NoteRange) => void
+  labels: {
+    start: string
+    end: string
+    bar: string
+    preview: string
+    low: string
+    high: string
+  }
   // the roll's height, without the ruler
   height?: number
 }> = memo(
@@ -119,6 +176,8 @@ export const MidiPreview: FC<{
     totalBeats,
     beatsPerBar,
     snap,
+    notes,
+    onNotes,
     labels,
     height = PREVIEW_HEIGHT,
   }) => {
@@ -153,14 +212,29 @@ export const MidiPreview: FC<{
       return Array.from({ length: high - low + 1 }, (_, index) => high - index)
     }, [prepared, chosen])
 
+    // Where the note range's ends fall on the keys: the top of its highest
+    // key's row and the bottom of its lowest's, held to the keys shown.
+    const keyHeight = (height - 2 * PAD) / rows.length
+    const top = rows[0]
+    const bottom = rows[rows.length - 1]
+    const shown = (note: number) => Math.min(top, Math.max(bottom, note))
+    const highY = PAD + (top - shown(notes.high)) * keyHeight
+    const lowY = PAD + (top - shown(notes.low) + 1) * keyHeight
+
     // how many notes came to each end, for the page to say
     const counts = useMemo(() => {
       let filtered = 0
+      let quiet = 0
+      let offScale = 0
       let dealt = 0
       let cut = 0
       for (const fate of plan.fates) {
         if (fate === NOTE_FILTERED) {
           filtered++
+        } else if (fate === NOTE_QUIET) {
+          quiet++
+        } else if (fate === NOTE_OFF_SCALE) {
+          offScale++
         } else if (fate >= 0) {
           dealt++
           if (fate >= plan.placed) {
@@ -168,7 +242,7 @@ export const MidiPreview: FC<{
           }
         }
       }
-      return { filtered, dealt, cut }
+      return { filtered, quiet, offScale, dealt, cut }
     }, [plan])
 
     useLayoutEffect(() => {
@@ -190,7 +264,6 @@ export const MidiPreview: FC<{
       colours.current ??= readColours(element)
       const theme = colours.current
 
-      const keyHeight = (height - 2 * PAD) / rows.length
       const rowOf = new Int16Array(128).fill(-1)
       rows.forEach((key, index) => {
         rowOf[key] = index
@@ -251,13 +324,13 @@ export const MidiPreview: FC<{
         }
         const fate = plan.fates[index]
         const colour =
-          fate === NOTE_UNCHOSEN || fate === NOTE_FILTERED
+          fate === NOTE_UNCHOSEN || GRAYED.has(fate)
             ? theme.muted
             : fate >= plan.placed
               ? theme.cut
               : theme.sources[sourceOf[index] % SOURCE_COLOURS]
         const alpha =
-          fate === NOTE_UNCHOSEN ? 0.25 : fate === NOTE_FILTERED ? 0.85 : 1
+          fate === NOTE_UNCHOSEN ? 0.25 : GRAYED.has(fate) ? 0.85 : 1
         const bucketKey = `${alpha}|${colour}`
         let bucket = buckets.get(bucketKey)
         if (bucket === undefined) {
@@ -317,6 +390,9 @@ export const MidiPreview: FC<{
       context.fillRect(0, 0, Math.max(0, x(range.start)), height)
       const end = x(range.end)
       context.fillRect(end, 0, Math.max(0, width - end), height)
+      // and so are the keys the note range keeps out
+      context.fillRect(0, 0, width, highY)
+      context.fillRect(0, lowY, width, Math.max(0, height - lowY))
       context.globalAlpha = 1
     })
 
@@ -391,19 +467,147 @@ export const MidiPreview: FC<{
           aria-valuenow={beat}
           aria-valuetext={`${labels.bar} ${barLabel(beat)}`}
           data-handle={part}
-          className="cursor-ew-resize outline-none focus-visible:[&>rect]:stroke-fg"
+          className="cursor-ew-resize outline-none focus-visible:[&>path]:stroke-fg"
           onMouseDown={drag(part)}
           onKeyDown={nudge(part)}
         >
+          {/* wider than the arrow, to be easy to catch */}
           <rect
-            x={x(beat) - 4}
+            x={x(beat) - (part === "start" ? 3 : ARROW + 3)}
             y={HANDLE_TOP}
-            width={8}
-            height={RULER_HEIGHT - HANDLE_TOP - 1}
-            rx={2}
+            width={ARROW + 6}
+            height={RULER_HEIGHT - HANDLE_TOP}
+            fill="transparent"
+          />
+          <path
+            d={arrow(
+              x(beat),
+              (HANDLE_TOP + RULER_HEIGHT - 1) / 2,
+              RULER_HEIGHT - HANDLE_TOP - 1,
+              part === "start" ? "right" : "left",
+            )}
             fill="var(--midiseq-theme)"
             stroke="transparent"
             strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+        </g>
+      )
+    }
+
+    // Dragging a note handle moves that end a key a row; taken to the end
+    // of the keys shown, it lets through everything past them. The band
+    // between slides both.
+    const dragNotes =
+      (part: "low" | "high" | "both") =>
+      (event: ReactMouseEvent<SVGElement>) => {
+        if (event.button !== 0) {
+          return
+        }
+        event.preventDefault()
+        const from = { low: shown(notes.low), high: shown(notes.high) }
+        const open = (note: number) =>
+          note >= top
+            ? MAX_NOTE_NUMBER
+            : note <= bottom
+              ? MIN_NOTE_NUMBER
+              : note
+        observeDrag(event.nativeEvent, {
+          onMove: (_, delta) => {
+            const by = -Math.round(delta.y / keyHeight)
+            if (part === "both") {
+              const moved = Math.min(
+                top - from.high,
+                Math.max(bottom - from.low, by),
+              )
+              onNotes({ low: from.low + moved, high: from.high + moved })
+            } else if (part === "high") {
+              onNotes({
+                low: notes.low,
+                high: open(Math.max(from.low, Math.min(top, from.high + by))),
+              })
+            } else {
+              onNotes({
+                low: open(Math.min(from.high, Math.max(bottom, from.low + by))),
+                high: notes.high,
+              })
+            }
+          },
+        })
+      }
+
+    const nudgeNotes = (part: "low" | "high") => (event: KeyboardEvent) => {
+      const by =
+        event.key === "ArrowUp"
+          ? 1
+          : event.key === "ArrowDown"
+            ? -1
+            : event.key === "PageUp"
+              ? 12
+              : event.key === "PageDown"
+                ? -12
+                : null
+      if (by === null) {
+        return
+      }
+      event.preventDefault()
+      onNotes(
+        part === "high"
+          ? {
+              low: notes.low,
+              high: Math.min(
+                MAX_NOTE_NUMBER,
+                Math.max(notes.low, notes.high + by),
+              ),
+            }
+          : {
+              low: Math.max(
+                MIN_NOTE_NUMBER,
+                Math.min(notes.high, notes.low + by),
+              ),
+              high: notes.high,
+            },
+      )
+    }
+
+    const noteHandle = (part: "low" | "high") => {
+      const note = notes[part]
+      const y = part === "high" ? highY : lowY
+      return (
+        <g
+          role="slider"
+          tabIndex={0}
+          aria-label={labels[part]}
+          aria-orientation="vertical"
+          aria-valuemin={MIN_NOTE_NUMBER}
+          aria-valuemax={MAX_NOTE_NUMBER}
+          aria-valuenow={note}
+          aria-valuetext={noteNumberToName(note)}
+          data-note-handle={part}
+          className="cursor-ns-resize outline-none focus-visible:[&>path]:stroke-fg"
+          onMouseDown={dragNotes(part)}
+          onKeyDown={nudgeNotes(part)}
+        >
+          <title>{`${labels[part]}: ${noteNumberToName(note)}`}</title>
+          {/* taller than the arrow, to be easy to catch */}
+          <rect
+            x={0}
+            y={part === "high" ? y - 3 : y - ARROW - 3}
+            width={NOTE_RANGE_WIDTH}
+            height={ARROW + 6}
+            fill="transparent"
+          />
+          <path
+            d={arrow(
+              NOTE_RANGE_WIDTH / 2,
+              y,
+              NOTE_RANGE_WIDTH - 2,
+              part === "high" ? "down" : "up",
+            )}
+            fill="var(--midiseq-theme)"
+            stroke="transparent"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
           />
         </g>
       )
@@ -414,6 +618,30 @@ export const MidiPreview: FC<{
         <div style={{ marginTop: RULER_HEIGHT }}>
           <PianoKeys rows={rows} collapsed={false} height={height} pad={PAD} />
         </div>
+        <svg
+          data-note-range
+          width={NOTE_RANGE_WIDTH}
+          height={height}
+          className="block flex-none select-none"
+          style={{ marginTop: RULER_HEIGHT }}
+        >
+          <title>{`${labels.low} – ${labels.high}`}</title>
+          {/* the keys let through, which slide as a whole */}
+          <rect
+            data-note-band
+            x={NOTE_RANGE_WIDTH / 2 - 2}
+            y={highY}
+            width={4}
+            height={Math.max(0, lowY - highY)}
+            rx={2}
+            fill="var(--midiseq-theme)"
+            fillOpacity={0.45}
+            className="cursor-grab"
+            onMouseDown={dragNotes("both")}
+          />
+          {noteHandle("high")}
+          {noteHandle("low")}
+        </svg>
         <div ref={frame} className="min-w-0 flex-1">
           <EnvelopeRuler
             plot={plot}
@@ -450,6 +678,8 @@ export const MidiPreview: FC<{
               data-dealt={counts.dealt}
               data-cut={counts.cut}
               data-filtered={counts.filtered}
+              data-quiet={counts.quiet}
+              data-off-scale={counts.offScale}
               className="block"
               style={{ width, height: height }}
             />

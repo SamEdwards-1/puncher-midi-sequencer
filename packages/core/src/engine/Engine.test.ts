@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
+import { ScaleFit } from "../entities/scale"
 import { PatchJSON, VoiceJSON } from "../entities/types"
 import { Engine } from "./Engine"
 import { EngineEvent, NoteOnEvent } from "./events"
@@ -507,6 +508,61 @@ describe("Engine", () => {
 
       engine.setActions({ shift: false })
       expect(notesOn(engine.render(2.1))).toEqual([60])
+    })
+
+    describe("with a scale", () => {
+      beforeEach(() => {
+        // the scale's own fit is for importing and recording, so it is
+        // set against the offset's and the shift's to show it goes unused
+        patch.scale = {
+          tonic: 0,
+          name: "major",
+          steps: [0, 2, 4, 5, 7, 9, 11],
+          fit: "ignore",
+        }
+      })
+      const played = (seconds: number, shift = false) => {
+        const engine = new Engine(patch)
+        engine.setActions({ shift })
+        engine.start(0)
+        return notesOn(engine.render(seconds))
+      }
+
+      it("fits the notes an offset moves out of it as the voice says", () => {
+        patch.voices[0].offset = 1
+        const fitted = (fit: ScaleFit) => {
+          patch.voices[0].offsetFit = fit
+          return played(1.9)
+        }
+        // C# up to D, D# up to E
+        expect(fitted("up")).toEqual([62, 64])
+        expect(fitted("down")).toEqual([60, 62])
+        expect(fitted("exclude")).toEqual([])
+        expect(fitted("ignore")).toEqual([61, 63])
+      })
+
+      it("fits the notes the shift moves out of it as the patch says", () => {
+        patch.shiftAmt = 3
+        patch.shiftFit = "up"
+        // D# up to E, F stays
+        expect(played(1.9, true)).toEqual([64, 65])
+        patch.shiftFit = "exclude"
+        expect(played(1.9, true)).toEqual([65])
+      })
+
+      it("fits the offset and then the shift, each its own way", () => {
+        patch.voices[0].offset = 1
+        patch.voices[0].offsetFit = "down"
+        patch.shiftAmt = 1
+        patch.shiftFit = "up"
+        // C# down to C, then C# up to D; D# down to D, then D# up to E
+        expect(played(1.9, true)).toEqual([62, 64])
+      })
+
+      it("plays a note that doesn't move as written", () => {
+        patch.steps[0].notes = [61]
+        expect(played(0.9)).toEqual([61])
+      })
     })
 
     it("bump inverts sync voices while held", () => {

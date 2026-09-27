@@ -1,9 +1,10 @@
-import { createDefaultPatch, setStepNotes } from "@midiseq/core"
+import { createDefaultPatch, ScaleJSON, setStepNotes } from "@midiseq/core"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
+import { makeScale } from "../../theory/scales"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -14,12 +15,15 @@ const selectStep = (number: number) =>
 const click = (name: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }))
 
-const setup = (notes: number[] = []) => {
+const setup = (notes: number[] = [], scale: ScaleJSON | null = null) => {
   rootStore = new RootStore({
     requestMIDIAccess: null,
     ticker: new ManualTicker(),
   })
-  rootStore.sequencerStore.patch = setStepNotes(createDefaultPatch(), 0, notes)
+  rootStore.sequencerStore.patch = {
+    ...setStepNotes(createDefaultPatch(), 0, notes),
+    scale,
+  }
   render(<App rootStore={rootStore} />)
   selectStep(1)
 }
@@ -107,6 +111,29 @@ describe("step editor", () => {
       target: { value: "skip" },
     })
     expect(patch().steps[0].state).toBe("skip")
+  })
+
+  it("shows the scale's keys and marks the notes out of it", () => {
+    // a scale that only names the notes, so C# is kept as it is
+    setup([61, 62], makeScale(0, "major", "ignore"))
+    expect(
+      screen.getByRole("img", { name: "C major: C D E F G A B" }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByLabelText("Note 1")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    )
+    expect(screen.getByLabelText("Note 2")).not.toHaveAttribute("aria-invalid")
+    expect(
+      screen.getAllByRole("img", { name: "Not in the scale" }),
+    ).toHaveLength(1)
+  })
+
+  it("shows no scale's keys without a scale", () => {
+    setup([61])
+    expect(document.querySelector("[data-scale-keys]")).toBeNull()
+    expect(screen.queryByRole("img", { name: "Not in the scale" })).toBeNull()
   })
 
   it("marks notes past the limit and trims them on request", () => {

@@ -3,11 +3,12 @@ import PlusIcon from "mdi-react/PlusIcon"
 import { FC, MouseEvent as ReactMouseEvent, useRef, useState } from "react"
 import { useStores } from "../../hooks/useStores"
 import { observeDrag } from "../StepEditor/observeDrag"
+import { cn } from "./cn"
 
 const STEP =
   "flex h-[1.6rem] w-[1.6rem] items-center justify-center rounded-sm bg-background-secondary text-fg enabled:hover:bg-highlight disabled:text-fg-tertiary"
 
-const VALUE = "grow text-center font-mono text-body text-fg"
+const VALUE = "grow text-center font-mono text-body"
 
 // A drag up or down the typed-in value steps it: a short range gets more
 // room per step, a long one less, so either can be crossed in a few hundred
@@ -32,6 +33,8 @@ export interface StepperProps {
   parse?: (text: string) => number | null
   // narrows what can be typed, character by character
   sanitize?: (text: string) => string
+  // the value is shown in the error colour, as one that is wrong
+  invalid?: boolean
   onChange: (value: number) => void
 }
 
@@ -44,9 +47,11 @@ export const Stepper: FC<StepperProps> = ({
   format,
   parse: given,
   sanitize,
+  invalid = false,
   onChange,
 }) => {
   const parse = given ?? (format === undefined ? parseWhole : undefined)
+  const tone = invalid ? "text-error" : "text-fg"
   const clamp = (next: number) => Math.min(max, Math.max(min, next))
   const [draft, setDraft] = useState<string | null>(null)
   // outside the app's stores, as in a lone test, a drag just isn't one edit
@@ -112,7 +117,7 @@ export const Stepper: FC<StepperProps> = ({
       </button>
       {parse === undefined ? (
         <span
-          className={`${VALUE} cursor-ns-resize select-none`}
+          className={cn(VALUE, tone, "cursor-ns-resize select-none")}
           onMouseDown={onMouseDown}
         >
           {format === undefined ? value : format(value)}
@@ -122,7 +127,11 @@ export const Stepper: FC<StepperProps> = ({
         // becomes an ordinary text field.
         <input
           aria-label={label}
-          className="w-full min-w-0 grow cursor-ns-resize rounded-[0.2rem] bg-transparent py-[0.1rem] text-center font-mono text-body text-fg focus:cursor-text focus:bg-background focus:outline-1 focus:outline-theme"
+          aria-invalid={invalid || undefined}
+          className={cn(
+            "w-full min-w-0 grow cursor-ns-resize rounded-[0.2rem] bg-transparent py-[0.1rem] text-center font-mono text-body focus:cursor-text focus:bg-background focus:outline-1 focus:outline-theme",
+            tone,
+          )}
           value={
             draft ?? (format === undefined ? String(value) : format(value))
           }

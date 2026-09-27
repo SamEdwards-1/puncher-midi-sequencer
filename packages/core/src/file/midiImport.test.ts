@@ -13,12 +13,15 @@ import {
 import {
   dealNotes,
   importMidi,
+  importPitchWeights,
   importPlan,
   MidiImportOptions,
   midiCCs,
   midiSources,
   NOTE_FILTERED,
+  NOTE_OFF_SCALE,
   NOTE_OUTSIDE,
+  NOTE_QUIET,
   NOTE_UNCHOSEN,
   prepareMidi,
 } from "./midiImport"
@@ -363,6 +366,103 @@ describe("importing a MIDI file", () => {
       options({ filter: { ...createDefaultMIDIFilter(), channels: [2] } }),
     )
     expect(quiet.steps[0].notes).toEqual([])
+  })
+
+  it("leaves out the notes played more softly than asked", () => {
+    const midi = read([
+      {
+        name: "Keys",
+        events: [
+          ...note(1, 60, 0, 1, 100),
+          ...note(1, 62, 1, 1, 30),
+          ...note(1, 64, 2, 1, 64),
+          ...note(1, 65, 3, 1, 63),
+        ],
+      },
+    ])
+    const prepared = prepareMidi(midi)
+    expect(Array.from(prepared.velocities)).toEqual([100, 30, 64, 63])
+
+    const { fates, chunks } = dealNotes(prepared, {
+      ...options({ minVelocity: 64 }),
+    })
+    expect(Array.from(fates)).toEqual([0, NOTE_QUIET, 0, NOTE_QUIET])
+    expect(chunks[0].notes).toEqual([60, 64])
+    // and they count for nothing towards a scale
+    const weights = importPitchWeights(prepared, options({ minVelocity: 64 }))
+    expect(weights[2]).toBe(0)
+    expect(weights[5]).toBe(0)
+  })
+
+  describe("to a scale", () => {
+    // C minor pentatonic: C Eb F G Bb
+    const PENTATONIC = {
+      tonic: 0,
+      name: "minorPentatonic",
+      steps: [0, 3, 5, 7, 10],
+      fit: "up" as const,
+    }
+
+    it("moves the notes outside it up, or down, or leaves them out", () => {
+      // a note a step, so each shows where it went
+      const notes = (fit: "up" | "down" | "exclude" | "ignore") =>
+        importFile(
+          plain(),
+          scale(),
+          options({ notesPerStep: 1, scale: { ...PENTATONIC, fit } }),
+        )
+          .steps.slice(0, 8)
+          .flatMap((step) => step.notes)
+
+      // C D E F G A B C: up, D to Eb, E to F, A to Bb, B to C
+      expect(notes("up")).toEqual([60, 63, 65, 65, 67, 70, 72, 72])
+      // down, D to C, E to Eb, A to G, B to Bb
+      expect(notes("down")).toEqual([60, 60, 63, 65, 67, 67, 70, 72])
+      expect(notes("exclude")).toEqual([60, 65, 67, 72])
+      // or every note as it is, the scale kept only as a name
+      expect(notes("ignore")).toEqual([60, 62, 64, 65, 67, 69, 71, 72])
+    })
+
+    it("keeps the scale in the patch, and says how many notes moved", () => {
+      const plan = planFile(plain(), scale(), options({ scale: PENTATONIC }))
+      // D, E, A and B
+      expect(plan.shifted).toBe(4)
+
+      const patch = importFile(plain(), scale(), options({ scale: PENTATONIC }))
+      expect(patch.scale).toEqual(PENTATONIC)
+      // none takes a scale away; leaving it out leaves it be
+      expect(importFile(patch, scale(), options({ scale: null })).scale).toBe(
+        null,
+      )
+      expect(importFile(patch, scale(), options()).scale).toEqual(PENTATONIC)
+    })
+
+    it("says which notes it left out", () => {
+      const prepared = prepareMidi(scale())
+      const { fates } = dealNotes(prepared, {
+        ...options(),
+        scale: { ...PENTATONIC, fit: "exclude" },
+      })
+      const left = Array.from(fates.entries())
+        .filter(([, fate]) => fate === NOTE_OFF_SCALE)
+        .map(([index]) => prepared.keys[index])
+      expect(left).toEqual([62, 64, 69, 71])
+    })
+
+    it("weighs the notes in the stretch, before fitting, to find one from", () => {
+      const weights = importPitchWeights(prepareMidi(scale()), {
+        ...options({ start: 0, end: 4 }),
+        filter: { ...createDefaultMIDIFilter(), transpose: 2 },
+      })
+      // C D E F, each 0.9 of a beat, a tone up
+      const expected = new Array(12).fill(0)
+      for (const key of [2, 4, 6, 7]) {
+        expected[key] = 0.9
+      }
+      expect(weights.map((weight) => Math.round(weight * 10) / 10)).toEqual(
+        expected,
+      )
+    })
   })
 
   it("says what became of every note", () => {

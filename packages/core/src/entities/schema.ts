@@ -1,9 +1,13 @@
 import { z } from "zod"
 import { MAX_PACE_BEATS, migratePace, PACE_BEATS } from "./paces"
+import { normalizeSteps, SCALE_FITS } from "./scale"
 import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH, NOTES_PER_STEP } from "./types"
 
 const midiValue = z.number().int().min(0).max(127)
 const channel = z.number().int().min(1).max(16)
+// how notes outside a scale are fitted; files from before one was kept
+// read as up
+const fit = z.enum(SCALE_FITS as [string, ...string[]]).default("up")
 
 export const PaceIdSchema = z.preprocess(
   (value) => (typeof value === "string" ? migratePace(value) : value),
@@ -144,6 +148,7 @@ export const VoiceSchema = z.object({
     "fall",
   ]),
   offset: z.number().int().min(-24).max(24),
+  offsetFit: fit,
   patternLength: z.number().int().min(1).max(MAX_PATTERN_LENGTH),
   pattern: z.array(PatternStepSchema).length(MAX_PATTERN_LENGTH),
   velocity: z.number().int().min(1).max(127),
@@ -170,6 +175,17 @@ export const ModOutSchema = z.object({
   smoothing: z.number().min(0).max(1),
 })
 
+export const ScaleSchema = z.object({
+  tonic: z.number().int().min(0).max(11),
+  name: z.string(),
+  steps: z
+    .array(z.number().int().min(0).max(11))
+    .min(1)
+    .max(12)
+    .transform(normalizeSteps),
+  fit,
+})
+
 export const PatchSchema = z.object({
   version: z.literal(1),
   name: z.string(),
@@ -191,7 +207,10 @@ export const PatchSchema = z.object({
   pace: PaceIdSchema,
   direction: z.enum(["fwd", "bwd", "fwdbwd", "bwdfwd", "random", "random+"]),
   shiftAmt: z.number().int().min(-24).max(24),
+  shiftFit: fit,
   tempo: z.number().min(20).max(400),
+  // files from before scales have none
+  scale: ScaleSchema.nullable().default(null),
   steps: z.array(StepSchema).length(64),
   voices: z.array(VoiceSchema).length(4),
   modOuts: z.array(ModOutSchema).length(8),
