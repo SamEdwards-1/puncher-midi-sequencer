@@ -19,6 +19,8 @@ export class HistoryStore {
   private redoStack: PatchJSON[] = []
   private lastKey: string | null = null
   private lastPushedAt = 0
+  // while held, only the first push records: a drag is one edit however long
+  private held: "no" | "yes" | "pushed" = "no"
 
   constructor(
     private readonly sequencerStore: SequencerStore,
@@ -32,6 +34,12 @@ export class HistoryStore {
 
   // Call before changing the patch. Pass a key for a continuous gesture.
   push = (key?: string) => {
+    if (this.held === "pushed") {
+      return
+    }
+    if (this.held === "yes") {
+      this.held = "pushed"
+    }
     const now = this.now()
     if (
       key !== undefined &&
@@ -79,6 +87,17 @@ export class HistoryStore {
     this.redoStack = []
     this.endGesture()
     this.sync()
+  }
+
+  // Holds every push until release as one entry, for a gesture that has no
+  // key of its own.
+  hold = () => {
+    this.held = "yes"
+  }
+
+  release = () => {
+    this.held = "no"
+    this.endGesture()
   }
 
   // Ends coalescing, so the next push starts a new entry.

@@ -10,9 +10,11 @@ import {
   toOKLCH,
 } from "./colour.ts"
 import {
+  brightsOf,
   builtInPalettes,
   type ConvertedTheme,
   commentedColours,
+  drawBrights,
   parseJSONC,
   themeCSS,
   themeFromVSCode,
@@ -125,7 +127,7 @@ describe("a VS Code theme made into one of ours", () => {
     expect(colourOf(theme, "roll-white").source).toBe("derived")
   })
 
-  it("gives the voices and jumps the theme's own colours, none twice", () => {
+  it("gives the voices the theme's own colours and the jumps brights, none twice", () => {
     const theme = themeFromVSCode(navy, bases)
     const voices = [0, 1, 2, 3].map((index) =>
       colourOf(theme, `voice-${index}`),
@@ -138,13 +140,10 @@ describe("a VS Code theme made into one of ours", () => {
     const jumps = Array.from({ length: 8 }, (_, index) =>
       colourOf(theme, `jump-${index}`),
     )
-    expect(jumps.some(({ source }) => source === "syntax support.type")).toBe(
-      true,
-    )
-    const fromTheme = jumps.filter(({ source }) => source !== "built-in")
-    expect(new Set(fromTheme.map(({ value }) => value)).size).toBe(
-      fromTheme.length,
-    )
+    for (const { source } of jumps) {
+      expect(source).toMatch(/^bright, from /)
+    }
+    expect(new Set(jumps.map(({ value }) => value)).size).toBe(8)
   })
 
   it("darkens a voice until its white counts read", () => {
@@ -265,8 +264,17 @@ describe("a VS Code theme made into one of ours", () => {
         }
       })
     }
-    // one green of the pair, not both
-    const jumps = theme.colours
+    // one green of a near pair among the brights, not both
+    const greens = themeFromVSCode(pairs, bases, {
+      brights: [
+        { colour: "#56be92", source: "one" },
+        { colour: "#54c898", source: "other" },
+        ...["#ffce03", "#4fbfff", "#ff6262", "#d0a1ff", "#fd6209"].map(
+          (colour) => ({ colour, source: colour }),
+        ),
+      ],
+    })
+    const jumps = greens.colours
       .filter(({ name }) => name.startsWith("jump-"))
       .map(({ value }) => value)
     expect(
@@ -653,5 +661,81 @@ describe("a VS Code theme made into one of ours", () => {
       /--midiseq-background: #212836; +\/\* editor\.background \*\//,
     )
     expect(css.match(/--midiseq-/g)).toHaveLength(colourNames.length)
+  })
+})
+
+describe("the brights", () => {
+  const theme = (colors: Record<string, string>) => ({ type: "dark", colors })
+
+  it("keeps a theme's bright colours, not its dim ones or passing overlays", () => {
+    const brights = brightsOf([
+      {
+        id: "one",
+        json: theme({
+          "terminal.ansiYellow": "#ffce03",
+          "terminal.ansiBlue": "#4fbfff",
+          "editor.background": "#1c212e",
+          "editor.foreground": "#97a7c8",
+          "terminal.ansiBlack": "#3d4d67",
+          "editor.findMatchBackground": "#00ff00",
+        }),
+      },
+    ])
+    expect(brights.map(({ colour }) => colour)).toEqual(["#ffce03", "#4fbfff"])
+    expect(brights[0].source).toBe("one terminal.ansiYellow")
+  })
+
+  it("keeps one of any two alike, the more colourful, round the hues", () => {
+    const brights = brightsOf([
+      { id: "one", json: theme({ "terminal.ansiRed": "#f06b73" }) },
+      {
+        id: "other",
+        json: theme({
+          "terminal.ansiRed": "#ff6262",
+          "terminal.ansiGreen": "#7cd827",
+        }),
+      },
+    ])
+    expect(brights.map(({ colour }) => colour)).toEqual(["#ff6262", "#7cd827"])
+  })
+
+  it("draws each name the nearest hue, legible, and none alike", () => {
+    const background = parseColour("#ffffff") as RGBA
+    const layout = (name: string) =>
+      parseColour(name === "a" ? "#e5c07b" : "#3bb3e2") as RGBA
+    const drawn = drawBrights(
+      ["a", "b"],
+      layout,
+      [[background, 3]],
+      [],
+      [
+        { colour: "#4fbfff", source: "blue" },
+        { colour: "#ffce03", source: "yellow" },
+      ],
+    )
+    expect(drawn.map(({ source }) => source)).toEqual([
+      "bright, from yellow",
+      "bright, from blue",
+    ])
+    for (const { colour } of drawn) {
+      expect(contrast(colour, background)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it("gives a name with no hue the one furthest from those taken", () => {
+    const layout = (name: string) =>
+      parseColour(name === "a" ? "#e5c07b" : "#ecf2fd") as RGBA
+    const drawn = drawBrights(
+      ["a", "b"],
+      layout,
+      [],
+      [],
+      [
+        { colour: "#ffce03", source: "yellow" },
+        { colour: "#ff9f1c", source: "orange" },
+        { colour: "#4fbfff", source: "blue" },
+      ],
+    )
+    expect(drawn[1].source).toBe("bright, from blue")
   })
 })

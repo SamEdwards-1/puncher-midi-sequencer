@@ -144,10 +144,6 @@ export default {
     "sequencer-step-add-cc": "Add CC",
     "sequencer-step-more-lanes": "More lanes",
     "sequencer-step-remove-cc": "Remove CC",
-    "sequencer-velocity-edit-hint":
-      "Each note is a point on the line. Drag a point or the line to set its velocity; click a point to return its note to the voice's. Near a dashed line a note snaps onto that accent; one dot's notes move together. B switches to Draw.",
-    "sequencer-velocity-draw-hint":
-      "Drag across the notes to paint their velocities. B switches back to Edit.",
     "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
     "sequencer-step-cc-channel-short": "ch",
@@ -169,10 +165,6 @@ export default {
       "Collapse scale — show only the keys the sequence plays",
     "sequencer-envelope-ruler":
       "Ruler — drag up to zoom in, down to zoom out, sideways to scroll",
-    "sequencer-envelope-edit-hint":
-      "Click the line to add a point, or double-click anywhere. Drag a point or the line to move it; click a point to delete it. Alt skips the grid; B switches to Draw.",
-    "sequencer-envelope-draw-hint":
-      "Drag to paint values across the grid. Alt paints freely; B switches back to Edit.",
     "sequencer-action-latch": "Latch",
     "sequencer-preview": "Audition step",
     "sequencer-mark": "Mark",
@@ -246,6 +238,7 @@ export default {
     "sequencer-filter-range": "Note range",
     "sequencer-filter-low": "Lowest note",
     "sequencer-filter-high": "Highest note",
+    "sequencer-filter-to": "to",
     "sequencer-filter-transpose": "Transpose",
     "sequencer-filter-semitones": "st",
     "sequencer-filter-ccs": "CC filter",

@@ -7,9 +7,10 @@
 // secondary text sits from the primary, which hue each voice and jump takes.
 // Then it rebuilds that layout on the VS Code theme's own background, text
 // and accent, takes a VS Code colour wherever one plays the same part and
-// fits, and tints the rest from the theme's hue. The coloured sets (voices,
-// jumps, collisions and the envelope) take the theme's own syntax colours,
-// each the one nearest the hue it has in the built-in theme.
+// fits, and tints the rest from the theme's hue. The voices and the envelope
+// take the theme's own syntax colours, each the one nearest the hue it has in
+// the built-in theme. The jumps and collisions are drawn the same way from
+// the brights: the bright colours of every theme kept, listed in brights.ts.
 //
 // Everything is then checked for legibility: text against what it sits on,
 // white counts against the voice colours, and so on. A colour that falls
@@ -18,6 +19,7 @@
 // It runs under Node as well as Vite, so imports within the theme folder
 // name their .ts files.
 
+import { BRIGHTS, type Bright } from "./brights.ts"
 import {
   apart,
   contrast,
@@ -213,6 +215,171 @@ const describeMove = (before: RGBA, after: RGBA, source: string) => {
   return `${source}, ${moved > 0 ? "lightened" : "darkened"}`
 }
 
+// ---------------------------------------------------------- the brights
+
+// A bright colour has this much colour at the least, and a lightness in this
+// range: light enough to glow on a dark background, short of washed out.
+const BRIGHT_CHROMA = 0.13
+const BRIGHT_LIGHTNESS = [0.62, 0.92]
+// and no two in the list look closer than this
+const BRIGHT_APART = 0.05
+// Keys for what lies over the editor for a moment, a drop target or a
+// search's matches, often a bare primary: loud, not the theme's palette.
+const PASSING = /drop|highlight|selection|hover|find|match|range|bracket/i
+
+/**
+ * The bright colours of every VS Code theme we keep, for the marks that have
+ * to stand out wherever they are: the jumps and the collisions. The most
+ * colourful of any close alike is the one kept, and the list runs round the
+ * hues.
+ */
+export const brightsOf = (themes: { id: string; json: unknown }[]) => {
+  const bright = themes
+    .flatMap(({ id, json }) =>
+      swatchesOf(record(json)).map((swatch) => ({
+        ...swatch,
+        source: `${id} ${swatch.source}`,
+      })),
+    )
+    .filter(
+      ({ lch, source }) =>
+        !PASSING.test(source) &&
+        lch.c >= BRIGHT_CHROMA &&
+        lch.l >= BRIGHT_LIGHTNESS[0] &&
+        lch.l <= BRIGHT_LIGHTNESS[1],
+    )
+    .sort((one, other) => other.lch.c - one.lch.c)
+  const kept: typeof bright = []
+  for (const swatch of bright) {
+    if (
+      kept.every(
+        (other) => difference(other.colour, swatch.colour) >= BRIGHT_APART,
+      )
+    ) {
+      kept.push(swatch)
+    }
+  }
+  return kept
+    .sort((one, other) => one.lch.h - other.lch.h)
+    .map(({ colour, source }): Bright => ({ colour: toHex(colour), source }))
+}
+
+/** The list as brights.ts, which the utility writes. */
+export const brightsTS = (brights: Bright[]) =>
+  [
+    "// The bright colours of every VS Code theme in themes/, round the hues:",
+    "// what the jumps and collisions of every theme are drawn from. Written by",
+    "// `npm run theme -- --all`; don't edit it by hand.",
+    "",
+    "export type Bright = { colour: string; source: string }",
+    "",
+    "export const BRIGHTS: Bright[] = [",
+    ...brights.map(
+      ({ colour, source }) =>
+        `  { colour: "${colour}", source: ${JSON.stringify(source)} },`,
+    ),
+    "]",
+    "",
+  ].join("\n")
+
+export type Drawn = {
+  name: string
+  original: RGBA
+  colour: RGBA
+  source: string
+}
+
+/**
+ * Each of the names gets a colour from the brights, the one nearest the hue
+ * it has in the layout, the closest pairs settled first, and then made
+ * legible against what it sits on. None is taken that looks too like one
+ * already taken or one the set keeps clear of. A name with no hue in the
+ * layout, or none near enough, takes the hue furthest from those taken, and
+ * failing that one clear only of the set's own. Should nothing be left, a
+ * name keeps its layout colour, made legible.
+ */
+export const drawBrights = (
+  names: string[],
+  layout: (name: string) => RGBA,
+  against: [RGBA, number][],
+  avoid: RGBA[] = [],
+  brights: readonly Bright[] = BRIGHTS,
+): Drawn[] => {
+  const legible = (colour: RGBA) =>
+    against.reduce(
+      (colour, [other, minimum]) => apart(colour, other, minimum),
+      colour,
+    )
+  const pool = brights.flatMap(({ colour, source }) => {
+    const parsed = parseColour(colour)
+    return parsed === null ? [] : [{ colour: parsed, source }]
+  })
+  const chosen = new Map<string, Drawn>()
+  const taken: RGBA[] = []
+  const take = (name: string, bright: (typeof pool)[number], clear = true) => {
+    const colour = legible(bright.colour)
+    if (
+      chosen.has(name) ||
+      taken.some((other) => difference(other, colour) < DISTINCT) ||
+      (clear && avoid.some((other) => difference(other, colour) < CLEAR))
+    ) {
+      return
+    }
+    chosen.set(name, {
+      name,
+      original: bright.colour,
+      colour,
+      source: `bright, from ${bright.source}`,
+    })
+    taken.push(colour)
+  }
+
+  const hued = names.filter((name) => toOKLCH(layout(name)).c >= 0.03)
+  const pairs = hued.flatMap((name) => {
+    const want = toOKLCH(layout(name))
+    return pool.map((bright) => {
+      const lch = toOKLCH(bright.colour)
+      // the more colourful of two as near in hue
+      return { name, bright, distance: hueDistance(want.h, lch.h) - 20 * lch.c }
+    })
+  })
+  pairs.sort((one, other) => one.distance - other.distance)
+  for (const { name, bright } of pairs) {
+    take(name, bright)
+  }
+
+  // The rest, one at a time, take the hue furthest from any taken; any
+  // still without, the same way, only told apart from the set itself.
+  const furthest = (bright: (typeof pool)[number]) =>
+    Math.min(
+      360,
+      ...taken.map((other) =>
+        hueDistance(toOKLCH(other).h, toOKLCH(bright.colour).h),
+      ),
+    )
+  for (const clear of [true, false]) {
+    for (const name of names.filter((name) => !chosen.has(name))) {
+      for (const bright of [...pool].sort(
+        (one, other) => furthest(other) - furthest(one),
+      )) {
+        take(name, bright, clear)
+      }
+    }
+  }
+
+  return names.map(
+    (name) =>
+      chosen.get(name) ?? {
+        name,
+        original: layout(name),
+        colour: legible(layout(name)),
+        source: "built-in",
+      },
+  )
+}
+
+// ------------------------------------------------------------ the theme
+
 export const themeFromVSCode = (
   input: unknown,
   bases: BasePalettes,
@@ -238,6 +405,8 @@ export const themeFromVSCode = (
     // any of our colours, by name, as one of the theme's keys or a colour:
     // the last word, taken as it is
     set?: Record<string, string>
+    // what the jumps and collisions are drawn from, if not the list kept
+    brights?: readonly Bright[]
   } = {},
 ): ConvertedTheme => {
   const theme = record(input)
@@ -592,7 +761,7 @@ export const themeFromVSCode = (
   ]) {
     set(name, placed(name, "editor-background"), "derived")
   }
-  for (const name of ["step", "step-skip", "pace-band"]) {
+  for (const name of ["step", "step-skip"]) {
     set(name, placed(name, "background"), "derived")
   }
 
@@ -840,13 +1009,6 @@ export const themeFromVSCode = (
     }
   }
 
-  // Each set's colours, made legible against whatever they have to stand
-  // apart from.
-  const legibleSet = (
-    names: string[],
-    against: [RGBA, number][],
-    avoid: RGBA[] = [],
-  ) => setPicks(matched(names, { avoid, adjust: fitter(against) }))
   const numbered = (prefix: string, count: number) =>
     Array.from({ length: count }, (_, index) => `${prefix}-${index}`)
 
@@ -1060,8 +1222,26 @@ export const themeFromVSCode = (
 
   // Jumps keep clear of the accent and recording's red; collision marks lie
   // over voices, so keep clear of theirs.
-  legibleSet(numbered("jump", 8), [[background, 3]], [accent, get("record")])
-  legibleSet(numbered("collision", 6), [[background, 4]], voices)
+  // Both are drawn from the brights of every theme, not this one's own, so
+  // they stand out the same way whichever theme is on.
+  setPicks(
+    drawBrights(
+      numbered("jump", 8),
+      builtIn,
+      [[background, 3]],
+      [accent, get("record")],
+      options.brights,
+    ),
+  )
+  setPicks(
+    drawBrights(
+      numbered("collision", 6),
+      builtIn,
+      [[background, 4]],
+      voices,
+      options.brights,
+    ),
+  )
 
   // The grid's steps and the layers behind them, pushed apart and coloured
   // as far as the drama goes. Steps with notes (background-secondary) and
@@ -1075,7 +1255,6 @@ export const themeFromVSCode = (
       ["background-dark", { lift: 0.6, chroma: 0.015 }],
       ["editor-background", { lift: 0.6, chroma: 0.015 }],
       ["ruler-background", { lift: 0.6, chroma: 0.015 }],
-      ["pace-band", { lift: 0.5, chroma: 0.015 }],
       ["background-secondary", { lift: 0.8, chroma: 0.03, tint: 0.25 }],
       ["step", { lift: 0.8, chroma: 0.02, tint: 0.12 }],
       ["step-skip", { lift: 0.8, chroma: 0.01 }],

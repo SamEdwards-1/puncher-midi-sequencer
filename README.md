@@ -299,9 +299,12 @@ mark for what's active: the active activity-bar or tab border, then its
 button and badge. Red is left to recording unless the theme's buttons are red
 themselves. A CC's envelope is drawn in the accent too. The voices take the
 theme's chart colours, then its terminal's blue, yellow, green and magenta,
-then its nearest syntax colours. Jumps and collision marks take the syntax
-colours nearest their built-in hues, no two alike, and none so close to the
-accent, recording or a voice as to be taken for it. Where a theme leaves a
+then its nearest syntax colours. Jumps and collision marks come from the
+brights instead: the bright colours of every VS Code theme kept, gathered
+into `app/src/theme/brights.ts`, so they stand out the same way whichever
+theme is on. Each takes the bright nearest its built-in hue, no two alike,
+and none so close to the accent, recording or a voice as to be taken for
+it. Where a theme leaves a
 key to VS Code, the colour on its commented-out line (as VS Code exports
 them) stands in for the accent and the voices.
 
@@ -328,4 +331,6 @@ saying where it came from, and lists the theme in `themes.json`, which
 Settings → Theme reads, offering it among the dark themes or the light. The
 VS Code theme is kept beside it as `<id>.vscode.json`, so
 `npm run theme -- --all` can make every theme again: after a colour is added
-to the layout, say. A test fails until that has been done.
+to the layout, say. It gathers the brights afresh first, and draws the
+default themes' jumps and collisions in `styles.css` from them too. A test
+fails until that has been done.

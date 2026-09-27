@@ -39,25 +39,24 @@
   --midiseq-step-skip: #dad3ef;             /* derived, dramatised */
   --midiseq-scrollbar: #acb0be80;           /* scrollbarSlider.background */
   --midiseq-scrollbar-hover: #9ca0b0;       /* scrollbarSlider.hoverBackground */
-  --midiseq-jump-0: #c47a00;                /* syntax entity.name.class, darkened */
-  --midiseq-jump-1: #179299;                /* syntax keyword.operator */
-  --midiseq-jump-2: #bf607c;                /* debugIcon.breakpointUnverifiedForeground */
-  --midiseq-jump-3: #3e9e28;                /* syntax string, darkened */
-  --midiseq-jump-4: #ee5b00;                /* syntax constant.numeric, darkened */
-  --midiseq-jump-5: #6d81f6;                /* syntax variable.other.member.haskell, darkened */
-  --midiseq-jump-6: #839311;                /* built-in, darkened */
-  --midiseq-jump-7: #0094ce;                /* syntax punctuation.definition.typeparameters, darkened */
-  --midiseq-collision-0: #d20f39;           /* syntax constant.language */
-  --midiseq-collision-1: #957000;           /* built-in, darkened */
-  --midiseq-collision-2: #008195;           /* syntax heading.5.markdown punctuation.definition.heading.markdown, darkened */
-  --midiseq-collision-3: #408500;           /* built-in, darkened */
-  --midiseq-collision-4: #272137;           /* derived */
-  --midiseq-collision-5: #b55774;           /* debugIcon.breakpointUnverifiedForeground, darkened */
+  --midiseq-jump-0: #b88000;                /* bright, from abyss syntax constant, darkened */
+  --midiseq-jump-1: #009b93;                /* bright, from espresso terminal.ansiBrightBlue, darkened */
+  --midiseq-jump-2: #e65598;                /* bright, from espresso terminal.ansiBrightMagenta, darkened */
+  --midiseq-jump-3: #00a128;                /* bright, from abyss settings.modifiedItemIndicator, darkened */
+  --midiseq-jump-4: #ee5a00;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule, darkened */
+  --midiseq-jump-5: #8a7edf;                /* bright, from nightshade activityBarBadge.background, darkened */
+  --midiseq-jump-6: #7f9400;                /* bright, from neon-orchard syntax string, darkened */
+  --midiseq-jump-7: #0d93d1;                /* bright, from night-market terminal.ansiBlue, darkened */
+  --midiseq-collision-0: #df2e33;           /* bright, from espresso syntax constant, darkened */
+  --midiseq-collision-1: #8f7200;           /* bright, from plum-dusk syntax variable.parameter, darkened */
+  --midiseq-collision-2: #00847d;           /* bright, from espresso terminal.ansiBrightBlue, darkened */
+  --midiseq-collision-3: #007db3;           /* bright, from night-market terminal.ansiBlue, darkened */
+  --midiseq-collision-4: #8f61ba;           /* bright, from night-market terminal.ansiMagenta, darkened */
+  --midiseq-collision-5: #e31968;           /* bright, from plum-dusk syntax keyword, darkened */
   --midiseq-voice-0: #2c6ae7;               /* charts.blue, made vivid */
   --midiseq-voice-1: #c96200;               /* charts.orange, made vivid, darkened */
   --midiseq-voice-2: #279300;               /* charts.green, made vivid */
   --midiseq-voice-3: #ce49ae;               /* terminal.ansiMagenta, made vivid */
-  --midiseq-pace-band: #a49abf;             /* derived, dramatised */
   --midiseq-envelope: #8839ef;              /* tab.activeBorderTop */
   --midiseq-logo: #ce447f;                  /* built-in, darkened */
 }

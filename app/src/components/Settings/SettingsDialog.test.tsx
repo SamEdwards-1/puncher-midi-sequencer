@@ -119,6 +119,26 @@ describe("the settings dialog", () => {
     expect(midi().outputNames.all).toEqual(["Built-in synth"])
   })
 
+  it("shows a voice's instrument only while the built-in synth plays it", async () => {
+    const dialog = await openMIDI()
+    const instrument = () =>
+      within(screen.getByRole("region", { name: "Voices" })).queryByLabelText(
+        "Instrument",
+      )
+    expect(instrument()).toBeNull()
+
+    fireEvent.click(dialog.getByRole("checkbox", { name: "Built-in synth" }))
+    expect(instrument()).not.toBeNull()
+    fireEvent.click(dialog.getByRole("checkbox", { name: "Built-in synth" }))
+    expect(instrument()).toBeNull()
+
+    // the selected voice, the first, given the synth for its own
+    fireEvent.change(dialog.getByLabelText(/Voice 1/), {
+      target: { value: "Built-in synth" },
+    })
+    expect(instrument()).not.toBeNull()
+  })
+
   it("keeps a port of its own for a voice", async () => {
     const dialog = await openMIDI()
 
@@ -163,6 +183,8 @@ describe("the settings dialog", () => {
       fireEvent.change(field, { target: { value: text } })
       fireEvent.keyDown(field, { key: "Enter" })
     }
+    // the range reads from one note to the other
+    expect(dialog.getByText("to")).toBeInTheDocument()
     type("Lowest note", "C4")
     type("Transpose", "12")
     expect(midi().filter).toMatchObject({ noteLow: 60, transpose: 12 })

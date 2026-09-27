@@ -141,7 +141,9 @@ export const MIDIFilterFields: FC<{
               onChange={(noteLow) => setFilter({ noteLow })}
             />
           </div>
-          <span className="text-tiny text-fg-tertiary">–</span>
+          <span className="text-small text-fg-tertiary">
+            <Localized name="sequencer-filter-to" />
+          </span>
           <div className="w-24">
             <Stepper
               label={localized["sequencer-filter-high"]}

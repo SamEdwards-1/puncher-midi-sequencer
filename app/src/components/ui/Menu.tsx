@@ -1,10 +1,15 @@
 import ChevronDownIcon from "mdi-react/ChevronDownIcon"
-import { FC, ReactNode, useState } from "react"
+import { FC, ReactNode, useEffect, useRef, useState } from "react"
 import { cn } from "./cn"
 
+// a menu-bar title: flat rather than a pill, lit while it is open
+const TITLE = "flex h-8 items-center gap-1 rounded-sm text-body"
+const TITLE_OPEN = "bg-background-secondary text-fg"
+const TITLE_SHUT = "text-fg-secondary hover:bg-highlight hover:text-fg"
+
 /**
- * A menu-bar title — flat rather than a pill — and the list it opens.
- * `children` gets a way to close the list, for items that act.
+ * A menu-bar title and the list it opens. A click anywhere else, or Escape,
+ * closes it. `children` gets a way to close the list, for items that act.
  */
 export const MenuBarMenu: FC<{
   label: string
@@ -12,18 +17,37 @@ export const MenuBarMenu: FC<{
 }> = ({ label, children }) => {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  const menu = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    // the title is inside too, so its own click still toggles
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menu.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false)
+      }
+    }
+    window.addEventListener("pointerdown", onPointerDown)
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [open])
 
   return (
-    <div className="relative flex items-center">
+    <div ref={menu} className="relative flex items-center">
       <button
         type="button"
         aria-expanded={open}
-        className={cn(
-          "flex h-8 items-center gap-1 rounded-sm pr-2 pl-3 text-body",
-          open
-            ? "bg-background-secondary text-fg"
-            : "text-fg-secondary hover:bg-highlight hover:text-fg",
-        )}
+        className={cn(TITLE, "pr-2 pl-3", open ? TITLE_OPEN : TITLE_SHUT)}
         onClick={() => setOpen(!open)}
       >
         {label}
@@ -41,6 +65,21 @@ export const MenuBarMenu: FC<{
     </div>
   )
 }
+
+/** A menu-bar title that acts rather than opening a list. */
+export const MenuBarButton: FC<{
+  active?: boolean
+  onClick: () => void
+  children: ReactNode
+}> = ({ active = false, onClick, children }) => (
+  <button
+    type="button"
+    className={cn(TITLE, "px-3", active ? TITLE_OPEN : TITLE_SHUT)}
+    onClick={onClick}
+  >
+    {children}
+  </button>
+)
 
 /** One item: it closes the menu and then acts. A shortcut shows on the right. */
 export const MenuItem: FC<{

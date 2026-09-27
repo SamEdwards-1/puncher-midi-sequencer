@@ -39,25 +39,24 @@
   --midiseq-step-skip: #081d21;             /* derived */
   --midiseq-scrollbar: #6a90955b;           /* scrollbarSlider.background */
   --midiseq-scrollbar-hover: #169fb166;     /* scrollbarSlider.hoverBackground, more opaque */
-  --midiseq-jump-0: #d5971a;                /* syntax constant */
-  --midiseq-jump-1: #009999;                /* button.background */
-  --midiseq-jump-2: #df769b;                /* syntax keyword */
-  --midiseq-jump-3: #15ac31;                /* settings.modifiedItemIndicator */
-  --midiseq-jump-4: #ffa487;                /* list.warningForeground */
-  --midiseq-jump-5: #7060eb;                /* syntax constant.numeric */
-  --midiseq-jump-6: #8ce99a;                /* editorGutter.addedBackground */
-  --midiseq-jump-7: #49ace9;                /* syntax source.js constant.other.object.key.js string.unquoted.label.js */
-  --midiseq-collision-0: #e34e1c;           /* editorError.foreground */
-  --midiseq-collision-1: #fadf2e;           /* built-in */
-  --midiseq-collision-2: #40d4e7;           /* breadcrumb.focusForeground */
-  --midiseq-collision-3: #15ac31;           /* settings.modifiedItemIndicator */
-  --midiseq-collision-4: #c8d4d6;           /* derived */
-  --midiseq-collision-5: #e798b3;           /* terminal.ansiBrightMagenta */
+  --midiseq-jump-0: #d5971a;                /* bright, from abyss syntax constant */
+  --midiseq-jump-1: #53f8ed;                /* bright, from espresso terminal.ansiBrightBlue */
+  --midiseq-jump-2: #df769b;                /* bright, from abyss syntax keyword */
+  --midiseq-jump-3: #70bf56;                /* bright, from night-market syntax markup.inserted */
+  --midiseq-jump-4: #fa841d;                /* bright, from frost syntax variable.other.object.property */
+  --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
+  --midiseq-jump-6: #cded1c;                /* bright, from neon-orchard syntax string */
+  --midiseq-jump-7: #14a5ff;                /* bright, from abyss editorLink.activeForeground */
+  --midiseq-collision-0: #d95757;           /* bright, from night-market syntax invalid */
+  --midiseq-collision-1: #ffdd71;           /* bright, from espresso terminal.ansiBrightYellow */
+  --midiseq-collision-2: #53f8ed;           /* bright, from espresso terminal.ansiBrightBlue */
+  --midiseq-collision-3: #94f632;           /* bright, from espresso terminal.ansiBrightGreen */
+  --midiseq-collision-4: #7287fd;           /* bright, from lavender-field syntax variable.other.member.haskell */
+  --midiseq-collision-5: #fe85d8;           /* bright, from lavender-field terminal.ansiBrightMagenta */
   --midiseq-voice-0: #00adfb;               /* terminal.ansiBlue, made vivid */
   --midiseq-voice-1: #ffa91f;               /* terminal.ansiYellow, made vivid */
   --midiseq-voice-2: #00e098;               /* terminal.ansiGreen, made vivid */
   --midiseq-voice-3: #f95b9a;               /* terminal.ansiMagenta, made vivid */
-  --midiseq-pace-band: #000203;             /* derived */
   --midiseq-envelope: #40d4e7;              /* activityBar.activeBorder */
   --midiseq-logo: #fbbbd1;                  /* built-in */
 }

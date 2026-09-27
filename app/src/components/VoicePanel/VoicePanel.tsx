@@ -33,6 +33,7 @@ import {
 } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
@@ -166,6 +167,13 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   const { editVoice } = usePatchEditor()
   const localized = useLocalization()
   const voice = patch.voices[selected]
+  // An instrument only means something to the built-in synth: the voice
+  // reaches it when it is one of the outputs, or the voice's own.
+  const { midiDeviceStore } = useStores()
+  const outputNames = useMobxGetter(midiDeviceStore, "outputNames")
+  const playsBuiltIn =
+    outputNames.all.includes(BUILTIN_OUTPUT) ||
+    outputNames.voices[selected] === BUILTIN_OUTPUT
 
   return (
     <Panel
@@ -293,20 +301,22 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-voice-instrument"]}>
-          <Select
-            value={String(voice.program)}
-            onChange={(event) =>
-              editVoice(selected, { program: Number(event.target.value) })
-            }
-          >
-            {GM_PROGRAMS.map((name, program) => (
-              <option key={name} value={program}>
-                {name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {playsBuiltIn && (
+          <Field label={localized["sequencer-voice-instrument"]}>
+            <Select
+              value={String(voice.program)}
+              onChange={(event) =>
+                editVoice(selected, { program: Number(event.target.value) })
+              }
+            >
+              {GM_PROGRAMS.map((name, program) => (
+                <option key={name} value={program}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <Field label={localized["sequencer-voice-pattern-length"]}>
           <Stepper
@@ -408,7 +418,7 @@ const Patterns: FC<{
   return (
     <section
       aria-label={localized["sequencer-voice-patterns"]}
-      className="flex flex-col gap-[0.35rem] border-t border-divider px-3 pt-3"
+      className="flex flex-col gap-[0.5rem] border-t border-divider px-3 pt-3"
     >
       {VOICES.map((voiceIndex) => {
         const voice = patch.voices[voiceIndex]
@@ -459,7 +469,7 @@ const Patterns: FC<{
                   key={first}
                   aria-hidden
                   data-band
-                  className="-m-[0.25rem] rounded-full bg-pace-band"
+                  className="-m-[0.25rem] rounded-full border-[1.5px] border-theme"
                   style={{
                     gridRow: 1,
                     gridColumn: `${first + 1} / span ${count}`,
@@ -539,12 +549,22 @@ const Patterns: FC<{
                   >
                     {dot.ratchet > 1 ? dot.ratchet : ""}
                     {collided.length > 0 && (
-                      // above the dot, one chevron per collision it is in,
-                      // each in that collision's colour
+                      // above the dot and clear of the band's line, one
+                      // chevron per collision it is in, each in that
+                      // collision's colour. An accent scales the dot, and
+                      // everything in it, about its middle, so the marks
+                      // undo that: the same size and height on every dot.
                       <span
                         aria-hidden
                         data-collision-mark
-                        className="pointer-events-none absolute bottom-full left-1/2 flex -translate-x-1/2 -space-x-2"
+                        className={cn(
+                          "pointer-events-none absolute left-1/2 flex origin-bottom -translate-x-1/2 -space-x-3",
+                          accent === "-"
+                            ? "bottom-[calc(112.5%+2.5px)] scale-[1.25]"
+                            : accent === "+"
+                              ? "bottom-[calc(93.5%+1.75px)] scale-[0.87]"
+                              : "bottom-[calc(100%+2px)]",
+                        )}
                       >
                         {collided.map((index) => (
                           <span
@@ -557,7 +577,12 @@ const Patterns: FC<{
                             )}
                             style={{ color: collisionColor(index) }}
                           >
-                            <ChevronDownIcon size={16} />
+                            <ChevronDownIcon
+                              size={22}
+                              stroke="currentColor"
+                              strokeWidth={1.2}
+                              strokeLinejoin="round"
+                            />
                           </span>
                         ))}
                       </span>

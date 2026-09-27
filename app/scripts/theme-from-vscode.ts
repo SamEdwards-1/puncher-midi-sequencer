@@ -11,16 +11,25 @@
 // <id>.vscode.json so the theme can be made again, and lists it in
 // src/theme/themes/themes.json, which Settings reads. --all makes every
 // listed theme again from those copies: after a colour is added to the
-// built-in themes, say, or the utility learns something new.
+// built-in themes, say, or the utility learns something new. Before that it
+// gathers the bright colours of all of them into src/theme/brights.ts, which
+// every theme's jumps and collisions are drawn from, the two built-in ones'
+// in src/styles.css included.
 //
 // Node runs it as it is, types and all (22.18 or later).
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, resolve } from "node:path"
 import { parseArgs } from "node:util"
+import type { Bright } from "../src/theme/brights.ts"
+import { parseColour, type RGBA, toHex } from "../src/theme/colour.ts"
 import {
+  brightsOf,
+  brightsTS,
   builtInPalettes,
   commentedColours,
+  drawBrights,
+  paletteOf,
   parseJSONC,
   type ThemeKind,
   themeCSS,
@@ -81,6 +90,7 @@ const make = (
     background?: string
     set?: Record<string, string>
   },
+  brights?: Bright[],
 ) => {
   const text = readFileSync(source, "utf8")
   let json: unknown
@@ -112,6 +122,7 @@ const make = (
     voices: wanted.voices,
     background: wanted.background,
     set: wanted.set,
+    brights,
   })
 
   writeFileSync(resolve(folder, `${id}.css`), themeCSS(id, name, theme))
@@ -194,10 +205,73 @@ function drama(text: string | undefined) {
   return amount
 }
 
-if (values.all) {
-  for (const listed of readList()) {
-    make(resolve(folder, `${listed.id}.vscode.json`), listed)
+// The built-in themes' jumps and collisions, drawn from the brights as the
+// made ones' are, in place in the stylesheet.
+const drawDefaults = (brights: Bright[]) => {
+  const path = resolve(app, "src/styles.css")
+  let css = readFileSync(path, "utf8")
+  const layout = builtInPalettes(
+    readFileSync(resolve(app, "src/theme/layout.css"), "utf8"),
+  )
+  const blocks: [ThemeKind, string][] = [
+    ["dark", ":root"],
+    ["light", ':root[data-theme="light"]'],
+  ]
+  const numbered = (prefix: string, count: number) =>
+    Array.from({ length: count }, (_, index) => `${prefix}-${index}`)
+  for (const [kind, selector] of blocks) {
+    const palette = paletteOf(css, selector)
+    const colour = (name: string) => parseColour(palette[name]) as RGBA
+    const want = (name: string) => parseColour(layout[kind][name]) as RGBA
+    const background = colour("background")
+    const drawn = [
+      ...drawBrights(
+        numbered("jump", 8),
+        want,
+        [[background, 3]],
+        [colour("theme"), colour("record")],
+        brights,
+      ),
+      ...drawBrights(
+        numbered("collision", 6),
+        want,
+        [[background, 4]],
+        numbered("voice", 4).map(colour),
+        brights,
+      ),
+    ]
+    const start = css.indexOf(`${selector} {`)
+    const end = css.indexOf("\n}", start)
+    let block = css.slice(start, end)
+    console.log(`\nThe built-in ${kind} theme:`)
+    for (const { name, colour, source } of drawn) {
+      block = block.replace(
+        new RegExp(`(--midiseq-${name}:\\s*)[^;]+;`),
+        `$1${toHex(colour)};`,
+      )
+      console.log(`  ${name.padEnd(11)}  ${toHex(colour).padEnd(9)}  ${source}`)
+    }
+    css = css.slice(0, start) + block + css.slice(end)
   }
+  writeFileSync(path, css)
+}
+
+if (values.all) {
+  const listed = readList()
+  const brights = brightsOf(
+    listed.map(({ id }) => ({
+      id,
+      json: parseJSONC(
+        readFileSync(resolve(folder, `${id}.vscode.json`), "utf8"),
+      ),
+    })),
+  )
+  writeFileSync(resolve(app, "src/theme/brights.ts"), brightsTS(brights))
+  console.log(`${brights.length} brights, in src/theme/brights.ts.`)
+  for (const theme of listed) {
+    make(resolve(folder, `${theme.id}.vscode.json`), theme, brights)
+  }
+  drawDefaults(brights)
 } else if (positionals.length === 1) {
   // npm runs this from app/; a path is as typed where npm was run
   const from = process.env.INIT_CWD ?? process.cwd()
