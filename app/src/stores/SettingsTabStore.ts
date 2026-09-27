@@ -4,11 +4,18 @@ import { defaultStorage, read, write } from "./storage"
 const STORAGE_KEY = "midiseq.settingsTab"
 
 // The settings dialog's groups, in the order its tabs show them.
-export type SettingsTab = "general" | "theme" | "midi" | "export" | "import"
+export type SettingsTab =
+  | "general"
+  | "theme"
+  | "midi"
+  | "soundfont"
+  | "export"
+  | "import"
 export const SETTINGS_TABS: SettingsTab[] = [
   "general",
   "theme",
   "midi",
+  "soundfont",
   "export",
   "import",
 ]

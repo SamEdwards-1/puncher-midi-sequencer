@@ -26,10 +26,9 @@ const setup = async (currentTime = 10) => {
   } as unknown as AudioContext
   const sound = new SoundFontSynth(context, {
     createSynth: async () => synth,
-    fetchSoundFont: async () => new ArrayBuffer(8),
     now: () => 1000,
   })
-  await sound.load()
+  await sound.loadSoundFont(new ArrayBuffer(8))
   return { sound, synth }
 }
 
@@ -39,6 +38,24 @@ describe("SoundFontSynth", () => {
     expect(sound.isLoaded).toBe(true)
     expect(synth.connect).toHaveBeenCalled()
     expect(synth.soundBankManager.addSoundBank).toHaveBeenCalled()
+  })
+
+  it("swaps one SoundFont for another in the same synth", async () => {
+    const created = vi.fn(async () => fakeSynth())
+    const context = { destination: {} } as unknown as AudioContext
+    const sound = new SoundFontSynth(context, { createSynth: created })
+
+    await sound.loadSoundFont(new ArrayBuffer(8))
+    await sound.loadSoundFont(new ArrayBuffer(16))
+
+    expect(created).toHaveBeenCalledTimes(1)
+    const synth = await created.mock.results[0].value
+    expect(synth.soundBankManager.addSoundBank).toHaveBeenCalledTimes(2)
+    // the same bank replaced, rather than a second one stacked on it
+    expect(synth.soundBankManager.addSoundBank).toHaveBeenLastCalledWith(
+      expect.any(ArrayBuffer),
+      "main",
+    )
   })
 
   it("plays the MIDI bytes it is sent", async () => {
