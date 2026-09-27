@@ -1,16 +1,17 @@
 import { StepNote, VoiceIndex } from "@midiseq/core"
-import { Plot, toX } from "./envelopeGeometry"
+import { Plot, toX, toY } from "./envelopeGeometry"
 
 /**
- * A note's velocity as a point on the voice's velocity line: where the note
- * starts, how hard it plays, and the dot that played it. The line can't be
- * given points of its own; it has one at every note, and moving one sets
- * its dot's velocity.
+ * A note's velocity, drawn as a lollipop: a head where the note starts, at
+ * how hard it plays, and a stem running on at that height for as long as the
+ * note sounds. The voice's length and its dot's ratchet set how far that is.
+ * Moving the head sets the velocity of the dot that played the note.
  */
 export interface VelocityPoint {
   voice: VoiceIndex
   dot: number
   time: number
+  end: number
   value: number
 }
 
@@ -20,13 +21,45 @@ export const velocityPoints = (
 ): VelocityPoint[] =>
   notes
     .filter((note) => note.voice === voice)
-    .map(({ dot, start, velocity }) => ({
+    .map(({ dot, start, end, velocity }) => ({
       voice,
       dot,
       time: start,
+      end,
       value: velocity,
     }))
     .sort((a, b) => a.time - b.time)
+
+/**
+ * The lollipop under (x, y): its head, within `radius`, or its stem, within
+ * `tolerance` of it. Where they overlap, the nearest wins, and on a tie the
+ * later one, as it is drawn on top.
+ */
+export const hitLollipop = (
+  points: VelocityPoint[],
+  plot: Plot,
+  x: number,
+  y: number,
+  radius = 7,
+  tolerance = 4,
+): number | null => {
+  let found: number | null = null
+  let nearest = Number.POSITIVE_INFINITY
+  points.forEach((point, index) => {
+    const headX = toX(plot, point.time)
+    const endX = toX(plot, point.end)
+    const levelY = toY(plot, point.value)
+    const head = Math.hypot(headX - x, levelY - y)
+    const stem =
+      x >= headX && x <= endX ? Math.abs(levelY - y) : Number.POSITIVE_INFINITY
+    const distance = head <= radius ? head : stem <= tolerance ? stem : null
+    if (distance !== null && distance <= nearest) {
+      nearest = distance
+      found = index
+    }
+  })
+  return found
+}
 
 /**
  * The points a Draw stroke passes on its way from one place to the next,
@@ -53,19 +86,6 @@ export const pointsAlong = (
             ((to.value - from.value) * (x - from.x)) / (to.x - from.x),
     }))
 }
-
-// The points at either end of a stretch of line, counted as hitSegment
-// counts them: -1 is the flat run into the first, the last index the run
-// out of the last.
-export const segmentEnds = (
-  points: VelocityPoint[],
-  index: number,
-): VelocityPoint[] =>
-  index < 0
-    ? points.slice(0, 1)
-    : index >= points.length - 1
-      ? points.slice(-1)
-      : [points[index], points[index + 1]]
 
 // Points from one dot share its velocity: ratchet hits, or a pattern that
 // comes round again inside a long step.

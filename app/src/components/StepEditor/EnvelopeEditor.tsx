@@ -56,8 +56,8 @@ const sameLane = (a: EnvelopeLane, b: EnvelopeLane) =>
     : b.kind === "cc" && a.cc === b.cc && a.channel === b.channel
 
 /**
- * The step's velocities and CCs. Every voice has a Velocity tab — a line
- * through the velocities of the notes it plays, edited like an envelope —
+ * The step's velocities and CCs. Every voice has a Velocity tab — a lollipop
+ * for each note it plays, over the other voices' dimmed —
  * and every CC on the step has a tab holding its envelope. The row above the graph sets the lane's
  * channel: the voice's own, shared with the Voices panel, or the CC's.
  */
