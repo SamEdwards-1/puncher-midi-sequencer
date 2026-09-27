@@ -21,9 +21,16 @@ import {
   VoiceIndex,
 } from "@midiseq/core"
 import { useCallback } from "react"
+import { AudioRenderProgress } from "../audio/renderAudio"
 import { useAccentAmount } from "../hooks/useAccentAmount"
 import { useStores } from "../hooks/useStores"
-import { MIDI_FILE, PATTERNS_FILE } from "../services/FileService"
+import { AudioRenderCancelled, AudioRenderJob } from "../services/AudioRenderer"
+import {
+  MIDI_FILE,
+  MP3_FILE,
+  PATTERNS_FILE,
+  WAV_FILE,
+} from "../services/FileService"
 import { ccKey, ExportSettingsStore } from "../stores/ExportSettingsStore"
 import { usePatchEditor } from "./patch"
 
@@ -32,22 +39,23 @@ const nameFor = (fileName: string | null, patchName: string) =>
 
 // "Bassline.midiseq.json" exports its patterns as
 // "Bassline.midiseq-patterns.json"
-const patternsNameFor = (fileName: string | null, patchName: string) => {
+const patternsNameFor = (fileName: string | null, patchName: string) =>
+  `${exportBaseNameFor(fileName, patchName)}${PATTERNS_EXTENSION}`
+
+// "Bassline.midiseq.json" is "Bassline" once exported, before its extension
+export const exportBaseNameFor = (
+  fileName: string | null,
+  patchName: string,
+) => {
   const name = nameFor(fileName, patchName)
-  const base = name.endsWith(FILE_EXTENSION)
+  return name.endsWith(FILE_EXTENSION)
     ? name.slice(0, -FILE_EXTENSION.length)
     : name.replace(/\.json$/i, "")
-  return `${base}${PATTERNS_EXTENSION}`
 }
 
 // "Bassline.midiseq.json" exports as "Bassline.mid"
-const midiNameFor = (fileName: string | null, patchName: string) => {
-  const name = nameFor(fileName, patchName)
-  const base = name.endsWith(FILE_EXTENSION)
-    ? name.slice(0, -FILE_EXTENSION.length)
-    : name.replace(/\.json$/i, "")
-  return `${base}${MIDI_EXTENSION}`
-}
+const midiNameFor = (fileName: string | null, patchName: string) =>
+  `${exportBaseNameFor(fileName, patchName)}${MIDI_EXTENSION}`
 
 // A picker or a write that fails would otherwise leave a click that did
 // nothing at all.
@@ -304,6 +312,97 @@ export function useMidiExport() {
       [stepFile, fileService],
     ),
   }
+}
+
+/** Where a render is: fetching its SoundFont, then playing and encoding. */
+export type AudioRenderStatus = { phase: "loading" } | AudioRenderProgress
+
+/**
+ * The sequence rendered to an audio file through the built-in sound's
+ * SoundFont, with the audio export settings, on a thread of its own. Where
+ * it goes is asked first, while the click that started it still lets a
+ * picker open; the file named `name` is then written once it is made.
+ * Chance is rolled afresh and accents move velocities as they do when
+ * playing, and the CCs driving settings reach the synth if they reach the
+ * outputs. `done` is the name written, or null if nothing was — the picker
+ * dismissed, the render cancelled, or a failure, which says why.
+ */
+export function useAudioRender() {
+  const {
+    sequencerStore,
+    fileService,
+    soundFonts,
+    audioExportSettings,
+    audioRenderer,
+    midiDeviceStore,
+    playbackSettings,
+  } = useStores()
+
+  return useCallback(
+    (name: string, onStatus: (status: AudioRenderStatus) => void) => {
+      let cancelled = false
+      let job: AudioRenderJob | null = null
+      const done = (async () => {
+        const patch = sequencerStore.patch
+        const { settings } = audioExportSettings
+        const kind = settings.format === "mp3" ? MP3_FILE : WAV_FILE
+        const save = await attempt("save the audio", () =>
+          fileService.saveCopyLater(`${name}${kind.extension}`, kind),
+        )
+        if (save === null || cancelled) {
+          return null
+        }
+        onStatus({ phase: "loading" })
+        const soundFont = await attempt("load the SoundFont", () =>
+          soundFonts.bytes(soundFonts.selectedId),
+        )
+        if (soundFont === null || cancelled) {
+          return null
+        }
+        job = audioRenderer(
+          {
+            patch,
+            soundFont,
+            settings,
+            seed: freshSeed(),
+            accentAmount: playbackSettings.accentAmount,
+            modulationCCs: midiDeviceStore.sendModulationCCs,
+          },
+          onStatus,
+        )
+        const { result } = job
+        const bytes = await attempt("render the audio", async () => {
+          try {
+            return await result
+          } catch (error) {
+            if (error instanceof AudioRenderCancelled) {
+              return null
+            }
+            throw error
+          }
+        })
+        return bytes === null
+          ? null
+          : attempt("save the audio", () => save(bytes))
+      })()
+      return {
+        done,
+        cancel: () => {
+          cancelled = true
+          job?.cancel()
+        },
+      }
+    },
+    [
+      sequencerStore,
+      fileService,
+      soundFonts,
+      audioExportSettings,
+      audioRenderer,
+      midiDeviceStore,
+      playbackSettings,
+    ],
+  )
 }
 
 // Waits for the page to be drawn — so a loading indicator shows before

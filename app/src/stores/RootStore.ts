@@ -1,3 +1,4 @@
+import { AudioRenderer, workerAudioRenderer } from "../services/AudioRenderer"
 import { AutoSaveService } from "../services/AutoSaveService"
 import { ClockFollower } from "../services/ClockFollower"
 import { FileService } from "../services/FileService"
@@ -6,6 +7,7 @@ import { MIDIRecorder } from "../services/MIDIRecorder"
 import { OutputRouter } from "../services/OutputRouter"
 import { SequencerPlayer } from "../services/SequencerPlayer"
 import { Ticker } from "../services/Ticker"
+import { AudioExportSettingsStore } from "./AudioExportSettingsStore"
 import { ExportSettingsStore } from "./ExportSettingsStore"
 import { HistoryStore } from "./HistoryStore"
 import { ImportSettingsStore } from "./ImportSettingsStore"
@@ -26,6 +28,7 @@ export interface RootStoreOptions {
   synthStore?: SynthStore
   soundFonts?: SoundFontStore
   autoSave?: AutoSaveService
+  audioRenderer?: AudioRenderer
 }
 
 export default class RootStore {
@@ -37,6 +40,7 @@ export default class RootStore {
   readonly midiDeviceStore: MIDIDeviceStore
   readonly playbackSettings: PlaybackSettingsStore
   readonly exportSettings: ExportSettingsStore
+  readonly audioExportSettings: AudioExportSettingsStore
   readonly importSettings: ImportSettingsStore
   readonly settingsTab: SettingsTabStore
   readonly recorder: MIDIRecorder
@@ -45,6 +49,7 @@ export default class RootStore {
   readonly soundFonts: SoundFontStore
   readonly fileService: FileService
   readonly autoSave: AutoSaveService
+  readonly audioRenderer: AudioRenderer
 
   constructor(options: RootStoreOptions = {}) {
     this.midiDeviceStore = new MIDIDeviceStore(
@@ -53,6 +58,7 @@ export default class RootStore {
     )
     this.playbackSettings = new PlaybackSettingsStore(options.storage)
     this.exportSettings = new ExportSettingsStore(options.storage)
+    this.audioExportSettings = new AudioExportSettingsStore(options.storage)
     this.importSettings = new ImportSettingsStore(options.storage)
     this.settingsTab = new SettingsTabStore(options.storage)
     this.recorder = new MIDIRecorder(
@@ -73,6 +79,7 @@ export default class RootStore {
     this.soundFonts =
       options.soundFonts ?? new SoundFontStore(undefined, options.storage)
     this.fileService = options.fileService ?? new FileService()
+    this.audioRenderer = options.audioRenderer ?? workerAudioRenderer
     this.autoSave =
       options.autoSave ??
       new AutoSaveService(

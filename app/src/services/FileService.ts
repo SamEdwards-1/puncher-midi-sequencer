@@ -50,6 +50,18 @@ export const MIDI_FILE: FileKind = {
   alsoAccepts: [".midi"],
 }
 
+export const WAV_FILE: FileKind = {
+  description: "WAV audio",
+  extension: ".wav",
+  mimeType: "audio/wav",
+}
+
+export const MP3_FILE: FileKind = {
+  description: "MP3 audio",
+  extension: ".mp3",
+  mimeType: "audio/mpeg",
+}
+
 const mimeTypeOf = (kind: FileKind) => kind.mimeType ?? "application/json"
 
 const extensionsOf = (kind: FileKind) => [
@@ -172,6 +184,30 @@ export class FileService {
     kind: FileKind,
   ): Promise<string | null> {
     return this.saveTo(contents, suggestedName, kind, false)
+  }
+
+  /**
+   * Asks where a copy goes now, while the click that asked for it still
+   * lets a picker open, and gives back what writes it there — for a file
+   * that takes a while to make. Where there is no picker, the copy is
+   * downloaded under `suggestedName` once it is written.
+   */
+  async saveCopyLater(
+    suggestedName: string,
+    kind: FileKind,
+  ): Promise<((contents: FileContents) => Promise<string>) | null> {
+    if (this.pickers.showSaveFilePicker === undefined) {
+      return async (contents) => this.download(contents, suggestedName, kind)
+    }
+    try {
+      const handle = await this.pickers.showSaveFilePicker({
+        ...pickerOptions(kind),
+        suggestedName,
+      })
+      return (contents) => this.write(handle, contents)
+    } catch (error) {
+      return dismissed(error)
+    }
   }
 
   private async saveTo(
