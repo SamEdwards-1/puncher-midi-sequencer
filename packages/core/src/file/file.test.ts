@@ -72,6 +72,26 @@ const everySettingChanged = (): PatchJSON => {
       channel: 16 - index,
       program: 40 + index,
     })),
+    modulations: [
+      {
+        target: { kind: "voice", voice: 2, setting: "pace" },
+        cc: 3,
+        from: "4th",
+        to: "32nd",
+      },
+      {
+        target: { kind: "voice", voice: 0, setting: "length" },
+        cc: 9,
+        from: 0.85,
+        to: 0.2,
+      },
+      {
+        target: { kind: "sequencer", setting: "scale" },
+        cc: 14,
+        from: null,
+        to: { tonic: 7, name: "dorian" },
+      },
+    ],
   }
 }
 

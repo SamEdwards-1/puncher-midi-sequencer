@@ -1,7 +1,8 @@
 import { Engine } from "../engine/Engine"
 import { EngineEvent } from "../engine/events"
-import { playableSteps, stepCount } from "../engine/loopRange"
+import { playableSteps, stepCount, viewIndex } from "../engine/loopRange"
 import { stepEvents } from "../engine/stepPreview"
+import { stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
 import { ModSource, PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
 import {
@@ -100,9 +101,18 @@ export const sequenceCCs = (
 export const passSteps = (patch: PatchJSON): number =>
   playableSteps(patch, false).length
 
-/** How long an export runs, in beats. */
+/**
+ * How long an export runs, in beats: each pass every step its loop plays,
+ * each as long as its pace.
+ */
 export const exportBeats = (patch: PatchJSON, passes: number): number =>
-  passes * passSteps(patch) * paceBeats(patch.pace)
+  passes *
+  playableSteps(patch, false).reduce(
+    (beats, position) =>
+      beats +
+      paceBeats(stepPace(patch, viewIndex(position, patch.size, false))),
+    0,
+  )
 
 // just short of a beat, so a render stops before whatever falls on it
 const BEAT_EPSILON = 1e-9
@@ -117,15 +127,16 @@ export const renderSequence = (
   patch: PatchJSON,
   { passes, seed = 1, accentAmount }: MidiExportOptions,
 ): EngineEvent[] => {
-  const stepBeats = paceBeats(patch.pace)
   const steps = passes * passSteps(patch)
   const engine = new Engine(patch, { seed, accentAmount })
   engine.start(0)
   const events: EngineEvent[] = []
-  for (let step = 1; step <= steps; step++) {
-    events.push(...engine.render(step * stepBeats - BEAT_EPSILON))
+  for (let step = 0; step < steps; step++) {
+    // the landing, which settles how long the step lasts, then the rest
+    events.push(...engine.render(engine.nextStepBeat))
+    events.push(...engine.render(engine.nextStepBeat - BEAT_EPSILON))
   }
-  events.push(...engine.stop(steps * stepBeats))
+  events.push(...engine.stop(engine.nextStepBeat))
   return events
 }
 

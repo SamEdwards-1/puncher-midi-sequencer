@@ -198,6 +198,32 @@ only if it lands on one. The dot then shows what it carries. Clicking or right-c
 a dot also selects its voice; clicking a row's number selects the voice
 without changing any dots.
 
+**Modulation.** A CC can drive a setting from the steps: a voice's pace,
+length, rule, offset, offset scale fit and pattern, and the sequencer's pace,
+scale and shift scale fit. Hover a setting's label and a gear appears beside
+it. Click it to choose the CC — it offers the next one MIDI leaves undefined
+that nothing in the patch uses yet — and the range the CC's 0 to 127 runs
+across, from one of the setting's values to another, then **Modulate**. The
+CC's tab opens on the step in the editor, scrolled into view, with an
+envelope starting at the setting's own value, so nothing changes until it is
+drawn on. A step with an envelope for that CC plays the setting as the
+envelope has it; every other step plays the field's own value. Down the
+envelope's right side the numbers give way to the setting's values — paces,
+rules, scales — its points snap to them, and a dashed line marks the field's
+own value. A step lasts as long as the sequencer's pace as it lands; the
+voices follow their envelopes as they play. A modulated setting's gear stays
+lit, and clicking it again changes the CC or the range — the envelopes follow,
+keeping the values they stood for as far as the new range reaches — shows its
+envelope on another step, or removes the modulation, which leaves the
+envelopes as plain CCs. Two settings can't share a CC. The envelope still goes
+out as its CC, and a knob recorded on it lands on the setting's values.
+
+The sequencer's **Scale** offers ten scales — major, minor, dorian, phrygian,
+lydian, mixolydian, harmonic minor, the major and minor pentatonics, and minor
+blues — so that a modulation can reach each of them at every tonic, and none,
+within a CC's 128 values. Its **Detected** scales come from the same ten;
+**Import MIDI** still offers the whole library.
+
 **Where a step comes in.** Voices run on through their patterns at their own
 paces from step to step, so a step usually comes in partway through them —
 with a bar-long step and 8th-note voices, step 1 plays dots 1–8 and step 2

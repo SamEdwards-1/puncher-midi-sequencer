@@ -1,6 +1,12 @@
 import { envelopeShape, valueAt } from "../entities/envelope"
+import {
+  modulatedSequencer,
+  modulatedVoice,
+  SequencerSettings,
+  stepPace,
+} from "../entities/modulation"
 import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
-import { fitToScale, ScaleFit } from "../entities/scale"
+import { fitToScale, ScaleFit, ScaleJSON } from "../entities/scale"
 import {
   ModSource,
   PatchJSON,
@@ -81,6 +87,11 @@ export class Engine {
 
   get isStarted(): boolean {
     return this.runtime.started
+  }
+
+  // Where the sequencer next moves: once a step has landed, where it ends.
+  get nextStepBeat(): number {
+    return this.runtime.nextSeqBeat
   }
 
   getPatch(): PatchJSON {
@@ -224,15 +235,21 @@ export class Engine {
 
   private tickSequencer(beat: number, events: EngineEvent[]) {
     const { patch, runtime } = this
-    runtime.nextSeqBeat = onPaceGrid(beat + paceBeats(patch.pace))
 
-    // Hang keeps the phase moving but never advances the step
+    // Hang keeps the phase moving but never advances the step, which goes on
+    // as long as it lasts each time round
     if (this.actions.hang) {
+      const held = runtime.envelope?.step
+      runtime.nextSeqBeat = onPaceGrid(
+        beat +
+          paceBeats(held === undefined ? patch.pace : stepPace(patch, held)),
+      )
       return
     }
 
     const steps = playableSteps(patch, this.actions.flip)
     if (steps.length === 0) {
+      runtime.nextSeqBeat = onPaceGrid(beat + paceBeats(patch.pace))
       return
     }
 
@@ -246,24 +263,29 @@ export class Engine {
     }
 
     const position = runtime.position
+    const step = viewIndex(position, patch.size, this.actions.flip)
+    // as long as the sequencer's pace as it lands, which the step itself
+    // may modulate
+    const lengthBeats = paceBeats(stepPace(patch, step))
+    runtime.nextSeqBeat = onPaceGrid(beat + lengthBeats)
     events.push({
       type: "step",
       beat,
       position,
-      step: viewIndex(position, patch.size, this.actions.flip),
+      step,
       // Voice ticks before this beat are already rendered and the ones on it
       // come after the sequencer's, so each voice's next dot is the first it
       // plays on this step — or the first of its pattern, once sync resets it.
+      // A pattern the step shortens is carried on from within it.
       voiceDots: voiceIndexes.map((index) =>
-        this.syncVoices ? 0 : runtime.voices[index].patternIndex,
+        this.syncVoices
+          ? 0
+          : runtime.voices[index].patternIndex %
+            modulatedVoice(patch, index, step, 0).patternLength,
       ),
     })
 
-    this.landEnvelopes(
-      viewIndex(position, patch.size, this.actions.flip),
-      beat,
-      events,
-    )
+    this.landEnvelopes(step, beat, lengthBeats, events)
     this.emitSequencerMods(beat, position, events)
 
     if (this.syncVoices) {
@@ -344,8 +366,12 @@ export class Engine {
    * in list order and ahead of the notes on this beat — rests included, as
    * a rest still lands — and then follows its curve across the step.
    */
-  private landEnvelopes(step: StepIndex, beat: number, events: EngineEvent[]) {
-    const lengthBeats = paceBeats(this.patch.pace)
+  private landEnvelopes(
+    step: StepIndex,
+    beat: number,
+    lengthBeats: number,
+    events: EngineEvent[],
+  ) {
     this.runtime.envelope = {
       step,
       startBeat: beat,
@@ -444,13 +470,40 @@ export class Engine {
     this.emitMod("phase", values.phase, beat, events)
   }
 
+  /**
+   * A voice's settings as it plays at `beat`: its own, but for any that the
+   * step the sequencer landed on modulates, as the envelope has them there.
+   */
+  private voiceAt(index: VoiceIndex, beat: number): VoiceJSON {
+    const envelope = this.runtime.envelope
+    return envelope === null
+      ? this.patch.voices[index]
+      : modulatedVoice(
+          this.patch,
+          index,
+          envelope.step,
+          beat - envelope.startBeat,
+        )
+  }
+
+  // The sequencer's settings at `beat`, as voiceAt has a voice's.
+  private sequencerAt(beat: number): SequencerSettings {
+    const { patch } = this
+    const envelope = this.runtime.envelope
+    return envelope === null
+      ? { pace: patch.pace, scale: patch.scale, shiftFit: patch.shiftFit }
+      : modulatedSequencer(patch, envelope.step, beat - envelope.startBeat)
+  }
+
   private tickVoice(index: VoiceIndex, beat: number, events: EngineEvent[]) {
-    const voice = this.patch.voices[index]
+    const voice = this.voiceAt(index, beat)
     const runtime = this.runtime.voices[index]
     const pace = paceBeats(voice.pace)
     runtime.nextBeat = onPaceGrid(beat + pace)
 
-    const patternIndex = runtime.patternIndex
+    // a pattern shortened under the voice — edited, or modulated — carries
+    // on from within it
+    const patternIndex = runtime.patternIndex % voice.patternLength
     runtime.patternIndex = (patternIndex + 1) % voice.patternLength
     if (!voice.enabled) {
       return
@@ -493,10 +546,16 @@ export class Engine {
       return
     }
 
-    const offset = this.transposed(picked.note, voice.offset, voice.offsetFit)
+    const { scale, shiftFit } = this.sequencerAt(beat)
+    const offset = this.transposed(
+      picked.note,
+      voice.offset,
+      voice.offsetFit,
+      scale,
+    )
     const note =
       offset !== null && this.actions.shift
-        ? this.transposed(offset, this.patch.shiftAmt, this.patch.shiftFit)
+        ? this.transposed(offset, this.patch.shiftAmt, shiftFit, scale)
         : offset
     if (note === null) {
       return
@@ -573,15 +632,15 @@ export class Engine {
   }
 
   // A note moved by the voice's offset or the shift. A note that moves is
-  // fitted to the patch's scale as that move's fit says, or null where the
-  // fit leaves it out; one that stays plays as written, in the scale or not.
+  // fitted to the scale as that move's fit says, or null where the fit
+  // leaves it out; one that stays plays as written, in the scale or not.
   private transposed(
     note: number,
     semitones: number,
     fit: ScaleFit,
+    scale: ScaleJSON | null,
   ): number | null {
     const moved = clamp(note + semitones, 0, 127)
-    const { scale } = this.patch
     return semitones === 0 || scale === null
       ? moved
       : fitToScale(scale, moved, fit)

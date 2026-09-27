@@ -166,6 +166,49 @@ export interface ModOutJSON {
   smoothing: number
 }
 
+/** A voice's settings that a CC can modulate. */
+export type VoiceSetting =
+  | "pace"
+  | "length"
+  | "rule"
+  | "offset"
+  | "offsetFit"
+  | "patternLength"
+
+/** The sequencer's settings that a CC can modulate. */
+export type SequencerSetting = "pace" | "scale" | "shiftFit"
+
+export type ModulationTarget =
+  | { kind: "voice"; voice: VoiceIndex; setting: VoiceSetting }
+  | { kind: "sequencer"; setting: SequencerSetting }
+
+/** A scale a modulation can move to: a tonic and one of SEQUENCER_SCALES. */
+export interface ScaleChoiceJSON {
+  tonic: number
+  name: string
+}
+
+/**
+ * One of a setting's values, as the setting holds it: a pace's id, a
+ * length, a rule, an offset, a fit, a pattern length, or a scale — null
+ * for none.
+ */
+export type ModulationValue = number | string | ScaleChoiceJSON | null
+
+/**
+ * A setting driven by a CC. Where a step has an envelope for `cc`, the
+ * setting follows it across that step; elsewhere it keeps its own value.
+ * The CC's 0 stands for `from` and its 127 for `to`, with the setting's
+ * values between them spread evenly across the rest, in the order its
+ * field lists them — backwards when `from` comes after `to`.
+ */
+export interface ModulationJSON {
+  target: ModulationTarget
+  cc: number
+  from: ModulationValue
+  to: ModulationValue
+}
+
 export interface PatchJSON {
   version: 1
   name: string
@@ -186,6 +229,8 @@ export interface PatchJSON {
   steps: StepJSON[]
   voices: VoiceJSON[]
   modOuts: ModOutJSON[]
+  // at most one for each setting
+  modulations: ModulationJSON[]
 }
 
 export type ActionButton = "hang" | "bump" | "flip" | "shift"

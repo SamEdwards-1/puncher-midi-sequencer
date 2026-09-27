@@ -1,7 +1,13 @@
 import { z } from "zod"
+import { choiceIndex, modulationChoices, sameTarget } from "./modulation"
 import { MAX_PACE_BEATS, migratePace, PACE_BEATS } from "./paces"
 import { normalizeSteps, SCALE_FITS } from "./scale"
-import { MAX_NOTES_PER_STEP, MAX_PATTERN_LENGTH, NOTES_PER_STEP } from "./types"
+import {
+  MAX_NOTES_PER_STEP,
+  MAX_PATTERN_LENGTH,
+  ModulationValue,
+  NOTES_PER_STEP,
+} from "./types"
 
 const midiValue = z.number().int().min(0).max(127)
 const channel = z.number().int().min(1).max(16)
@@ -175,6 +181,57 @@ export const ModOutSchema = z.object({
   smoothing: z.number().min(0).max(1),
 })
 
+export const ModulationTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("voice"),
+    voice: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+    setting: z.enum([
+      "pace",
+      "length",
+      "rule",
+      "offset",
+      "offsetFit",
+      "patternLength",
+    ]),
+  }),
+  z.object({
+    kind: z.literal("sequencer"),
+    setting: z.enum(["pace", "scale", "shiftFit"]),
+  }),
+])
+
+const ModulationValueSchema = z.union([
+  z.null(),
+  z.number(),
+  z.string(),
+  z.object({ tonic: z.number().int().min(0).max(11), name: z.string() }),
+])
+
+/**
+ * A range's end is read as the setting's value nearest it, for a number;
+ * one the setting has no such value for — a scale the sequencer no longer
+ * offers, say — as the setting's first or last value.
+ */
+export const ModulationSchema = z
+  .object({
+    target: ModulationTargetSchema,
+    cc: midiValue,
+    from: ModulationValueSchema,
+    to: ModulationValueSchema,
+  })
+  .transform((modulation) => {
+    const choices = modulationChoices(modulation.target)
+    const read = (value: ModulationValue, otherwise: ModulationValue) => {
+      const at = choiceIndex(choices, value)
+      return at === -1 ? otherwise : choices[at]
+    }
+    return {
+      ...modulation,
+      from: read(modulation.from, choices[0]),
+      to: read(modulation.to, choices[choices.length - 1]),
+    }
+  })
+
 export const ScaleSchema = z.object({
   tonic: z.number().int().min(0).max(11),
   name: z.string(),
@@ -214,4 +271,17 @@ export const PatchSchema = z.object({
   steps: z.array(StepSchema).length(64),
   voices: z.array(VoiceSchema).length(4),
   modOuts: z.array(ModOutSchema).length(8),
+  // files from before modulation have none; a setting modulated twice keeps
+  // the first
+  modulations: z
+    .array(ModulationSchema)
+    .default([])
+    .transform((modulations) =>
+      modulations.filter(
+        (modulation, index) =>
+          modulations.findIndex((each) =>
+            sameTarget(each.target, modulation.target),
+          ) === index,
+      ),
+    ),
 })

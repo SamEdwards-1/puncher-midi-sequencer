@@ -11,6 +11,7 @@ import {
   PatchJSON,
   paceBeats,
   StepIndex,
+  stepPace,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
@@ -156,7 +157,10 @@ export class SequencerPlayer {
     engine.start(0)
     const msPerBeat = 60000 / patch.tempo
     // a slow sequencer pace would otherwise run for a long time
-    const beats = Math.min(paceBeats(patch.pace), PREVIEW_MAX_MS / msPerBeat)
+    const beats = Math.min(
+      paceBeats(stepPace(patch, step)),
+      PREVIEW_MAX_MS / msPerBeat,
+    )
     const events = [
       ...engine.render(beats - BEAT_EPSILON),
       ...engine.stop(beats),
@@ -294,7 +298,7 @@ export class SequencerPlayer {
         this.stepMarks.push({
           time,
           beat: event.beat,
-          lengthBeats: paceBeats(this.patch.pace),
+          lengthBeats: paceBeats(stepPace(this.patch, event.step)),
           position: event.position,
           step: event.step,
           voiceDots: event.voiceDots,

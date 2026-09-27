@@ -4,6 +4,7 @@ import {
   passSteps,
   StepIndex,
   sequenceCCs,
+  stepPace,
 } from "@midiseq/core"
 import { FC, useMemo } from "react"
 import { exportOptionsFor, useMidiExport } from "../../actions/file"
@@ -50,7 +51,7 @@ export const ExportMidiDialog: FC<{
   const beats =
     step === undefined
       ? exportBeats(patch, settings.passes)
-      : paceBeats(patch.pace)
+      : paceBeats(stepPace(patch, step))
   const canExport =
     steps > 0 && (options.voices.length > 0 || options.ccs.length > 0)
 

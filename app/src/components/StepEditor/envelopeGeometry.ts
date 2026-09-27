@@ -2,8 +2,14 @@ import {
   ENVELOPE_MAX_VALUE,
   EnvelopePointJSON,
   EnvelopeShape,
+  envelopeShape,
+  modulationOf,
+  modulationValueAt,
   PatchJSON,
+  StepIndex,
+  StepJSON,
   stepCount,
+  VoiceIndex,
 } from "@midiseq/core"
 
 /** The stretch of the step on show, as fractions of it. */
@@ -240,27 +246,68 @@ export const cellAt = (grid: number[], time: number): number => {
   return 0
 }
 
+// the notes of a step the voices can play, as far as the note limit goes
+const playable = (patch: PatchJSON, step: StepJSON) =>
+  [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep)
+
+/**
+ * The offsets a step's notes are played at: each playing voice's own, or
+ * where the step modulates it, those its envelope moves it to — every one
+ * between the envelope's points, where they ramp.
+ */
+export const stepOffsets = (patch: PatchJSON, index: StepIndex): number[] =>
+  patch.voices.flatMap((voice, at) => {
+    if (!voice.enabled) {
+      return []
+    }
+    const modulation = modulationOf(patch, {
+      kind: "voice",
+      voice: at as VoiceIndex,
+      setting: "offset",
+    })
+    const envelope =
+      modulation === undefined
+        ? undefined
+        : patch.steps[index].envelopes.find(({ cc }) => cc === modulation.cc)
+    if (
+      modulation === undefined ||
+      envelope === undefined ||
+      envelope.points.length === 0
+    ) {
+      return [voice.offset]
+    }
+    const reached = envelope.points.map(
+      ({ value }) => modulationValueAt(modulation, value) as number,
+    )
+    if (envelopeShape(envelope) === "steps") {
+      return reached
+    }
+    const low = Math.min(...reached)
+    return Array.from(
+      { length: Math.max(...reached) - low + 1 },
+      (_, offset) => low + offset,
+    )
+  })
+
 /**
  * The lowest and highest keys the grid holds or its voices play: every
  * step's notes, as far as the note limit goes, and those notes moved by each
- * playing voice's offset. Taken across all the steps rather than the one on
- * show, so the piano roll holds still from step to step, and moves only when
- * a note or an offset takes it further.
+ * playing voice's offset, or the offsets a step modulates it to. Taken
+ * across all the steps rather than the one on show, so the piano roll holds
+ * still from step to step, and moves only when a note or an offset takes it
+ * further.
  */
 export const patchNoteSpan = (patch: PatchJSON): number[] => {
-  const keys = patch.steps
-    .slice(0, stepCount(patch.size))
-    .flatMap((step) =>
-      [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
-    )
+  const steps = patch.steps.slice(0, stepCount(patch.size))
+  const keys = steps.flatMap((step) => playable(patch, step))
   if (keys.length === 0) {
     return []
   }
   const low = Math.min(...keys)
   const high = Math.max(...keys)
-  const offsets = patch.voices
-    .filter(({ enabled }) => enabled)
-    .map(({ offset }) => offset)
+  const offsets = new Set(
+    steps.flatMap((_, index) => stepOffsets(patch, index)),
+  )
   return [low, high].flatMap((key) =>
     [0, ...offsets].map((offset) => clamp(key + offset, 0, 127)),
   )
@@ -269,21 +316,16 @@ export const patchNoteSpan = (patch: PatchJSON): number[] => {
 /**
  * Every key the grid's notes sound on, with the scale collapsed: each
  * step's notes, as far as the note limit goes, as they are and moved by
- * each playing voice's offset — the keys patchNoteSpan spans.
+ * each playing voice's offset on that step — the keys patchNoteSpan spans.
  */
 export const patchNoteKeys = (patch: PatchJSON): number[] => {
-  const offsets = patch.voices
-    .filter(({ enabled }) => enabled)
-    .map(({ offset }) => offset)
   const keys = new Set(
-    patch.steps
-      .slice(0, stepCount(patch.size))
-      .flatMap((step) =>
-        [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep),
+    patch.steps.slice(0, stepCount(patch.size)).flatMap((step, index) => {
+      const offsets = [0, ...stepOffsets(patch, index)]
+      return playable(patch, step).flatMap((note) =>
+        offsets.map((offset) => clamp(note + offset, 0, 127)),
       )
-      .flatMap((note) =>
-        [0, ...offsets].map((offset) => clamp(note + offset, 0, 127)),
-      ),
+    }),
   )
   return [...keys].sort((a, b) => a - b)
 }

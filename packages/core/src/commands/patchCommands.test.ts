@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
 import { ScaleJSON } from "../entities/scale"
+import { ModulationJSON, ModulationTarget } from "../entities/types"
 import {
   addEnvelope,
+  addModulationEnvelope,
   addStepNote,
   clearPatch,
   clearStep,
@@ -11,10 +13,12 @@ import {
   nextFreeCC,
   pasteStep,
   removeEnvelope,
+  removeModulation,
   removeStepNote,
   setDotVelocity,
   setJump,
   setModOut,
+  setModulation,
   setPatternStep,
   setScale,
   setSequencer,
@@ -344,5 +348,74 @@ describe("patch commands", () => {
     expect(patch.steps[0].notes).toHaveLength(5)
     // the lowest survive, since those are the ones the engine was playing
     expect(trimStepsToLimit(patch).steps[0].notes).toEqual([48, 55, 60, 64])
+  })
+})
+
+describe("modulation commands", () => {
+  const PACE: ModulationTarget = { kind: "voice", voice: 0, setting: "pace" }
+  // seven paces, 4th to 16th: CC 64 stands for an 8th
+  const paces: ModulationJSON = { target: PACE, cc: 3, from: "4th", to: "16th" }
+  const modulated = () =>
+    addEnvelope(setModulation(createDefaultPatch(), paces), 2, {
+      cc: 3,
+      channel: 1,
+      points: [
+        { time: 0, value: 64 },
+        { time: 1, value: 127 },
+      ],
+    })
+
+  it("give a setting one modulation, changed in place", () => {
+    const patch = setModulation(modulated(), { ...paces, to: "32nd" })
+    expect(patch.modulations).toEqual([{ ...paces, to: "32nd" }])
+  })
+
+  it("keep what a step plays when the range changes, where the range reaches it", () => {
+    // 4th to 8th: the 8th is now the last value, and the 16th beyond it
+    const patch = setModulation(modulated(), { ...paces, to: "8th" })
+    expect(
+      patch.steps[2].envelopes[0].points.map(({ value }) => value),
+    ).toEqual([127, 127])
+  })
+
+  it("move the envelopes a modulation drives on to its new CC", () => {
+    const patch = setModulation(modulated(), { ...paces, cc: 9 })
+    expect(patch.steps[2].envelopes[0]).toMatchObject({
+      cc: 9,
+      points: [
+        { time: 0, value: 64 },
+        { time: 1, value: 127 },
+      ],
+    })
+  })
+
+  it("leave a modulation's envelopes when it is removed", () => {
+    const patch = removeModulation(modulated(), PACE)
+    expect(patch.modulations).toEqual([])
+    expect(patch.steps[2].envelopes).toHaveLength(1)
+  })
+
+  it("start a step's envelope at the setting's own value, once", () => {
+    const patch = addModulationEnvelope(
+      setModulation(createDefaultPatch(), paces),
+      5,
+      PACE,
+    )
+    // the voice's own pace is an 8th
+    expect(patch.steps[5].envelopes).toMatchObject([
+      { cc: 3, channel: 1, shape: "steps", points: [{ time: 0, value: 64 }] },
+    ])
+    expect(addModulationEnvelope(patch, 5, PACE)).toBe(patch)
+  })
+
+  it("clear the voices' modulations with the voices, and keep the sequencer's", () => {
+    const sequencer: ModulationJSON = {
+      target: { kind: "sequencer", setting: "pace" },
+      cc: 9,
+      from: "1bar",
+      to: "8th",
+    }
+    const patch = setModulation(modulated(), sequencer)
+    expect(clearPatch(patch).modulations).toEqual([sequencer])
   })
 })

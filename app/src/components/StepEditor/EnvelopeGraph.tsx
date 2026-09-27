@@ -6,8 +6,14 @@ import {
   EnvelopeShape,
   envelopeShape,
   gridTimes,
+  inModulationRange,
   insertPoint,
   insertPointOnLine,
+  ModulationJSON,
+  modulationCC,
+  modulationForCC,
+  modulationStops,
+  modulationValueAt,
   movePoint,
   moveSegment,
   nextEnvelopeId,
@@ -15,9 +21,12 @@ import {
   paintPoints,
   removePoint,
   setDotVelocity,
+  settingValue,
   snapTime,
+  snapToModulation,
   stairsFor,
   stepNotes,
+  stepPace,
   toBeatTimes,
   toStepTimes,
   updateEnvelope,
@@ -42,6 +51,7 @@ import { usePatch } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
+import { modulationValueLabel } from "../Modulation/labels"
 import { IconButton } from "../ui/Button"
 import { EnvelopeRuler, RULER_HEIGHT } from "./EnvelopeRuler"
 import {
@@ -103,6 +113,15 @@ const MIN_LINE_GAP = 4
 const AXIS = [127, 96, 64, 32, 0]
 // a point's square handle, this many pixels across
 const HANDLE = 6
+// A modulated setting's values down the right, no closer than this; the
+// graph is ruled at each where they are no closer than the second.
+const MIN_LABEL_GAP = 13
+const MIN_GUIDE_GAP = 5
+// the axis's numbers' width, and roughly a character's of its small mono
+// font, to make room for a setting's names; a long one is cut short
+const AXIS_WIDTH = 28
+const AXIS_CHARACTER = 5.4
+const MAX_AXIS_WIDTH = 116
 
 // a square of `size` centred on (x, y)
 const square = (x: number, y: number, size: number) => ({
@@ -175,6 +194,25 @@ const Lollipop: FC<{
 }
 
 /**
+ * The values of a modulated setting to name down the axis, as far apart as
+ * `gap` needs: the first and last always, and every so many between, taken
+ * from the first.
+ */
+const axisStops = (
+  stops: { cc: number; label: string }[],
+  spacing: number,
+  gap: number,
+) => {
+  const every = Math.max(1, Math.ceil(gap / Math.max(spacing, 1e-9)))
+  const last = stops.length - 1
+  return stops.filter(
+    (_, index) =>
+      index === last ||
+      (index % every === 0 && (last - index) * spacing >= gap),
+  )
+}
+
+/**
  * One step's CC envelope, or its notes' velocities, over a piano roll of the
  * notes the step plays. The notes follow the voices — pace, pattern,
  * ratchets, length, rule — and can't be touched here.
@@ -193,6 +231,10 @@ const Lollipop: FC<{
  * to the voice's, and Draw paints across them. A note's velocity is its dot's,
  * so every note from that dot moves with it, and one landing near an accent's
  * velocity makes that accent.
+ *
+ * A CC that modulates a setting reads down the right as the setting's
+ * values, and its points snap to them, Alt or not; a dashed line marks the
+ * setting's own value, which a step without the envelope plays.
  */
 export const EnvelopeGraph: FC<{
   step: number
@@ -232,7 +274,34 @@ export const EnvelopeGraph: FC<{
         ? "steps"
         : envelopeShape(envelope)
 
-  const stepBeats = paceBeats(patch.pace)
+  // as long as the step lasts, which its own envelopes may modulate
+  const stepBeats = paceBeats(stepPace(patch, step))
+  // the setting the CC drives, if it drives one
+  const modulation: ModulationJSON | undefined =
+    lane.kind === "cc" ? modulationForCC(patch, lane.cc) : undefined
+  const snapValue = (value: number) =>
+    modulation === undefined ? value : snapToModulation(modulation, value)
+  const stops = useMemo(
+    () =>
+      modulation === undefined
+        ? []
+        : modulationStops(modulation).map(({ value, cc }) => ({
+            cc,
+            label: modulationValueLabel(modulation.target, value, localized),
+          })),
+    [modulation, localized],
+  )
+  // the setting's own value, which a step without the envelope plays: where
+  // the range reaches it
+  const ownValue = (() => {
+    if (modulation === undefined) {
+      return null
+    }
+    const own = settingValue(patch, modulation.target)
+    return inModulationRange(modulation, own)
+      ? modulationCC(modulation, own)
+      : null
+  })()
   // Stored in beats, drawn and edited as fractions of the step as it is now:
   // an envelope keeps its timing when the pace changes, and whatever lies
   // past a shortened step's end is kept, off to the right, rather than lost.
@@ -323,7 +392,10 @@ export const EnvelopeGraph: FC<{
     const id = envelope?.id ?? nextEnvelopeId(sequencerStore.patch)
     const setPoints = (next: EnvelopePointJSON[]) => {
       const current = sequencerStore.patch
-      const points = toBeatTimes(next, stepBeats)
+      const points = toBeatTimes(
+        next.map((point) => ({ ...point, value: snapValue(point.value) })),
+        stepBeats,
+      )
       commit(
         current.steps[step].envelopes.some((each) => each.id === id)
           ? updateEnvelope(current, step, id, { points })
@@ -422,7 +494,7 @@ export const EnvelopeGraph: FC<{
 
     const paintAt = (x: number, y: number) => {
       const time = timeAtX(plot, x)
-      const value = valueAtY(plot, y)
+      const value = snapValue(valueAtY(plot, y))
       if (free) {
         if (last !== null) {
           const low = Math.min(last.time, time)
@@ -457,9 +529,11 @@ export const EnvelopeGraph: FC<{
           const index = from + Math.sign(cell - from) * along
           cells.set(
             index,
-            steps === 0
-              ? value
-              : fromValue + ((value - fromValue) * along) / steps,
+            snapValue(
+              steps === 0
+                ? value
+                : fromValue + ((value - fromValue) * along) / steps,
+            ),
           )
         }
         const stairs = stairsFor(grid, cells)
@@ -644,14 +718,42 @@ export const EnvelopeGraph: FC<{
       return null
     }
     const value = Math.round(readoutValue ?? 0)
-    const labelWidth = 8 + 7 * String(value).length
+    // a modulated setting's value by name
+    const text =
+      modulation === undefined
+        ? String(value)
+        : modulationValueLabel(
+            modulation.target,
+            modulationValueAt(modulation, value),
+            localized,
+          )
+    const labelWidth = 8 + 7 * text.length
     return {
       value,
+      text,
       width: labelWidth,
       x: Math.min(Math.max(0, pointer.x + 10), width - labelWidth - 2),
       y: Math.max(2, pointer.y - 24),
     }
   })()
+
+  // the modulated setting's values, where they are ruled and named
+  const stopSpacing =
+    stops.length > 1 ? span.y / (stops.length - 1) : Number.POSITIVE_INFINITY
+  const guides = stopSpacing >= MIN_GUIDE_GAP ? stops : []
+  const named = axisStops(stops, stopSpacing, MIN_LABEL_GAP)
+  const axisWidth =
+    modulation === undefined
+      ? AXIS_WIDTH
+      : Math.min(
+          MAX_AXIS_WIDTH,
+          Math.max(
+            AXIS_WIDTH,
+            8 +
+              AXIS_CHARACTER *
+                Math.max(...named.map(({ label }) => label.length)),
+          ),
+        )
 
   const gridLabel = GRIDS.find(({ beats }) => beats === gridBeats)?.label
 
@@ -837,6 +939,35 @@ export const EnvelopeGraph: FC<{
               </>
             )}
 
+            {/* where a modulated setting's values lie, which points snap
+                to, and the one the setting has of its own */}
+            {guides.map(({ cc }) => (
+              <line
+                key={cc}
+                data-guide={cc}
+                x1={0}
+                x2={width}
+                y1={toY(plot, cc)}
+                y2={toY(plot, cc)}
+                stroke="var(--midiseq-envelope)"
+                strokeOpacity={0.14}
+                pointerEvents="none"
+              />
+            ))}
+            {ownValue !== null && (
+              <line
+                data-own-value={ownValue}
+                x1={0}
+                x2={width}
+                y1={toY(plot, ownValue)}
+                y2={toY(plot, ownValue)}
+                stroke="var(--midiseq-envelope)"
+                strokeOpacity={0.6}
+                strokeDasharray="4 3"
+                pointerEvents="none"
+              />
+            )}
+
             {points.length > 0 && (
               <>
                 <path
@@ -908,7 +1039,11 @@ export const EnvelopeGraph: FC<{
             )}
 
             {readout !== null && (
-              <g data-envelope-value={readout.value} pointerEvents="none">
+              <g
+                data-envelope-value={readout.value}
+                data-envelope-label={readout.text}
+                pointerEvents="none"
+              >
                 <rect
                   x={readout.x}
                   y={readout.y}
@@ -927,7 +1062,7 @@ export const EnvelopeGraph: FC<{
                   fill="var(--midiseq-fg)"
                   fontFamily="var(--midiseq-mono-font)"
                 >
-                  {readout.value}
+                  {readout.text}
                 </text>
               </g>
             )}
@@ -947,10 +1082,12 @@ export const EnvelopeGraph: FC<{
       </div>
       <div
         aria-hidden
+        data-axis
         // the colour of whatever it reads off: the envelope's own blue, or
         // the voice's
-        className="relative w-7 flex-none font-mono text-micro"
+        className="relative flex-none font-mono text-micro"
         style={{
+          width: axisWidth,
           height: GRAPH_HEIGHT,
           marginTop: RULER_HEIGHT,
           color:
@@ -959,15 +1096,27 @@ export const EnvelopeGraph: FC<{
               : "var(--midiseq-envelope)",
         }}
       >
-        {AXIS.map((value) => (
-          <span
-            key={value}
-            className="absolute left-1 -translate-y-1/2"
-            style={{ top: toY(plot, value) }}
-          >
-            {value}
-          </span>
-        ))}
+        {modulation === undefined
+          ? AXIS.map((value) => (
+              <span
+                key={value}
+                className="absolute left-1 -translate-y-1/2"
+                style={{ top: toY(plot, value) }}
+              >
+                {value}
+              </span>
+            ))
+          : named.map(({ cc, label }) => (
+              <span
+                key={cc}
+                data-axis-value={cc}
+                className="absolute right-0 left-1 -translate-y-1/2 truncate whitespace-nowrap"
+                style={{ top: toY(plot, cc) }}
+                title={label}
+              >
+                {label}
+              </span>
+            ))}
       </div>
     </div>
   )

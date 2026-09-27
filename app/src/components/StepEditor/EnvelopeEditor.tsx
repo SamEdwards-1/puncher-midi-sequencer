@@ -1,4 +1,10 @@
-import { CC_NAMES, envelopeShape, nextFreeCC, VoiceIndex } from "@midiseq/core"
+import {
+  CC_NAMES,
+  envelopeShape,
+  modulationForCC,
+  nextFreeCC,
+  VoiceIndex,
+} from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
 import PencilIcon from "mdi-react/PencilIcon"
@@ -13,11 +19,13 @@ import {
   EnvelopeLane,
   useEnvelopeGrid,
   useEnvelopeTool,
+  useRevealEnvelope,
   useSelectedLane,
   useSelectedVoice,
 } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { modulationTabLabel, modulationTargetLabel } from "../Modulation/labels"
 import { Button, IconButton } from "../ui/Button"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
@@ -90,6 +98,17 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
     }
   }, [recorded, stepIndex, setSelected])
 
+  // A lane opened from elsewhere — a setting's modulation — is brought into
+  // view, if it isn't already, once it is showing.
+  const editor = useRef<HTMLDivElement>(null)
+  const [reveal, setReveal] = useRevealEnvelope()
+  useEffect(() => {
+    if (reveal) {
+      setReveal(false)
+      editor.current?.scrollIntoView?.({ block: "nearest" })
+    }
+  }, [reveal, setReveal])
+
   // The lane left open stays open from step to step. A CC the step has no
   // envelope for is shown empty, ready to be drawn into, rather than
   // swapped for another tab.
@@ -128,11 +147,20 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
 
   const channelLabel = localized["sequencer-midi-channel"]
 
-  // the same CC can be on several channels, so those tabs say which
-  const ccLabel = (cc: number, channel: number) =>
-    step.envelopes.filter((each) => each.cc === cc).length > 1
-      ? `${localized["sequencer-step-cc"]} ${cc} · ${localized["sequencer-step-cc-channel-short"]} ${channel}`
-      : `${localized["sequencer-step-cc"]} ${cc}`
+  // A CC's tab is named for the setting it modulates, if it does. The same
+  // CC can be on several channels, so those tabs say which.
+  const ccLabel = (cc: number, channel: number) => {
+    const modulation = modulationForCC(patch, cc)
+    const name =
+      modulation === undefined
+        ? `${localized["sequencer-step-cc"]} ${cc}`
+        : modulationTabLabel(modulation.target, localized)
+    return step.envelopes.filter((each) => each.cc === cc).length > 1
+      ? `${name} · ${localized["sequencer-step-cc-channel-short"]} ${channel}`
+      : name
+  }
+  const modulation =
+    lane.kind === "cc" ? modulationForCC(patch, lane.cc) : undefined
 
   // a Velocity tab for every voice, then the step's CCs
   const tabs: (LaneTab & { lane: EnvelopeLane })[] = [
@@ -162,7 +190,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
   ]
 
   return (
-    <>
+    <div ref={editor} className="flex flex-col gap-2" data-envelope-editor>
       {/* the page's gutter is the header's own, so its title lines up with the
           step editor's */}
       <PanelHeader as="div" className="-mx-4 flex items-center gap-2">
@@ -233,8 +261,16 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
           <div
             className="min-w-0 flex-1 truncate pb-[0.35rem] text-small text-fg-secondary"
             title={CC_NAMES[lane.cc]}
+            data-lane-name
           >
-            {CC_NAMES[lane.cc]}
+            {modulation === undefined ? (
+              CC_NAMES[lane.cc]
+            ) : (
+              <span className="text-envelope">
+                <Localized name="sequencer-modulation-modulates" />{" "}
+                {modulationTargetLabel(modulation.target, localized)}
+              </span>
+            )}
             {envelope === null && (
               <span className="text-fg-tertiary">
                 {" "}
@@ -352,6 +388,6 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
             : { kind: "cc", envelope, cc: lane.cc, channel: lane.channel }
         }
       />
-    </>
+    </div>
   )
 }

@@ -1,6 +1,10 @@
-import { FC } from "react"
+import { FC, useEffect } from "react"
 import { useMediaQuery } from "../../hooks/useMediaQuery"
-import { SidePane, useSidePane } from "../../hooks/useSequencerView"
+import {
+  SidePane,
+  useRevealEnvelope,
+  useSidePane,
+} from "../../hooks/useSequencerView"
 import { useLocalization } from "../../localize/useLocalization"
 import { SequenceGrid } from "../SequenceGrid/SequenceGrid"
 import { SequencerPanel } from "../SequencerPanel/SequencerPanel"
@@ -61,6 +65,13 @@ const Panes: FC<{ panes: SidePane[]; className?: string }> = ({
   }
   // the grid's tab, where the grid has a column of its own, is its Voices
   const pane = panes.includes(chosen) ? chosen : "voices"
+  // the envelope editor, asked for from another tab, is under the grid's
+  const [reveal] = useRevealEnvelope()
+  useEffect(() => {
+    if (reveal && panes.includes("grid")) {
+      setPane("grid")
+    }
+  }, [reveal, panes, setPane])
 
   return (
     <div className={cn("flex min-h-0 flex-col border-divider", className)}>

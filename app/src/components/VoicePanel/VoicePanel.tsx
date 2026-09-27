@@ -3,6 +3,7 @@ import {
   dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
+  modulatedVoice,
   NoteCollision,
   noteCollisions,
   noteNumberToName,
@@ -13,8 +14,12 @@ import {
   playedVelocity,
   previewStep,
   shownAccent,
+  stepPace,
+  VOICE_RULES,
   VoiceIndex,
   VoiceRule,
+  VoiceSetting,
+  viewIndex,
 } from "@midiseq/core"
 import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
 import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
@@ -24,6 +29,7 @@ import { CSSProperties, FC, ReactNode, useMemo, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { useActions } from "../../hooks/useActions"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import {
@@ -34,6 +40,8 @@ import {
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
+import { RULE_LABELS } from "../Modulation/labels"
+import { ModulationButton } from "../Modulation/ModulationButton"
 import { FitSelect } from "../Scale/ScalePicker"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -58,21 +66,6 @@ const TAIL =
 // a condition is otherwise invisible, so it marks the corner
 const CONDITION_MARK =
   "after:absolute after:top-[-0.1rem] after:right-[-0.1rem] after:h-[0.3rem] after:w-[0.3rem] after:rounded-full after:bg-yellow after:content-['']"
-
-const RULES: { value: VoiceRule; label: string }[] = [
-  { value: "nth", label: "Nth" },
-  { value: "lowest", label: "Lowest" },
-  { value: "highest", label: "Highest" },
-  { value: "random", label: "Random" },
-  { value: "up", label: "Up" },
-  { value: "down", label: "Down" },
-  { value: "updown", label: "Up / Down" },
-  { value: "downup", label: "Down / Up" },
-  { value: "updown+", label: "Up / Down +" },
-  { value: "downup+", label: "Down / Up +" },
-  { value: "rise", label: "Rise" },
-  { value: "fall", label: "Fall" },
-]
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
@@ -175,6 +168,14 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   const playsBuiltIn =
     outputNames.all.includes(BUILTIN_OUTPUT) ||
     outputNames.voices[selected] === BUILTIN_OUTPUT
+  // The gear beside a setting's label that a CC can drive: another voice's
+  // is a gear of its own, so one left open doesn't carry over.
+  const modulation = (setting: VoiceSetting) => (
+    <ModulationButton
+      key={`${selected}-${setting}`}
+      target={{ kind: "voice", voice: selected, setting }}
+    />
+  )
 
   return (
     <Panel
@@ -219,7 +220,7 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-pace"]}>
+        <Field label={localized["sequencer-pace"]} aside={modulation("pace")}>
           <Select
             value={voice.pace}
             onChange={(event) =>
@@ -234,7 +235,10 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           </Select>
         </Field>
 
-        <Field label={localized["sequencer-voice-length"]}>
+        <Field
+          label={localized["sequencer-voice-length"]}
+          aside={modulation("length")}
+        >
           <Slider
             min={10}
             max={100}
@@ -251,22 +255,28 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-voice-rule"]}>
+        <Field
+          label={localized["sequencer-voice-rule"]}
+          aside={modulation("rule")}
+        >
           <Select
             value={voice.rule}
             onChange={(event) =>
               editVoice(selected, { rule: event.target.value as VoiceRule })
             }
           >
-            {RULES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
+            {VOICE_RULES.map((rule) => (
+              <option key={rule} value={rule}>
+                {RULE_LABELS[rule]}
               </option>
             ))}
           </Select>
         </Field>
 
-        <Field label={localized["sequencer-voice-offset"]}>
+        <Field
+          label={localized["sequencer-voice-offset"]}
+          aside={modulation("offset")}
+        >
           <Stepper
             label={localized["sequencer-voice-offset"]}
             value={voice.offset}
@@ -278,7 +288,10 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-voice-offset-fit"]}>
+        <Field
+          label={localized["sequencer-voice-offset-fit"]}
+          aside={modulation("offsetFit")}
+        >
           <FitSelect
             value={voice.offsetFit}
             scale={patch.scale}
@@ -327,7 +340,10 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           </Field>
         )}
 
-        <Field label={localized["sequencer-voice-pattern-length"]}>
+        <Field
+          label={localized["sequencer-voice-pattern-length"]}
+          aside={modulation("patternLength")}
+        >
           <Stepper
             label={localized["sequencer-voice-pattern-length"]}
             value={voice.patternLength}
@@ -379,10 +395,17 @@ const Patterns: FC<{
   const { player } = useStores()
   const voiceDots = useMobxGetter(player, "voiceDots")
   const playingDots = useMobxGetter(player, "playingDots")
+  const position = useMobxGetter(player, "position")
+  const { actions } = useActions()
   const { togglePatternDot } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
   const [, setLane] = useSelectedLane()
   const [step] = useSelectedStep()
+  // the step the bands are for: the one playing, or the one in the editor
+  const bandStep =
+    voiceDots !== null && position !== null
+      ? viewIndex(position, patch.size, actions.flip)
+      : step
 
   // The step in the editor as the sequence reaches it — which dots each
   // voice has come round to by then, and what they play — and the voices
@@ -434,11 +457,18 @@ const Patterns: FC<{
         // The dots the voice reaches while the sequencer sits on one step:
         // from the dot it is on when the step playing sounds, or stopped,
         // from the one it will have come round to by the step in the editor.
-        const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
+        // The step may modulate its own length, and the voice's pace and
+        // pattern, as it lands.
+        const landed = modulatedVoice(patch, voiceIndex, bandStep, 0)
+        const reach = dotsPerStep(
+          stepPace(patch, bandStep),
+          landed.pace,
+          landed.patternLength,
+        )
         const runs = bands(
           (voiceDots ?? preview.voiceDots)[voiceIndex] ?? 0,
           reach,
-          voice.patternLength,
+          landed.patternLength,
         )
         const reached = (dotIndex: number) =>
           runs.some(

@@ -6,6 +6,7 @@ import {
   PACE_LABELS,
   PACES,
   PaceId,
+  SequencerSetting,
   stepCount,
 } from "@midiseq/core"
 import { FC, useMemo } from "react"
@@ -13,7 +14,12 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { guessScales, weightsOfNotes } from "../../theory/scales"
+import {
+  guessScales,
+  SEQUENCER_SCALE_CHOICES,
+  weightsOfNotes,
+} from "../../theory/scales"
+import { ModulationButton } from "../Modulation/ModulationButton"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { Button } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -47,11 +53,18 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
   const { editSequencer, editScale } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const localized = useLocalization()
-  // found from every note the steps hold
+  // found from every note the steps hold, among the scales offered here
   const guesses = useMemo(
     () =>
-      guessScales(weightsOfNotes(patch.steps.flatMap((step) => step.notes))),
+      guessScales(
+        weightsOfNotes(patch.steps.flatMap((step) => step.notes)),
+        SEQUENCER_SCALE_CHOICES,
+      ),
     [patch.steps],
+  )
+  // the gear beside a setting's label that a CC can drive
+  const modulation = (setting: SequencerSetting) => (
+    <ModulationButton target={{ kind: "sequencer", setting }} />
   )
 
   return (
@@ -77,7 +90,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           </Select>
         </Field>
 
-        <Field label={localized["sequencer-pace"]}>
+        <Field label={localized["sequencer-pace"]} aside={modulation("pace")}>
           <Select
             value={patch.pace}
             onChange={(event) =>
@@ -159,7 +172,10 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-shift-fit"]}>
+        <Field
+          label={localized["sequencer-shift-fit"]}
+          aside={modulation("shiftFit")}
+        >
           <FitSelect
             value={patch.shiftFit}
             scale={patch.scale}
@@ -179,9 +195,17 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        {/* two selects, each with a name of its own */}
-        <ButtonField label={localized["sequencer-scale"]}>
-          <ScaleSelects scale={patch.scale} onScale={editScale} />
+        {/* two selects, each with a name of its own, offering the scales a
+            modulation can reach */}
+        <ButtonField
+          label={localized["sequencer-scale"]}
+          aside={modulation("scale")}
+        >
+          <ScaleSelects
+            scale={patch.scale}
+            onScale={editScale}
+            choices={SEQUENCER_SCALE_CHOICES}
+          />
         </ButtonField>
         <ButtonField label={localized["sequencer-scale-detected"]}>
           <ScaleGuesses

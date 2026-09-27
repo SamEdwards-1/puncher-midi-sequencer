@@ -7,16 +7,20 @@ import {
   importMidi,
   JumpJSON,
   MidiImportOptions,
+  ModulationJSON,
+  ModulationTarget,
   PatchJSON,
   PatternStepJSON,
   PreparedMidi,
   pasteStep,
   removeEnvelope,
+  removeModulation,
   removeStepNote,
   ScaleJSON,
   StepJSON,
   StepState,
   setJump,
+  setModulation,
   setPatternStep,
   setPatterns,
   setScale,
@@ -182,6 +186,17 @@ export function usePatchEditor() {
     ),
     trimToLimit: useCallback(
       () => apply(trimStepsToLimit(sequencerStore.patch)),
+      [apply, sequencerStore],
+    ),
+    // a setting's modulation changed, its envelopes going with it
+    editModulation: useCallback(
+      (modulation: ModulationJSON, key?: string) =>
+        apply(setModulation(sequencerStore.patch, modulation), key),
+      [apply, sequencerStore],
+    ),
+    removeModulation: useCallback(
+      (target: ModulationTarget) =>
+        apply(removeModulation(sequencerStore.patch, target)),
       [apply, sequencerStore],
     ),
   }

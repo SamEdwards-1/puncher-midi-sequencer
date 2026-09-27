@@ -31,4 +31,77 @@ describe("PatchSchema", () => {
     fewVoices.voices = fewVoices.voices.slice(0, 3)
     expect(PatchSchema.safeParse(fewVoices).success).toBe(false)
   })
+
+  describe("modulations", () => {
+    const read = (modulations: unknown[]) => {
+      const parsed = PatchSchema.safeParse({
+        ...createDefaultPatch(),
+        modulations,
+      })
+      expect(parsed.success).toBe(true)
+      return parsed.data?.modulations
+    }
+
+    it("reads a patch from before them as having none", () => {
+      const { modulations: _, ...older } = createDefaultPatch()
+      expect(PatchSchema.parse(older).modulations).toEqual([])
+    })
+
+    it("reads an end the setting hasn't as its nearest value, or its first or last", () => {
+      expect(
+        read([
+          {
+            target: { kind: "voice", voice: 1, setting: "length" },
+            cc: 3,
+            from: 0.52,
+            to: "long",
+          },
+          {
+            target: { kind: "sequencer", setting: "scale" },
+            cc: 9,
+            from: { tonic: 2, name: "hirajoshi" },
+            to: { tonic: 11, name: "phrygian" },
+          },
+        ]),
+      ).toEqual([
+        {
+          target: { kind: "voice", voice: 1, setting: "length" },
+          cc: 3,
+          from: 0.5,
+          to: 1,
+        },
+        {
+          target: { kind: "sequencer", setting: "scale" },
+          cc: 9,
+          from: null,
+          to: { tonic: 11, name: "phrygian" },
+        },
+      ])
+    })
+
+    it("keeps the first of two for one setting", () => {
+      const pace = { kind: "voice", voice: 0, setting: "pace" }
+      expect(
+        read([
+          { target: pace, cc: 3, from: "4th", to: "8th" },
+          { target: pace, cc: 9, from: "1bar", to: "16th" },
+        ]),
+      ).toEqual([{ target: pace, cc: 3, from: "4th", to: "8th" }])
+    })
+
+    it("rejects a setting that can't be modulated", () => {
+      const parsed = PatchSchema.safeParse({
+        ...createDefaultPatch(),
+        modulations: [
+          {
+            target: { kind: "voice", voice: 0, setting: "velocity" },
+            cc: 3,
+            from: 1,
+            to: 127,
+          },
+        ],
+      })
+      expect(parsed.success).toBe(false)
+    })
+  })
 })
