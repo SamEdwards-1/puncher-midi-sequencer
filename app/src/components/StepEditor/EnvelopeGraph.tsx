@@ -66,8 +66,8 @@ import { PIANO_WIDTH, PianoKeys } from "./PianoKeys"
 import { bandBeats } from "./rulerView"
 import {
   dotKey,
+  hitLollipop,
   pointsAlong,
-  segmentEnds,
   VelocityPoint,
   velocityPoints,
 } from "./velocityLine"
@@ -130,6 +130,50 @@ const useWidth = (ref: RefObject<HTMLElement | null>, fallback: number) => {
   return width > 0 ? width : fallback
 }
 
+// a lollipop's head, this many pixels across
+const HEAD = 7
+
+/**
+ * One note's velocity: a round head where it starts, at the height it plays,
+ * and a stem held there for as long as it sounds, in its voice's colour. Only
+ * the voice on show is given an index, and so can be picked out and edited.
+ */
+const Lollipop: FC<{
+  plot: Plot
+  point: VelocityPoint
+  index?: number
+  hovered?: boolean
+}> = ({ plot, point, index, hovered = false }) => {
+  const x = toX(plot, point.time)
+  const y = toY(plot, point.value)
+  const colour = `var(--midiseq-voice-${point.voice})`
+  return (
+    <g
+      data-point={index}
+      data-velocity={Math.round(point.value)}
+      data-voice={point.voice}
+    >
+      <line
+        data-stem
+        x1={x}
+        x2={Math.max(x, toX(plot, point.end))}
+        y1={y}
+        y2={y}
+        stroke={colour}
+        strokeWidth={hovered ? 2.5 : 1.5}
+      />
+      <circle
+        cx={x}
+        cy={y}
+        r={(hovered ? HEAD + 2 : HEAD) / 2}
+        fill={colour}
+        stroke="var(--midiseq-background-dark)"
+        strokeWidth={1}
+      />
+    </g>
+  )
+}
+
 /**
  * One step's CC envelope, or its notes' velocities, over a piano roll of the
  * notes the step plays. The notes follow the voices — pace, pattern,
@@ -141,12 +185,14 @@ const useWidth = (ref: RefObject<HTMLElement | null>, fallback: number) => {
  * to delete it. Draw: drag to paint values across the grid. Points snap to
  * the grid unless Alt is held, and B switches between the two.
  *
- * Velocity is edited the same way, as a line with a point at each of the
- * voice's notes. The points are the notes, so none are added: dragging a
- * point or the line sets the notes' velocities, clicking a point returns its
- * note to the voice's, and Draw paints across them. A point is its dot's
- * velocity, so every point from that dot moves with it, and one landing near
- * an accent's velocity makes that accent.
+ * Velocity is drawn as in Signal's velocity pane: a lollipop for each note,
+ * its head where the note starts, as high as it plays, its stem as long as
+ * the note sounds. The voice on show is in its colour and can be edited; the
+ * others are dimmed behind it, to be seen and not touched. Dragging a head or
+ * stem up or down sets the note's velocity, clicking a head returns its note
+ * to the voice's, and Draw paints across them. A note's velocity is its dot's,
+ * so every note from that dot moves with it, and one landing near an accent's
+ * velocity makes that accent.
  */
 export const EnvelopeGraph: FC<{
   step: number
@@ -202,6 +248,13 @@ export const EnvelopeGraph: FC<{
   )
   const velocities =
     lane.kind === "velocity" ? velocityPoints(notes, lane.voice) : []
+  // every other voice's notes, dimmed behind the voice on show
+  const otherVelocities =
+    lane.kind === "velocity"
+      ? ([0, 1, 2, 3] as const)
+          .filter((voice) => voice !== lane.voice)
+          .flatMap((voice) => velocityPoints(notes, voice))
+      : []
   // the roll's keys top to bottom: all of them in range, or only those played
   const [collapsed, setCollapsed] = useState(false)
   const rows = useMemo(() => pianoRows(patch, collapsed), [patch, collapsed])
@@ -211,9 +264,8 @@ export const EnvelopeGraph: FC<{
   )
   const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / rows.length
   const keyY = (note: number) => PAD + (rowOf.get(note) ?? 0) * keyHeight
-  // the line drawn and edited: the envelope's, or one through the velocities
-  const points: EnvelopePointJSON[] =
-    lane.kind === "velocity" ? velocities : envelopePoints
+  // the envelope's line; a velocity lane has lollipops instead
+  const points: EnvelopePointJSON[] = envelopePoints
   const span = { x: width - 2 * PAD, y: GRAPH_HEIGHT - 2 * PAD }
 
   // Lines as close as the grid allows; failing that beats, failing that bars.
@@ -427,8 +479,8 @@ export const EnvelopeGraph: FC<{
   }
 
   /**
-   * The velocity line takes the same gestures as an envelope, but its points
-   * are the notes: each edit sets the velocity of the dots behind them.
+   * The lollipops take an envelope's point gestures, up and down only, and
+   * Draw: each edit sets the velocity of the dots behind the notes.
    */
   const editVelocities = (down: MouseEvent) => {
     const start = local(down)
@@ -456,6 +508,8 @@ export const EnvelopeGraph: FC<{
       )
 
     if (tool === "draw") {
+      // the stroke's value is shown, not the note it started over
+      setHover({ point: null, segment: null })
       const painted = new Map<string, { point: VelocityPoint; value: number }>()
       let last = { x: start.x, value: valueAtY(plot, start.y) }
       const paintTo = (from: typeof last, to: typeof last) => {
@@ -489,28 +543,23 @@ export const EnvelopeGraph: FC<{
       return
     }
 
-    const pointIndex = hitPoint(velocities, plot, start.x, start.y)
-    if (pointIndex !== null) {
-      const point = velocities[pointIndex]
-      observeDrag(down, {
-        onMove: (_, delta) => raise([point], valueDelta(delta.y)),
-        onClick: () => {
-          if (!second) {
-            // back to the voice's own velocity
-            raise([point], patch.voices[point.voice].velocity - point.value)
-          }
-        },
-      })
+    const pointIndex = hitLollipop(velocities, plot, start.x, start.y)
+    if (pointIndex === null) {
       return
     }
-
-    const segmentIndex = hitSegment(velocities, plot, start.x, start.y)
-    if (segmentIndex !== null) {
-      const ends = segmentEnds(velocities, segmentIndex)
-      observeDrag(down, {
-        onMove: (_, delta) => raise(ends, valueDelta(delta.y)),
-      })
-    }
+    const point = velocities[pointIndex]
+    const onHead = hitPoint([point], plot, start.x, start.y) !== null
+    // held for the readout while the drag has the mouse
+    setHover({ point: pointIndex, segment: null })
+    observeDrag(down, {
+      onMove: (_, delta) => raise([point], valueDelta(delta.y)),
+      onClick: () => {
+        if (onHead && !second) {
+          // back to the voice's own velocity
+          raise([point], patch.voices[point.voice].velocity - point.value)
+        }
+      },
+    })
   }
 
   const onMouseMove = (event: ReactMouseEvent<SVGSVGElement>) => {
@@ -518,6 +567,10 @@ export const EnvelopeGraph: FC<{
     setPointer({ x, y })
     // while a button is down, the drag has the mouse
     if (event.buttons !== 0) {
+      return
+    }
+    if (lane.kind === "velocity") {
+      setHover({ point: hitLollipop(velocities, plot, x, y), segment: null })
       return
     }
     const point = hitPoint(points, plot, x, y)
@@ -554,26 +607,43 @@ export const EnvelopeGraph: FC<{
     tool === "draw"
       ? "crosshair"
       : hover.point !== null
-        ? "pointer"
+        ? lane.kind === "velocity"
+          ? "ns-resize"
+          : "pointer"
         : hover.segment !== null
           ? "ns-resize"
           : "default"
 
   // The envelope's value where the mouse is, shown beside it while it is over
-  // the line or a point, or dragging.
-  const readout = (() => {
+  // the line or a point, or dragging; on a velocity lane, the note's under it
+  // or being dragged, or where a Draw stroke is.
+  const readoutValue = (() => {
+    if (pointer === null) {
+      return null
+    }
+    if (lane.kind === "velocity") {
+      const held = hover.point === null ? undefined : velocities[hover.point]
+      return held !== undefined
+        ? held.value
+        : dragging && tool === "draw"
+          ? valueAtY(plot, pointer.y)
+          : null
+    }
     if (
       points.length === 0 ||
-      pointer === null ||
       !(dragging || hover.point !== null || hover.segment !== null)
     ) {
       return null
     }
-    const exact =
-      hover.point !== null && !dragging
-        ? points[hover.point].value
-        : valueAt(points, timeAtX(plot, pointer.x), shape)
-    const value = Math.round(exact ?? 0)
+    return hover.point !== null && !dragging
+      ? points[hover.point].value
+      : valueAt(points, timeAtX(plot, pointer.x), shape)
+  })()
+  const readout = (() => {
+    if (readoutValue === null || pointer === null) {
+      return null
+    }
+    const value = Math.round(readoutValue ?? 0)
     const labelWidth = 8 + 7 * String(value).length
     return {
       value,
@@ -716,6 +786,8 @@ export const EnvelopeGraph: FC<{
                   height={Math.max(1, keyHeight - 1)}
                   rx={2}
                   fill={`var(--midiseq-voice-${note.voice})`}
+                  // faded under lollipops, whose stems they would pass for
+                  fillOpacity={lane.kind === "velocity" ? 0.25 : undefined}
                 />
               ))}
 
@@ -739,6 +811,31 @@ export const EnvelopeGraph: FC<{
                     />
                   ))
               })}
+
+            {lane.kind === "velocity" && (
+              <>
+                {/* the other voices', dimmed and out of reach */}
+                <g data-other-velocities opacity={0.35} pointerEvents="none">
+                  {otherVelocities.map((point) => (
+                    <Lollipop
+                      key={`${point.voice}-${point.dot}-${point.time}`}
+                      plot={plot}
+                      point={point}
+                    />
+                  ))}
+                </g>
+                {velocities.map((point, index) => (
+                  <Lollipop
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a note is its place in time order
+                    key={index}
+                    plot={plot}
+                    point={point}
+                    index={index}
+                    hovered={hover.point === index}
+                  />
+                ))}
+              </>
+            )}
 
             {points.length > 0 && (
               <>
@@ -850,9 +947,17 @@ export const EnvelopeGraph: FC<{
       </div>
       <div
         aria-hidden
-        // the envelope's own blue, as the values it reads off are its
-        className="relative w-7 flex-none font-mono text-micro text-[var(--midiseq-envelope)]"
-        style={{ height: GRAPH_HEIGHT, marginTop: RULER_HEIGHT }}
+        // the colour of whatever it reads off: the envelope's own blue, or
+        // the voice's
+        className="relative w-7 flex-none font-mono text-micro"
+        style={{
+          height: GRAPH_HEIGHT,
+          marginTop: RULER_HEIGHT,
+          color:
+            lane.kind === "velocity"
+              ? `var(--midiseq-voice-${lane.voice})`
+              : "var(--midiseq-envelope)",
+        }}
       >
         {AXIS.map((value) => (
           <span

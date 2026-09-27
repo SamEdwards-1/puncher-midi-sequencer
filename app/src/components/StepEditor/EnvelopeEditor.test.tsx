@@ -534,18 +534,80 @@ describe("the envelope editor", () => {
       )
     const dot = (number: number) =>
       screen.getByRole("button", { name: `Voice 1 Dot ${number}` })
+    const stem = (point: Element) => {
+      const line = point.querySelector("[data-stem]") as Element
+      return {
+        from: Number(line.getAttribute("x1")),
+        to: Number(line.getAttribute("x2")),
+      }
+    }
+    // halfway along a note's stem
+    const alongStem = (index: number) => {
+      const { from, to } = stem(velocityPoints()[index])
+      return (from + to) / 2
+    }
     const firstBar = X(0)
     const secondBar = X(0.5)
 
-    it("draws a line with a point at each of the voice's notes", () => {
+    it("draws a lollipop at each of the voice's notes, as long as the note", () => {
       setup(null, withNotes)
       expect(tab("Velocity 1")).toHaveAttribute("aria-selected", "true")
       expect(velocities()).toEqual([64, 64])
-      expect(centreX(velocityPoints()[1])).toBeCloseTo(X(0.5))
-      expect(svg().querySelector("[data-envelope-line]")).not.toBeNull()
-      // as for a CC, and no bars
-      expect(svg().querySelector("[data-bar]")).toBeNull()
+      const heads = velocityPoints().map((point) =>
+        Number(point.querySelector("circle")?.getAttribute("cx")),
+      )
+      expect(heads[0]).toBeCloseTo(X(0))
+      expect(heads[1]).toBeCloseTo(X(0.5))
+      // each stem ends where its note does in the roll
+      const rolled = [...svg().querySelectorAll('[data-note][data-voice="0"]')]
+      velocityPoints().forEach((point, index) => {
+        const note = rolled[index]
+        expect(stem(point).to).toBeCloseTo(
+          Number(note.getAttribute("x")) + Number(note.getAttribute("width")),
+        )
+      })
+      // in the voice's colour, and no line running through them
+      expect(velocityPoints()[0].querySelector("circle")).toHaveAttribute(
+        "fill",
+        "var(--midiseq-voice-0)",
+      )
+      expect(svg().querySelector("[data-envelope-line]")).toBeNull()
       expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
+    })
+
+    it("dims the other voices' velocities behind, out of reach", () => {
+      setup(null, (start) => {
+        const next = withNotes(start)
+        next.voices[1] = {
+          ...next.voices[1],
+          enabled: true,
+          pace: "4th",
+          velocity: 100,
+        }
+        return next
+      })
+      const others = svg().querySelector("[data-other-velocities]") as Element
+      expect(others).toHaveAttribute("opacity", "0.35")
+      expect(others).toHaveAttribute("pointer-events", "none")
+      const other = others.querySelector("[data-voice='1']") as Element
+      expect(other).toHaveAttribute("data-velocity", "100")
+      expect(other.querySelector("circle")).toHaveAttribute(
+        "fill",
+        "var(--midiseq-voice-1)",
+      )
+
+      // dragging where voice 2's note is moves nothing of voice 2's
+      const before = patch().voices[1]
+      dragFrom([firstBar, Y(100)], [[firstBar, Y(40)]])
+      expect(patch().voices[1]).toBe(before)
+      expect(velocities()).toEqual([64, 64])
+
+      // and on its own tab, it is voice 1 that is dimmed
+      fireEvent.click(screen.getByRole("tab", { name: "Velocity 2" }))
+      expect(velocities()).toEqual([100])
+      expect(
+        svg().querySelectorAll("[data-other-velocities] [data-voice='0']"),
+      ).toHaveLength(2)
     })
 
     it("marks where a note is plain and where it is either accent", () => {
@@ -624,10 +686,10 @@ describe("the envelope editor", () => {
       })
     })
 
-    it("adds no point where the line is clicked", () => {
+    it("changes nothing where a stem or the space between is clicked", () => {
       setup(null, withNotes)
       const before = patch()
-      clickAt(X(0.25), Y(64))
+      clickAt(alongStem(0), Y(64))
       fireEvent.mouseDown(svg(), {
         clientX: X(0.75),
         clientY: Y(20),
@@ -638,10 +700,10 @@ describe("the envelope editor", () => {
       expect(velocities()).toEqual([64, 64])
     })
 
-    it("raises the notes at both ends of a stretch of line dragged", () => {
+    it("raises a note by its stem", () => {
       setup(null, withNotes)
-      dragFrom([X(0.25), Y(64)], [[X(0.25), Y(74)]])
-      expect(velocities()).toEqual([74, 74])
+      dragFrom([alongStem(1), Y(64)], [[alongStem(1), Y(74)]])
+      expect(velocities()).toEqual([64, 74])
     })
 
     it("moves every point from one dot together", () => {
@@ -652,6 +714,9 @@ describe("the envelope editor", () => {
       })
       // the first dot's two hits, then the second dot
       expect(velocities()).toEqual([64, 64, 64])
+      // each hit as long as a ratchet makes it
+      const [hit, , whole] = velocityPoints().map(stem)
+      expect(hit.to - hit.from).toBeLessThan(whole.to - whole.from)
       dragFrom([firstBar, Y(64)], [[firstBar, Y(30)]])
       expect(velocities()).toEqual([30, 30, 64])
     })
