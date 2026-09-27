@@ -352,20 +352,6 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
             : { kind: "cc", envelope, cc: lane.cc, channel: lane.channel }
         }
       />
-
-      <div className="text-tiny text-fg-tertiary">
-        <Localized
-          name={
-            lane.kind === "velocity"
-              ? tool === "draw"
-                ? "sequencer-velocity-draw-hint"
-                : "sequencer-velocity-edit-hint"
-              : tool === "draw"
-                ? "sequencer-envelope-draw-hint"
-                : "sequencer-envelope-edit-hint"
-          }
-        />
-      </div>
     </>
   )
 }

@@ -1,24 +1,14 @@
-import CogIcon from "mdi-react/CogIcon"
 import { FC, useState } from "react"
 import logo from "../../assets/puncher-logo.svg?raw"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import { Localized } from "../../localize/useLocalization"
 import { EditMenu } from "../EditMenu/EditMenu"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { SettingsDialog } from "../Settings/SettingsDialog"
 import { TransportControls } from "../TransportPanel/TransportControls"
-import { IconButton, ToolbarButton } from "../ui/Button"
+import { MenuBarButton } from "../ui/Menu"
 
-// the bar's buttons are a size up from a stepper's
-const TOOLBAR_ICON = "h-8 w-8"
-
-export interface TopBarProps {
-  // the editor is down to one column, so the bar has little room to spare
-  compact?: boolean
-}
-
-export const TopBar: FC<TopBarProps> = ({ compact = false }) => {
-  const localized = useLocalization()
+export const TopBar: FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
@@ -36,30 +26,16 @@ export const TopBar: FC<TopBarProps> = ({ compact = false }) => {
         />
         <FileMenu />
         <EditMenu />
+        <MenuBarButton
+          active={settingsOpen}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Localized name="sequencer-settings" />
+        </MenuBarButton>
       </div>
       <TransportControls />
       <div className="flex items-center justify-end gap-2">
         <OutputStatus />
-        {compact ? (
-          <IconButton
-            className={TOOLBAR_ICON}
-            title={localized["sequencer-settings"]}
-            aria-label={localized["sequencer-settings"]}
-            active={settingsOpen}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <CogIcon size={18} />
-          </IconButton>
-        ) : (
-          <ToolbarButton
-            type="button"
-            active={settingsOpen}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <CogIcon size={16} />
-            <Localized name="sequencer-settings" />
-          </ToolbarButton>
-        )}
       </div>
       {settingsOpen && (
         <SettingsDialog onClose={() => setSettingsOpen(false)} />

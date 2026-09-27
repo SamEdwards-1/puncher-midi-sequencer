@@ -39,25 +39,24 @@
   --midiseq-step-skip: #ecd8c1;             /* derived, dramatised */
   --midiseq-scrollbar: #6e6a8640;           /* scrollbarSlider.background, more opaque */
   --midiseq-scrollbar-hover: #6e6a8673;     /* scrollbarSlider.hoverBackground, more opaque */
-  --midiseq-jump-0: #c67e00;                /* syntax meta.property-value.css, darkened */
-  --midiseq-jump-1: #56949f;                /* syntax entity.name.section */
-  --midiseq-jump-2: #c2447a;                /* built-in */
-  --midiseq-jump-3: #3f9a30;                /* built-in */
-  --midiseq-jump-4: #c1541f;                /* built-in */
-  --midiseq-jump-5: #575279;                /* syntax meta.tag */
-  --midiseq-jump-6: #869617;                /* built-in, darkened */
-  --midiseq-jump-7: #286983;                /* syntax constant */
-  --midiseq-collision-0: #b2615e;           /* syntax constant.numeric, darkened */
-  --midiseq-collision-1: #997300;           /* built-in, darkened */
-  --midiseq-collision-2: #286983;           /* syntax constant */
-  --midiseq-collision-3: #428803;           /* built-in, darkened */
-  --midiseq-collision-4: #352511;           /* derived */
-  --midiseq-collision-5: #d9268e;           /* built-in */
+  --midiseq-jump-0: #bc8300;                /* bright, from abyss syntax constant, darkened */
+  --midiseq-jump-1: #009e97;                /* bright, from espresso terminal.ansiBrightBlue, darkened */
+  --midiseq-jump-2: #e9599b;                /* bright, from espresso terminal.ansiBrightMagenta, darkened */
+  --midiseq-jump-3: #00a429;                /* bright, from abyss settings.modifiedItemIndicator, darkened */
+  --midiseq-jump-4: #f35c00;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule, darkened */
+  --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
+  --midiseq-jump-6: #829700;                /* bright, from neon-orchard syntax string, darkened */
+  --midiseq-jump-7: #1596d4;                /* bright, from night-market terminal.ansiBlue, darkened */
+  --midiseq-collision-0: #da3f44;           /* bright, from ember-room syntax storage, darkened */
+  --midiseq-collision-1: #008780;           /* bright, from espresso terminal.ansiBrightBlue, darkened */
+  --midiseq-collision-2: #3b79ca;           /* bright, from frost terminal.ansiBrightBlue, darkened */
+  --midiseq-collision-3: #6e8100;           /* bright, from neon-orchard syntax string, darkened */
+  --midiseq-collision-4: #9264bd;           /* bright, from night-market terminal.ansiMagenta, darkened */
+  --midiseq-collision-5: #d04186;           /* bright, from espresso terminal.ansiBrightMagenta, darkened */
   --midiseq-voice-0: #0097aa;               /* charts.blue, chosen, made vivid */
   --midiseq-voice-1: #00a242;               /* gitlens.decorations.statusPausedOperationReadyForegroundColor, chosen, made vivid */
   --midiseq-voice-2: #b97500;               /* terminal.ansiYellow, chosen, made vivid */
   --midiseq-voice-3: #a35ce3;               /* charts.purple, chosen, made vivid */
-  --midiseq-pace-band: #baa080;             /* derived, dramatised */
   --midiseq-envelope: #b3615e;              /* button.background, chosen, darkened */
   --midiseq-logo: #d54a85;                  /* built-in, darkened */
 }

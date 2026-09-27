@@ -190,7 +190,9 @@ describe("the envelope editor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Voice 2" }))
       const voices = within(screen.getByRole("region", { name: "Voices" }))
       // the panel's Velocity shows the same number
-      expect(voices.getByText("89")).toBeInTheDocument()
+      expect(voices.getByRole("textbox", { name: "Velocity" })).toHaveValue(
+        "89",
+      )
     })
 
     it("never lets two voices share a channel", () => {

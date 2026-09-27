@@ -59,24 +59,24 @@
   /* One per jump, so a source and its destination share a colour. They keep
      clear of the accent and the record red, and stay apart from each other
      in hue. */
-  --midiseq-jump-0: #e5c07b;
-  --midiseq-jump-1: #4ff2f8;
-  --midiseq-jump-2: #ff5ba2;
-  --midiseq-jump-3: #89ca78;
-  --midiseq-jump-4: #dc9656;
-  --midiseq-jump-5: #ac58ff;
-  --midiseq-jump-6: #ffff63;
-  --midiseq-jump-7: #3bb3e2;
+  --midiseq-jump-0: #d5971a;
+  --midiseq-jump-1: #53f8ed;
+  --midiseq-jump-2: #df769b;
+  --midiseq-jump-3: #70bf56;
+  --midiseq-jump-4: #fa841d;
+  --midiseq-jump-5: #9959ff;
+  --midiseq-jump-6: #cded1c;
+  --midiseq-jump-7: #4fbfff;
 
   /* One per collision on the step in the editor, marking the dots of each
      group of voices sounding one key at once. Bright, and clear of the
      voices' own hues, so a mark never reads as a voice. */
-  --midiseq-collision-0: #ff2a56;
-  --midiseq-collision-1: #ffff63;
-  --midiseq-collision-2: #4ff2f8;
-  --midiseq-collision-3: #82c600;
-  --midiseq-collision-4: #ecf2fd;
-  --midiseq-collision-5: #ba8baf;
+  --midiseq-collision-0: #ff6262;
+  --midiseq-collision-1: #ffce03;
+  --midiseq-collision-2: #53f8ed;
+  --midiseq-collision-3: #7cd827;
+  --midiseq-collision-4: #14a5ff;
+  --midiseq-collision-5: #d0a1ff;
 
   /* One per voice, so a voice's dots, its tab and its row in the overview
      read as the same thing. Filled dots carry ratchet counts in the on-surface
@@ -85,10 +85,6 @@
   --midiseq-voice-1: #d97d00;
   --midiseq-voice-2: #00a975;
   --midiseq-voice-3: #ec5ab0;
-
-  /* behind the dots a voice reaches in one sequencer step: well below the
-     panel, so the band reads at a glance behind coloured dots */
-  --midiseq-pace-band: #0d121c;
 
   /* a step's CC envelope, apart from every voice's colour since it lies over
      their notes */
@@ -133,25 +129,24 @@
   --midiseq-step-skip: #dfe3e6;
   --midiseq-scrollbar: #00000040;
   --midiseq-scrollbar-hover: #00000073;
-  --midiseq-jump-0: #986801;
-  --midiseq-jump-1: #3397a3;
-  --midiseq-jump-2: #d622d0;
-  --midiseq-jump-3: #339e2f;
-  --midiseq-jump-4: #d27100;
-  --midiseq-jump-5: #9743f7;
-  --midiseq-jump-6: #839211;
-  --midiseq-jump-7: #0a36e6;
-  --midiseq-collision-0: #ca1243;
-  --midiseq-collision-1: #957000;
-  --midiseq-collision-2: #11828d;
-  --midiseq-collision-3: #408500;
-  --midiseq-collision-4: #1e262d;
-  --midiseq-collision-5: #d8258e;
+  --midiseq-jump-0: #b88000;
+  --midiseq-jump-1: #009b93;
+  --midiseq-jump-2: #e55598;
+  --midiseq-jump-3: #00a128;
+  --midiseq-jump-4: #ee5a00;
+  --midiseq-jump-5: #9959ff;
+  --midiseq-jump-6: #7f9400;
+  --midiseq-jump-7: #6c81f6;
+  --midiseq-collision-0: #d73b41;
+  --midiseq-collision-1: #e21968;
+  --midiseq-collision-2: #00847d;
+  --midiseq-collision-3: #628000;
+  --midiseq-collision-4: #596bde;
+  --midiseq-collision-5: #b95479;
   --midiseq-voice-0: #4a3cc3;
   --midiseq-voice-1: #c16f00;
   --midiseq-voice-2: #0fa21f;
   --midiseq-voice-3: #c54ebe;
-  --midiseq-pace-band: #b2bbc4;
   --midiseq-envelope: #0079ca;
   --midiseq-logo: #d94e88;
 }
@@ -192,7 +187,6 @@
   /* whichever voice an element belongs to, set on it or an ancestor by
      voiceColor() */
   --color-voice: var(--midiseq-voice);
-  --color-pace-band: var(--midiseq-pace-band);
   --color-envelope: var(--midiseq-envelope);
   --color-logo: var(--midiseq-logo);
 }
@@ -250,10 +244,17 @@
   }
 
   /* macOS-style overlay scrollbars: no track, a translucent thumb that
-     darkens on hover. Firefox gets the same look via scrollbar-color. */
+     darkens on hover, and only while it is wanted: while the area scrolls
+     (useScrollingMark marks it) or the mouse is over it. Browsers that read
+     scrollbar-color take it; the rest take the ::-webkit rules. */
   .midiseq,
   .midiseq * {
     scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .midiseq [data-scrolling],
+  .midiseq *:hover {
     scrollbar-color: var(--midiseq-scrollbar) transparent;
   }
 
@@ -275,8 +276,13 @@
     min-height: 2rem;
     border: 0.25rem solid transparent;
     border-radius: 999px;
-    background-color: var(--midiseq-scrollbar);
+    background-color: transparent;
     background-clip: content-box;
+  }
+
+  .midiseq [data-scrolling]::-webkit-scrollbar-thumb,
+  .midiseq *:hover::-webkit-scrollbar-thumb {
+    background-color: var(--midiseq-scrollbar);
   }
 
   .midiseq ::-webkit-scrollbar-thumb:hover {

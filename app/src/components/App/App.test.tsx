@@ -108,6 +108,72 @@ describe("App", () => {
     expect(attempts).toBe(2)
   })
 
+  it("closes a menu on a click elsewhere, or on Escape", () => {
+    render(<App rootStore={createStore()} />)
+    const file = screen.getByRole("button", { name: "File" })
+
+    fireEvent.click(file)
+    expect(screen.getByRole("menu", { name: "File" })).toBeInTheDocument()
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole("menu", { name: "File" })).toBeNull()
+
+    fireEvent.click(file)
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(screen.queryByRole("menu", { name: "File" })).toBeNull()
+  })
+
+  it("drags a typed-in number up and down, as one undo", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+    const tempo = screen.getByRole("textbox", { name: "Tempo" })
+
+    // 380 steps of tempo, so 2px each
+    fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
+    fireEvent.mouseMove(document, { clientY: 80 })
+    fireEvent.mouseMove(document, { clientY: 60 })
+    fireEvent.mouseUp(document, { clientY: 60 })
+    expect(rootStore.sequencerStore.patch.tempo).toBe(140)
+    expect(document.activeElement).not.toBe(tempo)
+
+    fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
+    fireEvent.mouseMove(document, { clientY: 400 })
+    fireEvent.mouseUp(document, { clientY: 400 })
+    expect(rootStore.sequencerStore.patch.tempo).toBe(20)
+
+    rootStore.history.undo()
+    expect(rootStore.sequencerStore.patch.tempo).toBe(140)
+    rootStore.history.undo()
+    expect(rootStore.sequencerStore.patch.tempo).toBe(120)
+  })
+
+  it("types a plain number in, as a whole number", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+    const shift = screen.getByRole("textbox", { name: "Shift amt" })
+
+    const type = (text: string) => {
+      fireEvent.focus(shift)
+      fireEvent.change(shift, { target: { value: text } })
+      fireEvent.keyDown(shift, { key: "Enter" })
+    }
+    type("-7")
+    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(-7)
+    type("6.6")
+    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(7)
+    // within its limits
+    type("30")
+    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(24)
+  })
+
+  it("focuses a typed-in number on a press that doesn't move", () => {
+    render(<App rootStore={createStore()} />)
+    const tempo = screen.getByRole("textbox", { name: "Tempo" })
+
+    fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
+    fireEvent.mouseUp(document, { clientY: 100 })
+    expect(document.activeElement).toBe(tempo)
+  })
+
   it("explains when Web MIDI is unavailable", () => {
     render(<App rootStore={createStore()} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))

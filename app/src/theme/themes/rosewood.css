@@ -39,25 +39,24 @@
   --midiseq-step-skip: #592020;             /* derived, dramatised */
   --midiseq-scrollbar: #6e6a8638;           /* scrollbarSlider.background, more opaque */
   --midiseq-scrollbar-hover: #6e6a8666;     /* scrollbarSlider.hoverBackground, more opaque */
-  --midiseq-jump-0: #ea9d34;                /* syntax meta.property-value.css */
-  --midiseq-jump-1: #56949f;                /* syntax entity.name.section */
-  --midiseq-jump-2: #e3719c;                /* built-in */
-  --midiseq-jump-3: #6cc45a;                /* built-in */
-  --midiseq-jump-4: #e2794a;                /* built-in */
-  --midiseq-jump-5: #6c678f;                /* syntax meta.tag, lightened */
-  --midiseq-jump-6: #c3d24a;                /* built-in */
-  --midiseq-jump-7: #33738d;                /* syntax constant, lightened */
-  --midiseq-collision-0: #d7827e;           /* syntax constant.numeric */
-  --midiseq-collision-1: #fadf2e;           /* built-in */
-  --midiseq-collision-2: #2bdeee;           /* built-in */
-  --midiseq-collision-3: #87e444;           /* built-in */
-  --midiseq-collision-4: #ffe5e3;           /* derived */
-  --midiseq-collision-5: #b8677e;           /* syntax invalid, lightened */
+  --midiseq-jump-0: #d5971a;                /* bright, from abyss syntax constant */
+  --midiseq-jump-1: #53f8ed;                /* bright, from espresso terminal.ansiBrightBlue */
+  --midiseq-jump-2: #fb69ab;                /* bright, from espresso terminal.ansiBrightMagenta */
+  --midiseq-jump-3: #70bf56;                /* bright, from night-market syntax markup.inserted */
+  --midiseq-jump-4: #fd6209;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule */
+  --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
+  --midiseq-jump-6: #cded1c;                /* bright, from neon-orchard syntax string */
+  --midiseq-jump-7: #4fbfff;                /* bright, from night-market terminal.ansiBlue */
+  --midiseq-collision-0: #f23074;           /* bright, from plum-dusk syntax keyword */
+  --midiseq-collision-1: #ffce03;           /* bright, from plum-dusk syntax variable.parameter */
+  --midiseq-collision-2: #53f8ed;           /* bright, from espresso terminal.ansiBrightBlue */
+  --midiseq-collision-3: #7cd827;           /* bright, from neon-orchard syntax storage.type */
+  --midiseq-collision-4: #4fbfff;           /* bright, from night-market terminal.ansiBlue */
+  --midiseq-collision-5: #fe85d8;           /* bright, from lavender-field terminal.ansiBrightMagenta */
   --midiseq-voice-0: #00a1b5;               /* charts.blue, chosen, made vivid */
   --midiseq-voice-1: #f19a00;               /* terminal.ansiYellow, chosen, made vivid */
   --midiseq-voice-2: #188fff;               /* charts.green, chosen, made vivid in another hue */
   --midiseq-voice-3: #ad67ee;               /* charts.purple, chosen, made vivid */
-  --midiseq-pace-band: #130001;             /* derived, dramatised */
   --midiseq-envelope: #d7827e;              /* button.background, chosen */
   --midiseq-logo: #fbbbd1;                  /* built-in */
 }

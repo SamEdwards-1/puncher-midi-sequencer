@@ -124,6 +124,25 @@ describe("jumps", () => {
     expect(first).not.toBe(second)
   })
 
+  it("keeps a jump's colour when another is added before it", () => {
+    setup()
+    click("Step 3")
+    openJump()
+    click("Pick destination")
+    click("Step 7")
+    const colour = () =>
+      grid()
+        .getByRole("button", { name: "Step 3" })
+        .getAttribute("data-jump-source")
+    const before = colour()
+
+    click("Step 1")
+    openJump()
+    click("Pick destination")
+    click("Step 5")
+    expect(colour()).toBe(before)
+  })
+
   it("changes the jump rule", () => {
     setup()
     openJump()
@@ -215,6 +234,36 @@ describe("action buttons", () => {
 
     fireEvent.pointerUp(hang)
     expect(rootStore.player.actions.hang).toBe(false)
+  })
+
+  it("drops the actions into the title bar once they are under the grid", () => {
+    setup()
+    const icons = () =>
+      document.querySelector("[data-action-icons]") as HTMLElement
+    // at the top, only the row's buttons
+    expect(icons().getAttribute("aria-hidden")).toBe("true")
+    expect(grid().getAllByRole("button", { name: "Hang" })).toHaveLength(1)
+
+    // jsdom lays nothing out, so the scroll puts the row under the grid
+    const rect = (top: number, height: number) =>
+      ({ top, bottom: top + height, height }) as DOMRect
+    const frame = document.querySelector("[data-grid-frame]") as HTMLElement
+    const row = grid().getByRole("button", { name: "Hang" }).parentElement
+      ?.parentElement as HTMLElement
+    vi.spyOn(frame, "getBoundingClientRect").mockReturnValue(rect(0, 300))
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(rect(250, 60))
+    fireEvent.scroll(
+      document.querySelector("[data-grid-scroller]") as HTMLElement,
+    )
+
+    expect(icons().getAttribute("aria-hidden")).toBe("false")
+    const hang = within(icons()).getByRole("button", { name: "Hang" })
+    fireEvent.pointerDown(hang)
+    expect(rootStore.player.actions.hang).toBe(true)
+    fireEvent.pointerUp(hang)
+    expect(rootStore.player.actions.hang).toBe(false)
+    // and Latch with them
+    expect(within(icons()).getByRole("switch", { name: "Latch" })).toBeTruthy()
   })
 
   it("holds an action while its key is down", () => {

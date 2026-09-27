@@ -60,6 +60,21 @@ describe("HistoryStore", () => {
     expect(history.canUndo).toBe(false)
   })
 
+  it("holds every push until release as one entry", () => {
+    history.hold()
+    setTempo(90)
+    clock += 5000
+    setTempo(100)
+    history.release()
+    setTempo(110)
+
+    history.undo()
+    expect(store.patch.tempo).toBe(100)
+    history.undo()
+    expect(store.patch.tempo).toBe(120)
+    expect(history.canUndo).toBe(false)
+  })
+
   it("starts a new entry once a gesture goes quiet", () => {
     setTempo(121, "tempo")
     clock += 2000

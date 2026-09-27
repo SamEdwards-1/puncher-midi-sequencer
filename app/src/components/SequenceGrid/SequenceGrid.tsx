@@ -23,18 +23,21 @@ import { StepEditor } from "../StepEditor/StepEditor"
 import { cn } from "../ui/cn"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
-import { ActionButtons } from "./ActionButtons"
+import { ActionButtons, ActionIcons } from "./ActionButtons"
 
 const STEP =
   "relative aspect-square min-w-[1.25rem] rounded-full border-2 font-mono text-[clamp(0.6rem,1.1vmin,0.85rem)]"
 
 /* A jump shows as a pair sharing a colour: the source is marked at the
-   north-east, its destination at the south-west. */
+   north-east, its destination at the south-west, each just outside the
+   circle so it never crowds the number however small the step gets. The
+   mark's centre sits on the diagonal, the circle's radius (half the padding
+   box plus the 2px border) and a gap away from the middle. */
 const SOURCE_MARK =
-  "after:absolute after:top-[10%] after:right-[10%] after:h-[0.32rem] after:w-[0.32rem] after:rounded-full after:bg-[var(--jump-source-color)] after:content-['']"
+  "after:absolute after:top-[calc(50%_-_(50%_+_2px_+_0.22rem)_*_0.7071_-_0.16rem)] after:left-[calc(50%_+_(50%_+_2px_+_0.22rem)_*_0.7071_-_0.16rem)] after:h-[0.32rem] after:w-[0.32rem] after:rounded-full after:bg-[var(--jump-source-color)] after:content-['']"
 
 const DEST_MARK =
-  "before:absolute before:bottom-[10%] before:left-[10%] before:h-[0.32rem] before:w-[0.32rem] before:rounded-full before:bg-[var(--jump-dest-color)] before:content-['']"
+  "before:absolute before:top-[calc(50%_+_(50%_+_2px_+_0.22rem)_*_0.7071_-_0.16rem)] before:left-[calc(50%_-_(50%_+_2px_+_0.22rem)_*_0.7071_-_0.16rem)] before:h-[0.32rem] before:w-[0.32rem] before:rounded-full before:bg-[var(--jump-dest-color)] before:content-['']"
 
 const JUMP_COLOURS = 8
 
@@ -122,20 +125,19 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   )
   /**
    * What each cell draws, as a compact signature so the grid only re-renders
-   * when it changes. Each jump takes the next colour in the palette, and its
-   * source and destination both carry it. A step targeted by several jumps
-   * shows the first one's colour.
+   * when it changes. A jump's colour comes from the step it leaves, so adding
+   * another never recolours the rest, and its source and destination both
+   * carry it. A step targeted by several jumps shows the first one's colour.
    */
   const marks = useMobxSelector(() => {
     const steps = sequencerStore.patch.steps
     const source: (number | null)[] = steps.map(() => null)
     const dest: (number | null)[] = steps.map(() => null)
-    let next = 0
     steps.forEach((step, index) => {
       if (step.jump.dest === null) {
         return
       }
-      const colour = next++
+      const colour = index % JUMP_COLOURS
       source[index] = colour
       dest[step.jump.dest] ??= colour
     })
@@ -150,8 +152,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   }, [sequencerStore]).split(",")
 
   // which of the palette's colours the mark stands for, if any
-  const jumpColour = (mark: string) =>
-    mark === "-" ? undefined : Number(mark) % JUMP_COLOURS
+  const jumpColour = (mark: string) => (mark === "-" ? undefined : Number(mark))
 
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
@@ -204,9 +205,19 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   )
   const fullLayer = fullGrid + 2 * GRID_PAD
   const smallestLayer = MIN_GRID + 2 * GRID_PAD
+  // Once the action buttons are mostly under the grid, their icons drop
+  // into the title bar instead.
+  const frame = useRef<HTMLDivElement>(null)
+  const actionRow = useRef<HTMLDivElement>(null)
+  const [actionsAway, setActionsAway] = useState(false)
   const onScroll = () => {
     const element = scroller.current
     element?.style.setProperty("--grid-scroll", `${element.scrollTop}px`)
+    const row = actionRow.current?.getBoundingClientRect()
+    const grid = frame.current?.getBoundingClientRect()
+    if (row !== undefined && grid !== undefined) {
+      setActionsAway(row.top + row.height / 2 < grid.bottom)
+    }
   }
 
   return (
@@ -214,11 +225,14 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
       aria-label={localized["sequencer-grid"]}
       className={cn("overflow-hidden", className)}
     >
-      <PanelHeader className="flex items-center gap-2">
-        <span className="grow">
+      {/* three columns, the outer two equal, so the action icons sit in the
+          middle of the bar */}
+      <PanelHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 overflow-hidden">
+        <span>
           <Localized name="sequencer-grid" />
         </span>
-        <span className="flex items-center gap-[0.4rem] text-small font-normal text-fg-secondary">
+        <ActionIcons shown={actionsAway} />
+        <span className="flex items-center justify-end gap-[0.4rem] text-small font-normal text-fg-secondary">
           <Localized name="sequencer-preview" />
           <Toggle
             label={localized["sequencer-preview"]}
@@ -247,6 +261,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
           style={{ height: fullLayer }}
         >
           <div
+            ref={frame}
             data-grid-frame
             // without Preflight, padding would add to the height it is given
             className="pointer-events-auto box-border flex items-center justify-center bg-background px-4 shadow-[0_1px_0_var(--midiseq-divider)]"
@@ -342,7 +357,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
         {/* no taller than it is, so the scroll ends with the editor's
             bottom at the window's; the grid shrinks as far as that allows */}
         <div>
-          <ActionButtons />
+          <div ref={actionRow}>
+            <ActionButtons />
+          </div>
           <StepEditor />
         </div>
       </div>
