@@ -245,6 +245,17 @@
     cursor: default;
   }
 
+  /* While a number is dragged (see Stepper) the mouse is hidden, and nothing
+     under it answers to it, so the drag lights up nothing it passes over. */
+  [data-midiseq-dragging],
+  [data-midiseq-dragging] body {
+    cursor: none !important;
+  }
+
+  [data-midiseq-dragging] body * {
+    pointer-events: none !important;
+  }
+
   /* macOS-style overlay scrollbars: no track, a translucent thumb that
      darkens on hover, and only while it is wanted: while the area scrolls
      (useScrollingMark marks it) or the mouse is over it. Browsers that read

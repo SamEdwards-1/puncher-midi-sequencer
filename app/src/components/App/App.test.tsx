@@ -18,7 +18,7 @@ describe("App", () => {
     ).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Grid" })).toBeInTheDocument()
     expect(screen.getByText("Voices")).toBeInTheDocument()
-    for (const action of ["Hang", "Bump", "Flip", "Shift"]) {
+    for (const action of ["Hold", "Sync", "Flip", "Shift"]) {
       expect(screen.getByRole("button", { name: action })).toBeInTheDocument()
     }
     // the large grid draws 64 steps
@@ -127,23 +127,57 @@ describe("App", () => {
     render(<App rootStore={rootStore} />)
     const tempo = screen.getByRole("textbox", { name: "Tempo" })
 
-    // 380 steps of tempo, so 2px each
-    fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 80 })
-    fireEvent.mouseMove(document, { clientY: 60 })
-    fireEvent.mouseUp(document, { clientY: 60 })
-    expect(rootStore.sequencerStore.patch.tempo).toBe(140)
-    expect(document.activeElement).not.toBe(tempo)
+    vi.useFakeTimers({ toFake: ["performance"] })
+    try {
+      // slowly, ten pixels a step
+      fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
+      vi.advanceTimersByTime(200)
+      fireEvent.mouseMove(document, { clientY: 90 })
+      vi.advanceTimersByTime(200)
+      fireEvent.mouseMove(document, { clientY: 80 })
+      fireEvent.mouseUp(document, { clientY: 80 })
+      expect(rootStore.sequencerStore.patch.tempo).toBe(122)
+      expect(document.activeElement).not.toBe(tempo)
 
-    fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
-    fireEvent.mouseMove(document, { clientY: 400 })
-    fireEvent.mouseUp(document, { clientY: 400 })
-    expect(rootStore.sequencerStore.patch.tempo).toBe(20)
+      // quickly, far past the bottom
+      fireEvent.mouseDown(tempo, { button: 0, clientY: 100 })
+      vi.advanceTimersByTime(20)
+      fireEvent.mouseMove(document, { clientY: 400 })
+      fireEvent.mouseUp(document, { clientY: 400 })
+      expect(rootStore.sequencerStore.patch.tempo).toBe(20)
+    } finally {
+      vi.useRealTimers()
+    }
 
     rootStore.history.undo()
-    expect(rootStore.sequencerStore.patch.tempo).toBe(140)
+    expect(rootStore.sequencerStore.patch.tempo).toBe(122)
     rootStore.history.undo()
     expect(rootStore.sequencerStore.patch.tempo).toBe(120)
+  })
+
+  it("drags a number off its limit a few pixels at a time, the mouse hidden meanwhile", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+    const pattern = screen.getByRole("textbox", { name: "Pattern" })
+    const dragging = () => "midiseqDragging" in document.documentElement.dataset
+    expect(rootStore.sequencerStore.patch.voices[0].patternLength).toBe(16)
+
+    vi.useFakeTimers({ toFake: ["performance"] })
+    try {
+      fireEvent.mouseDown(pattern, { button: 0, clientY: 100 })
+      // slowly down, two pixels a move, as a hand does
+      for (let y = 102; y <= 124; y += 2) {
+        vi.advanceTimersByTime(100)
+        fireEvent.mouseMove(document, { clientY: y })
+      }
+      expect(dragging()).toBe(true)
+      fireEvent.mouseUp(document, { clientY: 124 })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    expect(rootStore.sequencerStore.patch.voices[0].patternLength).toBe(14)
+    expect(dragging()).toBe(false)
   })
 
   it("types a plain number in, as a whole number", () => {

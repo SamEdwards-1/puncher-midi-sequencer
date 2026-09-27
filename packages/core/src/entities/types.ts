@@ -179,12 +179,12 @@ export type VoiceSetting =
 export type SequencerSetting = "pace" | "scale" | "shiftFit"
 
 /**
- * An action a CC can drive: Hang, Flip and Shift for the whole sequence,
- * Bump for one voice, so each voice can be bumped on steps of its own.
+ * An action a CC can drive: Hold, Flip and Shift for the whole sequence,
+ * Sync for one voice, so each voice can be synced on steps of its own.
  */
 export type ActionTarget =
-  | { kind: "action"; setting: "hang" | "flip" | "shift" }
-  | { kind: "action"; setting: "bump"; voice: VoiceIndex }
+  | { kind: "action"; setting: "hold" | "flip" | "shift" }
+  | { kind: "action"; setting: "sync"; voice: VoiceIndex }
 
 export type ModulationTarget =
   | { kind: "voice"; voice: VoiceIndex; setting: VoiceSetting }
@@ -242,4 +242,4 @@ export interface PatchJSON {
   modulations: ModulationJSON[]
 }
 
-export type ActionButton = "hang" | "bump" | "flip" | "shift"
+export type ActionButton = "hold" | "sync" | "flip" | "shift"

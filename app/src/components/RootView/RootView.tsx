@@ -1,4 +1,5 @@
 import { FC, useEffect } from "react"
+import { useSelectedVoiceSync } from "../../hooks/useActions"
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { useScrollingMark } from "../../hooks/useScrollingMark"
 import { useStores } from "../../hooks/useStores"
@@ -10,6 +11,7 @@ export const RootView: FC = () => {
   const { sequencerStore } = useStores()
   useKeyboardShortcuts()
   useScrollingMark()
+  useSelectedVoiceSync()
 
   // warns before closing with work that hasn't been saved to a file
   useEffect(() => {

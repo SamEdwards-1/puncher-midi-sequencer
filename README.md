@@ -228,14 +228,14 @@ CCs** is off in Settings → MIDI; an export leaves them out when its
 The fit fields work while there is no scale if a step can move the
 sequencer to one.
 
-The actions can be driven the same way. Hover **Hang**, **Bump**, **Flip** or
+The actions can be driven the same way. Hover **Hold**, **Sync**, **Flip** or
 **Shift** under the grid and a gear appears at its corner; the title bar's
 icons have none. An action's envelope is Off or On, and a step with one turns
-the action on or off whatever its button says: Hang and Flip as the step ends
-— a step whose envelope has Hang on at its end is kept until the envelope
-changes or the sequence stops — Bump as the step lands, and Shift at each
-note. Every other step leaves the action to its button. Bump's gear is the
-selected voice's, so each voice is bumped on steps of its own. While the
+the action on or off whatever its button says: Hold and Flip as the step ends
+— a step whose envelope has Hold on at its end is kept until the envelope
+changes or the sequence stops — Sync as the step lands, and Shift at each
+note. Every other step leaves the action to its button. Sync's gear is the
+selected voice's, so each voice is synced on steps of its own. While the
 sequence plays, a button a step's envelope drives shows it on or off in the
 envelopes' colour, until it is pointed at or pressed.
 
@@ -278,8 +278,8 @@ Grid, Voices and Sequencer.
 
 | | |
 |---|---|
-| **Hang** | the step stops advancing while the voices keep playing |
-| **Bump** | flips Sync Voices, so voices restart with each step, or don't |
+| **Hold** | the step stops advancing while the voices keep playing |
+| **Sync** | the selected voice plays at the sequencer's pace, a note each step; let go, it picks its own pace up again |
 | **Flip** | swaps the grid's rows and columns, from the next step on |
 | **Shift** | transposes new notes by the Shift amount |
 
@@ -295,7 +295,7 @@ few seconds, so a crash doesn't lose it.
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo / redo |
 | `Ctrl+S` / `Ctrl+Shift+S` | save / save as |
 | `Ctrl+O` | open |
-| `H` `B` `F` `S` | hold Hang, Bump, Flip, Shift |
+| `H` `Y` `F` `S` | hold Hold, Sync, Flip, Shift |
 
 ## Development
 

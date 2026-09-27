@@ -654,7 +654,7 @@ export const EnvelopeGraph: FC<{
     })
   }
 
-  // On the graph B is Live's Draw key; everywhere else it stays Bump.
+  // On the graph B is Live's Draw key, and goes no further.
   const onKeyDown = (event: KeyboardEvent) => {
     if (
       event.code !== "KeyB" ||

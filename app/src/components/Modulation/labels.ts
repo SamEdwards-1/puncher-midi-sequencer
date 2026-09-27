@@ -51,8 +51,8 @@ export const modulationValueLabel = (
       return value === null
         ? localized["sequencer-scale-none"]
         : scaleLabel(value as ScaleChoiceJSON)
-    case "hang":
-    case "bump":
+    case "hold":
+    case "sync":
     case "flip":
     case "shift":
       return value
@@ -71,15 +71,15 @@ const FIELDS: Record<ModulationTarget["setting"], LocalizationKey> = {
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
   shiftFit: "sequencer-shift-fit",
-  hang: "sequencer-action-hang",
-  bump: "sequencer-action-bump",
+  hold: "sequencer-action-hold",
+  sync: "sequencer-action-sync",
   flip: "sequencer-action-flip",
   shift: "sequencer-action-shift",
 }
 
 /**
  * Where a setting is and what it's called: "Voice 2 · Pace". A voice's
- * Bump is its voice's, the other actions the Actions'.
+ * Sync is its voice's, the other actions the Actions'.
  */
 export const modulationTargetLabel = (
   target: ModulationTarget,
@@ -103,15 +103,15 @@ const TABS: Record<ModulationTarget["setting"], LocalizationKey> = {
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
   shiftFit: "sequencer-modulation-tab-shift-fit",
-  hang: "sequencer-action-hang",
-  bump: "sequencer-action-bump",
+  hold: "sequencer-action-hold",
+  sync: "sequencer-action-sync",
   flip: "sequencer-action-flip",
   shift: "sequencer-action-shift",
 }
 
 /**
  * A modulation's lane, named for the setting it drives: a voice's with the
- * voice's number, as its Velocity tab is — "Pace 2", "Bump 2" — and the
+ * voice's number, as its Velocity tab is — "Pace 2", "Sync 2" — and the
  * sequencer's pace told apart from the voices'.
  */
 export const modulationTabLabel = (

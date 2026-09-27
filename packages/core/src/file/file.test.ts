@@ -92,7 +92,7 @@ const everySettingChanged = (): PatchJSON => {
         to: { tonic: 7, name: "dorian" },
       },
       {
-        target: { kind: "action", setting: "bump", voice: 1 },
+        target: { kind: "action", setting: "sync", voice: 1 },
         cc: 15,
         from: false,
         to: true,
@@ -278,6 +278,33 @@ describe("the file format", () => {
     ]
     const result = parseFile(JSON.stringify(file))
     expect(result.ok).toBe(true)
+  })
+
+  it("reads Hang and Bump, as they were, as Hold and Sync", () => {
+    const file = JSON.parse(serializeFile(createFile(createDefaultPatch())))
+    file.patch.modulations = [
+      {
+        target: { kind: "action", setting: "hang" },
+        cc: 3,
+        from: false,
+        to: true,
+      },
+      {
+        target: { kind: "action", setting: "bump", voice: 2 },
+        cc: 4,
+        from: false,
+        to: true,
+      },
+    ]
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.patch.modulations.map(({ target }) => target)).toEqual([
+        { kind: "action", setting: "hold" },
+        { kind: "action", setting: "sync", voice: 2 },
+      ])
+    }
   })
 
   it("reads envelope times written as fractions of the step as beats", () => {

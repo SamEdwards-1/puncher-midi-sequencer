@@ -26,7 +26,7 @@ import {
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { modulationTabLabel, modulationTargetLabel } from "../Modulation/labels"
-import { Button, IconButton } from "../ui/Button"
+import { Button, ButtonGroup, IconButton } from "../ui/Button"
 import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
@@ -313,36 +313,35 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
       )}
 
       {(lane.kind === "velocity" || lane.kind === "cc") && (
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            size="sm"
-            quiet
-            active={tool === "edit"}
-            aria-pressed={tool === "edit"}
-            // "Edit" alone is the menu in the bar
-            aria-label={localized["sequencer-envelope-edit-tool"]}
-            title={localized["sequencer-envelope-edit"]}
-            onClick={() => setTool("edit")}
-          >
-            <CursorDefaultOutlineIcon size={14} />
-            <Localized name="sequencer-envelope-edit" />
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            quiet
-            active={tool === "draw"}
-            aria-pressed={tool === "draw"}
-            title={`${localized["sequencer-envelope-draw"]} (B)`}
-            onClick={() => setTool("draw")}
-          >
-            <PencilIcon size={14} />
-            <Localized name="sequencer-envelope-draw" />
-          </Button>
+        <div className="flex items-center gap-2">
+          <ButtonGroup>
+            <Button
+              type="button"
+              size="sm"
+              active={tool === "edit"}
+              aria-pressed={tool === "edit"}
+              // "Edit" alone is the menu in the bar
+              aria-label={localized["sequencer-envelope-edit-tool"]}
+              title={localized["sequencer-envelope-edit"]}
+              onClick={() => setTool("edit")}
+            >
+              <CursorDefaultOutlineIcon size={14} />
+              <Localized name="sequencer-envelope-edit" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              active={tool === "draw"}
+              aria-pressed={tool === "draw"}
+              title={`${localized["sequencer-envelope-draw"]} (B)`}
+              onClick={() => setTool("draw")}
+            >
+              <PencilIcon size={14} />
+              <Localized name="sequencer-envelope-draw" />
+            </Button>
+          </ButtonGroup>
           {lane.kind === "cc" && envelope !== null && (
-            <>
-              <div className="mx-1 h-4 w-px bg-divider" />
+            <ButtonGroup>
               <Button
                 type="button"
                 size="sm"
@@ -369,7 +368,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
                 <SlopeUphillIcon size={14} />
                 <Localized name="sequencer-envelope-ramps" />
               </Button>
-            </>
+            </ButtonGroup>
           )}
           <div className="grow" />
           <label className="text-small" htmlFor="envelope-grid">

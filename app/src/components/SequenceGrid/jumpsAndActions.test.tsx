@@ -227,13 +227,13 @@ describe("marking rests and skips", () => {
 describe("action buttons", () => {
   it("holds an action while the button is down", () => {
     setup()
-    const hang = grid().getByRole("button", { name: "Hang" })
+    const hold = grid().getByRole("button", { name: "Hold" })
 
-    fireEvent.pointerDown(hang)
-    expect(rootStore.player.actions.hang).toBe(true)
+    fireEvent.pointerDown(hold)
+    expect(rootStore.player.actions.hold).toBe(true)
 
-    fireEvent.pointerUp(hang)
-    expect(rootStore.player.actions.hang).toBe(false)
+    fireEvent.pointerUp(hold)
+    expect(rootStore.player.actions.hold).toBe(false)
   })
 
   it("drops the actions into the title bar once they are under the grid", () => {
@@ -242,14 +242,14 @@ describe("action buttons", () => {
       document.querySelector("[data-action-icons]") as HTMLElement
     // at the top, only the row's buttons
     expect(icons().getAttribute("aria-hidden")).toBe("true")
-    expect(grid().getAllByRole("button", { name: "Hang" })).toHaveLength(1)
+    expect(grid().getAllByRole("button", { name: "Hold" })).toHaveLength(1)
 
     // jsdom lays nothing out, so the scroll puts the row under the grid
     const rect = (top: number, height: number) =>
       ({ top, bottom: top + height, height }) as DOMRect
     const frame = document.querySelector("[data-grid-frame]") as HTMLElement
     const row = grid()
-      .getByRole("button", { name: "Hang" })
+      .getByRole("button", { name: "Hold" })
       .closest("[data-action-buttons]")?.parentElement as HTMLElement
     vi.spyOn(frame, "getBoundingClientRect").mockReturnValue(rect(0, 300))
     vi.spyOn(row, "getBoundingClientRect").mockReturnValue(rect(250, 60))
@@ -258,11 +258,11 @@ describe("action buttons", () => {
     )
 
     expect(icons().getAttribute("aria-hidden")).toBe("false")
-    const hang = within(icons()).getByRole("button", { name: "Hang" })
-    fireEvent.pointerDown(hang)
-    expect(rootStore.player.actions.hang).toBe(true)
-    fireEvent.pointerUp(hang)
-    expect(rootStore.player.actions.hang).toBe(false)
+    const hold = within(icons()).getByRole("button", { name: "Hold" })
+    fireEvent.pointerDown(hold)
+    expect(rootStore.player.actions.hold).toBe(true)
+    fireEvent.pointerUp(hold)
+    expect(rootStore.player.actions.hold).toBe(false)
     // and Latch with them
     expect(within(icons()).getByRole("switch", { name: "Latch" })).toBeTruthy()
   })
@@ -274,6 +274,27 @@ describe("action buttons", () => {
 
     fireEvent.keyUp(window, { code: "KeyF" })
     expect(rootStore.player.actions.flip).toBe(false)
+  })
+
+  it("holds Sync with Y, as S is Shift's", () => {
+    setup()
+    fireEvent.keyDown(window, { code: "KeyY" })
+    expect(rootStore.player.actions.sync).toBe(true)
+    fireEvent.keyUp(window, { code: "KeyY" })
+    expect(rootStore.player.actions.sync).toBe(false)
+  })
+
+  it("says what each action does, and its key, when pointed at", () => {
+    setup()
+    expect(grid().getByRole("button", { name: "Sync" })).toHaveAttribute(
+      "title",
+      "Plays the selected voice at the sequencer's pace, a note each step (Y)",
+    )
+    for (const action of ["Hold", "Flip", "Shift"]) {
+      expect(
+        grid().getByRole("button", { name: action }).getAttribute("title"),
+      ).toMatch(/\([HFS]\)$/)
+    }
   })
 
   // latch is view state and lives on between tests, so it is set explicitly
@@ -291,14 +312,14 @@ describe("action buttons", () => {
     setup()
     setLatch(true)
 
-    const bump = grid().getByRole("button", { name: "Bump" })
-    fireEvent.pointerDown(bump)
-    fireEvent.pointerUp(bump)
-    expect(rootStore.player.actions.bump).toBe(true)
+    const sync = grid().getByRole("button", { name: "Sync" })
+    fireEvent.pointerDown(sync)
+    fireEvent.pointerUp(sync)
+    expect(rootStore.player.actions.sync).toBe(true)
 
-    fireEvent.pointerDown(bump)
-    fireEvent.pointerUp(bump)
-    expect(rootStore.player.actions.bump).toBe(false)
+    fireEvent.pointerDown(sync)
+    fireEvent.pointerUp(sync)
+    expect(rootStore.player.actions.sync).toBe(false)
   })
 
   it("drops held actions when latch is switched off", () => {

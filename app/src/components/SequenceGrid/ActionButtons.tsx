@@ -25,8 +25,8 @@ const ACTIONS: {
   key: string
   icon: MdiReactIconComponentType
 }[] = [
-  { action: "hang", key: "KeyH", icon: PauseIcon },
-  { action: "bump", key: "KeyB", icon: SyncIcon },
+  { action: "hold", key: "KeyH", icon: PauseIcon },
+  { action: "sync", key: "KeyY", icon: SyncIcon },
   { action: "flip", key: "KeyF", icon: FlipHorizontalIcon },
   { action: "shift", key: "KeyS", icon: SwapVerticalIcon },
 ]
@@ -50,7 +50,7 @@ const lit = (on: boolean, live: boolean) =>
 /**
  * An action as its button shows it, and what a press does: holds it while
  * the button is down, or with Latch on, turns it on or off. While the
- * sequence plays a step whose envelope has the action — Bump, the selected
+ * sequence plays a step whose envelope has the action — Sync, the selected
  * voice's — the button shows it as the step has it, until it is pointed at
  * or pressed, when it shows the button's own again. Not while it has the
  * focus, which a button keeps after a click.
@@ -60,8 +60,8 @@ const useAction = (action: Action) => {
   const [latch] = useLatchActions()
   const [voice] = useSelectedVoice()
   const target: ActionTarget =
-    action === "bump"
-      ? { kind: "action", setting: "bump", voice }
+    action === "sync"
+      ? { kind: "action", setting: "sync", voice }
       : { kind: "action", setting: action }
   const { showing, control } = useShownModulation(target)
   const held = actions[action]
@@ -98,10 +98,12 @@ const useAction = (action: Action) => {
  */
 const ActionButton: FC<{ action: Action }> = ({ action }) => {
   const { target, held, live, className, handlers } = useAction(action)
+  const hint = useLocalization()[`sequencer-action-${action}-hint`]
   return (
     <span className="group/field relative flex">
       <button
         type="button"
+        title={hint}
         data-field-label
         data-held={held}
         data-live={live}
@@ -110,7 +112,7 @@ const ActionButton: FC<{ action: Action }> = ({ action }) => {
       >
         <Localized name={`sequencer-action-${action}`} />
       </button>
-      {/* Bump's is the selected voice's, and another voice's is another
+      {/* Sync's is the selected voice's, and another voice's is another
           gear, so one left open doesn't carry over */}
       <ModulationButton
         key={targetKey(target)}
@@ -125,7 +127,7 @@ export const ActionButtons: FC = () => {
   const { setAction, toggleAction } = useActions()
   const [latch] = useLatchActions()
 
-  // H, B, F and S hold an action for as long as the key is down
+  // H, Y, F and S hold an action for as long as the key is down
   useEffect(() => {
     const match = (event: KeyboardEvent) =>
       event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)
@@ -181,7 +183,10 @@ const Latch: FC = () => {
   return (
     // a div, not a label: a label wrapping the switch would double-fire
     // clicks
-    <div className="ml-2 flex items-center gap-[0.4rem] text-small font-normal text-fg-secondary">
+    <div
+      className="ml-2 flex items-center gap-[0.4rem] text-small font-normal text-fg-secondary"
+      title={localized["sequencer-action-latch-hint"]}
+    >
       <Toggle
         label={localized["sequencer-action-latch"]}
         checked={latch}
@@ -206,12 +211,12 @@ const ActionIcon: FC<{
   icon: MdiReactIconComponentType
 }> = ({ action, icon: Icon }) => {
   const { held, live, className, handlers } = useAction(action)
-  const name = useLocalization()[`sequencer-action-${action}`]
+  const localized = useLocalization()
   return (
     <button
       type="button"
-      aria-label={name}
-      title={name}
+      aria-label={localized[`sequencer-action-${action}`]}
+      title={localized[`sequencer-action-${action}-hint`]}
       data-held={held}
       data-live={live}
       className={cn(ACTION_ICON, className)}

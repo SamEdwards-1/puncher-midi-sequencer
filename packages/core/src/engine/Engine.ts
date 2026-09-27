@@ -30,15 +30,15 @@ import { createRuntime, EngineRuntime, voiceIndexes } from "./runtime"
 import { initialCursor, pickNote } from "./voiceRules"
 
 export interface EngineActions {
-  hang: boolean
-  bump: boolean
+  hold: boolean
+  sync: boolean
   flip: boolean
   shift: boolean
 }
 
 export const createActions = (): EngineActions => ({
-  hang: false,
-  bump: false,
+  hold: false,
+  sync: false,
   flip: false,
   shift: false,
 })
@@ -74,6 +74,8 @@ export class Engine {
   private rng: Rng
   accentAmount: number
   actions: EngineActions = createActions()
+  // the voice Sync keeps to the sequencer's pace while it is held
+  selectedVoice: VoiceIndex = 0
 
   constructor(
     private patch: PatchJSON,
@@ -243,17 +245,31 @@ export class Engine {
         ) ?? held)
   }
 
-  // Whether a voice starts its pattern over as `step` lands. Bump inverts
-  // Sync Voices while it is held, or for one voice, on a step whose envelope
-  // bumps it.
-  private syncs(voice: VoiceIndex, step: StepIndex): boolean {
-    const bumped =
-      modulatedAction(this.patch, step, 0, {
-        kind: "action",
-        setting: "bump",
-        voice,
-      }) ?? this.actions.bump
-    return this.patch.syncVoices !== bumped
+  // Whether a voice plays at the sequencer's pace rather than its own: on a
+  // step whose envelope has its Sync on, as the step landed, and otherwise
+  // while Sync is held with the voice selected.
+  private isSynced(voice: VoiceIndex): boolean {
+    const step = this.runtime.envelope?.step
+    const modulated =
+      step === undefined
+        ? undefined
+        : modulatedAction(this.patch, step, 0, {
+            kind: "action",
+            setting: "sync",
+            voice,
+          })
+    return modulated ?? (this.actions.sync && voice === this.selectedVoice)
+  }
+
+  // A synced voice plays as the sequencer ticks, whether it lands a step or
+  // Hold keeps one.
+  private tickSynced(beat: number) {
+    this.runtime.seqBeat = beat
+    for (const index of voiceIndexes) {
+      if (this.isSynced(index)) {
+        this.runtime.voices[index].nextBeat = beat
+      }
+    }
   }
 
   // The step the sequencer landed on, which the voices play until the next
@@ -270,15 +286,16 @@ export class Engine {
   private tickSequencer(beat: number, events: EngineEvent[]) {
     const { patch, runtime } = this
 
-    // Hang keeps the phase moving but never advances the step, which goes on
-    // as long as it lasts each time round. Hang and Flip are read as the
+    // Hold keeps the phase moving but never advances the step, which goes on
+    // as long as it lasts each time round. Hold and Flip are read as the
     // step ends, so a step's envelope has them as it leaves it.
-    if (this.actionAt({ kind: "action", setting: "hang" }, beat)) {
+    if (this.actionAt({ kind: "action", setting: "hold" }, beat)) {
       const held = runtime.envelope?.step
       runtime.nextSeqBeat = onPaceGrid(
         beat +
           paceBeats(held === undefined ? patch.pace : stepPace(patch, held)),
       )
+      this.tickSynced(beat)
       return
     }
 
@@ -314,7 +331,7 @@ export class Engine {
       // plays on this step — or the first of its pattern, once sync resets it.
       // A pattern the step shortens is carried on from within it.
       voiceDots: voiceIndexes.map((index) =>
-        this.syncs(index, step)
+        patch.syncVoices
           ? 0
           : runtime.voices[index].patternIndex %
             modulatedVoice(patch, index, step, 0).patternLength,
@@ -324,14 +341,14 @@ export class Engine {
     this.landEnvelopes(step, beat, lengthBeats, events)
     this.emitSequencerMods(beat, position, flip, events)
 
-    for (const index of voiceIndexes) {
-      if (this.syncs(index, step)) {
-        const voice = runtime.voices[index]
+    if (patch.syncVoices) {
+      for (const voice of runtime.voices) {
         voice.patternIndex = 0
         voice.cursor = null
         voice.nextBeat = beat
       }
     }
+    this.tickSynced(beat)
   }
 
   private advance(steps: StepIndex[]): StepIndex {
@@ -537,8 +554,16 @@ export class Engine {
   private tickVoice(index: VoiceIndex, beat: number, events: EngineEvent[]) {
     const voice = this.voiceAt(index, beat)
     const runtime = this.runtime.voices[index]
-    const pace = paceBeats(voice.pace)
-    runtime.nextBeat = onPaceGrid(beat + pace)
+    // A synced voice still counts its own pace, so it picks that up again
+    // the moment Sync lets go, but plays only as the sequencer ticks, a dot
+    // each time and as long as the sequencer's step.
+    const own = paceBeats(voice.pace)
+    runtime.nextBeat = onPaceGrid(beat + own)
+    const synced = this.isSynced(index)
+    if (synced && beat !== this.runtime.seqBeat) {
+      return
+    }
+    const pace = synced ? this.runtime.nextSeqBeat - beat : own
 
     // a pattern shortened under the voice — edited, or modulated — carries
     // on from within it
@@ -607,7 +632,7 @@ export class Engine {
     )
     const hits = patternStep.ratchet
     const hitPace = pace / hits
-    const holdBeats = this.holdBeatsAfter(voice, patternIndex)
+    const holdBeats = this.holdBeatsAfter(voice, patternIndex, pace)
 
     for (let hit = 0; hit < hits; hit++) {
       const onBeat = beat + hit * hitPace
@@ -687,8 +712,11 @@ export class Engine {
   }
 
   // Extra sustain contributed by the hold dots that follow this one.
-  private holdBeatsAfter(voice: VoiceJSON, patternIndex: number): number {
-    const pace = paceBeats(voice.pace)
+  private holdBeatsAfter(
+    voice: VoiceJSON,
+    patternIndex: number,
+    pace: number,
+  ): number {
     let held = 0
     for (let offset = 1; offset < voice.patternLength; offset++) {
       const dot = voice.pattern[(patternIndex + offset) % voice.patternLength]

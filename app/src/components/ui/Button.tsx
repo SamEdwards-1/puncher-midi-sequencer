@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, FC } from "react"
+import { ButtonHTMLAttributes, FC, FieldsetHTMLAttributes } from "react"
 import { cn } from "./cn"
 
 export type ButtonSize = "md" | "sm" | "field"
@@ -15,15 +15,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean
   // the action a dialog is for, filled in the theme colour
   primary?: boolean
-  // one of a set of tools: no fill until it is hovered or on
-  quiet?: boolean
 }
 
 export const Button: FC<ButtonProps> = ({
   size = "md",
   active = false,
   primary = false,
-  quiet = false,
   className,
   ...props
 }) => (
@@ -34,9 +31,38 @@ export const Button: FC<ButtonProps> = ({
       SIZES[size],
       active || primary
         ? "bg-theme text-on-surface enabled:hover:brightness-110"
-        : quiet
-          ? "text-fg enabled:hover:bg-highlight"
-          : "bg-background-secondary text-fg enabled:hover:bg-highlight",
+        : "bg-background-secondary text-fg enabled:hover:bg-highlight",
+      className,
+    )}
+    {...props}
+  />
+)
+
+export interface ButtonGroupProps
+  extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
+  size?: Exclude<ButtonSize, "field">
+}
+
+const GROUP_HEIGHTS: Record<NonNullable<ButtonGroupProps["size"]>, string> = {
+  md: "h-8",
+  sm: "h-[1.7rem]",
+}
+
+/**
+ * Buttons that belong together, joined into one bar with a seam between
+ * each. The bar keeps the height of a lone button, its border inside it. A
+ * disabled button dims its label, not its fill, so the bar stays whole.
+ */
+export const ButtonGroup: FC<ButtonGroupProps> = ({
+  size = "sm",
+  className,
+  ...props
+}) => (
+  <fieldset
+    className={cn(
+      "m-0 box-border flex min-w-0 flex-none divide-x divide-fg/15 overflow-hidden rounded-sm border border-fg/15 bg-background-secondary p-0",
+      "*:h-full *:rounded-none *:disabled:text-fg/40 *:disabled:opacity-100",
+      GROUP_HEIGHTS[size],
       className,
     )}
     {...props}

@@ -6,10 +6,20 @@ export default {
     "sequencer-step-editor": "Step Editor",
     "sequencer-voices": "Voices",
     "sequencer-settings-panes": "Settings panes",
-    "sequencer-action-hang": "Hang",
-    "sequencer-action-bump": "Bump",
+    "sequencer-action-hold": "Hold",
+    "sequencer-action-sync": "Sync",
     "sequencer-action-flip": "Flip",
     "sequencer-action-shift": "Shift",
+    "sequencer-action-hold-hint":
+      "Keeps the sequencer on its step while the voices play on (H)",
+    "sequencer-action-sync-hint":
+      "Plays the selected voice at the sequencer's pace, a note each step (Y)",
+    "sequencer-action-flip-hint":
+      "Swaps the grid's rows and columns, from the next step on (F)",
+    "sequencer-action-shift-hint":
+      "Transposes new notes by the Shift amount (S)",
+    "sequencer-action-latch-hint":
+      "A click turns an action on until it is clicked again, rather than only while it is held",
     "sequencer-actions": "Actions",
     "sequencer-action-off": "Off",
     "sequencer-action-on": "On",
@@ -124,7 +134,7 @@ export default {
     "sequencer-modulation-hint":
       "A step with an envelope for this CC sets this as it plays; every other step keeps the field's own value. The envelope's values are the ones between From and To.",
     "sequencer-modulation-action-hint":
-      "A step with an envelope for this CC turns the action on or off, whatever its button says: Hang and Flip as the step ends, Bump as it lands, Shift at each note. Every other step leaves it to the button.",
+      "A step with an envelope for this CC turns the action on or off, whatever its button says: Hold and Flip as the step ends, Sync as it lands, Shift at each note. Every other step leaves it to the button.",
     "sequencer-modulation-taken": "Already modulates",
     "sequencer-modulation-on-steps": "Already on",
     "sequencer-modulation-on": "On",

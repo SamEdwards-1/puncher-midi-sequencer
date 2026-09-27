@@ -9,7 +9,7 @@ import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { scaleLabel } from "../../theory/scales"
 import { ScaleKeys } from "../Scale/ScaleKeys"
-import { Button, IconButton } from "../ui/Button"
+import { Button, ButtonGroup, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
 import { PanelHeader } from "../ui/Panel"
@@ -72,24 +72,26 @@ export const StepEditor: FC = () => {
             </option>
           ))}
         </Select>
-        <Button type="button" size="sm" onClick={() => setCopiedStep(step)}>
-          <Localized name="sequencer-step-copy" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          disabled={copiedStep === null}
-          onClick={() => copiedStep !== null && paste(selected, copiedStep)}
-        >
-          <Localized name="sequencer-step-paste" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => clearStepContent(selected)}
-        >
-          <Localized name="sequencer-step-clear" />
-        </Button>
+        <ButtonGroup>
+          <Button type="button" size="sm" onClick={() => setCopiedStep(step)}>
+            <Localized name="sequencer-step-copy" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={copiedStep === null}
+            onClick={() => copiedStep !== null && paste(selected, copiedStep)}
+          >
+            <Localized name="sequencer-step-paste" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => clearStepContent(selected)}
+          >
+            <Localized name="sequencer-step-clear" />
+          </Button>
+        </ButtonGroup>
       </PanelHeader>
 
       <div className="flex flex-col gap-2 px-4 pt-2 pb-4 text-body text-fg-secondary">
@@ -101,17 +103,19 @@ export const StepEditor: FC = () => {
             </span>
           )}
           <div className="grow" />
-          {[-12, -1, 1, 12].map((semitones) => (
-            <Button
-              key={semitones}
-              type="button"
-              size="sm"
-              disabled={step.notes.length === 0}
-              onClick={() => transpose(selected, semitones)}
-            >
-              {semitones > 0 ? `+${semitones}` : semitones}
-            </Button>
-          ))}
+          <ButtonGroup>
+            {[-12, -1, 1, 12].map((semitones) => (
+              <Button
+                key={semitones}
+                type="button"
+                size="sm"
+                disabled={step.notes.length === 0}
+                onClick={() => transpose(selected, semitones)}
+              >
+                {semitones > 0 ? `+${semitones}` : semitones}
+              </Button>
+            ))}
+          </ButtonGroup>
         </Row>
 
         {/* the scale's keys beside the notes, those out of it marked */}
