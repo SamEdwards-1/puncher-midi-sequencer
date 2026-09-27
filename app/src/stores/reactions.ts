@@ -136,6 +136,12 @@ export const registerReactions = (rootStore: RootStore) => {
   )
 
   reaction(
+    () => midiDeviceStore.sendModulationCCs,
+    (send) => player.setSendModulationCCs(send),
+    { fireImmediately: true },
+  )
+
+  reaction(
     () => playbackSettings.accentAmount,
     (amount) => player.setAccentAmount(amount),
     { fireImmediately: true },

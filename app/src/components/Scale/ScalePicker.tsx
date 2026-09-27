@@ -122,18 +122,19 @@ export const FitButtons: FC<{
 
 /**
  * How a move takes a note that lands outside the scale, as a dropdown for
- * a setting of its own; it does nothing while there is no scale.
+ * a setting of its own; it does nothing where there is never a scale, when
+ * it is `disabled`.
  */
 export const FitSelect: FC<{
   value: ScaleFit
-  scale: ScaleJSON | null
+  disabled: boolean
   onChange: (fit: ScaleFit) => void
-}> = ({ value, scale, onChange }) => {
+}> = ({ value, disabled, onChange }) => {
   const localized = useLocalization()
   return (
     <Select
       value={value}
-      disabled={scale === null}
+      disabled={disabled}
       onChange={(event) => onChange(event.target.value as ScaleFit)}
     >
       {SCALE_FITS.map((fit) => (

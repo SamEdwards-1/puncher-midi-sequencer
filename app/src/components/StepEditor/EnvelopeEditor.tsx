@@ -161,6 +161,15 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
   }
   const modulation =
     lane.kind === "cc" ? modulationForCC(patch, lane.cc) : undefined
+  // Removing the last envelope for a modulation's CC removes the
+  // modulation too, so the button says so.
+  const removes =
+    modulation !== undefined &&
+    patch.steps
+      .flatMap((each) => each.envelopes)
+      .filter(({ cc }) => cc === modulation.cc).length === 1
+      ? `${localized["sequencer-step-remove-cc-modulation"]} ${modulationTargetLabel(modulation.target, localized)}`
+      : localized["sequencer-step-remove-cc"]
 
   // a Velocity tab for every voice, then the step's CCs
   const tabs: (LaneTab & { lane: EnvelopeLane })[] = [
@@ -291,7 +300,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
           {envelope !== null && (
             <IconButton
               aria-label={localized["sequencer-step-remove-cc"]}
-              title={localized["sequencer-step-remove-cc"]}
+              title={removes}
               onClick={() => {
                 removeEnvelope(stepIndex, envelope.id)
                 setSelected({ kind: "velocity", voice: selectedVoice })

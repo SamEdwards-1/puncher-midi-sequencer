@@ -41,6 +41,8 @@ export const MIDISettings: FC = () => {
     setVoiceOutput,
     clock,
     setClock,
+    sendModulationCCs,
+    setSendModulationCCs,
     requestMIDIAccess,
   } = useMIDIDevice()
 
@@ -170,6 +172,17 @@ export const MIDISettings: FC = () => {
             </Select>
           </label>
         ))}
+      </Section>
+
+      <Section name={localized["sequencer-modulation"]}>
+        <p className="m-0 pb-1 text-tiny text-fg-tertiary">
+          <Localized name="sequencer-midi-modulation-ccs-hint" />
+        </p>
+        <Checkbox
+          label={localized["sequencer-midi-send-modulation-ccs"]}
+          checked={sendModulationCCs}
+          onChange={setSendModulationCCs}
+        />
       </Section>
 
       <Section name={localized["sequencer-clock"]}>

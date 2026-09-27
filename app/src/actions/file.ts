@@ -194,13 +194,27 @@ export function usePatternFileActions() {
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
 /**
+ * Whether one of the CCs a patch can send goes in as the export settings
+ * stand: ticked, and not one of those driving a setting while they are left
+ * out — unless a mod output sends it too, which still goes in.
+ */
+export const exportsCC = (
+  settings: Pick<ExportSettingsStore, "excludedCCs" | "modulationCCs">,
+  each: SequenceCC,
+): boolean =>
+  !settings.excludedCCs.includes(ccKey(each)) &&
+  (settings.modulationCCs ||
+    each.modulation === undefined ||
+    each.mods.length > 0)
+
+/**
  * The export settings as they apply to a patch: the voices ticked that play,
  * and the CCs ticked among `ccs`, the ones it can send.
  */
 export const exportOptionsFor = (
   settings: Pick<
     ExportSettingsStore,
-    "voices" | "excludedCCs" | "layout" | "passes"
+    "voices" | "excludedCCs" | "modulationCCs" | "layout" | "passes"
   >,
   patch: PatchJSON,
   ccs: SequenceCC[],
@@ -209,8 +223,9 @@ export const exportOptionsFor = (
     (index) => patch.voices[index].enabled && settings.voices[index],
   ),
   ccs: ccs
-    .filter((each) => !settings.excludedCCs.includes(ccKey(each)))
+    .filter((each) => exportsCC(settings, each))
     .map(({ cc, channel }) => ({ cc, channel })),
+  modulationCCs: settings.modulationCCs,
   layout: settings.layout,
   passes: settings.passes,
 })

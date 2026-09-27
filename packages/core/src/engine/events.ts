@@ -17,6 +17,8 @@ export interface NoteOffEvent {
   channel: number
 }
 
+// What sends a CC: a step's envelope — told apart where its CC drives a
+// modulated setting — or a mod output.
 export interface CCOutEvent {
   type: "cc"
   beat: number
@@ -24,7 +26,7 @@ export interface CCOutEvent {
   value: number
   channel: number
   output: OutputTarget
-  source: "step" | "mod"
+  source: "step" | "modulation" | "mod"
 }
 
 // Playhead move. `position` is the grid position; `step` is the stored step it

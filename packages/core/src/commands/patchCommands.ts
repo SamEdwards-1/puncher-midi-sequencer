@@ -1,6 +1,7 @@
 import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
 import {
   modulationCC,
+  modulationForCC,
   modulationOf,
   modulationValueAt,
   sameTarget,
@@ -303,16 +304,33 @@ export const updateEnvelope = (
     ),
   })
 
+/**
+ * Takes an envelope off a step. Where it was the last envelope for a CC
+ * that drives a setting, the modulation goes too: nothing is left driving
+ * the setting.
+ */
 export const removeEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
   id: number,
-): PatchJSON =>
-  setStep(patch, index, {
+): PatchJSON => {
+  const removed = patch.steps[index].envelopes.find(
+    (envelope) => envelope.id === id,
+  )
+  const next = setStep(patch, index, {
     envelopes: patch.steps[index].envelopes.filter(
       (envelope) => envelope.id !== id,
     ),
   })
+  const modulation =
+    removed === undefined ? undefined : modulationForCC(next, removed.cc)
+  const left = next.steps.some((step) =>
+    step.envelopes.some(({ cc }) => cc === removed?.cc),
+  )
+  return modulation === undefined || left
+    ? next
+    : removeModulation(next, modulation.target)
+}
 
 export const clearStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
   setStep(patch, index, { notes: [], envelopes: [] })
@@ -328,9 +346,10 @@ export const clearPatch = (patch: PatchJSON): PatchJSON => ({
   ...patch,
   steps: patch.steps.map(() => createDefaultStep()),
   voices: patch.voices.map((_, index) => createDefaultVoice(index)),
-  // the voices' modulations go with their settings; the sequencer's stay
+  // the voices' modulations go with their settings; the sequencer's and
+  // the actions' stay
   modulations: patch.modulations.filter(
-    ({ target }) => target.kind === "sequencer",
+    ({ target }) => target.kind !== "voice",
   ),
 })
 

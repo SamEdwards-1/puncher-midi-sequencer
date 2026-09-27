@@ -10,6 +10,9 @@ export default {
     "sequencer-action-bump": "Bump",
     "sequencer-action-flip": "Flip",
     "sequencer-action-shift": "Shift",
+    "sequencer-actions": "Actions",
+    "sequencer-action-off": "Off",
+    "sequencer-action-on": "On",
     "sequencer-play": "Play",
     "sequencer-stop": "Stop",
     "sequencer-bpm": "BPM",
@@ -88,6 +91,8 @@ export default {
     "sequencer-export-ccs": "CCs",
     "sequencer-export-all-ccs": "All CCs",
     "sequencer-export-no-ccs": "This sequence sends no CCs.",
+    "sequencer-export-modulation-ccs": "Modulation CCs",
+    "sequencer-export-modulation-ccs-note": "the ones driving settings",
     "sequencer-export-mod": "mod",
     "sequencer-export-tracks": "Tracks",
     "sequencer-export-layout-perVoice": "A track per voice",
@@ -118,8 +123,12 @@ export default {
     "sequencer-modulation-value": "value",
     "sequencer-modulation-hint":
       "A step with an envelope for this CC sets this as it plays; every other step keeps the field's own value. The envelope's values are the ones between From and To.",
+    "sequencer-modulation-action-hint":
+      "A step with an envelope for this CC turns the action on or off, whatever its button says: Hang and Flip as the step ends, Bump as it lands, Shift at each note. Every other step leaves it to the button.",
     "sequencer-modulation-taken": "Already modulates",
     "sequencer-modulation-on-steps": "Already on",
+    "sequencer-modulation-on": "On",
+    "sequencer-modulation-on-none": "Not on any step",
     "sequencer-modulation-steps": "steps",
     "sequencer-modulation-step": "step",
     "sequencer-modulation-assign": "Modulate",
@@ -171,6 +180,7 @@ export default {
     "sequencer-step-add-cc": "Add CC",
     "sequencer-step-more-lanes": "More lanes",
     "sequencer-step-remove-cc": "Remove CC",
+    "sequencer-step-remove-cc-modulation": "Remove CC, and the modulation of",
     "sequencer-velocity-voice-off": "off",
     "sequencer-step-cc": "CC",
     "sequencer-step-cc-channel-short": "ch",
@@ -274,6 +284,9 @@ export default {
     "sequencer-midi-voice-outputs": "Voice outputs",
     "sequencer-midi-voice-outputs-hint":
       "A voice can also go to a port of its own, alongside the ports above.",
+    "sequencer-midi-send-modulation-ccs": "Send modulation CCs",
+    "sequencer-midi-modulation-ccs-hint":
+      "The CCs that drive modulated settings go to every ticked output, as other step CCs do. Off, they only drive the settings.",
     "sequencer-clock": "Clock",
     "sequencer-clock-send": "Send MIDI clock",
     "sequencer-clock-hint":

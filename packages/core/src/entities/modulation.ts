@@ -3,6 +3,7 @@ import { envelopeShape, valueAt } from "./envelope"
 import { PACES, PaceId } from "./paces"
 import { SCALE_FITS, ScaleFit, ScaleJSON } from "./scale"
 import {
+  ActionTarget,
   MAX_PATTERN_LENGTH,
   ModulationJSON,
   ModulationTarget,
@@ -68,6 +69,8 @@ const PATTERN_LENGTHS = Array.from(
   { length: MAX_PATTERN_LENGTH },
   (_, index) => index + 1,
 )
+// an action is off or on
+const ACTION_STATES = [false, true]
 // none, then every scale at C, then at C#, and so on
 const SCALES: (ScaleChoiceJSON | null)[] = [
   null,
@@ -100,6 +103,11 @@ export const modulationChoices = (
       return PATTERN_LENGTHS
     case "scale":
       return SCALES
+    case "hang":
+    case "bump":
+    case "flip":
+    case "shift":
+      return ACTION_STATES
   }
 }
 
@@ -109,6 +117,12 @@ const keyOf = (value: ModulationValue): string =>
     : typeof value === "object"
       ? `${value.tonic} ${value.name}`
       : String(value)
+
+/** Whether two of a setting's values are the same one. */
+export const sameModulationValue = (
+  a: ModulationValue,
+  b: ModulationValue,
+): boolean => keyOf(a) === keyOf(b)
 
 /**
  * Where `value` is among `choices`: exactly, or for a number, whichever is
@@ -237,11 +251,12 @@ export const modulationStops = (
   }))
 }
 
+// the voice a target belongs to, if it belongs to one
+const voiceOf = (target: ModulationTarget) =>
+  "voice" in target ? target.voice : null
+
 export const sameTarget = (a: ModulationTarget, b: ModulationTarget) =>
-  a.setting === b.setting &&
-  (a.kind === "voice"
-    ? b.kind === "voice" && a.voice === b.voice
-    : b.kind === "sequencer")
+  a.kind === b.kind && a.setting === b.setting && voiceOf(a) === voiceOf(b)
 
 /** The modulation a setting has, if any. */
 export const modulationOf = (
@@ -257,11 +272,17 @@ export const modulationForCC = (
 ): ModulationJSON | undefined =>
   patch.modulations.find((modulation) => modulation.cc === cc)
 
-/** The value a setting has of its own, which a step without its CC plays. */
+/**
+ * The value a setting has of its own, which a step without its CC plays.
+ * An action has none in the patch: its button has it, off until pressed.
+ */
 export const settingValue = (
   patch: PatchJSON,
   target: ModulationTarget,
 ): ModulationValue => {
+  if (target.kind === "action") {
+    return false
+  }
   if (target.kind === "voice") {
     return patch.voices[target.voice][target.setting]
   }
@@ -302,6 +323,14 @@ export const defaultModulation = (
   const choices = modulationChoices(target)
   return { target, cc, from: choices[0], to: choices[choices.length - 1] }
 }
+
+/**
+ * Whether a patch plays without a scale throughout: it has none of its own,
+ * and no step can move it to one.
+ */
+export const scaleless = (patch: PatchJSON): boolean =>
+  patch.scale === null &&
+  modulationOf(patch, { kind: "sequencer", setting: "scale" }) === undefined
 
 /** Whether a modulation's range holds one of its setting's values. */
 export const inModulationRange = (
@@ -422,8 +451,68 @@ export const modulatedSequencer = (
 }
 
 /**
+ * Whether a step has an action on, `time` beats in: where it has an
+ * envelope for the action's CC, as that has it; elsewhere undefined, and
+ * the action is as its button is.
+ */
+export const modulatedAction = (
+  patch: PatchJSON,
+  step: StepIndex,
+  time: number,
+  target: ActionTarget,
+): boolean | undefined => {
+  const modulation = modulationOf(patch, target)
+  const cc =
+    modulation === undefined
+      ? null
+      : envelopeCC(patch.steps[step], modulation.cc, time)
+  return modulation === undefined || cc === null
+    ? undefined
+    : (modulationValueAt(modulation, cc) as boolean)
+}
+
+/**
  * How long a step lasts: the sequencer's pace as the step lands, where a
  * modulation's envelope on it may have changed it.
  */
 export const stepPace = (patch: PatchJSON, step: StepIndex): PaceId =>
   modulatedSequencer(patch, step, 0).pace
+
+/** A setting a step's envelope drives, as it has it at one moment. */
+export interface ModulatedSetting {
+  target: ModulationTarget
+  // the CC and the value its envelope sends there
+  cc: number
+  ccValue: number
+  // the setting's value that stands for
+  value: ModulationValue
+}
+
+/**
+ * Every setting `step` modulates, `time` beats in, and what it has them at:
+ * those with an envelope for their CC on the step. The sequencer's pace and
+ * a voice's Bump are as the step landed, since that is the only time they
+ * are read.
+ */
+export const modulatedSettings = (
+  patch: PatchJSON,
+  step: StepIndex,
+  time: number,
+): ModulatedSetting[] =>
+  patch.modulations.flatMap((modulation) => {
+    const { target, cc } = modulation
+    const landed =
+      (target.kind === "sequencer" && target.setting === "pace") ||
+      target.setting === "bump"
+    const ccValue = envelopeCC(patch.steps[step], cc, landed ? 0 : time)
+    return ccValue === null
+      ? []
+      : [
+          {
+            target,
+            cc,
+            ccValue,
+            value: modulationValueAt(modulation, ccValue),
+          },
+        ]
+  })

@@ -1,5 +1,10 @@
-import { createDefaultPatch, PatchJSON } from "@midiseq/core"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import {
+  addEnvelope,
+  createDefaultPatch,
+  ModulationJSON,
+  PatchJSON,
+} from "@midiseq/core"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -7,6 +12,8 @@ import { editItem } from "../../test/menus"
 import { App } from "../App/App"
 
 let rootStore: RootStore
+let ticker: ManualTicker
+let now = 0
 
 const patch = () => rootStore.sequencerStore.patch
 
@@ -47,9 +54,12 @@ const axis = () =>
   )
 
 const setup = (change: (patch: PatchJSON) => PatchJSON = (each) => each) => {
+  now = 0
+  ticker = new ManualTicker()
   rootStore = new RootStore({
     requestMIDIAccess: null,
-    ticker: new ManualTicker(),
+    ticker,
+    now: () => now,
     storage: null,
   })
   rootStore.sequencerStore.patch = change({
@@ -271,6 +281,279 @@ describe("modulating a setting", () => {
     expect(patch().steps[8].envelopes).toMatchObject([
       { cc: 3, points: [{ time: 0, value: 64 }] },
     ])
+  })
+})
+
+describe("taking a modulation away in the envelope editor", () => {
+  const removeCC = () => screen.getByRole("button", { name: "Remove CC" })
+
+  it("takes the modulation with the last envelope for its CC", () => {
+    setup()
+    modulatePace()
+    // the popover is still open, and says where the CC is
+    const shown = popover("Voice 1 · Pace")
+    expect(shown.getByText("On step 5")).toBeInTheDocument()
+    expect(removeCC()).toHaveAttribute(
+      "title",
+      "Remove CC, and the modulation of Voice 1 · Pace",
+    )
+
+    fireEvent.click(removeCC())
+    expect(patch().steps[4].envelopes).toEqual([])
+    expect(patch().modulations).toEqual([])
+    // the popover follows, offering the setting its CC afresh
+    expect(shown.getByRole("button", { name: "Modulate" })).toBeInTheDocument()
+    expect(shown.getByLabelText("Voice 1 · Pace CC")).toHaveValue("3")
+    // and once it is shut, the gear hides again until its label is hovered
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(gear("Voice 1 · Pace")).toHaveAttribute("data-modulated", "false")
+    expect(gear("Voice 1 · Pace").className).toContain("opacity-0")
+
+    // one undo brings both back
+    fireEvent.click(editItem("Undo"))
+    expect(patch().modulations).toHaveLength(1)
+    expect(patch().steps[4].envelopes).toHaveLength(1)
+  })
+
+  it("keeps the modulation while another step has its envelope", () => {
+    setup()
+    modulatePace()
+    fireEvent.click(screen.getByRole("button", { name: "Step 9" }))
+    fireEvent.click(
+      popover("Voice 1 · Pace").getByRole("button", {
+        name: "Show on step 9",
+      }),
+    )
+    expect(
+      popover("Voice 1 · Pace").getByText("On steps 5, 9"),
+    ).toBeInTheDocument()
+    expect(removeCC()).toHaveAttribute("title", "Remove CC")
+
+    fireEvent.click(removeCC())
+    expect(patch().modulations).toHaveLength(1)
+    expect(gear("Voice 1 · Pace")).toHaveAttribute("data-modulated", "true")
+    expect(popover("Voice 1 · Pace").getByText("On step 5")).toBeInTheDocument()
+  })
+})
+
+describe("a modulated setting while the sequence plays", () => {
+  // Voice 1's pace, 4th to 16th on CC 3, which the first step holds at a
+  // 4th; the voice's own pace is an 8th. A bar a step, at 120: two seconds.
+  const PACE_BY_CC: ModulationJSON = {
+    target: { kind: "voice", voice: 0, setting: "pace" },
+    cc: 3,
+    from: "4th",
+    to: "16th",
+  }
+  const modulated = (each: PatchJSON): PatchJSON => {
+    const next = addEnvelope({ ...each, modulations: [PACE_BY_CC] }, 0, {
+      cc: 3,
+      channel: 1,
+      points: [{ time: 0, value: 0 }],
+    })
+    next.steps[0].notes = [60]
+    next.steps[1].notes = [64]
+    return next
+  }
+  const pace = () => voices().getByLabelText("Pace") as HTMLSelectElement
+  const live = (control: HTMLElement) =>
+    control.closest("[data-live]")?.getAttribute("data-live")
+  const play = () => act(() => rootStore.player.play())
+  const playFor = (ms: number) =>
+    act(() => {
+      const end = now + ms
+      while (now < end) {
+        now += 25
+        ticker.tick()
+      }
+    })
+
+  it("shows the value the sounding step's envelope has it at", () => {
+    setup(modulated)
+    expect(pace()).toHaveDisplayValue("8th")
+    expect(live(pace())).toBe("false")
+
+    play()
+    playFor(100)
+    expect(pace()).toHaveDisplayValue("4th")
+    expect(live(pace())).toBe("true")
+
+    // the second step leaves the setting its own
+    playFor(2000)
+    expect(pace()).toHaveDisplayValue("8th")
+    expect(live(pace())).toBe("false")
+
+    act(() => rootStore.player.stop())
+    expect(pace()).toHaveDisplayValue("8th")
+  })
+
+  it("shows its own value, the one it changes, while it is pointed at or used", () => {
+    setup(modulated)
+    play()
+    playFor(100)
+
+    fireEvent.mouseEnter(pace())
+    expect(pace()).toHaveDisplayValue("8th")
+    expect(live(pace())).toBe("false")
+    fireEvent.change(pace(), { target: { value: "16th" } })
+    expect(patch().voices[0].pace).toBe("16th")
+    fireEvent.mouseLeave(pace())
+    expect(pace()).toHaveDisplayValue("4th")
+
+    // focused, as from the keyboard, it is the setting's own again
+    act(() => pace().focus())
+    expect(pace()).toHaveDisplayValue("16th")
+    act(() => pace().blur())
+    expect(pace()).toHaveDisplayValue("4th")
+
+    // its label, and its gear, leave it showing the step's
+    fireEvent.mouseEnter(voices().getByText("Pace"))
+    expect(pace()).toHaveDisplayValue("4th")
+    fireEvent.click(gear("Voice 1 · Pace"))
+    expect(pace()).toHaveDisplayValue("4th")
+  })
+
+  it("shows another voice's settings as they are, and follows the voice shown", () => {
+    setup(modulated)
+    play()
+    playFor(100)
+    fireEvent.click(screen.getByRole("button", { name: "Voice 2" }))
+    expect(pace()).toHaveDisplayValue("8th")
+    expect(live(pace())).toBe("false")
+    fireEvent.click(screen.getByRole("button", { name: "Voice 1" }))
+    expect(pace()).toHaveDisplayValue("4th")
+  })
+})
+
+describe("modulating an action", () => {
+  const grid = () => within(screen.getByRole("region", { name: "Grid" }))
+  // the row's button: the title bar's icons are out of reach at the top
+  const action = (name: string) => grid().getByRole("button", { name })
+  const icons = () =>
+    document.querySelector("[data-action-icons]") as HTMLElement
+
+  it("offers a gear on each action's button under the grid, and none on the title bar's icons", () => {
+    setup()
+    for (const name of [
+      "Actions · Hang",
+      "Voice 1 · Bump",
+      "Actions · Flip",
+      "Actions · Shift",
+    ]) {
+      expect(
+        grid().getByRole("button", { name: `Modulation settings: ${name}` }),
+      ).toBeInTheDocument()
+    }
+    expect(
+      within(icons()).queryAllByRole("button", {
+        name: /Modulation settings/,
+        hidden: true,
+      }),
+    ).toEqual([])
+  })
+
+  it("turns an action on or off on the steps with its CC, starting off", () => {
+    setup()
+    fireEvent.click(gear("Actions · Flip"))
+    const shown = popover("Actions · Flip")
+    expect(shown.getByLabelText("Actions · Flip From")).toHaveDisplayValue(
+      "Off",
+    )
+    expect(shown.getByLabelText("Actions · Flip To")).toHaveDisplayValue("On")
+    expect(shown.getByText(/2 values/)).toBeInTheDocument()
+    fireEvent.click(shown.getByRole("button", { name: "Modulate" }))
+
+    expect(patch().modulations).toEqual([
+      {
+        target: { kind: "action", setting: "flip" },
+        cc: 3,
+        from: false,
+        to: true,
+      },
+    ])
+    // the step in the editor is given the envelope, off until drawn on
+    expect(patch().steps[4].envelopes).toMatchObject([
+      { cc: 3, points: [{ time: 0, value: 0 }] },
+    ])
+    expect(selectedTab()).toEqual(["Flip"])
+    expect(axis()).toEqual(["Off", "On"])
+    expect(gear("Actions · Flip")).toHaveAttribute("data-modulated", "true")
+  })
+
+  it("gives Bump to the voice selected, so each voice has its own", () => {
+    setup()
+    fireEvent.click(gear("Voice 1 · Bump"))
+    fireEvent.click(
+      popover("Voice 1 · Bump").getByRole("button", { name: "Modulate" }),
+    )
+    expect(patch().modulations[0].target).toEqual({
+      kind: "action",
+      setting: "bump",
+      voice: 0,
+    })
+    expect(selectedTab()).toEqual(["Bump 1"])
+
+    // Voice 2's is another, not yet modulated, on a CC of its own
+    fireEvent.click(screen.getByRole("button", { name: "Voice 2" }))
+    expect(gear("Voice 2 · Bump")).toHaveAttribute("data-modulated", "false")
+    fireEvent.click(gear("Voice 2 · Bump"))
+    expect(
+      popover("Voice 2 · Bump").getByLabelText("Voice 2 · Bump CC"),
+    ).toHaveValue("9")
+  })
+
+  describe("while the sequence plays", () => {
+    // Hang on CC 3, which the first step has on
+    const hung = (each: PatchJSON): PatchJSON => {
+      const next = addEnvelope(
+        {
+          ...each,
+          modulations: [
+            {
+              target: { kind: "action", setting: "hang" },
+              cc: 3,
+              from: false,
+              to: true,
+            },
+          ],
+        },
+        0,
+        { cc: 3, channel: 1, points: [{ time: 0, value: 127 }] },
+      )
+      next.steps[0].notes = [60]
+      next.steps[1].notes = [64]
+      return next
+    }
+    const live = (button: HTMLElement) => button.getAttribute("data-live")
+
+    it("shows the action as the sounding step has it, and the button's own while pointed at", () => {
+      setup(hung)
+      const hang = action("Hang")
+      expect(live(hang)).toBe("false")
+
+      act(() => rootStore.player.play())
+      act(() => {
+        for (let tick = 0; tick < 4; tick++) {
+          now += 25
+          ticker.tick()
+        }
+      })
+      expect(live(hang)).toBe("true")
+      expect(hang.className).toContain("bg-envelope")
+      // the title bar's icon shows it too
+      expect(
+        within(icons()).getByRole("button", { name: "Hang", hidden: true }),
+      ).toHaveAttribute("data-live", "true")
+
+      fireEvent.mouseEnter(hang)
+      expect(live(hang)).toBe("false")
+      expect(hang.className).not.toContain("bg-theme")
+      fireEvent.mouseLeave(hang)
+      expect(live(hang)).toBe("true")
+
+      act(() => rootStore.player.stop())
+      expect(live(hang)).toBe("false")
+    })
   })
 })
 

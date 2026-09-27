@@ -5,10 +5,13 @@ import { createDefaultPatch } from "./defaults"
 import {
   defaultModulation,
   inModulationRange,
+  modulatedAction,
   modulatedSequencer,
+  modulatedSettings,
   modulatedVoice,
   modulationCC,
   modulationChoices,
+  modulationOf,
   modulationRange,
   modulationStops,
   modulationValueAt,
@@ -118,6 +121,8 @@ describe("a modulation", () => {
         ["pace", "scale", "shiftFit"].map(
           (setting) => ({ kind: "sequencer", setting }) as ModulationTarget,
         ),
+        { kind: "action", setting: "hang" },
+        { kind: "action", setting: "bump", voice: 0 },
       )
     for (const target of targets) {
       const choices = modulationChoices(target)
@@ -259,5 +264,63 @@ describe("modulated settings", () => {
     )
     expect(stepPace(patch, 4)).toBe("1bar")
     expect(stepPace(patch, 5)).toBe("8th")
+  })
+
+  it("are listed as a step has them, with the CC value standing for each", () => {
+    const sequencerPace: ModulationJSON = {
+      target: { kind: "sequencer", setting: "pace" },
+      cc: 9,
+      from: "1bar",
+      to: "4th",
+    }
+    let patch = withModulation(
+      withModulation(createDefaultPatch(), paces),
+      sequencerPace,
+    )
+    const ramp = [
+      { time: 0, value: 0 },
+      { time: 1, value: 127 },
+    ]
+    patch = addEnvelope(patch, 0, { cc: 3, channel: 1, points: ramp })
+    patch = addEnvelope(patch, 0, { cc: 9, channel: 1, points: ramp })
+
+    expect(modulatedSettings(patch, 0, 1)).toEqual([
+      { target: VOICE_PACE, cc: 3, ccValue: 127, value: "16th" },
+      // read only as the step lands, so as it was then
+      { target: sequencerPace.target, cc: 9, ccValue: 0, value: "1bar" },
+    ])
+    // a step without their envelopes modulates nothing
+    expect(modulatedSettings(patch, 1, 0)).toEqual([])
+  })
+
+  it("turn an action on or off, a voice's Bump for that voice alone", () => {
+    const bump = (voice: 0 | 1) =>
+      ({ kind: "action", setting: "bump", voice }) as const
+    let patch = withModulation(
+      createDefaultPatch(),
+      { target: bump(1), cc: 3, from: false, to: true },
+      [
+        [0, 127],
+        [1, 0],
+      ],
+    )
+    patch = addEnvelope(patch, 2, {
+      cc: 3,
+      channel: 1,
+      points: [
+        { time: 0, value: 127 },
+        { time: 1, value: 0 },
+      ],
+    })
+    expect(modulatedAction(patch, 0, 0, bump(1))).toBe(true)
+    expect(modulatedAction(patch, 1, 0, bump(1))).toBe(false)
+    // no envelope, or another voice's Bump: as the button has it
+    expect(modulatedAction(patch, 3, 0, bump(1))).toBeUndefined()
+    expect(modulatedAction(patch, 0, 0, bump(0))).toBeUndefined()
+    expect(modulationOf(patch, bump(0))).toBeUndefined()
+    // read only as the step lands, so as it was then
+    expect(modulatedSettings(patch, 2, 1)).toMatchObject([
+      { target: bump(1), ccValue: 127, value: true },
+    ])
   })
 })

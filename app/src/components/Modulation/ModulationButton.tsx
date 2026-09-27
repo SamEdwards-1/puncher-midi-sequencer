@@ -49,11 +49,12 @@ const parseNumber = (text: string) => {
  * The gear beside a setting's label, which opens its modulation: a CC that
  * drives the setting from the steps' envelopes. It shows while the label is
  * hovered, and stays, in the envelopes' colour, while the setting is
- * modulated.
+ * modulated. `className` places it.
  */
-export const ModulationButton: FC<{ target: ModulationTarget }> = ({
-  target,
-}) => {
+export const ModulationButton: FC<{
+  target: ModulationTarget
+  className?: string
+}> = ({ target, className }) => {
   const patch = usePatch()
   const localized = useLocalization()
   const modulation = modulationOf(patch, target)
@@ -81,6 +82,7 @@ export const ModulationButton: FC<{ target: ModulationTarget }> = ({
             ? "text-envelope"
             : "text-fg-tertiary hover:text-fg",
           modulation !== undefined || open ? "opacity-100" : UNTIL_HOVERED,
+          className,
         )}
         onClick={() => setOpen(!open)}
       >
@@ -119,23 +121,22 @@ const ModulationPopover: FC<{
   const popup = useRef<HTMLDivElement>(null)
   const existing = modulationOf(patch, target)
   // What isn't in the patch: a modulation still to be given, or a change to
-  // one that can't land, its CC being another's.
+  // one that can't land, its CC being another's. Until there is one, what
+  // a new modulation would be, which follows the patch: a modulation taken
+  // away is offered again as it would start.
   const [draft, setDraft] = useState<ModulationJSON | null>(null)
-  const [fallback] = useState(() =>
-    defaultModulation(patch, target, nextModulationCC(patch)),
-  )
+  const fallback = defaultModulation(patch, target, nextModulationCC(patch))
   const shown = { ...(draft ?? existing ?? fallback), target }
   const clash = patch.modulations.find(
     (modulation) =>
       modulation.cc === shown.cc && !sameTarget(modulation.target, target),
   )
-  // steps already sending this CC, which would start modulating too
-  const onSteps =
-    existing === undefined
-      ? patch.steps.filter((each) =>
-          each.envelopes.some(({ cc }) => cc === shown.cc),
-        ).length
-      : 0
+  // the steps sending the setting's CC, which it modulates on, or for a CC
+  // still to be given, the steps that would start modulating too
+  const listed = existing?.cc ?? shown.cc
+  const onSteps = patch.steps.flatMap((each, index) =>
+    each.envelopes.some(({ cc }) => cc === listed) ? [index] : [],
+  )
 
   const change = (next: ModulationJSON) => {
     const taken = patch.modulations.some(
@@ -262,23 +263,42 @@ const ModulationPopover: FC<{
           : localized["sequencer-modulation-values"]}{" "}
         · CC 0–127
       </div>
+      {existing !== undefined && (
+        <div className="text-small text-fg-tertiary" data-modulation-steps>
+          {onSteps.length === 0 ? (
+            <Localized name="sequencer-modulation-on-none" />
+          ) : (
+            `${localized["sequencer-modulation-on"]} ${
+              onSteps.length === 1
+                ? localized["sequencer-modulation-step"]
+                : localized["sequencer-modulation-steps"]
+            } ${onSteps.map((index) => index + 1).join(", ")}`
+          )}
+        </div>
+      )}
       {clash !== undefined && (
         <div className="text-small text-error" role="alert">
           CC {shown.cc}: <Localized name="sequencer-modulation-taken" />{" "}
           {modulationTargetLabel(clash.target, localized)}
         </div>
       )}
-      {clash === undefined && onSteps > 0 && (
+      {existing === undefined && clash === undefined && onSteps.length > 0 && (
         <div className="text-small text-yellow">
           CC {shown.cc}: <Localized name="sequencer-modulation-on-steps" />{" "}
-          {onSteps}{" "}
-          {onSteps === 1
+          {onSteps.length}{" "}
+          {onSteps.length === 1
             ? localized["sequencer-modulation-step"]
             : localized["sequencer-modulation-steps"]}
         </div>
       )}
       <p className="m-0 text-small text-fg-tertiary">
-        <Localized name="sequencer-modulation-hint" />
+        <Localized
+          name={
+            target.kind === "action"
+              ? "sequencer-modulation-action-hint"
+              : "sequencer-modulation-hint"
+          }
+        />
       </p>
 
       <div className="flex items-center gap-2 pt-1">

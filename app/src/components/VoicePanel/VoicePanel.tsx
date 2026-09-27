@@ -13,6 +13,7 @@ import {
   PatternStepJSON,
   playedVelocity,
   previewStep,
+  scaleless,
   shownAccent,
   stepPace,
   VOICE_RULES,
@@ -41,7 +42,7 @@ import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import { RULE_LABELS } from "../Modulation/labels"
-import { ModulationButton } from "../Modulation/ModulationButton"
+import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect } from "../Scale/ScalePicker"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -168,14 +169,9 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   const playsBuiltIn =
     outputNames.all.includes(BUILTIN_OUTPUT) ||
     outputNames.voices[selected] === BUILTIN_OUTPUT
-  // The gear beside a setting's label that a CC can drive: another voice's
-  // is a gear of its own, so one left open doesn't carry over.
-  const modulation = (setting: VoiceSetting) => (
-    <ModulationButton
-      key={`${selected}-${setting}`}
-      target={{ kind: "voice", voice: selected, setting }}
-    />
-  )
+  // a setting of the voice's that a CC can drive
+  const target = (setting: VoiceSetting) =>
+    ({ kind: "voice", voice: selected, setting }) as const
 
   return (
     <Panel
@@ -220,84 +216,97 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-pace"]} aside={modulation("pace")}>
-          <Select
-            value={voice.pace}
-            onChange={(event) =>
-              editVoice(selected, { pace: event.target.value as PaceId })
-            }
-          >
-            {PACES.map((pace) => (
-              <option key={pace} value={pace}>
-                {PACE_LABELS[pace]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-pace"]}
+          target={target("pace")}
+        >
+          {(shown) => (
+            <Select
+              value={shown(voice.pace)}
+              onChange={(event) =>
+                editVoice(selected, { pace: event.target.value as PaceId })
+              }
+            >
+              {PACES.map((pace) => (
+                <option key={pace} value={pace}>
+                  {PACE_LABELS[pace]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ModulatedField>
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-voice-length"]}
-          aside={modulation("length")}
+          target={target("length")}
         >
-          <Slider
-            min={10}
-            max={100}
-            step={5}
-            value={Math.round(voice.length * 100)}
-            aria-label={localized["sequencer-voice-length"]}
-            onChange={(event) =>
-              editVoice(
-                selected,
-                { length: Number(event.target.value) / 100 },
-                `length-${selected}`,
-              )
-            }
-          />
-        </Field>
+          {(shown) => (
+            <Slider
+              min={10}
+              max={100}
+              step={5}
+              value={Math.round(shown(voice.length) * 100)}
+              aria-label={localized["sequencer-voice-length"]}
+              onChange={(event) =>
+                editVoice(
+                  selected,
+                  { length: Number(event.target.value) / 100 },
+                  `length-${selected}`,
+                )
+              }
+            />
+          )}
+        </ModulatedField>
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-voice-rule"]}
-          aside={modulation("rule")}
+          target={target("rule")}
         >
-          <Select
-            value={voice.rule}
-            onChange={(event) =>
-              editVoice(selected, { rule: event.target.value as VoiceRule })
-            }
-          >
-            {VOICE_RULES.map((rule) => (
-              <option key={rule} value={rule}>
-                {RULE_LABELS[rule]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+          {(shown) => (
+            <Select
+              value={shown(voice.rule)}
+              onChange={(event) =>
+                editVoice(selected, { rule: event.target.value as VoiceRule })
+              }
+            >
+              {VOICE_RULES.map((rule) => (
+                <option key={rule} value={rule}>
+                  {RULE_LABELS[rule]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ModulatedField>
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-voice-offset"]}
-          aside={modulation("offset")}
+          target={target("offset")}
         >
-          <Stepper
-            label={localized["sequencer-voice-offset"]}
-            value={voice.offset}
-            min={-24}
-            max={24}
-            onChange={(offset) =>
-              editVoice(selected, { offset }, `offset-${selected}`)
-            }
-          />
-        </Field>
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-voice-offset"]}
+              value={shown(voice.offset)}
+              min={-24}
+              max={24}
+              onChange={(offset) =>
+                editVoice(selected, { offset }, `offset-${selected}`)
+              }
+            />
+          )}
+        </ModulatedField>
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-voice-offset-fit"]}
-          aside={modulation("offsetFit")}
+          target={target("offsetFit")}
         >
-          <FitSelect
-            value={voice.offsetFit}
-            scale={patch.scale}
-            onChange={(offsetFit) => editVoice(selected, { offsetFit })}
-          />
-        </Field>
+          {(shown) => (
+            <FitSelect
+              value={shown(voice.offsetFit)}
+              disabled={scaleless(patch)}
+              onChange={(offsetFit) => editVoice(selected, { offsetFit })}
+            />
+          )}
+        </ModulatedField>
 
         <Field label={localized["sequencer-voice-velocity"]}>
           <Stepper
@@ -340,20 +349,22 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           </Field>
         )}
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-voice-pattern-length"]}
-          aside={modulation("patternLength")}
+          target={target("patternLength")}
         >
-          <Stepper
-            label={localized["sequencer-voice-pattern-length"]}
-            value={voice.patternLength}
-            min={1}
-            max={MAX_PATTERN_LENGTH}
-            onChange={(patternLength) =>
-              editVoice(selected, { patternLength }, `pattern-${selected}`)
-            }
-          />
-        </Field>
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-voice-pattern-length"]}
+              value={shown(voice.patternLength)}
+              min={1}
+              max={MAX_PATTERN_LENGTH}
+              onChange={(patternLength) =>
+                editVoice(selected, { patternLength }, `pattern-${selected}`)
+              }
+            />
+          )}
+        </ModulatedField>
       </Fields>
 
       <Patterns selected={selected} onSelect={setSelected} />

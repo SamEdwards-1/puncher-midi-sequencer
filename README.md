@@ -211,12 +211,33 @@ envelope has it; every other step plays the field's own value. Down the
 envelope's right side the numbers give way to the setting's values — paces,
 rules, scales — its points snap to them, and a dashed line marks the field's
 own value. A step lasts as long as the sequencer's pace as it lands; the
-voices follow their envelopes as they play. A modulated setting's gear stays
-lit, and clicking it again changes the CC or the range — the envelopes follow,
-keeping the values they stood for as far as the new range reaches — shows its
+voices follow their envelopes as they play. While the sequence plays, a
+modulated field shows the value the sounding step's envelope has it at, in the
+envelopes' colour, and goes back to its own value on a step without one. Point
+at the field, or use it, and it shows its own value again, which is the one it
+changes. A modulated setting's gear stays lit, and clicking it again lists the
+steps it is on, changes the CC or the range — the envelopes follow, keeping
+the values they stood for as far as the new range reaches — shows its
 envelope on another step, or removes the modulation, which leaves the
-envelopes as plain CCs. Two settings can't share a CC. The envelope still goes
-out as its CC, and a knob recorded on it lands on the setting's values.
+envelopes as plain CCs. Removing the last of its envelopes in the envelope
+editor removes the modulation too, and the gear goes back to hiding. Two
+settings can't share a CC. A knob recorded on the CC lands on the setting's
+values. The envelope goes out as its CC as well, unless **Send modulation
+CCs** is off in Settings → MIDI; an export leaves them out when its
+**Modulation CCs** box is cleared, and names the setting beside each one.
+The fit fields work while there is no scale if a step can move the
+sequencer to one.
+
+The actions can be driven the same way. Hover **Hang**, **Bump**, **Flip** or
+**Shift** under the grid and a gear appears at its corner; the title bar's
+icons have none. An action's envelope is Off or On, and a step with one turns
+the action on or off whatever its button says: Hang and Flip as the step ends
+— a step whose envelope has Hang on at its end is kept until the envelope
+changes or the sequence stops — Bump as the step lands, and Shift at each
+note. Every other step leaves the action to its button. Bump's gear is the
+selected voice's, so each voice is bumped on steps of its own. While the
+sequence plays, a button a step's envelope drives shows it on or off in the
+envelopes' colour, until it is pointed at or pressed.
 
 The sequencer's **Scale** offers ten scales — major, minor, dorian, phrygian,
 lydian, mixolydian, harmonic minor, the major and minor pentatonics, and minor
@@ -259,7 +280,7 @@ Grid, Voices and Sequencer.
 |---|---|
 | **Hang** | the step stops advancing while the voices keep playing |
 | **Bump** | flips Sync Voices, so voices restart with each step, or don't |
-| **Flip** | swaps the grid's rows and columns |
+| **Flip** | swaps the grid's rows and columns, from the next step on |
 | **Shift** | transposes new notes by the Shift amount |
 
 **Saving.** **File → Save** writes a `.midiseq.json` file. In Chrome and Edge

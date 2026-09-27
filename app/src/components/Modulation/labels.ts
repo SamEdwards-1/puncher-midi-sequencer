@@ -51,6 +51,13 @@ export const modulationValueLabel = (
       return value === null
         ? localized["sequencer-scale-none"]
         : scaleLabel(value as ScaleChoiceJSON)
+    case "hang":
+    case "bump":
+    case "flip":
+    case "shift":
+      return value
+        ? localized["sequencer-action-on"]
+        : localized["sequencer-action-off"]
   }
 }
 
@@ -64,17 +71,26 @@ const FIELDS: Record<ModulationTarget["setting"], LocalizationKey> = {
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
   shiftFit: "sequencer-shift-fit",
+  hang: "sequencer-action-hang",
+  bump: "sequencer-action-bump",
+  flip: "sequencer-action-flip",
+  shift: "sequencer-action-shift",
 }
 
-/** Where a setting is and what it's called: "Voice 2 · Pace". */
+/**
+ * Where a setting is and what it's called: "Voice 2 · Pace". A voice's
+ * Bump is its voice's, the other actions the Actions'.
+ */
 export const modulationTargetLabel = (
   target: ModulationTarget,
   localized: Localized,
 ): string =>
   `${
-    target.kind === "voice"
+    "voice" in target
       ? `${localized["sequencer-voice"]} ${target.voice + 1}`
-      : localized["sequencer-panel"]
+      : target.kind === "action"
+        ? localized["sequencer-actions"]
+        : localized["sequencer-panel"]
   } · ${localized[FIELDS[target.setting]]}`
 
 // shorter, for a lane's tab
@@ -87,18 +103,22 @@ const TABS: Record<ModulationTarget["setting"], LocalizationKey> = {
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
   shiftFit: "sequencer-modulation-tab-shift-fit",
+  hang: "sequencer-action-hang",
+  bump: "sequencer-action-bump",
+  flip: "sequencer-action-flip",
+  shift: "sequencer-action-shift",
 }
 
 /**
  * A modulation's lane, named for the setting it drives: a voice's with the
- * voice's number, as its Velocity tab is — "Pace 2" — and the sequencer's
- * pace told apart from the voices'.
+ * voice's number, as its Velocity tab is — "Pace 2", "Bump 2" — and the
+ * sequencer's pace told apart from the voices'.
  */
 export const modulationTabLabel = (
   target: ModulationTarget,
   localized: Localized,
 ): string =>
-  target.kind === "voice"
+  "voice" in target
     ? `${localized[TABS[target.setting]]} ${target.voice + 1}`
     : target.setting === "pace"
       ? localized["sequencer-modulation-tab-sequencer-pace"]

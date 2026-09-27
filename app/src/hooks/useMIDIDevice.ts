@@ -36,11 +36,15 @@ export function useMIDIDevice() {
     get clock() {
       return useMobxGetter(midiDeviceStore, "clock")
     },
+    get sendModulationCCs() {
+      return useMobxGetter(midiDeviceStore, "sendModulationCCs")
+    },
     toggleInput: midiDeviceStore.toggleInput,
     toggleOutput: midiDeviceStore.toggleOutput,
     setVoiceOutput: midiDeviceStore.setVoiceOutput,
     setFilter: midiDeviceStore.setFilter,
     setClock: midiDeviceStore.setClock,
+    setSendModulationCCs: midiDeviceStore.setSendModulationCCs,
     requestMIDIAccess: midiDeviceStore.requestMIDIAccess,
   }
 }

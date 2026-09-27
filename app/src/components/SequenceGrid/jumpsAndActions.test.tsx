@@ -248,8 +248,9 @@ describe("action buttons", () => {
     const rect = (top: number, height: number) =>
       ({ top, bottom: top + height, height }) as DOMRect
     const frame = document.querySelector("[data-grid-frame]") as HTMLElement
-    const row = grid().getByRole("button", { name: "Hang" }).parentElement
-      ?.parentElement as HTMLElement
+    const row = grid()
+      .getByRole("button", { name: "Hang" })
+      .closest("[data-action-buttons]")?.parentElement as HTMLElement
     vi.spyOn(frame, "getBoundingClientRect").mockReturnValue(rect(0, 300))
     vi.spyOn(row, "getBoundingClientRect").mockReturnValue(rect(250, 60))
     fireEvent.scroll(

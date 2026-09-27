@@ -178,9 +178,18 @@ export type VoiceSetting =
 /** The sequencer's settings that a CC can modulate. */
 export type SequencerSetting = "pace" | "scale" | "shiftFit"
 
+/**
+ * An action a CC can drive: Hang, Flip and Shift for the whole sequence,
+ * Bump for one voice, so each voice can be bumped on steps of its own.
+ */
+export type ActionTarget =
+  | { kind: "action"; setting: "hang" | "flip" | "shift" }
+  | { kind: "action"; setting: "bump"; voice: VoiceIndex }
+
 export type ModulationTarget =
   | { kind: "voice"; voice: VoiceIndex; setting: VoiceSetting }
   | { kind: "sequencer"; setting: SequencerSetting }
+  | ActionTarget
 
 /** A scale a modulation can move to: a tonic and one of SEQUENCER_SCALES. */
 export interface ScaleChoiceJSON {
@@ -190,10 +199,10 @@ export interface ScaleChoiceJSON {
 
 /**
  * One of a setting's values, as the setting holds it: a pace's id, a
- * length, a rule, an offset, a fit, a pattern length, or a scale — null
- * for none.
+ * length, a rule, an offset, a fit, a pattern length, a scale — null for
+ * none — or whether an action is on.
  */
-export type ModulationValue = number | string | ScaleChoiceJSON | null
+export type ModulationValue = number | string | boolean | ScaleChoiceJSON | null
 
 /**
  * A setting driven by a CC. Where a step has an envelope for `cc`, the

@@ -1,13 +1,16 @@
 import { envelopeShape, valueAt } from "../entities/envelope"
 import {
+  modulatedAction,
   modulatedSequencer,
   modulatedVoice,
+  modulationForCC,
   SequencerSettings,
   stepPace,
 } from "../entities/modulation"
 import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
 import { fitToScale, ScaleFit, ScaleJSON } from "../entities/scale"
 import {
+  ActionTarget,
   ModSource,
   PatchJSON,
   StepIndex,
@@ -222,14 +225,45 @@ export class Engine {
     voice.activeNote = null
   }
 
-  private get syncVoices(): boolean {
-    // Bump inverts Sync Voices while it is held
-    return this.patch.syncVoices !== this.actions.bump
+  /**
+   * An action as it is at `beat`: where the step the sequencer landed on
+   * has an envelope for the action's modulation, as that has it, and
+   * otherwise as its button is.
+   */
+  private actionAt(target: ActionTarget, beat: number): boolean {
+    const envelope = this.runtime.envelope
+    const held = this.actions[target.setting]
+    return envelope === null
+      ? held
+      : (modulatedAction(
+          this.patch,
+          envelope.step,
+          beat - envelope.startBeat,
+          target,
+        ) ?? held)
   }
 
+  // Whether a voice starts its pattern over as `step` lands. Bump inverts
+  // Sync Voices while it is held, or for one voice, on a step whose envelope
+  // bumps it.
+  private syncs(voice: VoiceIndex, step: StepIndex): boolean {
+    const bumped =
+      modulatedAction(this.patch, step, 0, {
+        kind: "action",
+        setting: "bump",
+        voice,
+      }) ?? this.actions.bump
+    return this.patch.syncVoices !== bumped
+  }
+
+  // The step the sequencer landed on, which the voices play until the next
+  // lands: a Flip pressed or let go in the middle of it moves the sequencer
+  // on flipped or not, as a step's envelope for it does.
   private currentStep(): StepJSON {
-    return this.patch.steps[
-      viewIndex(this.runtime.position, this.patch.size, this.actions.flip)
+    const { runtime, patch } = this
+    return patch.steps[
+      runtime.envelope?.step ??
+        viewIndex(runtime.position, patch.size, this.actions.flip)
     ]
   }
 
@@ -237,8 +271,9 @@ export class Engine {
     const { patch, runtime } = this
 
     // Hang keeps the phase moving but never advances the step, which goes on
-    // as long as it lasts each time round
-    if (this.actions.hang) {
+    // as long as it lasts each time round. Hang and Flip are read as the
+    // step ends, so a step's envelope has them as it leaves it.
+    if (this.actionAt({ kind: "action", setting: "hang" }, beat)) {
       const held = runtime.envelope?.step
       runtime.nextSeqBeat = onPaceGrid(
         beat +
@@ -247,7 +282,8 @@ export class Engine {
       return
     }
 
-    const steps = playableSteps(patch, this.actions.flip)
+    const flip = this.actionAt({ kind: "action", setting: "flip" }, beat)
+    const steps = playableSteps(patch, flip)
     if (steps.length === 0) {
       runtime.nextSeqBeat = onPaceGrid(beat + paceBeats(patch.pace))
       return
@@ -263,7 +299,7 @@ export class Engine {
     }
 
     const position = runtime.position
-    const step = viewIndex(position, patch.size, this.actions.flip)
+    const step = viewIndex(position, patch.size, flip)
     // as long as the sequencer's pace as it lands, which the step itself
     // may modulate
     const lengthBeats = paceBeats(stepPace(patch, step))
@@ -278,7 +314,7 @@ export class Engine {
       // plays on this step — or the first of its pattern, once sync resets it.
       // A pattern the step shortens is carried on from within it.
       voiceDots: voiceIndexes.map((index) =>
-        this.syncVoices
+        this.syncs(index, step)
           ? 0
           : runtime.voices[index].patternIndex %
             modulatedVoice(patch, index, step, 0).patternLength,
@@ -286,10 +322,10 @@ export class Engine {
     })
 
     this.landEnvelopes(step, beat, lengthBeats, events)
-    this.emitSequencerMods(beat, position, events)
+    this.emitSequencerMods(beat, position, flip, events)
 
-    if (this.syncVoices) {
-      for (const index of voiceIndexes) {
+    for (const index of voiceIndexes) {
+      if (this.syncs(index, step)) {
         const voice = runtime.voices[index]
         voice.patternIndex = 0
         voice.cursor = null
@@ -407,6 +443,7 @@ export class Engine {
   // Reads the envelopes live, so one redrawn mid-step is heard at once. A
   // value goes out only when it changes; a step's CC is its own message on
   // its own channel, so it goes to every output rather than to a voice's.
+  // One that drives a setting says so, so it can be kept in.
   private sendEnvelopes(beat: number, events: EngineEvent[]) {
     const envelope = this.runtime.envelope
     if (envelope === null) {
@@ -433,7 +470,8 @@ export class Engine {
         value,
         channel,
         output: "all",
-        source: "step",
+        source:
+          modulationForCC(this.patch, cc) === undefined ? "step" : "modulation",
       })
     }
   }
@@ -462,9 +500,10 @@ export class Engine {
   private emitSequencerMods(
     beat: number,
     position: StepIndex,
+    flip: boolean,
     events: EngineEvent[],
   ) {
-    const values = sequencerModValues(this.patch, position, this.actions.flip)
+    const values = sequencerModValues(this.patch, position, flip)
     this.emitMod("seqX", values.seqX, beat, events)
     this.emitMod("seqY", values.seqY, beat, events)
     this.emitMod("phase", values.phase, beat, events)
@@ -554,7 +593,8 @@ export class Engine {
       scale,
     )
     const note =
-      offset !== null && this.actions.shift
+      offset !== null &&
+      this.actionAt({ kind: "action", setting: "shift" }, beat)
         ? this.transposed(offset, this.patch.shiftAmt, shiftFit, scale)
         : offset
     if (note === null) {

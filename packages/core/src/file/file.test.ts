@@ -91,6 +91,18 @@ const everySettingChanged = (): PatchJSON => {
         from: null,
         to: { tonic: 7, name: "dorian" },
       },
+      {
+        target: { kind: "action", setting: "bump", voice: 1 },
+        cc: 15,
+        from: false,
+        to: true,
+      },
+      {
+        target: { kind: "action", setting: "flip" },
+        cc: 20,
+        from: true,
+        to: false,
+      },
     ],
   }
 }

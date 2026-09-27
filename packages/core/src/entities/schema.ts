@@ -181,10 +181,18 @@ export const ModOutSchema = z.object({
   smoothing: z.number().min(0).max(1),
 })
 
-export const ModulationTargetSchema = z.discriminatedUnion("kind", [
+const voiceIndex = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+])
+
+// a plain union, since an action is one kind whether or not it has a voice
+export const ModulationTargetSchema = z.union([
   z.object({
     kind: z.literal("voice"),
-    voice: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+    voice: voiceIndex,
     setting: z.enum([
       "pace",
       "length",
@@ -198,10 +206,20 @@ export const ModulationTargetSchema = z.discriminatedUnion("kind", [
     kind: z.literal("sequencer"),
     setting: z.enum(["pace", "scale", "shiftFit"]),
   }),
+  z.object({
+    kind: z.literal("action"),
+    setting: z.literal("bump"),
+    voice: voiceIndex,
+  }),
+  z.object({
+    kind: z.literal("action"),
+    setting: z.enum(["hang", "flip", "shift"]),
+  }),
 ])
 
 const ModulationValueSchema = z.union([
   z.null(),
+  z.boolean(),
   z.number(),
   z.string(),
   z.object({ tonic: z.number().int().min(0).max(11), name: z.string() }),

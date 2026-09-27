@@ -395,6 +395,32 @@ describe("modulation commands", () => {
     expect(patch.steps[2].envelopes).toHaveLength(1)
   })
 
+  it("remove a modulation with the last envelope for its CC", () => {
+    const patch = modulated()
+    const removed = removeEnvelope(patch, 2, patch.steps[2].envelopes[0].id)
+    expect(removed.steps[2].envelopes).toEqual([])
+    expect(removed.modulations).toEqual([])
+  })
+
+  it("keep a modulation while another step has an envelope for its CC, on any channel", () => {
+    const patch = addEnvelope(modulated(), 6, {
+      cc: 3,
+      channel: 2,
+      points: [{ time: 0, value: 0 }],
+    })
+    const removed = removeEnvelope(patch, 2, patch.steps[2].envelopes[0].id)
+    expect(removed.modulations).toEqual([paces])
+    // and a plain CC's envelope takes no modulation with it
+    const plain = addEnvelope(modulated(), 4, {
+      cc: 74,
+      channel: 1,
+      points: [{ time: 0, value: 0 }],
+    })
+    expect(
+      removeEnvelope(plain, 4, plain.steps[4].envelopes[0].id).modulations,
+    ).toEqual([paces])
+  })
+
   it("start a step's envelope at the setting's own value, once", () => {
     const patch = addModulationEnvelope(
       setModulation(createDefaultPatch(), paces),
@@ -408,14 +434,20 @@ describe("modulation commands", () => {
     expect(addModulationEnvelope(patch, 5, PACE)).toBe(patch)
   })
 
-  it("clear the voices' modulations with the voices, and keep the sequencer's", () => {
+  it("clear the voices' modulations with the voices, and keep the sequencer's and the actions'", () => {
     const sequencer: ModulationJSON = {
       target: { kind: "sequencer", setting: "pace" },
       cc: 9,
       from: "1bar",
       to: "8th",
     }
-    const patch = setModulation(modulated(), sequencer)
-    expect(clearPatch(patch).modulations).toEqual([sequencer])
+    const bump: ModulationJSON = {
+      target: { kind: "action", setting: "bump", voice: 2 },
+      cc: 10,
+      from: false,
+      to: true,
+    }
+    const patch = setModulation(setModulation(modulated(), sequencer), bump)
+    expect(clearPatch(patch).modulations).toEqual([sequencer, bump])
   })
 })

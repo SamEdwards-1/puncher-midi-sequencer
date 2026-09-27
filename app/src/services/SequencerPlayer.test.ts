@@ -1,4 +1,9 @@
-import { createDefaultPatch, PatchJSON } from "@midiseq/core"
+import {
+  addEnvelope,
+  createDefaultPatch,
+  ModulationTarget,
+  PatchJSON,
+} from "@midiseq/core"
 import { beforeEach, describe, expect, it } from "vitest"
 import { FakeClock, FakeSink, ManualTicker } from "../test/fakes"
 import { OutputRouter } from "./OutputRouter"
@@ -301,6 +306,80 @@ describe("SequencerPlayer", () => {
       runFor(500)
       // the voice's own port carries its notes, not the transport
       expect(voice0.sent.some((message) => message.data[0] >= 0xf8)).toBe(false)
+    })
+  })
+
+  describe("modulation", () => {
+    const PACE: ModulationTarget = { kind: "voice", voice: 0, setting: "pace" }
+    // Voice 1's pace from a 4th to a 16th, on CC 3, which the second step
+    // ramps from the one to the other across its beat; that step sends
+    // brightness as well.
+    const modulated = () => {
+      let patch: PatchJSON = {
+        ...makePatch(),
+        modulations: [{ target: PACE, cc: 3, from: "4th", to: "16th" }],
+      }
+      patch = addEnvelope(patch, 1, {
+        cc: 3,
+        channel: 1,
+        shape: "ramps",
+        points: [
+          { time: 0, value: 0 },
+          { time: 1, value: 127 },
+        ],
+      })
+      return addEnvelope(patch, 1, {
+        cc: 74,
+        channel: 1,
+        points: [{ time: 0, value: 20 }],
+      })
+    }
+    const ccsSent = () => all.ofType(0xb0).map((message) => message.data[1])
+
+    it("shows the settings the sounding step drives, as its envelopes have them now", () => {
+      player.setPatch(modulated())
+      expect(player.modulated).toBeNull()
+      player.play()
+      // the first step, which drives nothing
+      runFor(75)
+      expect(player.modulated).toEqual([])
+      // the second lands at 1550 ms: a twentieth of the way along its ramp
+      runFor(500)
+      expect(player.modulated).toEqual([
+        { target: PACE, cc: 3, ccValue: 6, value: "4th" },
+      ])
+      // and past halfway, an 8th
+      runFor(250)
+      expect(player.modulated).toEqual([
+        { target: PACE, cc: 3, ccValue: 70, value: "8th" },
+      ])
+
+      player.stop()
+      expect(player.modulated).toBeNull()
+    })
+
+    it("sends the CCs driving settings unless told not to, and the rest either way", () => {
+      player.setPatch(modulated())
+      player.play()
+      runFor(1000)
+      expect(ccsSent()).toContain(3)
+      expect(ccsSent()).toContain(74)
+      player.stop()
+
+      all.sent.length = 0
+      player.setSendModulationCCs(false)
+      player.play()
+      runFor(1000)
+      expect(ccsSent()).not.toContain(3)
+      expect(ccsSent()).toContain(74)
+      // the setting still follows its CC
+      expect(player.modulated).toMatchObject([{ target: PACE }])
+      player.stop()
+
+      // nor does a clicked step send them
+      all.sent.length = 0
+      player.previewStep(1)
+      expect(ccsSent()).toEqual([74])
     })
   })
 })

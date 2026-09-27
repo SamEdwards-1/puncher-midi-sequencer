@@ -119,6 +119,16 @@ describe("the settings dialog", () => {
     expect(midi().outputNames.all).toEqual(["Built-in synth"])
   })
 
+  it("sends the CCs that drive settings unless told not to, and remembers", async () => {
+    const dialog = await openMIDI()
+    const send = dialog.getByRole("checkbox", { name: "Send modulation CCs" })
+    expect(send).toBeChecked()
+
+    fireEvent.click(send)
+    expect(midi().sendModulationCCs).toBe(false)
+    expect(storage.getItem("midiseq.midiModulationCCs")).toBe("false")
+  })
+
   it("shows a voice's instrument only while the built-in synth plays it", async () => {
     const dialog = await openMIDI()
     const instrument = () =>

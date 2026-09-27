@@ -6,11 +6,15 @@ import {
   Engine,
   EngineActions,
   EngineEvent,
+  ModulatedSetting,
+  modulatedSettings,
   NoteOffEvent,
   oneStepPatch,
   PatchJSON,
   paceBeats,
   StepIndex,
+  sameModulationValue,
+  sameTarget,
   stepPace,
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
@@ -46,6 +50,22 @@ export interface StepProgress {
   lengthBeats: number
 }
 
+const sameSettings = (
+  a: ModulatedSetting[] | null,
+  b: ModulatedSetting[] | null,
+) =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.length === b.length &&
+    a.every(
+      (each, index) =>
+        sameTarget(each.target, b[index].target) &&
+        each.cc === b[index].cc &&
+        each.ccValue === b[index].ccValue &&
+        sameModulationValue(each.value, b[index].value),
+    ))
+
 const TICK_MS = 25
 const LOOKAHEAD_MS = 100
 // upper bound on how long a clicked step sounds
@@ -67,6 +87,9 @@ export class SequencerPlayer {
   // the dot each voice is on right now; null for a voice yet to reach one,
   // or for all of them when stopped
   playingDots: (number | null)[] | null = null
+  // the settings the sounding step modulates, as its envelopes have them
+  // right now; null when stopped
+  modulated: ModulatedSetting[] | null = null
   actions: EngineActions = createActions()
 
   private readonly engine: Engine
@@ -86,6 +109,8 @@ export class SequencerPlayer {
   private dotMarks: { time: number; voice: number; dot: number }[] = []
   private lastScheduledTime = 0
   private sendClock = false
+  // whether the envelopes whose CC drives a setting go out as well
+  private sendModulationCCs = true
   private accentAmount = DEFAULT_ACCENT_AMOUNT
   // the last clock tick handed to the router, counted from the start
   private clockSent = -1
@@ -110,6 +135,7 @@ export class SequencerPlayer {
       position: observable,
       voiceDots: observable.ref,
       playingDots: observable.ref,
+      modulated: observable.ref,
       actions: observable.ref,
     })
   }
@@ -168,7 +194,7 @@ export class SequencerPlayer {
 
     const now = this.now()
     for (const event of events) {
-      if (event.type === "step" || event.type === "dot") {
+      if (event.type === "step" || event.type === "dot" || !this.sends(event)) {
         continue
       }
       const time = now + event.beat * msPerBeat
@@ -179,6 +205,12 @@ export class SequencerPlayer {
 
   setSendClock = (send: boolean) => {
     this.sendClock = send
+  }
+
+  // A modulation's CC still drives its setting either way; this is only
+  // whether it goes out too.
+  setSendModulationCCs = (send: boolean) => {
+    this.sendModulationCCs = send
   }
 
   // How far an accent moves a velocity; the next note played hears it.
@@ -261,6 +293,7 @@ export class SequencerPlayer {
     this.position = null
     this.voiceDots = null
     this.playingDots = null
+    this.modulated = null
   }
 
   panic = () => {
@@ -305,7 +338,7 @@ export class SequencerPlayer {
         })
       } else if (event.type === "dot") {
         this.dotMarks.push({ time, voice: event.voice, dot: event.dot })
-      } else {
+      } else if (this.sends(event)) {
         this.router.route(event, time)
       }
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
@@ -338,6 +371,28 @@ export class SequencerPlayer {
       }
       this.playingDots = playingDots
     }
+
+    // A new list only when something in it has changed, so a field showing
+    // a setting is woken only when its value moves.
+    const modulated =
+      this.landed === null
+        ? null
+        : modulatedSettings(
+            this.patch,
+            this.landed.step,
+            this.beatAt(now) - this.landed.beat,
+          )
+    if (!sameSettings(modulated, this.modulated)) {
+      this.modulated = modulated
+    }
+  }
+
+  private sends(event: EngineEvent): boolean {
+    return (
+      this.sendModulationCCs ||
+      event.type !== "cc" ||
+      event.source !== "modulation"
+    )
   }
 
   // 24 to the quarter note, on the same grid the notes are scheduled against

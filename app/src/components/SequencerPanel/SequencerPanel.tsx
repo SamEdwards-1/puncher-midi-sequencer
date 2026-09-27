@@ -6,7 +6,11 @@ import {
   PACE_LABELS,
   PACES,
   PaceId,
+  ScaleChoiceJSON,
   SequencerSetting,
+  scaleless,
+  sequencerScale,
+  settingValue,
   stepCount,
 } from "@midiseq/core"
 import { FC, useMemo } from "react"
@@ -19,7 +23,7 @@ import {
   SEQUENCER_SCALE_CHOICES,
   weightsOfNotes,
 } from "../../theory/scales"
-import { ModulationButton } from "../Modulation/ModulationButton"
+import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { Button } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -62,10 +66,9 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
       ),
     [patch.steps],
   )
-  // the gear beside a setting's label that a CC can drive
-  const modulation = (setting: SequencerSetting) => (
-    <ModulationButton target={{ kind: "sequencer", setting }} />
-  )
+  // a setting of the sequencer's that a CC can drive
+  const target = (setting: SequencerSetting) =>
+    ({ kind: "sequencer", setting }) as const
 
   return (
     <Panel
@@ -90,20 +93,25 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           </Select>
         </Field>
 
-        <Field label={localized["sequencer-pace"]} aside={modulation("pace")}>
-          <Select
-            value={patch.pace}
-            onChange={(event) =>
-              editSequencer({ pace: event.target.value as PaceId })
-            }
-          >
-            {PACES.map((pace) => (
-              <option key={pace} value={pace}>
-                {PACE_LABELS[pace]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-pace"]}
+          target={target("pace")}
+        >
+          {(shown) => (
+            <Select
+              value={shown(patch.pace)}
+              onChange={(event) =>
+                editSequencer({ pace: event.target.value as PaceId })
+              }
+            >
+              {PACES.map((pace) => (
+                <option key={pace} value={pace}>
+                  {PACE_LABELS[pace]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ModulatedField>
 
         <Field label={localized["sequencer-direction"]}>
           <Select
@@ -172,16 +180,18 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field
+        <ModulatedField
           label={localized["sequencer-shift-fit"]}
-          aside={modulation("shiftFit")}
+          target={target("shiftFit")}
         >
-          <FitSelect
-            value={patch.shiftFit}
-            scale={patch.scale}
-            onChange={(shiftFit) => editSequencer({ shiftFit })}
-          />
-        </Field>
+          {(shown) => (
+            <FitSelect
+              value={shown(patch.shiftFit)}
+              disabled={scaleless(patch)}
+              onChange={(shiftFit) => editSequencer({ shiftFit })}
+            />
+          )}
+        </ModulatedField>
 
         <Field label={localized["sequencer-max-notes"]}>
           <Stepper
@@ -197,16 +207,34 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
 
         {/* two selects, each with a name of its own, offering the scales a
             modulation can reach */}
-        <ButtonField
+        <ModulatedField
           label={localized["sequencer-scale"]}
-          aside={modulation("scale")}
+          target={target("scale")}
+          buttons
         >
-          <ScaleSelects
-            scale={patch.scale}
-            onScale={editScale}
-            choices={SEQUENCER_SCALE_CHOICES}
-          />
-        </ButtonField>
+          {(shown) => {
+            // the patch's own scale as it is, fit and all, unless a step
+            // has moved it to another
+            const own = settingValue(patch, target("scale"))
+            const choice = shown(own)
+            return (
+              <ScaleSelects
+                scale={
+                  choice === own
+                    ? patch.scale
+                    : choice === null
+                      ? null
+                      : sequencerScale(
+                          choice as ScaleChoiceJSON,
+                          patch.scale?.fit ?? "up",
+                        )
+                }
+                onScale={editScale}
+                choices={SEQUENCER_SCALE_CHOICES}
+              />
+            )
+          }}
+        </ModulatedField>
         <ButtonField label={localized["sequencer-scale-detected"]}>
           <ScaleGuesses
             guesses={guesses}

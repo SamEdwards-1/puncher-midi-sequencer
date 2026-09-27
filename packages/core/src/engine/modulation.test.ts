@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { addEnvelope } from "../commands/patchCommands"
 import { createDefaultPatch } from "../entities/defaults"
-import { EnvelopePointJSON, ModulationJSON, PatchJSON } from "../entities/types"
+import {
+  ActionTarget,
+  EnvelopePointJSON,
+  ModulationJSON,
+  PatchJSON,
+} from "../entities/types"
 import { exportBeats, renderSequence } from "../file/midiExport"
 import { Engine } from "./Engine"
 import { EngineEvent, NoteOffEvent, NoteOnEvent } from "./events"
@@ -84,7 +89,7 @@ describe("modulation as the sequence plays", () => {
     expect(notes.map(({ note }) => note)).toEqual([60, 60, 72, 72])
   })
 
-  it("sends the envelope out as its CC, as any step's is", () => {
+  it("sends the envelope out as its CC, as any step's is, marked as a modulation's", () => {
     modulate(
       {
         target: { kind: "voice", voice: 0, setting: "offset" },
@@ -94,8 +99,12 @@ describe("modulation as the sequence plays", () => {
       },
       [0, at(127)],
     )
+    patch = addEnvelope(patch, 0, { cc: 74, channel: 1, points: at(20) })
     expect(play(patch, 0).filter((event) => event.type === "cc")).toMatchObject(
-      [{ cc: 3, value: 127, channel: 1 }],
+      [
+        { cc: 3, value: 127, channel: 1, source: "modulation" },
+        { cc: 74, value: 20, channel: 1, source: "step" },
+      ],
     )
   })
 
@@ -244,5 +253,120 @@ describe("a step's length where the sequencer's pace is modulated", () => {
     })
     expect(stepBeats(events)).toEqual([0, 1, 5, 6])
     expect(noteOns(events)).toHaveLength(10)
+  })
+})
+
+describe("actions a step's envelope drives", () => {
+  let patch: PatchJSON
+
+  // A step a beat, each a note, played by voice 1 alone, a note a beat.
+  beforeEach(() => {
+    patch = createDefaultPatch()
+    patch.pace = "4th"
+    patch.loop = { mode: "custom", end: 3 }
+    for (const [step, note] of [60, 62, 64, 65].entries()) {
+      patch.steps[step].notes = [note]
+    }
+    patch.steps[8].notes = [67]
+    patch.voices[0] = { ...patch.voices[0], pace: "4th", length: 0.5 }
+  })
+
+  const modulate = (
+    target: ActionTarget,
+    ...onSteps: [step: number, points: EnvelopePointJSON[]][]
+  ) => {
+    patch = onSteps.reduce<PatchJSON>(
+      (next, [step, points]) =>
+        addEnvelope(next, step, { cc: 3, channel: 1, points }),
+      {
+        ...patch,
+        modulations: [{ target, cc: 3, from: false, to: true }],
+      },
+    )
+  }
+  const at = (value: number) => [{ time: 0, value }]
+  const HANG: ActionTarget = { kind: "action", setting: "hang" }
+
+  it("keeps a step whose envelope has Hang on as it ends", () => {
+    modulate(HANG, [1, at(127)])
+    const events = play(patch, 5.9)
+    expect(stepBeats(events)).toEqual([0, 1])
+    // the voice plays on over the step it keeps
+    expect(noteOns(events).map(({ note }) => note)).toEqual([
+      60, 62, 62, 62, 62, 62,
+    ])
+  })
+
+  it("reads Hang as the step ends, not as it lands", () => {
+    // on until halfway, then off
+    modulate(HANG, [
+      1,
+      [
+        { time: 0, value: 127 },
+        { time: 0.5, value: 0 },
+      ],
+    ])
+    expect(stepBeats(play(patch, 3.9))).toEqual([0, 1, 2, 3])
+  })
+
+  it("has the step's envelope, not the button, say whether it hangs", () => {
+    modulate(HANG, [0, at(0)])
+    const engine = new Engine(patch)
+    engine.start(0)
+    engine.render(0.1)
+    engine.setActions({ hang: true })
+    // the first step's envelope lets it go; the button keeps the second
+    expect(stepBeats(engine.render(3.9))).toEqual([1])
+  })
+
+  it("moves on flipped from a step whose envelope has Flip on, and plays the step it lands on", () => {
+    modulate({ kind: "action", setting: "flip" }, [0, at(127)])
+    const events = play(patch, 2.9)
+    // from the first step, position 1 is stored step 8; back unflipped from
+    // there, as its button is
+    expect(events.filter((event) => event.type === "step")).toMatchObject([
+      { position: 0, step: 0 },
+      { position: 1, step: 8 },
+      { position: 2, step: 2 },
+    ])
+    expect(noteOns(events).map(({ note }) => note)).toEqual([60, 67, 64])
+  })
+
+  it("shifts the notes a step's envelope has Shift on for, as they start", () => {
+    patch.shiftAmt = 12
+    patch.voices[0].pace = "8th"
+    modulate({ kind: "action", setting: "shift" }, [
+      1,
+      [
+        { time: 0, value: 0 },
+        { time: 0.5, value: 127 },
+      ],
+    ])
+    expect(noteOns(play(patch, 2.4)).map(({ note }) => note)).toEqual([
+      60, 60, 62, 74, 64,
+    ])
+  })
+
+  it("bumps only the voice whose Bump the step's envelope has on, as it lands", () => {
+    // two voices arpeggiating up through a three-note chord, two notes a step
+    patch.voices[0] = { ...patch.voices[0], pace: "8th", rule: "up" }
+    patch.voices[1] = {
+      ...patch.voices[1],
+      enabled: true,
+      pace: "8th",
+      rule: "up",
+    }
+    for (const step of [0, 1, 2]) {
+      patch.steps[step].notes = [60, 64, 67]
+    }
+    modulate({ kind: "action", setting: "bump", voice: 1 }, [1, at(127)])
+    const byVoice = (voice: number) =>
+      noteOns(play(patch, 2.9))
+        .filter((event) => event.voice === voice)
+        .map(({ note }) => note)
+    // voice 1 carries its arpeggio on over every step; voice 2 starts its
+    // over as the second step lands
+    expect(byVoice(0)).toEqual([60, 64, 67, 60, 64, 67])
+    expect(byVoice(1)).toEqual([60, 64, 60, 64, 67, 60])
   })
 })
