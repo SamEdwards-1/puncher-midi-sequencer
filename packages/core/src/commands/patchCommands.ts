@@ -1,4 +1,12 @@
 import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
+import {
+  modulationCC,
+  modulationForCC,
+  modulationOf,
+  modulationValueAt,
+  sameTarget,
+  settingValue,
+} from "../entities/modulation"
 import { ScaleJSON } from "../entities/scale"
 import {
   EnvelopeJSON,
@@ -6,6 +14,8 @@ import {
   MAX_NOTES_PER_STEP,
   ModOutJSON,
   ModSource,
+  ModulationJSON,
+  ModulationTarget,
   PatchJSON,
   PatternStepJSON,
   StepIndex,
@@ -16,6 +26,10 @@ import {
 import { velocityToDot } from "../entities/velocity"
 
 const clampNote = (note: number) => Math.min(127, Math.max(0, Math.round(note)))
+
+// A modulation's envelopes go out like any step's CC, on channel 1; the
+// channel plays no part in what they modulate.
+const MODULATION_CHANNEL = 1
 
 /**
  * Edits to a patch. Each returns a new patch and leaves the old one untouched,
@@ -290,16 +304,33 @@ export const updateEnvelope = (
     ),
   })
 
+/**
+ * Takes an envelope off a step. Where it was the last envelope for a CC
+ * that drives a setting, the modulation goes too: nothing is left driving
+ * the setting.
+ */
 export const removeEnvelope = (
   patch: PatchJSON,
   index: StepIndex,
   id: number,
-): PatchJSON =>
-  setStep(patch, index, {
+): PatchJSON => {
+  const removed = patch.steps[index].envelopes.find(
+    (envelope) => envelope.id === id,
+  )
+  const next = setStep(patch, index, {
     envelopes: patch.steps[index].envelopes.filter(
       (envelope) => envelope.id !== id,
     ),
   })
+  const modulation =
+    removed === undefined ? undefined : modulationForCC(next, removed.cc)
+  const left = next.steps.some((step) =>
+    step.envelopes.some(({ cc }) => cc === removed?.cc),
+  )
+  return modulation === undefined || left
+    ? next
+    : removeModulation(next, modulation.target)
+}
 
 export const clearStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
   setStep(patch, index, { notes: [], envelopes: [] })
@@ -315,6 +346,11 @@ export const clearPatch = (patch: PatchJSON): PatchJSON => ({
   ...patch,
   steps: patch.steps.map(() => createDefaultStep()),
   voices: patch.voices.map((_, index) => createDefaultVoice(index)),
+  // the voices' modulations go with their settings; the sequencer's and
+  // the actions' stay
+  modulations: patch.modulations.filter(
+    ({ target }) => target.kind !== "voice",
+  ),
 })
 
 // Copies notes, envelopes, state and jump onto another step.
@@ -357,6 +393,91 @@ export const setModOut = (
     modOut.source === source ? { ...modOut, ...changes } : modOut,
   ),
 })
+
+/**
+ * Gives a setting a modulation, or changes the one it has. The envelopes it
+ * already drives go with it: on to its new CC, if that changes, and to the
+ * CC values that stand for the same settings in its new range — the nearer
+ * end, for one the range no longer reaches — so each step plays as it did
+ * wherever it can.
+ */
+export const setModulation = (
+  patch: PatchJSON,
+  modulation: ModulationJSON,
+): PatchJSON => {
+  const existing = modulationOf(patch, modulation.target)
+  if (existing === undefined) {
+    return { ...patch, modulations: [...patch.modulations, modulation] }
+  }
+  return {
+    ...patch,
+    modulations: patch.modulations.map((each) =>
+      each === existing ? modulation : each,
+    ),
+    steps: patch.steps.map((step) =>
+      step.envelopes.some(({ cc }) => cc === existing.cc)
+        ? {
+            ...step,
+            envelopes: step.envelopes.map((envelope) =>
+              envelope.cc === existing.cc
+                ? {
+                    ...envelope,
+                    cc: modulation.cc,
+                    points: envelope.points.map((point) => ({
+                      ...point,
+                      value: modulationCC(
+                        modulation,
+                        modulationValueAt(existing, point.value),
+                      ),
+                    })),
+                  }
+                : envelope,
+            ),
+          }
+        : step,
+    ),
+  }
+}
+
+/**
+ * Stops a setting's CC modulating it. Its envelopes stay, as CCs like any
+ * other, so nothing drawn is lost.
+ */
+export const removeModulation = (
+  patch: PatchJSON,
+  target: ModulationTarget,
+): PatchJSON => ({
+  ...patch,
+  modulations: patch.modulations.filter(
+    (modulation) => !sameTarget(modulation.target, target),
+  ),
+})
+
+/**
+ * Puts a modulation's envelope on a step that hasn't one for its CC: a
+ * single point at the value standing for the setting as it is, so the step
+ * plays as it did until the envelope is drawn on.
+ */
+export const addModulationEnvelope = (
+  patch: PatchJSON,
+  index: StepIndex,
+  target: ModulationTarget,
+): PatchJSON => {
+  const modulation = modulationOf(patch, target)
+  if (
+    modulation === undefined ||
+    patch.steps[index].envelopes.some(({ cc }) => cc === modulation.cc)
+  ) {
+    return patch
+  }
+  return addEnvelope(patch, index, {
+    cc: modulation.cc,
+    channel: MODULATION_CHANNEL,
+    points: [
+      { time: 0, value: modulationCC(modulation, settingValue(patch, target)) },
+    ],
+  })
+}
 
 // Drops notes above the limit for good, so lowering it can be made permanent.
 // It keeps the lowest ones, which are the notes the engine was playing.

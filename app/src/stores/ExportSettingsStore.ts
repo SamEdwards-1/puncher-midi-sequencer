@@ -13,6 +13,7 @@ export const ccKey = ({ cc, channel }: { cc: number; channel: number }) =>
 interface Saved {
   voices: boolean[]
   excludedCCs: string[]
+  modulationCCs: boolean
   layout: ExportLayout
   passes: number
 }
@@ -20,6 +21,7 @@ interface Saved {
 const DEFAULTS: Saved = {
   voices: [true, true, true, true],
   excludedCCs: [],
+  modulationCCs: true,
   layout: "perVoice",
   passes: 1,
 }
@@ -41,6 +43,7 @@ const load = (storage: Storage | null): Saved => {
     excludedCCs: Array.isArray(saved.excludedCCs)
       ? saved.excludedCCs.filter((key) => typeof key === "string")
       : DEFAULTS.excludedCCs,
+    modulationCCs: saved.modulationCCs !== false,
     layout: LAYOUTS.includes(saved.layout as ExportLayout)
       ? (saved.layout as ExportLayout)
       : DEFAULTS.layout,
@@ -59,11 +62,13 @@ const load = (storage: Storage | null): Saved => {
  * everywhere.
  *
  * CCs are kept as the ones left out, so a CC new to a sequence goes in
- * until it is unticked.
+ * until it is unticked. The CCs driving modulated settings can be left out
+ * all together, whichever they are.
  */
 export class ExportSettingsStore {
   voices: boolean[]
   excludedCCs: string[]
+  modulationCCs: boolean
   layout: ExportLayout
   passes: number
 
@@ -71,16 +76,19 @@ export class ExportSettingsStore {
     const saved = load(storage)
     this.voices = saved.voices
     this.excludedCCs = saved.excludedCCs
+    this.modulationCCs = saved.modulationCCs
     this.layout = saved.layout
     this.passes = saved.passes
     makeObservable(this, {
       voices: observable.ref,
       excludedCCs: observable.ref,
+      modulationCCs: observable,
       layout: observable,
       passes: observable,
       setVoice: action,
       setCC: action,
       setCCs: action,
+      setModulationCCs: action,
       setLayout: action,
       setPasses: action,
     })
@@ -105,6 +113,11 @@ export class ExportSettingsStore {
     this.save()
   }
 
+  setModulationCCs = (on: boolean) => {
+    this.modulationCCs = on
+    this.save()
+  }
+
   setLayout = (layout: ExportLayout) => {
     this.layout = layout
     this.save()
@@ -119,6 +132,7 @@ export class ExportSettingsStore {
     write(this.storage, STORAGE_KEY, {
       voices: this.voices,
       excludedCCs: this.excludedCCs,
+      modulationCCs: this.modulationCCs,
       layout: this.layout,
       passes: this.passes,
     })

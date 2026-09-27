@@ -4,6 +4,7 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import {
   makeScale,
   SCALE_CHOICES,
+  ScaleChoice,
   ScaleGuess,
   sameScale,
   scaleLabel,
@@ -17,19 +18,29 @@ const NONE = ""
 /**
  * A scale's tonic and name, or none. The tonic can be picked before a name,
  * and is kept while there is none, so picking one after starts from it.
+ * `choices` narrows the names offered; common ones come first, under a
+ * heading of their own where there are others.
  */
 export const ScaleSelects: FC<{
   scale: ScaleJSON | null
   onScale: (scale: ScaleJSON | null) => void
-}> = ({ scale, onScale }) => {
+  choices?: readonly ScaleChoice[]
+}> = ({ scale, onScale, choices = SCALE_CHOICES }) => {
   const localized = useLocalization()
   const [tonic, setTonic] = useState(scale?.tonic ?? 0)
   const shownTonic = scale?.tonic ?? tonic
   const fit = scale?.fit ?? "up"
-  const common = SCALE_CHOICES.filter((choice) => choice.common)
-  const more = SCALE_CHOICES.filter((choice) => !choice.common)
-  // a file's scale the library doesn't know still shows as itself
-  const known = SCALE_CHOICES.some((choice) => choice.name === scale?.name)
+  const common = choices.filter((choice) => choice.common)
+  const more = choices.filter((choice) => !choice.common)
+  // a scale from a file or an import that isn't offered still shows as
+  // itself
+  const known = choices.some((choice) => choice.name === scale?.name)
+  const options = (list: readonly ScaleChoice[]) =>
+    list.map((choice) => (
+      <option key={choice.name} value={choice.name}>
+        {choice.label}
+      </option>
+    ))
 
   return (
     <div className="flex min-w-0 gap-1">
@@ -65,22 +76,23 @@ export const ScaleSelects: FC<{
       >
         <option value={NONE}>{localized["sequencer-scale-none"]}</option>
         {scale !== null && !known && (
-          <option value={scale.name}>{scale.name}</option>
+          <option value={scale.name}>
+            {SCALE_CHOICES.find((choice) => choice.name === scale.name)
+              ?.label ?? scale.name}
+          </option>
         )}
-        <optgroup label={localized["sequencer-scale-common"]}>
-          {common.map((choice) => (
-            <option key={choice.name} value={choice.name}>
-              {choice.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label={localized["sequencer-scale-more"]}>
-          {more.map((choice) => (
-            <option key={choice.name} value={choice.name}>
-              {choice.label}
-            </option>
-          ))}
-        </optgroup>
+        {common.length === 0 || more.length === 0 ? (
+          options(choices)
+        ) : (
+          <>
+            <optgroup label={localized["sequencer-scale-common"]}>
+              {options(common)}
+            </optgroup>
+            <optgroup label={localized["sequencer-scale-more"]}>
+              {options(more)}
+            </optgroup>
+          </>
+        )}
       </Select>
     </div>
   )
@@ -110,18 +122,19 @@ export const FitButtons: FC<{
 
 /**
  * How a move takes a note that lands outside the scale, as a dropdown for
- * a setting of its own; it does nothing while there is no scale.
+ * a setting of its own; it does nothing where there is never a scale, when
+ * it is `disabled`.
  */
 export const FitSelect: FC<{
   value: ScaleFit
-  scale: ScaleJSON | null
+  disabled: boolean
   onChange: (fit: ScaleFit) => void
-}> = ({ value, scale, onChange }) => {
+}> = ({ value, disabled, onChange }) => {
   const localized = useLocalization()
   return (
     <Select
       value={value}
-      disabled={scale === null}
+      disabled={disabled}
       onChange={(event) => onChange(event.target.value as ScaleFit)}
     >
       {SCALE_FITS.map((fit) => (

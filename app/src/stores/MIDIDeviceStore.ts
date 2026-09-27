@@ -30,6 +30,7 @@ const STORAGE_KEY = "midiseq.midiOutputs"
 const INPUT_STORAGE_KEY = "midiseq.midiInput"
 const FILTER_STORAGE_KEY = "midiseq.midiFilter"
 const CLOCK_STORAGE_KEY = "midiseq.midiClock"
+const MODULATION_CCS_STORAGE_KEY = "midiseq.midiModulationCCs"
 
 const names = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((name) => typeof name === "string") : []
@@ -124,6 +125,10 @@ const loadClock = (storage: Storage | null): ClockSettings => {
 
 export const portName = (port: MIDIPort): string => port.name ?? port.id
 
+// they go out unless that was turned off
+const loadModulationCCs = (storage: Storage | null): boolean =>
+  read(storage, MODULATION_CCS_STORAGE_KEY) !== false
+
 export class MIDIDeviceStore {
   outputs: MIDIOutput[] = []
   inputs: MIDIInput[] = []
@@ -136,6 +141,8 @@ export class MIDIDeviceStore {
   inputNames: string[]
   filter: MIDIFilterJSON
   clock: ClockSettings
+  // whether the envelopes whose CC drives a setting go to the outputs too
+  sendModulationCCs: boolean
 
   private readonly requestAccess: RequestMIDIAccess | null
   private readonly queryPermission: QueryMIDIPermission | null
@@ -151,6 +158,7 @@ export class MIDIDeviceStore {
     this.inputNames = loadInputNames(storage)
     this.filter = loadFilter(storage)
     this.clock = loadClock(storage)
+    this.sendModulationCCs = loadModulationCCs(storage)
 
     makeObservable(this, {
       outputs: observable.ref,
@@ -163,6 +171,7 @@ export class MIDIDeviceStore {
       inputNames: observable.ref,
       filter: observable.ref,
       clock: observable.ref,
+      sendModulationCCs: observable,
       // keepAlive caches the value between reads outside a reaction, so React
       // gets the same array back until the ports actually change
       connectedOutputNames: computed({ keepAlive: true }),
@@ -186,6 +195,10 @@ export class MIDIDeviceStore {
     reaction(
       () => this.clock,
       (value) => write(storage, CLOCK_STORAGE_KEY, value),
+    )
+    reaction(
+      () => this.sendModulationCCs,
+      (value) => write(storage, MODULATION_CCS_STORAGE_KEY, value),
     )
   }
 
@@ -268,6 +281,10 @@ export class MIDIDeviceStore {
 
   setClock = (changes: Partial<ClockSettings>) => {
     this.clock = { ...this.clock, ...changes }
+  }
+
+  setSendModulationCCs = (send: boolean) => {
+    this.sendModulationCCs = send
   }
 
   get connectedInputNames(): string[] {

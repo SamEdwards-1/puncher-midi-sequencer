@@ -283,6 +283,40 @@ describe("exporting the sequence", () => {
       // on another channel, CC 74 is another controller
       expect(ccs([{ cc: 74, channel: 1 }])).toEqual([])
     })
+
+    it("marks the controllers driving settings, and can leave them out, but not a mod output on the same one", () => {
+      const target = { kind: "voice", voice: 0, setting: "offset" } as const
+      const patch = {
+        ...withCCs(),
+        modulations: [{ target, cc: 1, from: 0, to: 12 }],
+      }
+      patch.modOuts = patch.modOuts.map((mod) =>
+        mod.source === "seqX" ? { ...mod, enabled: true, cc: 1 } : mod,
+      )
+      expect(sequenceCCs(patch)).toEqual([
+        { cc: 1, channel: 1, steps: [1], mods: ["seqX"], modulation: target },
+        { cc: 74, channel: 2, steps: [0, 1], mods: [] },
+      ])
+
+      const sent = (modulationCCs?: boolean) =>
+        (
+          readMidiFile(
+            exportMidi(patch, {
+              ...everything,
+              voices: [],
+              ccs: [{ cc: 1, channel: 1 }],
+              modulationCCs,
+            }),
+          ).tracks.at(-1)?.events ?? []
+        ).map(({ tick, data }) => [tick, data[2]])
+      // in, unless asked to leave it out: step 2's envelope sends 10
+      expect(sent()).toContainEqual([480, 10])
+      expect(sent(true)).toEqual(sent())
+      expect(sent(false)).toEqual(
+        sent().filter(([tick, value]) => !(tick === 480 && value === 10)),
+      )
+      expect(sent(false).length).toBeGreaterThan(0)
+    })
   })
 
   it("puts everything on one track when asked", () => {

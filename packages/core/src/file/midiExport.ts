@@ -1,9 +1,16 @@
 import { Engine } from "../engine/Engine"
 import { EngineEvent } from "../engine/events"
-import { playableSteps, stepCount } from "../engine/loopRange"
+import { playableSteps, stepCount, viewIndex } from "../engine/loopRange"
 import { stepEvents } from "../engine/stepPreview"
+import { modulationForCC, stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
-import { ModSource, PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
+import {
+  ModSource,
+  ModulationTarget,
+  PatchJSON,
+  StepIndex,
+  VoiceIndex,
+} from "../entities/types"
 import {
   controlChange,
   MIDI_FILE_PPQ,
@@ -35,6 +42,9 @@ export interface MidiExportOptions {
   // the controllers that go in, from the steps' envelopes and the mod
   // outputs; with a track per voice they have a track of their own
   ccs: readonly ExportCC[]
+  // whether the envelopes whose CC drives a modulated setting go in with
+  // them; they do unless this is false
+  modulationCCs?: boolean
   layout: ExportLayout
   // how many times through the sequence
   passes: number
@@ -50,6 +60,8 @@ export interface SequenceCC extends ExportCC {
   steps: StepIndex[]
   // the mod outputs sending it
   mods: ModSource[]
+  // the setting those envelopes drive, if they drive one
+  modulation?: ModulationTarget
 }
 
 const ccKey = ({ cc, channel }: ExportCC) => `${channel}:${cc}`
@@ -62,6 +74,7 @@ const MOD_CHANNEL = 1
  * CCs of the steps' envelopes, and of the mod outputs that are on, which
  * send on channel 1 as every step lands. One the steps and a mod output
  * share is listed once. Given `only`, just those steps' envelopes count.
+ * Envelopes whose CC drives a setting are marked with it.
  */
 export const sequenceCCs = (
   patch: PatchJSON,
@@ -91,18 +104,33 @@ export const sequenceCCs = (
       entry(mod.cc, MOD_CHANNEL).mods.push(mod.source)
     }
   }
-  return [...found.values()].sort(
-    (a, b) => a.channel - b.channel || a.cc - b.cc,
-  )
+  return [...found.values()]
+    .map((each) => {
+      const modulation =
+        each.steps.length === 0 ? undefined : modulationForCC(patch, each.cc)
+      return modulation === undefined
+        ? each
+        : { ...each, modulation: modulation.target }
+    })
+    .sort((a, b) => a.channel - b.channel || a.cc - b.cc)
 }
 
 /** Steps in one pass through the sequence: those its loop plays. */
 export const passSteps = (patch: PatchJSON): number =>
   playableSteps(patch, false).length
 
-/** How long an export runs, in beats. */
+/**
+ * How long an export runs, in beats: each pass every step its loop plays,
+ * each as long as its pace.
+ */
 export const exportBeats = (patch: PatchJSON, passes: number): number =>
-  passes * passSteps(patch) * paceBeats(patch.pace)
+  passes *
+  playableSteps(patch, false).reduce(
+    (beats, position) =>
+      beats +
+      paceBeats(stepPace(patch, viewIndex(position, patch.size, false))),
+    0,
+  )
 
 // just short of a beat, so a render stops before whatever falls on it
 const BEAT_EPSILON = 1e-9
@@ -117,15 +145,16 @@ export const renderSequence = (
   patch: PatchJSON,
   { passes, seed = 1, accentAmount }: MidiExportOptions,
 ): EngineEvent[] => {
-  const stepBeats = paceBeats(patch.pace)
   const steps = passes * passSteps(patch)
   const engine = new Engine(patch, { seed, accentAmount })
   engine.start(0)
   const events: EngineEvent[] = []
-  for (let step = 1; step <= steps; step++) {
-    events.push(...engine.render(step * stepBeats - BEAT_EPSILON))
+  for (let step = 0; step < steps; step++) {
+    // the landing, which settles how long the step lasts, then the rest
+    events.push(...engine.render(engine.nextStepBeat))
+    events.push(...engine.render(engine.nextStepBeat - BEAT_EPSILON))
   }
-  events.push(...engine.stop(steps * stepBeats))
+  events.push(...engine.stop(engine.nextStepBeat))
   return events
 }
 
@@ -181,7 +210,8 @@ const ccPart = (
 /**
  * Played events as a type 1 MIDI file: the tempo, then the chosen voices,
  * each on a track of its own followed by a track of the chosen CCs, or all
- * of it together on one track named `name`.
+ * of it together on one track named `name`. The CCs driving settings are
+ * left out if they are to be.
  */
 const midiFrom = (
   patch: PatchJSON,
@@ -190,7 +220,13 @@ const midiFrom = (
   name: string,
 ): Uint8Array<ArrayBuffer> => {
   const voices = [...options.voices].sort((a, b) => a - b)
-  const ccs = options.ccs.length > 0 ? ccPart(options.ccs, events) : null
+  const sent =
+    options.modulationCCs === false
+      ? events.filter(
+          (event) => event.type !== "cc" || event.source !== "modulation",
+        )
+      : events
+  const ccs = options.ccs.length > 0 ? ccPart(options.ccs, sent) : null
   const tracks: MidiFileTrack[] =
     options.layout === "combined"
       ? [

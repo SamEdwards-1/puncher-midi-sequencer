@@ -1,3 +1,4 @@
+import { stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
 import { PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
 import { Engine } from "./Engine"
@@ -121,7 +122,7 @@ const alone = (
   step: StepIndex,
   options: { seed: number; accentAmount?: number },
 ): StepWindow => {
-  const length = paceBeats(patch.pace)
+  const length = paceBeats(stepPace(patch, step))
   const engine = new Engine(oneStepPatch(patch, step), options)
   engine.start(0)
   return {
@@ -149,13 +150,15 @@ const landing = (
     return alone(patch, step, options)
   }
 
-  const length = paceBeats(patch.pace)
   const engine = new Engine(patch, options)
   engine.start(0)
   const searched = SEARCH_PASSES * stepCount(patch.size)
   for (let count = 0; count < searched; count++) {
-    const beat = count * length
-    const events = engine.render(beat + length - BEAT_EPSILON)
+    // the landing, which settles how long the step lasts, then the rest
+    const beat = engine.nextStepBeat
+    const events = engine.render(beat)
+    const length = engine.nextStepBeat - beat
+    events.push(...engine.render(beat + length - BEAT_EPSILON))
     const landed = events.find((event) => event.type === "step")
     if (landed?.type === "step" && landed.step === step) {
       return { events, beat, length, voiceDots: landed.voiceDots }

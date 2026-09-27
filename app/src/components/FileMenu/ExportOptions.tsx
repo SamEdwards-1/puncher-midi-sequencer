@@ -6,10 +6,12 @@ import {
   VoiceIndex,
 } from "@midiseq/core"
 import { CSSProperties, FC, ReactNode } from "react"
+import { exportsCC } from "../../actions/file"
 import { useExportSettings } from "../../hooks/useExportSettings"
 import { usePatch } from "../../hooks/usePatch"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { ccKey, MAX_EXPORT_PASSES } from "../../stores/ExportSettingsStore"
+import { modulationTargetLabel } from "../Modulation/labels"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
 import { Stepper } from "../ui/Stepper"
@@ -38,8 +40,9 @@ const Section: FC<{
  * through the sequence — edited straight into the export settings, so the
  * dialogs, Settings and dragging a step out all share them. A voice that is
  * off plays nothing, so it can't be ticked; the CCs are listed by number and
- * channel, with All to tick or clear the lot. `after` sits below the
- * passes, for what they come to.
+ * channel, with All to tick or clear the lot. Those driving settings can be
+ * left out together, and can't be ticked while they are. `after` sits below
+ * the passes, for what they come to.
  */
 export const ExportOptions: FC<{
   ccs: SequenceCC[]
@@ -50,14 +53,23 @@ export const ExportOptions: FC<{
   const settings = useExportSettings()
   const localized = useLocalization()
   const excluded = new Set(settings.excludedCCs)
-  const chosen = ccs.filter((each) => !excluded.has(ccKey(each)))
-  const all = ccs.length > 0 && chosen.length === ccs.length
+  // a CC driving a setting, and nothing else, while those are left out
+  const leftOut = (each: SequenceCC) =>
+    !settings.modulationCCs &&
+    each.modulation !== undefined &&
+    each.mods.length === 0
+  const open = ccs.filter((each) => !leftOut(each))
+  const chosen = ccs.filter((each) => exportsCC(settings, each))
+  const all = open.length > 0 && chosen.length === open.length
+  const modulating = ccs.some((each) => each.modulation !== undefined)
 
-  // what a CC is and what sends it: its name, then the steps with an
-  // envelope for it and the mod outputs sending it
-  const describeCC = ({ cc, steps, mods }: SequenceCC) =>
-    [
-      CC_NAMES[cc] === undefined || CC_NAMES[cc] === "Undefined"
+  // What a CC is and what sends it: the setting it drives, or its name,
+  // then the steps with an envelope for it and the mod outputs sending it.
+  const describeCC = ({ cc, steps, mods, modulation }: SequenceCC) => {
+    const rest = [
+      modulation !== undefined ||
+      CC_NAMES[cc] === undefined ||
+      CC_NAMES[cc] === "Undefined"
         ? null
         : CC_NAMES[cc],
       steps.length === 0
@@ -67,9 +79,18 @@ export const ExportOptions: FC<{
         (source) =>
           `${localized["sequencer-export-mod"]} ${localized[`sequencer-mod-${source}`]}`,
       ),
-    ]
-      .filter((part) => part !== null)
-      .join(" · ")
+    ].filter((part) => part !== null)
+    return modulation === undefined ? (
+      rest.join(" · ")
+    ) : (
+      <>
+        <span className="text-envelope">
+          {modulationTargetLabel(modulation, localized)}
+        </span>
+        {rest.map((part) => ` · ${part}`).join("")}
+      </>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4 text-body text-fg-secondary">
@@ -110,7 +131,8 @@ export const ExportOptions: FC<{
               label={localized["sequencer-export-all-ccs"]}
               checked={all}
               mixed={!all && chosen.length > 0}
-              onChange={() => settings.setCCs(ccs, !all)}
+              disabled={open.length === 0}
+              onChange={() => settings.setCCs(open, !all)}
             />
           )
         }
@@ -128,12 +150,21 @@ export const ExportOptions: FC<{
               <Checkbox
                 key={ccKey(each)}
                 label={`CC ${each.cc} · ${localized["sequencer-step-cc-channel-short"]} ${each.channel}`}
-                checked={!excluded.has(ccKey(each))}
+                checked={!leftOut(each) && !excluded.has(ccKey(each))}
+                disabled={leftOut(each)}
                 note={describeCC(each)}
                 onChange={(on) => settings.setCC(each, on)}
               />
             ))}
           </fieldset>
+        )}
+        {modulating && (
+          <Checkbox
+            label={localized["sequencer-export-modulation-ccs"]}
+            note={localized["sequencer-export-modulation-ccs-note"]}
+            checked={settings.modulationCCs}
+            onChange={settings.setModulationCCs}
+          />
         )}
       </Section>
 

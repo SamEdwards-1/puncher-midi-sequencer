@@ -62,6 +62,15 @@ export function useSelectedLane() {
   return useAtom(selectedLaneAtom)
 }
 
+// Asks for the envelope editor to be brought into view: set when a lane is
+// opened from elsewhere — a setting's modulation — and cleared once the
+// editor has been shown, which may wait for its pane to be chosen.
+const revealEnvelopeAtom = atom(false)
+
+export function useRevealEnvelope() {
+  return useAtom(revealEnvelopeAtom)
+}
+
 // Which settings pane the right-hand column shows when the window is too
 // narrow for the sequencer's own column.
 // The tab open where panes share a column: in one column the grid is a

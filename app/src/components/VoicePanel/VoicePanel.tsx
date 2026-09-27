@@ -3,6 +3,7 @@ import {
   dotsPerStep,
   GM_PROGRAMS,
   MAX_PATTERN_LENGTH,
+  modulatedVoice,
   NoteCollision,
   noteCollisions,
   noteNumberToName,
@@ -12,9 +13,14 @@ import {
   PatternStepJSON,
   playedVelocity,
   previewStep,
+  scaleless,
   shownAccent,
+  stepPace,
+  VOICE_RULES,
   VoiceIndex,
   VoiceRule,
+  VoiceSetting,
+  viewIndex,
 } from "@midiseq/core"
 import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
 import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
@@ -24,6 +30,7 @@ import { CSSProperties, FC, ReactNode, useMemo, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { useActions } from "../../hooks/useActions"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import {
@@ -34,6 +41,8 @@ import {
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
+import { RULE_LABELS } from "../Modulation/labels"
+import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect } from "../Scale/ScalePicker"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -58,21 +67,6 @@ const TAIL =
 // a condition is otherwise invisible, so it marks the corner
 const CONDITION_MARK =
   "after:absolute after:top-[-0.1rem] after:right-[-0.1rem] after:h-[0.3rem] after:w-[0.3rem] after:rounded-full after:bg-yellow after:content-['']"
-
-const RULES: { value: VoiceRule; label: string }[] = [
-  { value: "nth", label: "Nth" },
-  { value: "lowest", label: "Lowest" },
-  { value: "highest", label: "Highest" },
-  { value: "random", label: "Random" },
-  { value: "up", label: "Up" },
-  { value: "down", label: "Down" },
-  { value: "updown", label: "Up / Down" },
-  { value: "downup", label: "Down / Up" },
-  { value: "updown+", label: "Up / Down +" },
-  { value: "downup+", label: "Down / Up +" },
-  { value: "rise", label: "Rise" },
-  { value: "fall", label: "Fall" },
-]
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
 
@@ -175,6 +169,9 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   const playsBuiltIn =
     outputNames.all.includes(BUILTIN_OUTPUT) ||
     outputNames.voices[selected] === BUILTIN_OUTPUT
+  // a setting of the voice's that a CC can drive
+  const target = (setting: VoiceSetting) =>
+    ({ kind: "voice", voice: selected, setting }) as const
 
   return (
     <Panel
@@ -219,72 +216,97 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-pace"]}>
-          <Select
-            value={voice.pace}
-            onChange={(event) =>
-              editVoice(selected, { pace: event.target.value as PaceId })
-            }
-          >
-            {PACES.map((pace) => (
-              <option key={pace} value={pace}>
-                {PACE_LABELS[pace]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-pace"]}
+          target={target("pace")}
+        >
+          {(shown) => (
+            <Select
+              value={shown(voice.pace)}
+              onChange={(event) =>
+                editVoice(selected, { pace: event.target.value as PaceId })
+              }
+            >
+              {PACES.map((pace) => (
+                <option key={pace} value={pace}>
+                  {PACE_LABELS[pace]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ModulatedField>
 
-        <Field label={localized["sequencer-voice-length"]}>
-          <Slider
-            min={10}
-            max={100}
-            step={5}
-            value={Math.round(voice.length * 100)}
-            aria-label={localized["sequencer-voice-length"]}
-            onChange={(event) =>
-              editVoice(
-                selected,
-                { length: Number(event.target.value) / 100 },
-                `length-${selected}`,
-              )
-            }
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-voice-length"]}
+          target={target("length")}
+        >
+          {(shown) => (
+            <Slider
+              min={10}
+              max={100}
+              step={5}
+              value={Math.round(shown(voice.length) * 100)}
+              aria-label={localized["sequencer-voice-length"]}
+              onChange={(event) =>
+                editVoice(
+                  selected,
+                  { length: Number(event.target.value) / 100 },
+                  `length-${selected}`,
+                )
+              }
+            />
+          )}
+        </ModulatedField>
 
-        <Field label={localized["sequencer-voice-rule"]}>
-          <Select
-            value={voice.rule}
-            onChange={(event) =>
-              editVoice(selected, { rule: event.target.value as VoiceRule })
-            }
-          >
-            {RULES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-voice-rule"]}
+          target={target("rule")}
+        >
+          {(shown) => (
+            <Select
+              value={shown(voice.rule)}
+              onChange={(event) =>
+                editVoice(selected, { rule: event.target.value as VoiceRule })
+              }
+            >
+              {VOICE_RULES.map((rule) => (
+                <option key={rule} value={rule}>
+                  {RULE_LABELS[rule]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ModulatedField>
 
-        <Field label={localized["sequencer-voice-offset"]}>
-          <Stepper
-            label={localized["sequencer-voice-offset"]}
-            value={voice.offset}
-            min={-24}
-            max={24}
-            onChange={(offset) =>
-              editVoice(selected, { offset }, `offset-${selected}`)
-            }
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-voice-offset"]}
+          target={target("offset")}
+        >
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-voice-offset"]}
+              value={shown(voice.offset)}
+              min={-24}
+              max={24}
+              onChange={(offset) =>
+                editVoice(selected, { offset }, `offset-${selected}`)
+              }
+            />
+          )}
+        </ModulatedField>
 
-        <Field label={localized["sequencer-voice-offset-fit"]}>
-          <FitSelect
-            value={voice.offsetFit}
-            scale={patch.scale}
-            onChange={(offsetFit) => editVoice(selected, { offsetFit })}
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-voice-offset-fit"]}
+          target={target("offsetFit")}
+        >
+          {(shown) => (
+            <FitSelect
+              value={shown(voice.offsetFit)}
+              disabled={scaleless(patch)}
+              onChange={(offsetFit) => editVoice(selected, { offsetFit })}
+            />
+          )}
+        </ModulatedField>
 
         <Field label={localized["sequencer-voice-velocity"]}>
           <Stepper
@@ -327,17 +349,22 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           </Field>
         )}
 
-        <Field label={localized["sequencer-voice-pattern-length"]}>
-          <Stepper
-            label={localized["sequencer-voice-pattern-length"]}
-            value={voice.patternLength}
-            min={1}
-            max={MAX_PATTERN_LENGTH}
-            onChange={(patternLength) =>
-              editVoice(selected, { patternLength }, `pattern-${selected}`)
-            }
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-voice-pattern-length"]}
+          target={target("patternLength")}
+        >
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-voice-pattern-length"]}
+              value={shown(voice.patternLength)}
+              min={1}
+              max={MAX_PATTERN_LENGTH}
+              onChange={(patternLength) =>
+                editVoice(selected, { patternLength }, `pattern-${selected}`)
+              }
+            />
+          )}
+        </ModulatedField>
       </Fields>
 
       <Patterns selected={selected} onSelect={setSelected} />
@@ -379,10 +406,17 @@ const Patterns: FC<{
   const { player } = useStores()
   const voiceDots = useMobxGetter(player, "voiceDots")
   const playingDots = useMobxGetter(player, "playingDots")
+  const position = useMobxGetter(player, "position")
+  const { actions } = useActions()
   const { togglePatternDot } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
   const [, setLane] = useSelectedLane()
   const [step] = useSelectedStep()
+  // the step the bands are for: the one playing, or the one in the editor
+  const bandStep =
+    voiceDots !== null && position !== null
+      ? viewIndex(position, patch.size, actions.flip)
+      : step
 
   // The step in the editor as the sequence reaches it — which dots each
   // voice has come round to by then, and what they play — and the voices
@@ -434,11 +468,18 @@ const Patterns: FC<{
         // The dots the voice reaches while the sequencer sits on one step:
         // from the dot it is on when the step playing sounds, or stopped,
         // from the one it will have come round to by the step in the editor.
-        const reach = dotsPerStep(patch.pace, voice.pace, voice.patternLength)
+        // The step may modulate its own length, and the voice's pace and
+        // pattern, as it lands.
+        const landed = modulatedVoice(patch, voiceIndex, bandStep, 0)
+        const reach = dotsPerStep(
+          stepPace(patch, bandStep),
+          landed.pace,
+          landed.patternLength,
+        )
         const runs = bands(
           (voiceDots ?? preview.voiceDots)[voiceIndex] ?? 0,
           reach,
-          voice.patternLength,
+          landed.patternLength,
         )
         const reached = (dotIndex: number) =>
           runs.some(

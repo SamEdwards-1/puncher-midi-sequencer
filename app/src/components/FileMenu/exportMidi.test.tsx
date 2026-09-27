@@ -192,6 +192,44 @@ describe("exporting MIDI", () => {
     expect(holds(bytes, [0xb1, 74, 90])).toBe(true)
   })
 
+  it("names the setting a CC drives, and leaves all those out from one box", async () => {
+    // no box for them until the sequence has one
+    expect(
+      dialog().queryByRole("checkbox", { name: "Modulation CCs" }),
+    ).toBeNull()
+    fireEvent.click(dialog().getByRole("button", { name: "Cancel" }))
+    act(() => {
+      rootStore.sequencerStore.patch = {
+        ...rootStore.sequencerStore.patch,
+        modulations: [
+          {
+            target: { kind: "voice", voice: 0, setting: "offset" },
+            cc: 1,
+            from: 0,
+            to: 12,
+          },
+        ],
+      }
+    })
+    fireEvent.click(fileItem("Export MIDI…"))
+    expect(dialog().getByText("Voice 1 · Offset")).toBeInTheDocument()
+
+    const modulation = box("Modulation CCs")
+    expect(modulation).toBeChecked()
+    fireEvent.click(modulation)
+    expect(box("CC 1 · ch 1")).not.toBeChecked()
+    expect(box("CC 1 · ch 1")).toBeDisabled()
+    // All is about the rest
+    expect(box("All CCs")).toBeChecked()
+    expect(rootStore.exportSettings.modulationCCs).toBe(false)
+
+    fireEvent.click(dialog().getByRole("button", { name: "Export" }))
+    await waitFor(() => expect(saving.written).toHaveLength(1))
+    const bytes = saving.written[0] as Uint8Array
+    expect(holds(bytes, [0xb0, 1, 10])).toBe(false)
+    expect(holds(bytes, [0xb1, 74, 90])).toBe(true)
+  })
+
   it("needs something to export", () => {
     fireEvent.click(box("Voice 1"))
     fireEvent.click(box("Voice 3"))

@@ -340,13 +340,15 @@
     background: var(--midiseq-background-secondary);
   }
 
+  /* the thumb takes another colour where a field says, as a modulated one
+     does while it shows a step's value */
   .slider::-webkit-slider-thumb {
     appearance: none;
     margin-top: -0.35rem;
     width: 0.9rem;
     height: 0.9rem;
     border-radius: 50%;
-    background: var(--midiseq-fg);
+    background: var(--midiseq-slider-thumb, var(--midiseq-fg));
   }
 
   .slider::-moz-range-track {
@@ -360,7 +362,7 @@
     height: 0.9rem;
     border: none;
     border-radius: 50%;
-    background: var(--midiseq-fg);
+    background: var(--midiseq-slider-thumb, var(--midiseq-fg));
   }
 
   .slider:focus-visible {

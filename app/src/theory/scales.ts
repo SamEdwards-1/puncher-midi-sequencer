@@ -3,6 +3,7 @@ import {
   noteNumberToName,
   ScaleFit,
   ScaleJSON,
+  SEQUENCER_SCALES,
 } from "@midiseq/core"
 import { detectKey, SCALE_DEFINITIONS, scalesContaining } from "musictheoryjs"
 
@@ -66,6 +67,15 @@ export const SCALE_CHOICES: ScaleChoice[] = SCALE_DEFINITIONS.filter(
       (b.common ? COMMON.indexOf(b.name) : COMMON.length),
   )
 
+/**
+ * The scales the sequencer's own Scale field offers: few enough that a CC
+ * modulating it can reach each one at every tonic.
+ */
+export const SEQUENCER_SCALE_CHOICES: ScaleChoice[] = SEQUENCER_SCALES.map(
+  ({ name }) =>
+    SCALE_CHOICES.find((choice) => choice.name === name) as ScaleChoice,
+)
+
 const choiceOf = (name: string) =>
   SCALE_CHOICES.find((choice) => choice.name === name)
 
@@ -105,9 +115,13 @@ const GUESSES = 4
  * common ones before the rest, one holding just those notes before a wider
  * one, then the tonic key-finding (Krumhansl–Schmuckler, from MusicTheoryJS)
  * thinks likeliest, then the smallest. After them, the likeliest major and
- * minor keys, which fit whatever else by moving it.
+ * minor keys, which fit whatever else by moving it. Given `among`, only
+ * those scales are guessed.
  */
-export const guessScales = (weights: readonly number[]): ScaleGuess[] => {
+export const guessScales = (
+  weights: readonly number[],
+  among: readonly ScaleChoice[] = SCALE_CHOICES,
+): ScaleGuess[] => {
   const total = weights.reduce((sum, weight) => sum + weight, 0)
   if (total <= 0) {
     return []
@@ -128,7 +142,7 @@ export const guessScales = (weights: readonly number[]): ScaleGuess[] => {
     heard.map((pitch) => noteNumberToName(pitch + 60)),
   )
     .map((match) => ({ tonic: match.tonic.midi % 12, name: match.name }))
-    .filter(({ name }) => choiceOf(name) !== undefined)
+    .filter(({ name }) => among.some((choice) => choice.name === name))
     .map((guess) => {
       const choice = choiceOf(guess.name) as ScaleChoice
       return {
@@ -149,10 +163,10 @@ export const guessScales = (weights: readonly number[]): ScaleGuess[] => {
     )
     .map(({ guess }) => guess)
 
-  const byKey = keys.slice(0, GUESSES).map((key) => ({
-    tonic: key.tonic,
-    name: key.mode,
-  }))
+  const byKey = keys
+    .slice(0, GUESSES)
+    .map((key) => ({ tonic: key.tonic, name: key.mode }))
+    .filter(({ name }) => among.some((choice) => choice.name === name))
 
   const guesses: ScaleGuess[] = []
   for (const guess of [...containing, ...byKey]) {

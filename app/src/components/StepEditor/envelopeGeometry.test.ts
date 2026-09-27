@@ -1,4 +1,4 @@
-import { createDefaultPatch, setStepNotes } from "@midiseq/core"
+import { addEnvelope, createDefaultPatch, setStepNotes } from "@midiseq/core"
 import { describe, expect, it } from "vitest"
 import {
   areaPath,
@@ -144,6 +144,29 @@ describe("envelope geometry", () => {
     const all = pianoRows(patch, false)
     expect(all).toHaveLength(79 - 60 + 1)
     expect([all[0], all[all.length - 1]]).toEqual([79, 60])
+  })
+
+  it("reaches the offsets a step modulates a voice to, on that step alone", () => {
+    let patch = setStepNotes(createDefaultPatch(), 0, [60])
+    patch = setStepNotes(patch, 1, [62])
+    patch = addEnvelope(
+      {
+        ...patch,
+        modulations: [
+          {
+            target: { kind: "voice", voice: 0, setting: "offset" },
+            cc: 3,
+            from: 0,
+            to: 12,
+          },
+        ],
+      },
+      1,
+      { cc: 3, channel: 1, shape: "steps", points: [{ time: 0, value: 127 }] },
+    )
+    // step 2's D an octave up; step 1's C where it is
+    expect(patchNoteKeys(patch)).toEqual([60, 62, 74])
+    expect(Math.max(...patchNoteSpan(patch))).toBe(74)
   })
 
   it("keeps the whole range when there is nothing to collapse to", () => {

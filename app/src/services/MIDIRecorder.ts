@@ -7,12 +7,15 @@ import {
   envelopeShape,
   fitToScale,
   isControlPosition,
+  modulationForCC,
   nextEnvelopeId,
   paceBeats,
   paintPoints,
   StepIndex,
   simplifyPoints,
+  snapToModulation,
   stepCount,
+  stepPace,
   toBeatTimes,
   toStepTimes,
   updateEnvelope,
@@ -183,11 +186,15 @@ export class MIDIRecorder {
     this.written = null
   }
 
-  private recordCC({ cc, channel, value }: MIDICCMessage) {
+  private recordCC({ cc, channel, value: sent }: MIDICCMessage) {
     // commands and protocol, not a knob's position: nothing to draw
     if (!isControlPosition(cc)) {
       return
     }
+    // a knob on a CC that modulates a setting lands on the setting's values
+    const modulation = modulationForCC(this.sequencerStore.patch, cc)
+    const value =
+      modulation === undefined ? sent : snapToModulation(modulation, sent)
     const key = `${cc}/${channel}`
     const progress = this.progress()
     if (progress === null) {
@@ -269,7 +276,7 @@ export class MIDIRecorder {
             : index / last,
       value: each,
     }))
-    // across the step at the pace it has now, which it then keeps
+    // across the step as long as it is now, which it then keeps
     this.setPoints(
       step,
       collection.id,
@@ -277,7 +284,7 @@ export class MIDIRecorder {
         shape === "steps"
           ? dropRepeats(spread)
           : simplifyPoints(spread, RECORDED_TOLERANCE),
-        paceBeats(this.sequencerStore.patch.pace),
+        paceBeats(stepPace(this.sequencerStore.patch, step)),
       ),
     )
   }

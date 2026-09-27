@@ -133,6 +133,16 @@ export const CC_NAMES = [
 
 export const ccName = (cc: number): string => CC_NAMES[cc] ?? `CC ${cc}`
 
+/**
+ * The controllers MIDI gives no meaning, which no instrument is expected to
+ * answer: those left to a sender's own use. The fine halves of undefined
+ * controllers (35, 41, …) are left out, as they are only ever the second
+ * half of another.
+ */
+export const UNDEFINED_CCS: number[] = CC_NAMES.flatMap((name, cc) =>
+  name === "Undefined" || name === "Undefined (MSB)" ? [cc] : [],
+)
+
 // Bank select, data entry, data increment and decrement, NRPN and RPN.
 const PROTOCOL_CCS = new Set([0, 32, 6, 38, 96, 97, 98, 99, 100, 101])
 const FIRST_CHANNEL_MODE_CC = 120

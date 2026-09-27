@@ -84,4 +84,5 @@ export const createDefaultPatch = (): PatchJSON => ({
   steps: Array.from({ length: 64 }, createDefaultStep),
   voices: Array.from({ length: 4 }, (_, index) => createDefaultVoice(index)),
   modOuts: createDefaultModOuts(),
+  modulations: [],
 })
