@@ -305,6 +305,37 @@ it saves straight back to the file you opened. The title shows a dot while
 there are unsaved changes, and the working patch is kept in the browser every
 few seconds, so a crash doesn't lose it.
 
+## Agents
+
+midiseq offers itself to AI agents in the browser through
+[WebMCP](https://webmachinelearning.github.io/webmcp/), so an agent can read
+the sequence and write it while you watch: the steps, the voices, the
+sequencer's settings, the transport and the actions. What it changes shows as
+it lands, with the step or voice it changed selected, and each change it asks
+for is one entry in the undo history, like any of yours — **Edit → Undo**
+takes it back. Saving, opening, exporting and recording stay yours, as do the
+settings.
+
+WebMCP is new. Chrome has it behind `chrome://flags/#enable-webmcp-testing`,
+which is enough on localhost, and in an origin trial for a site that's
+deployed. Where the browser has no WebMCP, nothing is offered.
+
+| Tool | Does |
+|---|---|
+| `get_sequence` | reads it all: settings, voices and patterns, every step holding anything, the transport, the selection |
+| `set_steps` | notes, rests and skips, jumps and CC envelopes, on any number of steps at once |
+| `set_voices` | a voice's settings, its pattern and its dots' options |
+| `set_sequencer` | tempo, size, pace, direction, loop, scale and the rest of the Sequencer panel |
+| `play`, `stop` | the transport |
+| `set_actions` | Hold, Sync, Flip and Shift, on until turned off |
+| `select_step` | what a click on the grid does: shows the step, sounds it, or plays it next |
+| `undo`, `redo` | **Edit → Undo** and **Redo** |
+| `clear_sequence` | empties the steps and resets the voices |
+
+Steps, voices and dots are numbered from 1, as the app shows them, and notes
+are named, C4 being middle C. A call asking for something the app can't do
+changes nothing and says why, so the agent can put it right.
+
 ## Keyboard
 
 | Key | Does |

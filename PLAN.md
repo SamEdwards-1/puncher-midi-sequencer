@@ -218,6 +218,7 @@ app/
   hooks/ actions/ stores/ (RootStore, SequencerStore, MIDIDeviceStore)
   services/    SequencerPlayer, OutputRouter + AllOutDedupe, MIDIOutput/Input,
                MIDIRecorder, ClockIn/Out, AutoSave, IndexedDB, FileService
+  webmcp/      the tools an agent in the browser calls (§5.7)
 packages/core/
   entities/    types, paces, defaults, PatchSchema (zod), noteName
   engine/      Engine, direction, loopRange, jumpRules, voiceRules,
@@ -548,6 +549,51 @@ dragged (there is no time selection); and, with Sync Voices off, the piano
 roll still shows each voice
 from its first dot, where in play it carries on from wherever it was.
 
+## 5.7 Agents (WebMCP)
+
+[WebMCP](https://webmachinelearning.github.io/webmcp/) lets a page offer
+tools to an agent in the browser: each a name, a description, a JSON Schema
+for its input, and a function. midiseq registers eleven on
+`document.modelContext` while the editor is shown, and takes them away with
+it; a browser without WebMCP is offered nothing.
+
+**The app's own controls, not a second API.** A tool edits the patch as the
+UI does — a core command's result, with the old patch pushed onto the undo
+history first — so the edit shows at once, marks the file unsaved, and
+undoes in one step however much the call changed. A call that changes
+nothing leaves no entry. The step or voice edited is selected, as a click
+would select it, so the person sees the edit land.
+
+**Few tools, each a whole job.** Every tool costs the agent context, so
+they follow the patch's shape rather than its controls: one reads
+everything; `set_steps` changes any number of steps — notes, state, jump,
+envelopes — and `set_voices` any number of voices, dots included. The
+transport, the actions, selecting a step, undo, redo and clearing are tools
+of their own.
+
+**Numbered and named as the app shows them.** Steps, voices and dots count
+from 1; notes are names, though a MIDI number is taken too; paces and rules
+take their ids or their labels; a scale is "A minor". The agent shouldn't
+have to work out what the app can.
+
+**Strict, and saying why.** The browser checks nothing against the schemas,
+and tells an agent only that a tool failed, never why. So every field is
+checked here, one a tool doesn't take is refused rather than ignored, a call
+that can't be done whole changes nothing, and what went wrong comes back as
+the result, for the agent to read and put right. Null counts as left out,
+as some agents send every field. What the person wrote — the patch's name,
+its file's — is marked as content the page didn't write.
+
+**Heard or not.** A page's audio starts only from a click or key press, and
+an agent calling `play` is neither, so its result says when the built-in
+synth is waiting for one, as it says when nothing is routed at all.
+
+**What is not offered:** saving, opening and exporting, which need a file
+picker and so a person's click; recording, which needs something to play;
+the settings, which describe the rig rather than the music; and making a
+modulation — an agent sees one, and what its envelopes stand for, but
+can't yet add one.
+
 ## 6. Decisions
 
 | Topic | Decision |
@@ -562,3 +608,4 @@ from its first dot, where in play it carries on from wherever it was.
 | Built-in synth | A SoundFont synth, voiced the way Signal voices tracks, so the app plays on its own (§5.1). MIDI output stays primary |
 | Styling | Tailwind, though Signal uses Emotion. Utilities over the theme's CSS variables, with Preflight left out so the Signal tab stays safe (§5.2) |
 | Themes | Custom themes are authored from a few seeds and derived in OKLCH. They live with the settings, never in the patch file (§5.3) |
+| Agents | WebMCP tools that act as the UI does: each call one undo, numbered from 1, refused whole with a reason (§5.7) |

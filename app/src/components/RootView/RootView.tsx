@@ -3,6 +3,7 @@ import { useSelectedVoiceSync } from "../../hooks/useActions"
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { useScrollingMark } from "../../hooks/useScrollingMark"
 import { useStores } from "../../hooks/useStores"
+import { useWebMCP } from "../../hooks/useWebMCP"
 import { SequencerEditor } from "../SequencerEditor/SequencerEditor"
 import { SequencerProvider } from "../SequencerEditor/SequencerProvider"
 
@@ -12,6 +13,7 @@ export const RootView: FC = () => {
   useKeyboardShortcuts()
   useScrollingMark()
   useSelectedVoiceSync()
+  useWebMCP()
 
   // warns before closing with work that hasn't been saved to a file
   useEffect(() => {
