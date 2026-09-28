@@ -99,6 +99,7 @@ export const GRIDS = [
   { beats: 1 / 6, label: "1/16T" },
 ]
 
+// the graph's own height; the column it scrolls in may give it more
 export const GRAPH_HEIGHT = 240
 const PAD = 6
 // before the graph has been measured, and in tests
@@ -235,11 +236,15 @@ const axisStops = (
  * A CC that modulates a setting reads down the right as the setting's
  * values, and its points snap to them, Alt or not; a dashed line marks the
  * setting's own value, which a step without the envelope plays.
+ *
+ * `height` is the roll's, below the ruler; taller, its rows and values are
+ * spread further apart.
  */
 export const EnvelopeGraph: FC<{
   step: number
   lane: GraphLane
-}> = ({ step, lane }) => {
+  height?: number
+}> = ({ step, lane, height = GRAPH_HEIGHT }) => {
   const patch = usePatch()
   const { sequencerStore } = useStores()
   const beginGesture = usePatchGesture()
@@ -256,7 +261,7 @@ export const EnvelopeGraph: FC<{
   // the time the ruler was pressed on, ruled through the roll while it drags
   const [mark, setMark] = useState<number | null>(null)
   const viewLength = view.end - view.start
-  const plot: Plot = { width, height: GRAPH_HEIGHT, pad: PAD, view }
+  const plot: Plot = { width, height, pad: PAD, view }
   const [hover, setHover] = useState<{
     point: number | null
     segment: number | null
@@ -331,11 +336,11 @@ export const EnvelopeGraph: FC<{
     () => new Map(rows.map((note, index) => [note, index])),
     [rows],
   )
-  const keyHeight = (GRAPH_HEIGHT - 2 * PAD) / rows.length
+  const keyHeight = (height - 2 * PAD) / rows.length
   const keyY = (note: number) => PAD + (rowOf.get(note) ?? 0) * keyHeight
   // the envelope's line; a velocity lane has lollipops instead
   const points: EnvelopePointJSON[] = envelopePoints
-  const span = { x: width - 2 * PAD, y: GRAPH_HEIGHT - 2 * PAD }
+  const span = { x: width - 2 * PAD, y: height - 2 * PAD }
 
   // Lines as close as the grid allows; failing that beats, failing that bars.
   const lineGap = (beats: number) => (beats / stepBeats / viewLength) * span.x
@@ -783,7 +788,7 @@ export const EnvelopeGraph: FC<{
           rows={rows}
           collapsed={collapsed}
           scale={patch.scale}
-          height={GRAPH_HEIGHT}
+          height={height}
           pad={PAD}
         />
       </div>
@@ -810,7 +815,7 @@ export const EnvelopeGraph: FC<{
             ref={svg}
             data-keys={`${rows[rows.length - 1]}-${rows[0]}`}
             width={width}
-            height={GRAPH_HEIGHT}
+            height={height}
             className="block select-none"
             style={{ cursor }}
             onMouseDown={onMouseDown}
@@ -823,7 +828,7 @@ export const EnvelopeGraph: FC<{
             <title>{localized["sequencer-envelope"]}</title>
             <rect
               width={width}
-              height={GRAPH_HEIGHT}
+              height={height}
               fill="var(--midiseq-editor-background)"
             />
 
@@ -851,7 +856,7 @@ export const EnvelopeGraph: FC<{
                 x={toX(plot, from)}
                 y={0}
                 width={Math.max(0, toX(plot, to) - toX(plot, from))}
-                height={GRAPH_HEIGHT}
+                height={height}
                 fill="var(--midiseq-roll-band)"
               />
             ))}
@@ -862,7 +867,7 @@ export const EnvelopeGraph: FC<{
                 x1={toX(plot, time)}
                 x2={toX(plot, time)}
                 y1={0}
-                y2={GRAPH_HEIGHT}
+                y2={height}
                 stroke={
                   onBeat(time)
                     ? "var(--midiseq-editor-grid)"
@@ -1031,7 +1036,7 @@ export const EnvelopeGraph: FC<{
                 x1={toX(plot, mark)}
                 x2={toX(plot, mark)}
                 y1={0}
-                y2={GRAPH_HEIGHT}
+                y2={height}
                 stroke="var(--midiseq-fg)"
                 strokeOpacity={0.7}
                 pointerEvents="none"
@@ -1069,7 +1074,7 @@ export const EnvelopeGraph: FC<{
 
             <text
               x={width - PAD - 2}
-              y={GRAPH_HEIGHT - PAD - 2}
+              y={height - PAD - 2}
               textAnchor="end"
               fontSize={11}
               fill="var(--midiseq-fg-secondary)"
@@ -1088,7 +1093,7 @@ export const EnvelopeGraph: FC<{
         className="relative flex-none font-mono text-micro"
         style={{
           width: axisWidth,
-          height: GRAPH_HEIGHT,
+          height,
           marginTop: RULER_HEIGHT,
           color:
             lane.kind === "velocity"

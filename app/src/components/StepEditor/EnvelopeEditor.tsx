@@ -31,6 +31,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeGraph, GRIDS } from "./EnvelopeGraph"
+import { Column, useGraphHeight } from "./graphHeight"
 import { LaneTab, LaneTabs } from "./LaneTabs"
 
 const VOICES: VoiceIndex[] = [0, 1, 2, 3]
@@ -68,8 +69,15 @@ const sameLane = (a: EnvelopeLane, b: EnvelopeLane) =>
  * for each note it plays, over the other voices' dimmed —
  * and every CC on the step has a tab holding its envelope. The row above the graph sets the lane's
  * channel: the voice's own, shared with the Voices panel, or the CC's.
+ *
+ * Last in the `column`, it keeps room below it to grow into: scrolled on
+ * once it is all in view, its graph grows, keeping the editor's bottom at
+ * the window's, until the step editor above it is under the grid.
  */
-export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
+export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
+  step: stepIndex,
+  column,
+}) => {
   const patch = usePatch()
   const step = patch.steps[stepIndex]
   const [selected, setSelected] = useSelectedLane()
@@ -108,6 +116,7 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
       editor.current?.scrollIntoView?.({ block: "nearest" })
     }
   }, [reveal, setReveal])
+  const graphHeight = useGraphHeight(editor, column)
 
   // The lane left open stays open from step to step. A CC the step has no
   // envelope for is shown empty, ready to be drawn into, rather than
@@ -199,203 +208,217 @@ export const EnvelopeEditor: FC<{ step: number }> = ({ step: stepIndex }) => {
   ]
 
   return (
-    <div ref={editor} className="flex flex-col gap-2" data-envelope-editor>
-      {/* the page's gutter is the header's own, so its title lines up with the
-          step editor's */}
-      <PanelHeader as="div" className="-mx-4 flex items-center gap-2">
-        <span className="grow">
-          <Localized name="sequencer-step-ccs" />
-        </span>
-      </PanelHeader>
+    // Room to grow into: as tall as the column's view, so the column scrolls
+    // on until the editor fills it. The editor itself, with the gutter below
+    // it, is only as tall as its graph makes it.
+    <div style={{ minHeight: column?.view }}>
+      <div
+        ref={editor}
+        className="flex flex-col gap-2 pb-4"
+        data-envelope-editor
+      >
+        {/* the page's gutter is the header's own, so its title lines up
+            with the step editor's */}
+        <PanelHeader as="div" className="-mx-4 flex items-center gap-2">
+          <span className="grow">
+            <Localized name="sequencer-step-ccs" />
+          </span>
+        </PanelHeader>
 
-      <LaneTabs
-        label={localized["sequencer-step-ccs"]}
-        tabs={tabs.map(({ lane: _, ...tab }) => tab)}
-        open={tabs.findIndex((tab) => sameLane(lane, tab.lane))}
-        onSelect={(index) => setSelected(tabs[index].lane)}
-        onAdd={add}
-        addLabel={localized["sequencer-step-add-cc"]}
-      />
+        <LaneTabs
+          label={localized["sequencer-step-ccs"]}
+          tabs={tabs.map(({ lane: _, ...tab }) => tab)}
+          open={tabs.findIndex((tab) => sameLane(lane, tab.lane))}
+          onSelect={(index) => setSelected(tabs[index].lane)}
+          onAdd={add}
+          addLabel={localized["sequencer-step-add-cc"]}
+        />
 
-      {lane.kind === "velocity" && (
-        <div className="flex items-end gap-2">
-          {/* a note's velocity goes out with the note, on its voice's
+        {lane.kind === "velocity" && (
+          <div className="flex items-end gap-2">
+            {/* a note's velocity goes out with the note, on its voice's
               channel, so the lane has no channel of its own: just the
               voice's velocity, shared with the Voices panel */}
-          <div className="w-40 flex-none">
-            <Labelled label={localized["sequencer-voice-velocity"]}>
+            <div className="w-40 flex-none">
+              <Labelled label={localized["sequencer-voice-velocity"]}>
+                <Stepper
+                  label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${localized["sequencer-voice-velocity"].toLowerCase()}`}
+                  value={patch.voices[lane.voice].velocity}
+                  min={1}
+                  max={127}
+                  parse={parseNumber}
+                  onChange={(velocity) =>
+                    editVoice(
+                      lane.voice,
+                      { velocity },
+                      `velocity-${lane.voice}`,
+                    )
+                  }
+                />
+              </Labelled>
+            </div>
+            <div
+              className="flex min-w-0 flex-1 items-center gap-[0.35rem] truncate pb-[0.35rem] text-small text-fg-secondary"
+              style={voiceColor(lane.voice)}
+            >
+              <span
+                aria-hidden
+                className="h-2 w-2 flex-none rounded-full bg-voice"
+              />
+              {localized["sequencer-voice"]} {lane.voice + 1} ·{" "}
+              {localized["sequencer-dot-accent"]} ±{accentAmount}
+              {!patch.voices[lane.voice].enabled && (
+                <span className="text-fg-tertiary">
+                  (<Localized name="sequencer-velocity-voice-off" />)
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {lane.kind === "cc" && (
+          <div className="flex items-end gap-2">
+            <Labelled label={localized["sequencer-step-cc"]}>
               <Stepper
-                label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${localized["sequencer-voice-velocity"].toLowerCase()}`}
-                value={patch.voices[lane.voice].velocity}
-                min={1}
+                label={localized["sequencer-envelope-cc-number"]}
+                value={lane.cc}
+                min={0}
                 max={127}
                 parse={parseNumber}
-                onChange={(velocity) =>
-                  editVoice(lane.voice, { velocity }, `velocity-${lane.voice}`)
-                }
+                onChange={(cc) => setLane(cc, lane.channel)}
               />
             </Labelled>
-          </div>
-          <div
-            className="flex min-w-0 flex-1 items-center gap-[0.35rem] truncate pb-[0.35rem] text-small text-fg-secondary"
-            style={voiceColor(lane.voice)}
-          >
-            <span
-              aria-hidden
-              className="h-2 w-2 flex-none rounded-full bg-voice"
-            />
-            {localized["sequencer-voice"]} {lane.voice + 1} ·{" "}
-            {localized["sequencer-dot-accent"]} ±{accentAmount}
-            {!patch.voices[lane.voice].enabled && (
-              <span className="text-fg-tertiary">
-                (<Localized name="sequencer-velocity-voice-off" />)
-              </span>
+            <div
+              className="min-w-0 flex-1 truncate pb-[0.35rem] text-small text-fg-secondary"
+              title={CC_NAMES[lane.cc]}
+              data-lane-name
+            >
+              {modulation === undefined ? (
+                CC_NAMES[lane.cc]
+              ) : (
+                <span className="text-envelope">
+                  <Localized name="sequencer-modulation-modulates" />{" "}
+                  {modulationTargetLabel(modulation.target, localized)}
+                </span>
+              )}
+              {envelope === null && (
+                <span className="text-fg-tertiary">
+                  {" "}
+                  (<Localized name="sequencer-envelope-not-on-step" />)
+                </span>
+              )}
+            </div>
+            <Labelled label={channelLabel}>
+              <Stepper
+                label={localized["sequencer-envelope-cc-channel"]}
+                value={lane.channel}
+                min={1}
+                max={16}
+                parse={parseNumber}
+                onChange={(channel) => setLane(lane.cc, channel)}
+              />
+            </Labelled>
+            {envelope !== null && (
+              <IconButton
+                aria-label={localized["sequencer-step-remove-cc"]}
+                title={removes}
+                onClick={() => {
+                  removeEnvelope(stepIndex, envelope.id)
+                  setSelected({ kind: "velocity", voice: selectedVoice })
+                }}
+              >
+                <CloseIcon size={16} />
+              </IconButton>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {lane.kind === "cc" && (
-        <div className="flex items-end gap-2">
-          <Labelled label={localized["sequencer-step-cc"]}>
-            <Stepper
-              label={localized["sequencer-envelope-cc-number"]}
-              value={lane.cc}
-              min={0}
-              max={127}
-              parse={parseNumber}
-              onChange={(cc) => setLane(cc, lane.channel)}
-            />
-          </Labelled>
-          <div
-            className="min-w-0 flex-1 truncate pb-[0.35rem] text-small text-fg-secondary"
-            title={CC_NAMES[lane.cc]}
-            data-lane-name
-          >
-            {modulation === undefined ? (
-              CC_NAMES[lane.cc]
-            ) : (
-              <span className="text-envelope">
-                <Localized name="sequencer-modulation-modulates" />{" "}
-                {modulationTargetLabel(modulation.target, localized)}
-              </span>
-            )}
-            {envelope === null && (
-              <span className="text-fg-tertiary">
-                {" "}
-                (<Localized name="sequencer-envelope-not-on-step" />)
-              </span>
-            )}
-          </div>
-          <Labelled label={channelLabel}>
-            <Stepper
-              label={localized["sequencer-envelope-cc-channel"]}
-              value={lane.channel}
-              min={1}
-              max={16}
-              parse={parseNumber}
-              onChange={(channel) => setLane(lane.cc, channel)}
-            />
-          </Labelled>
-          {envelope !== null && (
-            <IconButton
-              aria-label={localized["sequencer-step-remove-cc"]}
-              title={removes}
-              onClick={() => {
-                removeEnvelope(stepIndex, envelope.id)
-                setSelected({ kind: "velocity", voice: selectedVoice })
-              }}
-            >
-              <CloseIcon size={16} />
-            </IconButton>
-          )}
-        </div>
-      )}
-
-      {(lane.kind === "velocity" || lane.kind === "cc") && (
-        <div className="flex items-center gap-2">
-          <ButtonGroup>
-            <Button
-              type="button"
-              size="sm"
-              active={tool === "edit"}
-              aria-pressed={tool === "edit"}
-              // "Edit" alone is the menu in the bar
-              aria-label={localized["sequencer-envelope-edit-tool"]}
-              title={localized["sequencer-envelope-edit"]}
-              onClick={() => setTool("edit")}
-            >
-              <CursorDefaultOutlineIcon size={14} />
-              <Localized name="sequencer-envelope-edit" />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              active={tool === "draw"}
-              aria-pressed={tool === "draw"}
-              title={`${localized["sequencer-envelope-draw"]} (B)`}
-              onClick={() => setTool("draw")}
-            >
-              <PencilIcon size={14} />
-              <Localized name="sequencer-envelope-draw" />
-            </Button>
-          </ButtonGroup>
-          {lane.kind === "cc" && envelope !== null && (
+        {(lane.kind === "velocity" || lane.kind === "cc") && (
+          <div className="flex items-center gap-2">
             <ButtonGroup>
               <Button
                 type="button"
                 size="sm"
-                active={envelopeShape(envelope) === "steps"}
-                aria-pressed={envelopeShape(envelope) === "steps"}
-                title={localized["sequencer-envelope-steps-hint"]}
-                onClick={() =>
-                  editEnvelope(stepIndex, envelope.id, { shape: "steps" })
-                }
+                active={tool === "edit"}
+                aria-pressed={tool === "edit"}
+                // "Edit" alone is the menu in the bar
+                aria-label={localized["sequencer-envelope-edit-tool"]}
+                title={localized["sequencer-envelope-edit"]}
+                onClick={() => setTool("edit")}
               >
-                <SquareWaveIcon size={14} />
-                <Localized name="sequencer-envelope-steps" />
+                <CursorDefaultOutlineIcon size={14} />
+                <Localized name="sequencer-envelope-edit" />
               </Button>
               <Button
                 type="button"
                 size="sm"
-                active={envelopeShape(envelope) === "ramps"}
-                aria-pressed={envelopeShape(envelope) === "ramps"}
-                title={localized["sequencer-envelope-ramps-hint"]}
-                onClick={() =>
-                  editEnvelope(stepIndex, envelope.id, { shape: "ramps" })
-                }
+                active={tool === "draw"}
+                aria-pressed={tool === "draw"}
+                title={`${localized["sequencer-envelope-draw"]} (B)`}
+                onClick={() => setTool("draw")}
               >
-                <SlopeUphillIcon size={14} />
-                <Localized name="sequencer-envelope-ramps" />
+                <PencilIcon size={14} />
+                <Localized name="sequencer-envelope-draw" />
               </Button>
             </ButtonGroup>
-          )}
-          <div className="grow" />
-          <label className="text-small" htmlFor="envelope-grid">
-            <Localized name="sequencer-envelope-grid" />
-          </label>
-          <Select
-            id="envelope-grid"
-            value={String(grid)}
-            onChange={(event) => setGrid(Number(event.target.value))}
-          >
-            {GRIDS.map(({ beats, label }) => (
-              <option key={label} value={String(beats)}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
+            {lane.kind === "cc" && envelope !== null && (
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  size="sm"
+                  active={envelopeShape(envelope) === "steps"}
+                  aria-pressed={envelopeShape(envelope) === "steps"}
+                  title={localized["sequencer-envelope-steps-hint"]}
+                  onClick={() =>
+                    editEnvelope(stepIndex, envelope.id, { shape: "steps" })
+                  }
+                >
+                  <SquareWaveIcon size={14} />
+                  <Localized name="sequencer-envelope-steps" />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  active={envelopeShape(envelope) === "ramps"}
+                  aria-pressed={envelopeShape(envelope) === "ramps"}
+                  title={localized["sequencer-envelope-ramps-hint"]}
+                  onClick={() =>
+                    editEnvelope(stepIndex, envelope.id, { shape: "ramps" })
+                  }
+                >
+                  <SlopeUphillIcon size={14} />
+                  <Localized name="sequencer-envelope-ramps" />
+                </Button>
+              </ButtonGroup>
+            )}
+            <div className="grow" />
+            <label className="text-small" htmlFor="envelope-grid">
+              <Localized name="sequencer-envelope-grid" />
+            </label>
+            <Select
+              id="envelope-grid"
+              value={String(grid)}
+              onChange={(event) => setGrid(Number(event.target.value))}
+            >
+              {GRIDS.map(({ beats, label }) => (
+                <option key={label} value={String(beats)}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
-      <EnvelopeGraph
-        step={stepIndex}
-        lane={
-          lane.kind === "velocity"
-            ? { kind: "velocity", voice: lane.voice }
-            : { kind: "cc", envelope, cc: lane.cc, channel: lane.channel }
-        }
-      />
+        <EnvelopeGraph
+          step={stepIndex}
+          lane={
+            lane.kind === "velocity"
+              ? { kind: "velocity", voice: lane.voice }
+              : { kind: "cc", envelope, cc: lane.cc, channel: lane.channel }
+          }
+          height={graphHeight}
+        />
+      </div>
     </div>
   )
 }
