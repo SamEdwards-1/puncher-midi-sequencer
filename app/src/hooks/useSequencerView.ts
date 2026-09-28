@@ -1,6 +1,7 @@
 import { StepJSON, VoiceIndex } from "@midiseq/core"
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
+import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai"
 import { atomWithStorage } from "jotai/utils"
+import { useMemo } from "react"
 
 // View state, kept out of the patch so it is never saved or undone.
 const selectedVoiceAtom = atom<VoiceIndex>(0)
@@ -99,4 +100,24 @@ export function useCopiedStep() {
     copiedStep: useAtomValue(copiedStepAtom),
     setCopiedStep: useSetAtom(copiedStepAtom),
   }
+}
+
+/**
+ * The selection, for what acts as a person would from outside React's
+ * rendering — an agent's tools. Each is read or set when called, so holding
+ * them re-renders nothing.
+ */
+export function useSelectionAccess() {
+  const store = useStore()
+  return useMemo(
+    () => ({
+      selectedStep: () => store.get(selectedStepAtom),
+      selectStep: (step: number) => store.set(selectedStepAtom, step),
+      selectedVoice: () => store.get(selectedVoiceAtom),
+      selectVoice: (voice: VoiceIndex) => store.set(selectedVoiceAtom, voice),
+      // whether a click on a step sounds it
+      auditions: () => store.get(previewOnClickAtom),
+    }),
+    [store],
+  )
 }

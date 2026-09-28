@@ -72,6 +72,11 @@ export class SynthStore {
     }
   }
 
+  /** Whether the audio is waiting for a gesture to let it start. */
+  get waiting(): boolean {
+    return this.context?.state === "suspended"
+  }
+
   /** Starts the audio; it only takes, as browsers see it, during a gesture. */
   resume = () => {
     if (this.context !== null && this.context.state !== "running") {
