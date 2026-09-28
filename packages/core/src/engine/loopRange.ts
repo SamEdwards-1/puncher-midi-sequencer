@@ -1,26 +1,40 @@
 import { GridSize, PatchJSON, StepIndex, StepJSON } from "../entities/types"
 
-export const gridWidth = (size: GridSize): number => (size === "small" ? 4 : 8)
+// The grid is as near square as the steps allow, filled a row at a time, so
+// 16 steps sit 4 × 4 and 64 sit 8 × 8.
+export const gridWidth = (size: GridSize): number => Math.ceil(Math.sqrt(size))
 
-export const stepCount = (size: GridSize): number =>
-  size === "small" ? 16 : 64
+export const gridRows = (size: GridSize): number =>
+  Math.ceil(size / gridWidth(size))
+
+export const stepCount = (size: GridSize): number => size
 
 export const maxStepIndex = (size: GridSize): number => stepCount(size) - 1
 
-// Flip swaps the grid axes: the step at (row, col) plays what is stored at
-// (col, row).
+/**
+ * Flip reads the grid a column at a time rather than a row at a time: the
+ * position a row-wise read reaches first down the first column, and so on.
+ * On a square grid that swaps the axes, the step at (row, col) playing what
+ * is stored at (col, row). Where the last row is short, the columns past its
+ * end are a step shorter.
+ */
 export const viewIndex = (
   index: StepIndex,
   size: GridSize,
   flip: boolean,
 ): StepIndex => {
-  if (!flip) {
+  if (!flip || index >= size) {
     return index
   }
   const width = gridWidth(size)
-  const row = Math.floor(index / width)
-  const col = index % width
-  return col * width + row
+  const rows = gridRows(size)
+  // the columns running the full height, before the short ones
+  const tall = size - (rows - 1) * width
+  if (index < tall * rows) {
+    return (index % rows) * width + Math.floor(index / rows)
+  }
+  const past = index - tall * rows
+  return (past % (rows - 1)) * width + tall + Math.floor(past / (rows - 1))
 }
 
 // An envelope with no points sends nothing, so it is not content.

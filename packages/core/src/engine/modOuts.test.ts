@@ -27,6 +27,17 @@ describe("scaleModValue", () => {
   })
 })
 
+describe("recordedExtent", () => {
+  it("leaves out steps kept past the grid's size", () => {
+    const patch = createDefaultPatch()
+    patch.size = 9
+    patch.steps[4].notes = [60]
+    patch.steps[40].notes = [62]
+    // step 4 is row 1, column 1 of a 3 × 3 grid
+    expect(recordedExtent(patch)).toEqual({ x: 1, y: 1 })
+  })
+})
+
 describe("sequencerModValues", () => {
   it("reads x and y against the greatest recorded index, top is low", () => {
     const patch = createDefaultPatch()

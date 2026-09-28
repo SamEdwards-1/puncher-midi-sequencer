@@ -185,7 +185,7 @@ describe("envelope geometry", () => {
     // past the step's note limit, and on a step outside a small grid
     let patch = setStepNotes(createDefaultPatch(), 0, [60, 62, 64, 65, 96])
     patch = setStepNotes(patch, 20, [20])
-    patch = { ...patch, size: "small" }
+    patch = { ...patch, size: 16 }
     expect(patchNoteSpan(patch)).toEqual([60, 60, 65, 65])
     expect(patchNoteSpan(createDefaultPatch())).toEqual([])
   })

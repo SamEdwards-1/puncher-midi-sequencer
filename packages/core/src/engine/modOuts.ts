@@ -1,5 +1,11 @@
 import { ModOutJSON, PatchJSON, StepIndex } from "../entities/types"
-import { gridWidth, hasContent, loopEndIndex, viewIndex } from "./loopRange"
+import {
+  gridWidth,
+  hasContent,
+  loopEndIndex,
+  stepCount,
+  viewIndex,
+} from "./loopRange"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
@@ -19,11 +25,12 @@ export interface RecordedExtent {
 }
 
 // Greatest recorded column and row, used as the denominators for Seq X / Y.
+// Steps kept past the grid's size are not on it, so they don't count.
 export const recordedExtent = (patch: PatchJSON): RecordedExtent => {
   const width = gridWidth(patch.size)
   let x = 0
   let y = 0
-  patch.steps.forEach((step, index) => {
+  patch.steps.slice(0, stepCount(patch.size)).forEach((step, index) => {
     if (!hasContent(step)) {
       return
     }

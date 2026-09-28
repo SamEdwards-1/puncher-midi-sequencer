@@ -50,6 +50,49 @@ describe("editing the sequencer", () => {
     expect(patch().loop).toEqual({ mode: "custom", end: 16 })
   })
 
+  describe("the grid's size", () => {
+    const steps = () =>
+      within(screen.getByRole("region", { name: "Grid" }))
+        .getAllByRole("button", { name: /^Step \d+$/ })
+        .map((step) => step.textContent)
+    const typeSize = (text: string) => {
+      const field = sequencerPanel().getByRole("textbox", { name: "Size" })
+      fireEvent.focus(field)
+      fireEvent.change(field, { target: { value: text } })
+      fireEvent.keyDown(field, { key: "Enter" })
+    }
+
+    it("steps and types any count from 1 to 64", () => {
+      fireEvent.click(
+        sequencerPanel().getByRole("button", { name: "Size down" }),
+      )
+      expect(patch().size).toBe(63)
+      expect(steps()).toHaveLength(63)
+
+      typeSize("10")
+      expect(patch().size).toBe(10)
+      expect(steps()).toEqual(
+        Array.from({ length: 10 }, (_, index) => String(index + 1)),
+      )
+
+      typeSize("200")
+      expect(patch().size).toBe(64)
+      typeSize("0")
+      expect(patch().size).toBe(1)
+    })
+
+    it("keeps the steps it leaves off, to bring back as it grows", () => {
+      rootStore.sequencerStore.patch.steps[40].notes = [60]
+      typeSize("16")
+      expect(patch().steps[40].notes).toEqual([60])
+
+      typeSize("41")
+      expect(
+        screen.getByRole("button", { name: "Step 41" }).dataset.hasNotes,
+      ).toBe("true")
+    })
+  })
+
   it("edits the selected voice", () => {
     selectVoice(2)
     fireEvent.click(voicePanel().getByRole("switch", { name: "Enable" }))

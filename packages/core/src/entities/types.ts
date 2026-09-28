@@ -16,7 +16,12 @@ export const NOTES_PER_STEP = VOICE_COUNT
 export const MAX_NOTES_PER_STEP = 16
 export const MAX_PATTERN_LENGTH = 16
 
-export type GridSize = "small" | "large"
+// Every patch stores this many steps; its size says how many of them the
+// grid shows and plays, so the rest are kept for when it grows again.
+export const MAX_STEPS = 64
+
+// how many steps the grid holds, 1 to MAX_STEPS
+export type GridSize = number
 export type StepState = "normal" | "rest" | "skip"
 export type Direction =
   | "fwd"

@@ -1,7 +1,8 @@
 import {
   Direction,
-  GridSize,
   LoopMode,
+  MAX_STEPS,
+  maxStepIndex,
   NOTES_PER_STEP,
   PACE_LABELS,
   PACES,
@@ -81,16 +82,15 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         </PanelHeader>
       )}
       <Fields>
+        {/* steps past the size are kept, and come back as it grows */}
         <Field label={localized["sequencer-size"]}>
-          <Select
+          <Stepper
+            label={localized["sequencer-size"]}
             value={patch.size}
-            onChange={(event) =>
-              editSequencer({ size: event.target.value as GridSize })
-            }
-          >
-            <option value="small">4 × 4</option>
-            <option value="large">8 × 8</option>
-          </Select>
+            min={1}
+            max={MAX_STEPS}
+            onChange={(size) => editSequencer({ size }, "size")}
+          />
         </Field>
 
         <ModulatedField
@@ -149,7 +149,8 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           <Field label={localized["sequencer-loop-end"]}>
             <Stepper
               label={localized["sequencer-loop-end"]}
-              value={patch.loop.end + 1}
+              // an end kept past a smaller grid shows as its last step
+              value={Math.min(patch.loop.end, maxStepIndex(patch.size)) + 1}
               min={1}
               max={stepCount(patch.size)}
               onChange={(value) =>

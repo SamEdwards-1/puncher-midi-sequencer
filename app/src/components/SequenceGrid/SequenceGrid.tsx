@@ -1,4 +1,4 @@
-import { gridWidth, stepCount } from "@midiseq/core"
+import { gridRows, gridWidth, stepCount } from "@midiseq/core"
 import {
   CSSProperties,
   FC,
@@ -80,6 +80,66 @@ const useLanding = (count: number) => {
   }
 }
 
+interface Arrival {
+  delay: number
+  // the growth that brought the step in, so an earlier one's end leaves it
+  growth: number
+}
+
+/**
+ * The steps a larger size has just brought onto the grid, each with the
+ * delay its bounce waits: they land as an import's do, in a wave of their
+ * own, so a drag that adds them one at a time bounces each as it comes. A
+ * step keeps its bounce until it is over, however the size moves meanwhile.
+ * The grid's own layout effect sets them, so a step never shows unbounced.
+ */
+const useArrivals = (count: number): ReadonlyMap<number, Arrival> => {
+  const shown = useRef(count)
+  const growths = useRef(0)
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const [arrivals, setArrivals] = useState<ReadonlyMap<number, Arrival>>(
+    () => new Map(),
+  )
+  useLayoutEffect(() => {
+    const from = shown.current
+    shown.current = count
+    if (count <= from) {
+      return
+    }
+    const growth = ++growths.current
+    const gap = (LAND_TOTAL_MS - LAND_MS) / Math.max(1, count - from - 1)
+    setArrivals((current) => {
+      const next = new Map(current)
+      for (let index = from; index < count; index++) {
+        next.set(index, { delay: (index - from) * gap, growth })
+      }
+      return next
+    })
+    const timer = setTimeout(() => {
+      timers.current.delete(timer)
+      setArrivals((current) => {
+        const next = new Map(current)
+        for (const [index, arrival] of current) {
+          if (arrival.growth === growth) {
+            next.delete(index)
+          }
+        }
+        return next
+      })
+    }, LAND_TOTAL_MS + 50)
+    timers.current.add(timer)
+  }, [count])
+  useEffect(() => {
+    const pending = timers.current
+    return () => {
+      for (const timer of pending) {
+        clearTimeout(timer)
+      }
+    }
+  }, [])
+  return arrivals
+}
+
 // The smallest the grid shrinks to as the column scrolls: eight steps of
 // about 26px, still big enough to hit and read.
 const MIN_GRID = 208
@@ -159,6 +219,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const isRecording = useMobxGetter(recorder, "isRecording")
   const [selected, setSelected] = useSelectedStep()
   const landing = useLanding(stepCount(size))
+  const arrivals = useArrivals(stepCount(size))
 
   const onStepClick = (index: number) => {
     // a mode takes over the click: set a jump target, or mark rests and skips
@@ -188,6 +249,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   }
 
   const columns = gridWidth(size)
+  const rows = gridRows(size)
 
   /**
    * The column scrolls as one, with the grid stuck to its top. The grid's
@@ -271,12 +333,13 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
             }}
           >
             {/* A square as tall as the frame allows, so the cells stay round
-                however far the grid has shrunk. */}
+                however far the grid has shrunk. A grid a row short of
+                square sits in its middle. */}
             <div
-              className="grid aspect-square h-full max-w-full gap-[0.4rem]"
+              className="grid aspect-square h-full max-w-full content-center gap-[0.4rem]"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${columns}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${rows}, auto)`,
               }}
             >
               {Array.from({ length: stepCount(size) }, (_, index) => {
@@ -287,6 +350,16 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                   mark[1] === "r" ? "rest" : mark[1] === "s" ? "skip" : "normal"
                 const hasNotes = mark[0] === "n"
                 const active = position === index
+                const arrival = arrivals.get(index)
+                const bounce =
+                  arrival === undefined
+                    ? landing.className === null
+                      ? null
+                      : {
+                          className: landing.className,
+                          delay: index * landing.gap,
+                        }
+                    : { className: "step-land", delay: arrival.delay }
                 return (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
@@ -325,7 +398,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                           : "border-transparent",
                       source !== undefined && SOURCE_MARK,
                       dest !== undefined && DEST_MARK,
-                      landing.className,
+                      bounce?.className,
                     )}
                     style={
                       {
@@ -338,9 +411,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                             ? undefined
                             : `var(--midiseq-jump-${dest})`,
                         animationDelay:
-                          landing.className === null
-                            ? undefined
-                            : `${index * landing.gap}ms`,
+                          bounce === null ? undefined : `${bounce.delay}ms`,
                       } as CSSProperties
                     }
                     onClick={() => onStepClick(index)}
