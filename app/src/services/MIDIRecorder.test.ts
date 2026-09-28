@@ -128,7 +128,7 @@ describe("MIDIRecorder", () => {
   })
 
   it("wraps around the end of the grid", () => {
-    store.patch = { ...store.patch, size: "small" }
+    store.patch = { ...store.patch, size: 16 }
     recorder.setTarget(15)
     play(noteOn(60), noteOn(64), noteOn(67), noteOn(71))
 

@@ -14,7 +14,7 @@ const everySettingChanged = (): PatchJSON => {
   return {
     ...patch,
     name: "Everything",
-    size: "small",
+    size: 16,
     loop: { mode: "custom", end: 11 },
     maxNotesPerStep: 3,
     syncVoices: !patch.syncVoices,
@@ -178,6 +178,22 @@ describe("the file format", () => {
     expect(saved(16)).toBe(4)
     // and from when it was fixed at four and not written at all
     expect(saved(undefined)).toBe(4)
+  })
+
+  it("reads a size saved as a named grid as its count of steps", () => {
+    const text = serializeFile(createFile(createDemoPatch()))
+    const saved = (size: unknown) => {
+      const file = JSON.parse(text)
+      file.patch.size = size
+      const result = parseFile(JSON.stringify(file))
+      return result.ok ? result.patch.size : "refused"
+    }
+
+    expect(saved("small")).toBe(16)
+    expect(saved("large")).toBe(64)
+    expect(saved(23)).toBe(23)
+    expect(saved(0)).toBe("refused")
+    expect(saved(65)).toBe("refused")
   })
 
   it("fits the offset and shift up in a file from before they had fits", () => {

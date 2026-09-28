@@ -1,5 +1,6 @@
 import {
   JumpJSON,
+  MAX_STEPS,
   ModOutJSON,
   ModSource,
   NOTES_PER_STEP,
@@ -71,7 +72,7 @@ export const createDefaultModOuts = (): ModOutJSON[] =>
 export const createDefaultPatch = (): PatchJSON => ({
   version: 1,
   name: "",
-  size: "large",
+  size: MAX_STEPS,
   loop: { mode: "recorded", end: 15 },
   maxNotesPerStep: NOTES_PER_STEP,
   syncVoices: false,
@@ -81,7 +82,7 @@ export const createDefaultPatch = (): PatchJSON => ({
   shiftFit: "up",
   tempo: 120,
   scale: null,
-  steps: Array.from({ length: 64 }, createDefaultStep),
+  steps: Array.from({ length: MAX_STEPS }, createDefaultStep),
   voices: Array.from({ length: 4 }, (_, index) => createDefaultVoice(index)),
   modOuts: createDefaultModOuts(),
   modulations: [],

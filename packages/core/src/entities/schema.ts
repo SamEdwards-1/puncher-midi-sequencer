@@ -5,6 +5,7 @@ import { normalizeSteps, SCALE_FITS } from "./scale"
 import {
   MAX_NOTES_PER_STEP,
   MAX_PATTERN_LENGTH,
+  MAX_STEPS,
   ModulationValue,
   NOTES_PER_STEP,
 } from "./types"
@@ -283,7 +284,11 @@ export const ScaleSchema = z.object({
 export const PatchSchema = z.object({
   version: z.literal(1),
   name: z.string(),
-  size: z.enum(["small", "large"]),
+  // files from when the grid was 4 × 4 or 8 × 8 named the size instead
+  size: z.preprocess(
+    (value) => (value === "small" ? 16 : value === "large" ? MAX_STEPS : value),
+    z.number().int().min(1).max(MAX_STEPS),
+  ),
   loop: z.object({
     mode: z.enum(["recorded", "all", "custom"]),
     end: z.number().int().min(0).max(63),

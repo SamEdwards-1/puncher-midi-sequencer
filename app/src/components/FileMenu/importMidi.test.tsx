@@ -223,7 +223,7 @@ describe("importing MIDI", () => {
     setup()
     rootStore.sequencerStore.patch = {
       ...createDefaultPatch(),
-      size: "small",
+      size: 16,
     }
     await openImport()
     fireEvent.click(dialog().getByRole("button", { name: "Notes a step down" }))

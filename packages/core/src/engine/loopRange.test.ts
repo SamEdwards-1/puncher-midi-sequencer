@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { PatchJSON } from "../entities/types"
-import { loopEndIndex, playableSteps, viewIndex } from "./loopRange"
+import {
+  gridRows,
+  gridWidth,
+  loopEndIndex,
+  playableSteps,
+  viewIndex,
+} from "./loopRange"
 
 const patchWith = (notes: Record<number, number[]>): PatchJSON => {
   const patch = createDefaultPatch()
@@ -37,7 +43,7 @@ describe("loopEndIndex", () => {
     const patch = patchWith({ 0: [60] })
     patch.loop.mode = "all"
     expect(loopEndIndex(patch)).toBe(63)
-    patch.size = "small"
+    patch.size = 16
     expect(loopEndIndex(patch)).toBe(15)
   })
 
@@ -46,7 +52,7 @@ describe("loopEndIndex", () => {
     patch.loop = { mode: "custom", end: 5 }
     expect(loopEndIndex(patch)).toBe(5)
 
-    patch.size = "small"
+    patch.size = 16
     patch.loop.end = 40
     expect(loopEndIndex(patch)).toBe(15)
   })
@@ -70,10 +76,45 @@ describe("playableSteps", () => {
 
 describe("viewIndex", () => {
   it("swaps rows and columns when flipped", () => {
-    expect(viewIndex(1, "large", false)).toBe(1)
-    expect(viewIndex(1, "large", true)).toBe(8)
-    expect(viewIndex(8, "large", true)).toBe(1)
-    expect(viewIndex(1, "small", true)).toBe(4)
-    expect(viewIndex(5, "small", true)).toBe(5)
+    expect(viewIndex(1, 64, false)).toBe(1)
+    expect(viewIndex(1, 64, true)).toBe(8)
+    expect(viewIndex(8, 64, true)).toBe(1)
+    expect(viewIndex(1, 16, true)).toBe(4)
+    expect(viewIndex(5, 16, true)).toBe(5)
+  })
+
+  it("reads a grid with a short last row a column at a time", () => {
+    // 0 1 2
+    // 3 4
+    const read = (size: number) =>
+      Array.from({ length: size }, (_, index) => viewIndex(index, size, true))
+    expect(read(5)).toEqual([0, 3, 1, 4, 2])
+    // 0 1 2 3
+    // 4 5 6 7
+    // 8 9
+    expect(read(10)).toEqual([0, 4, 8, 1, 5, 9, 2, 6, 3, 7])
+    expect(read(1)).toEqual([0])
+  })
+
+  it("visits every step once, flipped or not, at any size", () => {
+    for (let size = 1; size <= 64; size++) {
+      const read = Array.from({ length: size }, (_, index) =>
+        viewIndex(index, size, true),
+      )
+      expect(
+        [...read].sort((a, b) => a - b),
+        `size ${size}`,
+      ).toEqual(Array.from({ length: size }, (_, index) => index))
+    }
+  })
+})
+
+describe("the grid's shape", () => {
+  it("is as near square as the steps allow", () => {
+    expect([gridWidth(16), gridRows(16)]).toEqual([4, 4])
+    expect([gridWidth(64), gridRows(64)]).toEqual([8, 8])
+    expect([gridWidth(1), gridRows(1)]).toEqual([1, 1])
+    expect([gridWidth(5), gridRows(5)]).toEqual([3, 2])
+    expect([gridWidth(17), gridRows(17)]).toEqual([5, 4])
   })
 })

@@ -236,7 +236,7 @@ describe("importing a MIDI file", () => {
   })
 
   it("plans how many steps the notes fill, and where they're cut", () => {
-    const small = { ...plain(), size: "small" as const }
+    const small = { ...plain(), size: 16 }
     // 4 by 4: sixteen steps
     const two = planFile(small, scale(), options())
     expect(two.chunks.map(({ start, end }) => [start, end])).toEqual([
@@ -260,7 +260,7 @@ describe("importing a MIDI file", () => {
 
   it("goes round the notes again until the grid is full", () => {
     const patch = importFile(
-      { ...plain(), size: "small" },
+      { ...plain(), size: 16 },
       scale(),
       options({ loop: true, fromStep: 1 }),
     )
@@ -500,7 +500,7 @@ describe("importing a MIDI file", () => {
 
   it("fits a grid of any size, and says how many steps find room", () => {
     // 4 by 4, from step 15 of 16: room for two
-    const small = { ...plain(), size: "small" as const }
+    const small = { ...plain(), size: 16 }
     const plan = planFile(
       small,
       scale(),
