@@ -257,7 +257,12 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
    * shrinks by as much as the column has scrolled, so the editors below
    * follow its bottom edge up; once it is down to its smallest they carry on
    * underneath it. The scroll goes to a CSS variable rather than to React,
-   * so scrolling never re-renders the steps.
+   * so scrolling never re-renders the steps, and on the grid's frame rather
+   * than the column, so it restyles the grid alone.
+   *
+   * The envelope editor ends the column. Scrolled on once it is all in view,
+   * it grows rather than moving, its bottom staying at the window's, until
+   * the step editor is under the grid and it fills the view below.
    */
   const scroller = useRef<HTMLDivElement>(null)
   const { width, height } = useSize(scroller)
@@ -267,14 +272,17 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   )
   const fullLayer = fullGrid + 2 * GRID_PAD
   const smallestLayer = MIN_GRID + 2 * GRID_PAD
+  const column = { scroller, view: Math.max(0, height - smallestLayer) }
   // Once the action buttons are mostly under the grid, their icons drop
   // into the title bar instead.
   const frame = useRef<HTMLDivElement>(null)
   const actionRow = useRef<HTMLDivElement>(null)
   const [actionsAway, setActionsAway] = useState(false)
   const onScroll = () => {
-    const element = scroller.current
-    element?.style.setProperty("--grid-scroll", `${element.scrollTop}px`)
+    frame.current?.style.setProperty(
+      "--grid-scroll",
+      `${scroller.current?.scrollTop ?? 0}px`,
+    )
     const row = actionRow.current?.getBoundingClientRect()
     const grid = frame.current?.getBoundingClientRect()
     if (row !== undefined && grid !== undefined) {
@@ -307,13 +315,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
         ref={scroller}
         data-grid-scroller
         className="min-h-0 flex-1 overflow-y-auto"
-        style={
-          {
-            "--grid-scroll": "0px",
-            // what focus scrolls to lands below the grid, not under it
-            scrollPaddingTop: smallestLayer,
-          } as CSSProperties
-        }
+        // what focus scrolls to lands below the grid, not under it
+        style={{ scrollPaddingTop: smallestLayer }}
         onScroll={onScroll}
       >
         {/* the grid's layer: its full height in the layout, see-through and
@@ -327,10 +330,13 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
             data-grid-frame
             // without Preflight, padding would add to the height it is given
             className="pointer-events-auto box-border flex items-center justify-center bg-background px-4 shadow-[0_1px_0_var(--midiseq-divider)]"
-            style={{
-              height: `max(${smallestLayer}px, ${fullLayer}px - var(--grid-scroll))`,
-              paddingBlock: GRID_PAD,
-            }}
+            style={
+              {
+                "--grid-scroll": "0px",
+                height: `max(${smallestLayer}px, ${fullLayer}px - var(--grid-scroll))`,
+                paddingBlock: GRID_PAD,
+              } as CSSProperties
+            }
           >
             {/* A square as tall as the frame allows, so the cells stay round
                 however far the grid has shrunk. A grid a row short of
@@ -425,13 +431,14 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
             </div>
           </div>
         </div>
-        {/* no taller than it is, so the scroll ends with the editor's
-            bottom at the window's; the grid shrinks as far as that allows */}
+        {/* no taller than it is, the envelope editor's room to grow at its
+            end included, so the scroll ends with the step editor under the
+            grid at its smallest and the envelope editor filling the view */}
         <div>
           <div ref={actionRow}>
             <ActionButtons />
           </div>
-          <StepEditor />
+          <StepEditor column={column} />
         </div>
       </div>
     </Panel>

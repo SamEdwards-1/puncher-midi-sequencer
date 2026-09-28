@@ -146,7 +146,9 @@ the step editor. While the sequence is playing, clicking queues that step
 next instead. Turn **Audition step** off if you'd rather click silently.
 The grid and the step editor scroll together: as you scroll down, the grid
 stays at the top and shrinks to a compact size, and the editors carry on
-underneath it.
+underneath it. Once the envelope editor is all in view, scrolling on makes
+it taller, its bottom staying at the window's, until the notes above it have
+gone under the grid and it fills the view.
 
 **Clock.** midiseq sends MIDI clock — start, stop and 24 ticks a beat — to
 every ticked output, so anything listening follows its tempo. In

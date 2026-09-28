@@ -16,6 +16,7 @@ import { PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeEditor } from "./EnvelopeEditor"
+import { Column } from "./graphHeight"
 import { hasJump, JumpPatcher } from "./JumpPatcher"
 
 const HEADER = "flex items-center gap-2"
@@ -27,7 +28,8 @@ const Row: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
 
 const STATES: StepState[] = ["normal", "rest", "skip"]
 
-export const StepEditor: FC = () => {
+// `column` is the one the editor scrolls in, for the envelope editor to fill
+export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
   const patch = usePatch()
   const [selected] = useSelectedStep()
   const { copiedStep, setCopiedStep } = useCopiedStep()
@@ -94,7 +96,8 @@ export const StepEditor: FC = () => {
         </ButtonGroup>
       </PanelHeader>
 
-      <div className="flex flex-col gap-2 px-4 pt-2 pb-4 text-body text-fg-secondary">
+      {/* no gutter at the bottom: the envelope editor, last, keeps its own */}
+      <div className="flex flex-col gap-2 px-4 pt-2 text-body text-fg-secondary">
         <Row>
           {/* the scale the patch is in */}
           {scale !== null && (
@@ -221,7 +224,7 @@ export const StepEditor: FC = () => {
 
         {jumpShown && <JumpPatcher onRemove={() => setOpenedJump(null)} />}
 
-        <EnvelopeEditor step={selected} />
+        <EnvelopeEditor step={selected} column={column} />
       </div>
     </>
   )
