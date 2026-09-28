@@ -1,4 +1,4 @@
-# midiseq
+# PUNCHER
 
 A browser MIDI step sequencer with **decoupled voices** and **conditional
 jumps**. The sequencer walks a grid of polyphonic steps at its own pace, while
