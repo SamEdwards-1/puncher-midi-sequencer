@@ -358,14 +358,6 @@ export const defaultModulation = (
   return { target, cc, from: choices[0], to: choices[choices.length - 1] }
 }
 
-/**
- * Whether a patch plays without a scale throughout: it has none of its own,
- * and no step can move it to one.
- */
-export const scaleless = (patch: PatchJSON): boolean =>
-  patch.scale === null &&
-  modulationOf(patch, { kind: "sequencer", setting: "scale" }) === undefined
-
 /** Whether a modulation's range holds one of its setting's values. */
 export const inModulationRange = (
   modulation: ModulationJSON,

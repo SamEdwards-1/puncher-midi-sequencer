@@ -12,6 +12,7 @@ import {
 } from "../../theory/scales"
 import { Button } from "../ui/Button"
 import { ComboBox, ComboOption } from "../ui/ComboBox"
+import { cn } from "../ui/cn"
 
 const NONE = ""
 
@@ -30,7 +31,8 @@ export const ScaleSelects: FC<{
   scale: ScaleJSON | null
   onScale: (scale: ScaleJSON | null) => void
   choices?: readonly ScaleChoice[]
-}> = ({ scale, onScale, choices = SCALE_CHOICES }) => {
+  className?: string
+}> = ({ scale, onScale, choices = SCALE_CHOICES, className }) => {
   const localized = useLocalization()
   const [tonic, setTonic] = useState(scale?.tonic ?? 0)
   const shownTonic = scale?.tonic ?? tonic
@@ -67,10 +69,10 @@ export const ScaleSelects: FC<{
   ]
 
   return (
-    <div className="flex min-w-0 gap-1">
+    <div className={cn("flex min-w-0 gap-1", className)}>
       <ComboBox
         aria-label={localized["sequencer-scale-tonic"]}
-        className="w-[4.2rem] flex-none"
+        className="w-[3.4rem] flex-none"
         value={shownTonic}
         options={TONIC_OPTIONS}
         onChange={(next) => {
@@ -117,19 +119,16 @@ export const FitButtons: FC<{
 
 /**
  * How a move takes a note that lands outside the scale, as a dropdown for
- * a setting of its own; it does nothing where there is never a scale, when
- * it is `disabled`.
+ * a setting of its own.
  */
 export const FitSelect: FC<{
   value: ScaleFit
-  disabled: boolean
   onChange: (fit: ScaleFit) => void
-}> = ({ value, disabled, onChange }) => {
+}> = ({ value, onChange }) => {
   const localized = useLocalization()
   return (
     <ComboBox
       value={value}
-      disabled={disabled}
       options={SCALE_FITS.map((fit) => ({
         value: fit,
         label: localized[`sequencer-scale-fit-${fit}`],
@@ -140,44 +139,49 @@ export const FitSelect: FC<{
 }
 
 /**
- * The scales that best fit the notes, to pick with a click; the one in use
- * is lit. Says so when there are no notes to go on.
+ * The scales that best fit the notes, as tags to pick with a click, after
+ * chromatic — no scale at all — which is always there; the one in use is
+ * lit.
  */
 export const ScaleGuesses: FC<{
   guesses: ScaleGuess[]
   scale: ScaleJSON | null
-  onScale: (scale: ScaleJSON) => void
-}> = ({ guesses, scale, onScale }) =>
-  guesses.length === 0 ? (
-    <span className="text-small text-fg-tertiary">
-      <Localized name="sequencer-scale-no-notes" />
-    </span>
-  ) : (
-    <div className="flex min-w-0 flex-wrap gap-1" data-scale-guesses>
-      {guesses.map((guess) => {
-        const label = scaleLabel(guess)
-        const on = sameScale(guess, scale)
-        return (
-          <Button
-            key={label}
-            type="button"
-            size="sm"
-            active={on}
-            aria-pressed={on}
-            onClick={() => {
-              const next = makeScale(
-                guess.tonic,
-                guess.name,
-                scale?.fit ?? "up",
-              )
-              if (next !== null) {
-                onScale(next)
-              }
-            }}
-          >
-            {label}
-          </Button>
-        )
-      })}
-    </div>
-  )
+  onScale: (scale: ScaleJSON | null) => void
+  className?: string
+}> = ({ guesses, scale, onScale, className }) => (
+  <div
+    className={cn("flex min-w-0 flex-wrap gap-1", className)}
+    data-scale-guesses
+  >
+    <Button
+      type="button"
+      size="pill"
+      active={scale === null}
+      aria-pressed={scale === null}
+      onClick={() => onScale(null)}
+    >
+      <Localized name="sequencer-scale-chromatic" />
+    </Button>
+    {guesses.map((guess) => {
+      const label = scaleLabel(guess)
+      const on = sameScale(guess, scale)
+      return (
+        <Button
+          key={label}
+          type="button"
+          size="pill"
+          active={on}
+          aria-pressed={on}
+          onClick={() => {
+            const next = makeScale(guess.tonic, guess.name, scale?.fit ?? "up")
+            if (next !== null) {
+              onScale(next)
+            }
+          }}
+        >
+          {label}
+        </Button>
+      )
+    })}
+  </div>
+)

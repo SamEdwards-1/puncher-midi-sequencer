@@ -6,10 +6,10 @@ import { cn } from "./cn"
 // can show itself while the label is hovered.
 const ROW =
   "group/field flex items-center py-[0.3rem] text-body text-fg-secondary"
-const LABEL = "order-1 min-w-0 max-w-[6.5rem]"
-const ASIDE = "order-2 mr-1 flex flex-none items-center"
+const LABEL = "order-1 min-w-0 max-w-[5.5rem]"
+const ASIDE = "order-2 mr-0.5 flex flex-none items-center"
 // a grid of one, so the control is stretched across it as it always was
-const CONTROL = "order-3 ml-auto grid w-[calc(100%-7rem)] flex-none"
+const CONTROL = "order-3 ml-auto grid w-[calc(100%-6rem)] flex-none"
 // A control showing what a step's envelope has its setting at, rather than
 // its own value, does so in the envelopes' colour: a select's text and edge,
 // a typed value, a combo box's edge, a slider's thumb.

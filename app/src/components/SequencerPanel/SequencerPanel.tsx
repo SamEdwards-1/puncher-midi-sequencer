@@ -8,11 +8,11 @@ import {
   PACES,
   ScaleChoiceJSON,
   SequencerSetting,
-  scaleless,
   sequencerScale,
   settingValue,
   stepCount,
 } from "@midiseq/core"
+import AutoFixIcon from "mdi-react/AutoFixIcon"
 import { FC, useMemo } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
@@ -20,12 +20,13 @@ import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import {
   guessScales,
+  makeScale,
   SEQUENCER_SCALE_CHOICES,
   weightsOfNotes,
 } from "../../theory/scales"
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
-import { Button } from "../ui/Button"
+import { Button, IconButton } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
 import { ButtonField, Field, Fields } from "../ui/Field"
@@ -71,6 +72,15 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
       ),
     [patch.steps],
   )
+  // the scale that best fits the notes, taken in one click
+  const best = guesses[0]
+  const detect = () => {
+    const next =
+      best && makeScale(best.tonic, best.name, patch.scale?.fit ?? "up")
+    if (next) {
+      editScale(next)
+    }
+  }
   // a setting of the sequencer's that a CC can drive
   const target = (setting: SequencerSetting) =>
     ({ kind: "sequencer", setting }) as const
@@ -191,7 +201,6 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <FitSelect
               value={shown(patch.shiftFit)}
-              disabled={scaleless(patch)}
               onChange={(shiftFit) => editSequencer({ shiftFit })}
             />
           )}
@@ -227,30 +236,45 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
             const own = settingValue(patch, target("scale"))
             const choice = shown(own)
             return (
-              <ScaleSelects
-                scale={
-                  choice === own
-                    ? patch.scale
-                    : choice === null
-                      ? null
-                      : sequencerScale(
-                          choice as ScaleChoiceJSON,
-                          patch.scale?.fit ?? "up",
-                        )
-                }
-                onScale={editScale}
-                choices={SEQUENCER_SCALE_CHOICES}
-              />
+              <div className="flex min-w-0 items-center gap-1">
+                <ScaleSelects
+                  className="flex-1"
+                  scale={
+                    choice === own
+                      ? patch.scale
+                      : choice === null
+                        ? null
+                        : sequencerScale(
+                            choice as ScaleChoiceJSON,
+                            patch.scale?.fit ?? "up",
+                          )
+                  }
+                  onScale={editScale}
+                  choices={SEQUENCER_SCALE_CHOICES}
+                />
+                <IconButton
+                  aria-label={localized["sequencer-scale-detect"]}
+                  title={
+                    best
+                      ? localized["sequencer-scale-detect"]
+                      : localized["sequencer-scale-no-notes"]
+                  }
+                  disabled={!best}
+                  onClick={detect}
+                >
+                  <AutoFixIcon size={16} />
+                </IconButton>
+              </div>
             )
           }}
         </ModulatedField>
-        <ButtonField label={localized["sequencer-scale-detected"]}>
-          <ScaleGuesses
-            guesses={guesses}
-            scale={patch.scale}
-            onScale={editScale}
-          />
-        </ButtonField>
+        {/* the scales found in the notes, across the whole column */}
+        <ScaleGuesses
+          className="pt-[0.1rem] pb-[0.4rem]"
+          guesses={guesses}
+          scale={patch.scale}
+          onScale={editScale}
+        />
 
         <ButtonField label={localized["sequencer-mark"]}>
           {/* these turn grid clicks into marking rests or skips until

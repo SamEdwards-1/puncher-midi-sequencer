@@ -295,6 +295,8 @@ export default {
     "sequencer-scale-fit-ignore": "Ignore",
     "sequencer-scale-detected": "Detected",
     "sequencer-scale-no-notes": "Nothing to detect from",
+    "sequencer-scale-detect": "Detect the scale",
+    "sequencer-scale-chromatic": "Chromatic",
     "sequencer-scale-moved": "moved",
     "sequencer-scale-left-out": "left out",
     "sequencer-import-scale-hint":
