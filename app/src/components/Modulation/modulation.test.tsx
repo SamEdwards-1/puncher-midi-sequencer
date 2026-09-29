@@ -98,6 +98,26 @@ afterEach(() => {
 })
 
 describe("modulating a setting", () => {
+  it.each([
+    ["Size", "size", "1", "64"],
+    ["Direction", "direction", "Forwards", "Random+"],
+    ["Loop", "loop", "Recorded", "Custom"],
+    ["Shift amt", "shiftAmt", "-24", "+24"],
+    ["Step notes", "maxNotesPerStep", "1", "4"],
+  ])("creates a modulation for %s with its full range", (label, setting, from, to) => {
+    setup()
+    const name = `Sequencer · ${label}`
+    fireEvent.click(gear(name))
+    const shown = popover(name)
+    expect(shown.getByLabelText(`${name} From`)).toHaveDisplayValue(from)
+    expect(shown.getByLabelText(`${name} To`)).toHaveDisplayValue(to)
+    fireEvent.click(shown.getByRole("button", { name: "Modulate" }))
+    expect(patch().modulations).toEqual([
+      expect.objectContaining({ target: { kind: "sequencer", setting } }),
+    ])
+    fireEvent.click(editItem("Undo"))
+    expect(patch().modulations).toEqual([])
+  })
   it("offers a gear beside each setting a CC can drive", () => {
     setup()
     for (const setting of [
@@ -114,7 +134,16 @@ describe("modulating a setting", () => {
         }),
       ).toBeInTheDocument()
     }
-    for (const setting of ["Pace", "Scale", "Shift scale fit"]) {
+    for (const setting of [
+      "Pace",
+      "Scale",
+      "Shift scale fit",
+      "Size",
+      "Direction",
+      "Loop",
+      "Shift amt",
+      "Step notes",
+    ]) {
       expect(
         sequencer().getByRole("button", {
           name: `Modulation settings: Sequencer · ${setting}`,

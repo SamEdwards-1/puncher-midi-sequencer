@@ -277,7 +277,7 @@ the setting keeps its own value.
 
 | Field | Takes |
 |---|---|
-| `setting` | a voice's `pace`, `length`, `rule`, `offset`, `offset_fit`, `pattern_length` or `sync`; the sequencer's `pace`, `scale` or `shift_fit`; or the `hold`, `flip` or `shift` action |
+| `setting` | a voice's `pace`, `length`, `rule`, `offset`, `offset_fit`, `pattern_length` or `sync`; the sequencer's `pace`, `scale`, `shift_fit`, `size`, `direction`, `loop`, `shift_amt` or `max_notes_per_step` (also `step_notes`); or the `hold`, `flip` or `shift` action |
 | `voice` | 1 to 4, for a voice's settings and `sync`. Without it, `pace` is the sequencer's |
 | `cc` | 0 to 119, one no other modulation has. A new modulation takes the first undefined controller nothing uses, unless given |
 | `from`, `to` | the setting's values the CC's 0 and 127 stand for, as its field has them: a pace (`"16th"`), a length in percent (`35`), a rule, semitones (`-7`), a fit, a pattern length, a scale (`"A minor"` or `"none"`), or `on`/`off` for an action. A new modulation spans every value unless given; for the scale, the ten scales at its tonic |
@@ -298,6 +298,8 @@ the setting keeps its own value.
   them, with a warning.
 - `clear_sequence` takes the voices' modulations away with the voices, and
   keeps the sequencer's and the actions'.
+
+Sequencer modulation timing: Size, Direction and Loop use the outgoing step's envelope at each transition. The first step starts from the saved settings. Shift amount and Step notes follow envelopes as notes play; Shift amount applies while the Shift action is on. Size keeps all stored steps, Step notes keeps all stored notes, and Loop changes the mode while preserving the custom loop end.
 
 ### step_menu
 

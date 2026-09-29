@@ -87,15 +87,20 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
       )}
       <Fields>
         {/* steps past the size are kept, and come back as it grows */}
-        <Field label={localized["sequencer-size"]}>
-          <Stepper
-            label={localized["sequencer-size"]}
-            value={patch.size}
-            min={1}
-            max={MAX_STEPS}
-            onChange={(size) => editSequencer({ size }, "size")}
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-size"]}
+          target={target("size")}
+        >
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-size"]}
+              value={shown(patch.size)}
+              min={1}
+              max={MAX_STEPS}
+              onChange={(size) => editSequencer({ size }, "size")}
+            />
+          )}
+        </ModulatedField>
 
         <ModulatedField
           label={localized["sequencer-pace"]}
@@ -110,23 +115,33 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           )}
         </ModulatedField>
 
-        <Field label={localized["sequencer-direction"]}>
-          <ComboBox
-            value={patch.direction}
-            options={DIRECTIONS}
-            onChange={(direction) => editSequencer({ direction })}
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-direction"]}
+          target={target("direction")}
+        >
+          {(shown) => (
+            <ComboBox
+              value={shown(patch.direction)}
+              options={DIRECTIONS}
+              onChange={(direction) => editSequencer({ direction })}
+            />
+          )}
+        </ModulatedField>
 
-        <Field label={localized["sequencer-loop"]}>
-          <ComboBox
-            value={patch.loop.mode}
-            options={LOOP_MODES}
-            onChange={(mode) =>
-              editSequencer({ loop: { ...patch.loop, mode } })
-            }
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-loop"]}
+          target={target("loop")}
+        >
+          {(shown) => (
+            <ComboBox
+              value={shown(patch.loop.mode)}
+              options={LOOP_MODES}
+              onChange={(mode) =>
+                editSequencer({ loop: { ...patch.loop, mode } })
+              }
+            />
+          )}
+        </ModulatedField>
 
         {patch.loop.mode === "custom" && (
           <Field label={localized["sequencer-loop-end"]}>
@@ -154,15 +169,20 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        <Field label={localized["sequencer-shift-amt"]}>
-          <Stepper
-            label={localized["sequencer-shift-amt"]}
-            value={patch.shiftAmt}
-            min={-24}
-            max={24}
-            onChange={(shiftAmt) => editSequencer({ shiftAmt }, "shift-amt")}
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-shift-amt"]}
+          target={target("shiftAmt")}
+        >
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-shift-amt"]}
+              value={shown(patch.shiftAmt)}
+              min={-24}
+              max={24}
+              onChange={(shiftAmt) => editSequencer({ shiftAmt }, "shift-amt")}
+            />
+          )}
+        </ModulatedField>
 
         <ModulatedField
           label={localized["sequencer-shift-fit"]}
@@ -177,17 +197,22 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           )}
         </ModulatedField>
 
-        <Field label={localized["sequencer-max-notes"]}>
-          <Stepper
-            label={localized["sequencer-max-notes"]}
-            value={patch.maxNotesPerStep}
-            min={1}
-            max={NOTES_PER_STEP}
-            onChange={(maxNotesPerStep) =>
-              editSequencer({ maxNotesPerStep }, "max-notes")
-            }
-          />
-        </Field>
+        <ModulatedField
+          label={localized["sequencer-max-notes"]}
+          target={target("maxNotesPerStep")}
+        >
+          {(shown) => (
+            <Stepper
+              label={localized["sequencer-max-notes"]}
+              value={shown(patch.maxNotesPerStep)}
+              min={1}
+              max={NOTES_PER_STEP}
+              onChange={(maxNotesPerStep) =>
+                editSequencer({ maxNotesPerStep }, "max-notes")
+              }
+            />
+          )}
+        </ModulatedField>
 
         {/* two selects, each with a name of its own, offering the scales a
             modulation can reach */}

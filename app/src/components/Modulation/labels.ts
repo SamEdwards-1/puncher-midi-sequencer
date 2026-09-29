@@ -41,11 +41,32 @@ export const modulationValueLabel = (
     case "rule":
       return RULE_LABELS[value as VoiceRule]
     case "offset":
+    case "shiftAmt":
       return (value as number) > 0 ? `+${value}` : String(value)
+    case "direction":
+      return (
+        {
+          fwd: "Forwards",
+          bwd: "Backwards",
+          fwdbwd: "Fwd / Bwd",
+          bwdfwd: "Bwd / Fwd",
+          random: "Random",
+          "random+": "Random+",
+        } as Record<string, string>
+      )[String(value)]
+    case "loop":
+      return (
+        { recorded: "Recorded", all: "All", custom: "Custom" } as Record<
+          string,
+          string
+        >
+      )[String(value)]
     case "offsetFit":
     case "shiftFit":
       return localized[`sequencer-scale-fit-${value as ScaleFit}`]
     case "patternLength":
+    case "size":
+    case "maxNotesPerStep":
       return String(value)
     case "scale":
       return value === null
@@ -63,6 +84,11 @@ export const modulationValueLabel = (
 
 // each setting's field, as it is labelled
 const FIELDS: Record<ModulationTarget["setting"], LocalizationKey> = {
+  size: "sequencer-size",
+  direction: "sequencer-direction",
+  loop: "sequencer-loop",
+  shiftAmt: "sequencer-shift-amt",
+  maxNotesPerStep: "sequencer-max-notes",
   pace: "sequencer-pace",
   length: "sequencer-voice-length",
   rule: "sequencer-voice-rule",
@@ -95,6 +121,11 @@ export const modulationTargetLabel = (
 
 // shorter, for a lane's tab
 const TABS: Record<ModulationTarget["setting"], LocalizationKey> = {
+  size: "sequencer-size",
+  direction: "sequencer-direction",
+  loop: "sequencer-loop",
+  shiftAmt: "sequencer-shift-amt",
+  maxNotesPerStep: "sequencer-max-notes",
   pace: "sequencer-pace",
   length: "sequencer-voice-length",
   rule: "sequencer-voice-rule",

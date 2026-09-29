@@ -298,8 +298,9 @@ is held — or, with **Latch** on, from one press until the next:
 ### Modulation
 
 A CC can drive a setting from the steps: a voice's pace, length, rule,
-offset, offset scale fit and pattern, and the sequencer's pace, scale and
-shift scale fit. Hover a setting's label and a gear appears beside it. Click
+offset, offset scale fit and pattern, and the sequencer's size, pace,
+direction, loop mode, shift amount, shift scale fit, step notes and scale.
+Hover a setting's label and a gear appears beside it. Click
 it to choose the CC — it offers the next one MIDI leaves undefined that
 nothing in the patch uses yet — and the range the CC's 0 to 127 runs across,
 from one of the setting's values to another, then **Modulate**. The CC's tab
@@ -310,7 +311,12 @@ other step plays the field's own value. Down the envelope's right side the
 numbers give way to the setting's values — paces, rules, scales — its points
 snap to them, and a dashed line marks the field's own value. A step lasts as
 long as the sequencer's pace as it lands; the voices follow their envelopes as
-they play. While the sequence plays, a modulated field shows the value the
+they play. Size, Direction and Loop are read from the outgoing step at each
+transition; the first step starts from the saved settings. Shift amount and
+Step notes follow the envelope as notes play, with Shift amount applying
+while Shift is on. Modulating Size or Step notes keeps the stored steps and
+notes; Loop changes the mode while keeping the custom loop end.
+While the sequence plays, a modulated field shows the value the
 sounding step's envelope has it at, in the envelopes' colour, and goes back to
 its own value on a step without one. Point at the field, or use it, and it
 shows its own value again, which is the one it changes. A modulated setting's

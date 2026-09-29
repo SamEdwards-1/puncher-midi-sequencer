@@ -845,6 +845,33 @@ describe("the transport and the actions", () => {
 })
 
 describe("set_modulations", () => {
+  it("binds the additional sequencer controls and rejects a voice for them", async () => {
+    const result = await call("set_modulations", {
+      modulations: [
+        { setting: "size", from: 2, to: 16 },
+        { setting: "direction", from: "Forwards", to: "Backwards" },
+        { setting: "loop", from: "recorded", to: "custom" },
+        { setting: "shift_amt", from: -12, to: 12 },
+        { setting: "shift_fit", from: "up", to: "down" },
+        { setting: "step_notes", from: 1, to: 4 },
+      ],
+    })
+    expect(result.error).toBeUndefined()
+    expect(patch().modulations.map(({ target }) => target)).toEqual(
+      [
+        "size",
+        "direction",
+        "loop",
+        "shiftAmt",
+        "shiftFit",
+        "maxNotesPerStep",
+      ].map((setting) => ({ kind: "sequencer", setting })),
+    )
+    const invalid = await call("set_modulations", {
+      modulations: [{ setting: "size", voice: 1 }],
+    })
+    expect(invalid.error).toContain("give no voice")
+  })
   it("binds a voice's setting to a free CC, across all its values", async () => {
     const cc = nextModulationCC(patch())
     const result = await call("set_modulations", {
