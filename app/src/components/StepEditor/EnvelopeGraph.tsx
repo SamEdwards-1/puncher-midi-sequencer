@@ -761,8 +761,6 @@ export const EnvelopeGraph: FC<{
           ),
         )
 
-  const gridLabel = GRIDS.find(({ beats }) => beats === gridBeats)?.label
-
   return (
     <div className="flex gap-1">
       <div className="flex flex-none flex-col">
@@ -1074,17 +1072,6 @@ export const EnvelopeGraph: FC<{
                 </text>
               </g>
             )}
-
-            <text
-              x={width - PAD - 2}
-              y={height - PAD - 2}
-              textAnchor="end"
-              fontSize={11}
-              fill="var(--midiseq-fg-secondary)"
-              fontFamily="var(--midiseq-mono-font)"
-            >
-              {gridLabel}
-            </text>
           </svg>
         </div>
       </div>
