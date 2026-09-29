@@ -424,11 +424,12 @@ const nextPaint = () =>
 /**
  * Picks a MIDI file and reads it, ready for the import dialog; nothing is
  * changed until that dialog imports it. `onLoading` hears the file's name
- * once it is picked, before it is read, so the wait can be shown. A file
- * that can't be read says why.
+ * once it is picked, before it is read, so the wait can be shown. Picking a
+ * file stops playback, so the sequence isn't left running under the import.
+ * A file that can't be read says why.
  */
 export function useMidiFileLoader() {
-  const { fileService } = useStores()
+  const { fileService, player } = useStores()
   return useCallback(
     async (onLoading: (name: string) => void) => {
       const file = await attempt("open the MIDI file", () =>
@@ -437,6 +438,7 @@ export function useMidiFileLoader() {
       if (file === null) {
         return null
       }
+      player.stop()
       onLoading(file.name)
       await nextPaint()
       const bytes = await attempt(
@@ -453,6 +455,6 @@ export function useMidiFileLoader() {
       }
       return { name: file.name, prepared: prepareMidi(result.midi) }
     },
-    [fileService],
+    [fileService, player],
   )
 }
