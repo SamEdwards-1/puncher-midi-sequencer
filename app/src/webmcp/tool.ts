@@ -1,4 +1,4 @@
-import { PatchJSON, StepIndex, VoiceIndex } from "@midiseq/core"
+import { PatchJSON, StepIndex, StepJSON, VoiceIndex } from "@midiseq/core"
 import type RootStore from "../stores/RootStore"
 import { InputError, readFields } from "./input"
 import { ModelContextTool, ToolAnnotations } from "./modelContext"
@@ -15,6 +15,9 @@ export interface ToolView {
   selectVoice(voice: VoiceIndex): void
   // whether clicking a step sounds it: Audition step, above the grid
   auditions(): boolean
+  // the step copied to paste, shared with the grid's menu and step editor
+  copiedStep(): StepJSON | null
+  copyStep(step: StepJSON): void
 }
 
 /** What a tool works with: the app's stores, its selection, and edits. */
