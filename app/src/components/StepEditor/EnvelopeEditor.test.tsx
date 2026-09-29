@@ -8,6 +8,7 @@ import {
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { choose } from "../../test/combobox"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
 import { makeScale } from "../../theory/scales"
@@ -455,9 +456,7 @@ describe("the envelope editor", () => {
     it("follows the voices as they change", () => {
       setup(ramp, (start) => setStepNotes(start, 0, [60, 64]))
       const voices = within(screen.getByRole("region", { name: "Voices" }))
-      fireEvent.change(voices.getByLabelText("Pace"), {
-        target: { value: "16th" },
-      })
+      choose(voices.getByLabelText("Pace"), "16th")
       expect(notes()).toHaveLength(4)
 
       fireEvent.click(screen.getByRole("button", { name: "Voice 1 Dot 1" }))

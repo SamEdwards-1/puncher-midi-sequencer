@@ -2,6 +2,7 @@ import { createDefaultPatch } from "@midiseq/core"
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { choose } from "../../test/combobox"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -29,23 +30,17 @@ beforeEach(() => {
 
 describe("editing the sequencer", () => {
   it("changes a sequencer setting", () => {
-    fireEvent.change(sequencerPanel().getByLabelText("Direction"), {
-      target: { value: "random+" },
-    })
+    choose(sequencerPanel().getByLabelText("Direction"), "Random+")
     expect(patch().direction).toBe("random+")
 
-    fireEvent.change(sequencerPanel().getByLabelText("Pace"), {
-      target: { value: "16th" },
-    })
+    choose(sequencerPanel().getByLabelText("Pace"), "16th")
     expect(patch().pace).toBe("16th")
   })
 
   it("shows the loop end only for a custom loop", () => {
     expect(sequencerPanel().queryByText("Loop end")).toBeNull()
 
-    fireEvent.change(sequencerPanel().getByLabelText("Loop"), {
-      target: { value: "custom" },
-    })
+    choose(sequencerPanel().getByLabelText("Loop"), "Custom")
     fireEvent.click(screen.getByRole("button", { name: "Loop end up" }))
     expect(patch().loop).toEqual({ mode: "custom", end: 16 })
   })
@@ -98,9 +93,7 @@ describe("editing the sequencer", () => {
     fireEvent.click(voicePanel().getByRole("switch", { name: "Enable" }))
     expect(patch().voices[1].enabled).toBe(true)
 
-    fireEvent.change(voicePanel().getByLabelText("Rule"), {
-      target: { value: "downup" },
-    })
+    choose(voicePanel().getByLabelText("Rule"), "Down / Up")
     expect(patch().voices[1].rule).toBe("downup")
     // voice 1 is untouched
     expect(patch().voices[0].rule).toBe("nth")
@@ -129,8 +122,8 @@ describe("editing the sequencer", () => {
         .flatMap((button, index) =>
           button.getAttribute("data-reached") === "true" ? [index + 1] : [],
         )
-    const setPace = (value: string, panel = sequencerPanel()) =>
-      fireEvent.change(panel.getByLabelText("Pace"), { target: { value } })
+    const setPace = (label: string, panel = sequencerPanel()) =>
+      choose(panel.getByLabelText("Pace"), label)
 
     it("gives every tab and pattern row its own voice's colour", () => {
       for (const voice of [1, 2, 3, 4]) {
@@ -215,7 +208,7 @@ describe("editing the sequencer", () => {
       expect(reached(1)).toEqual([1])
 
       // a bar-long step gives an 8th-note voice eight dots
-      setPace("1bar")
+      setPace("1 Bar")
       expect(reached(1)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
       expect(row(1)).toHaveAttribute("data-reach", "8")
 
@@ -292,7 +285,7 @@ describe("editing the sequencer", () => {
     })
 
     it("keeps the highlight inside the pattern's length", () => {
-      setPace("1bar")
+      setPace("1 Bar")
       selectVoice(4)
       for (let i = 0; i < 11; i++) {
         fireEvent.click(
@@ -367,9 +360,7 @@ describe("undo and redo", () => {
   it("walks an edit back and forward again", () => {
     expect(undoButton()).toBeDisabled()
 
-    fireEvent.change(sequencerPanel().getByLabelText("Direction"), {
-      target: { value: "bwd" },
-    })
+    choose(sequencerPanel().getByLabelText("Direction"), "Backwards")
     expect(undoButton()).toBeEnabled()
 
     fireEvent.click(undoButton())
@@ -380,9 +371,7 @@ describe("undo and redo", () => {
   })
 
   it("answers the keyboard", () => {
-    fireEvent.change(sequencerPanel().getByLabelText("Direction"), {
-      target: { value: "bwd" },
-    })
+    choose(sequencerPanel().getByLabelText("Direction"), "Backwards")
     fireEvent.keyDown(window, { code: "KeyZ", ctrlKey: true })
     expect(patch().direction).toBe("fwd")
 
@@ -412,9 +401,7 @@ describe("undo and redo", () => {
 
   it("leaves the voice tab alone, since it is view state", () => {
     selectVoice(3)
-    fireEvent.change(voicePanel().getByLabelText("Rule"), {
-      target: { value: "rise" },
-    })
+    choose(voicePanel().getByLabelText("Rule"), "Rise")
     fireEvent.click(undoButton())
 
     expect(patch().voices[2].rule).toBe("nth")
