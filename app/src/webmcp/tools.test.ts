@@ -1,7 +1,9 @@
 import {
   createDefaultPatch,
   createDemoPatch,
+  nextModulationCC,
   PatchJSON,
+  StepJSON,
   VoiceIndex,
 } from "@midiseq/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -20,8 +22,13 @@ import { createTools } from "./tools"
 
 let rootStore: RootStore
 let tools: ModelContextTool[]
-// the selection, as the app's atoms would hold it
-let view: ToolView & { step: number; voice: VoiceIndex; audition: boolean }
+// the selection and the step copied, as the app's atoms would hold them
+let view: ToolView & {
+  step: number
+  voice: VoiceIndex
+  audition: boolean
+  copied: StepJSON | null
+}
 
 const patch = () => rootStore.sequencerStore.patch
 
@@ -54,6 +61,11 @@ const start = (from: PatchJSON = createDemoPatch()) => {
       view.voice = voice
     },
     auditions: () => view.audition,
+    copied: null,
+    copiedStep: () => view.copied,
+    copyStep: (step) => {
+      view.copied = step
+    },
   }
   tools = createTools(rootStore, view)
 }
@@ -67,8 +79,11 @@ describe("the tools", () => {
       "set_steps",
       "set_voices",
       "set_sequencer",
+      "set_modulations",
+      "step_menu",
       "play",
       "stop",
+      "set_recording",
       "set_actions",
       "select_step",
       "undo",
@@ -826,6 +841,385 @@ describe("the transport and the actions", () => {
     expect(queue).toHaveBeenCalledWith(3)
     expect(result.plays_next).toBe(true)
     await call("stop")
+  })
+})
+
+describe("set_modulations", () => {
+  it("binds a voice's setting to a free CC, across all its values", async () => {
+    const cc = nextModulationCC(patch())
+    const result = await call("set_modulations", {
+      modulations: [{ setting: "pace", voice: 2 }],
+    })
+
+    expect(result.modulations).toEqual([
+      expect.objectContaining({
+        setting: "pace",
+        voice: 2,
+        label: "Voice 2 · Pace",
+        cc,
+        from: "16bar",
+        to: "32ndT",
+        steps: [],
+      }),
+    ])
+    // every pace, the first at the CC's 0 and the last at its 127
+    const { values } = result.modulations[0]
+    expect(values).toHaveLength(20)
+    expect(values[0]).toEqual({ value: "16bar", cc: 0 })
+    expect(values[19]).toEqual({ value: "32ndT", cc: 127 })
+    expect(result.note).toMatch(/^No step has an envelope for Voice 2 · Pace/)
+    // shown in the Voices panel, where its gear is
+    expect(view.voice).toBe(1)
+    expect(patch().modulations).toEqual([
+      {
+        target: { kind: "voice", voice: 1, setting: "pace" },
+        cc,
+        from: "16bar",
+        to: "32ndT",
+      },
+    ])
+
+    rootStore.history.undo()
+    expect(patch().modulations).toEqual([])
+  })
+
+  it("takes a range as the setting's field has it, and moves envelopes with a change", async () => {
+    await call("set_modulations", {
+      modulations: [
+        { setting: "offset", voice: 1, cc: 20, from: -12, to: "+12" },
+      ],
+    })
+    // +7 is 19 places on from -12, of 25 values across 0 to 127
+    const { modulations } = await call("get_sequence")
+    expect(modulations[0].values).toHaveLength(25)
+    expect(modulations[0].values[19]).toEqual({ value: 7, cc: 101 })
+
+    await call("set_steps", {
+      steps: [
+        { step: 6, envelopes: [{ cc: 20, points: [{ beat: 0, value: 101 }] }] },
+      ],
+    })
+    const changed = await call("set_modulations", {
+      modulations: [{ setting: "offset", voice: 1, from: 0 }],
+    })
+    expect(changed.modulations[0]).toMatchObject({
+      from: 0,
+      to: 12,
+      steps: [6],
+    })
+    expect(changed.note).toBeUndefined()
+    // the step still moves voice 1 up 7, which is at 74 of 0 to +12
+    expect(
+      patch().steps[5].envelopes.find((envelope) => envelope.cc === 20)?.points,
+    ).toEqual([{ time: 0, value: 74 }])
+  })
+
+  it("tells the sequencer's settings, a voice's Sync and the actions apart", async () => {
+    const made = await call("set_modulations", {
+      modulations: [
+        { setting: "pace", cc: 21 },
+        { setting: "scale", cc: 22, from: "A minor", to: "A minor blues" },
+        { setting: "sync", voice: 3, cc: 23 },
+        { setting: "hold", cc: 24, from: "off", to: "on" },
+        { setting: "length", voice: 4, cc: 25, from: "50%", to: 100 },
+      ],
+    })
+    expect(
+      made.modulations.map(
+        ({
+          label,
+          from,
+          to,
+        }: {
+          label: string
+          from: unknown
+          to: unknown
+        }) => [label, from, to],
+      ),
+    ).toEqual([
+      ["Sequencer · Pace", "16bar", "32ndT"],
+      ["Sequencer · Scale", "A minor", "A minor blues"],
+      ["Voice 3 · Sync", false, true],
+      ["Actions · Hold", false, true],
+      ["Voice 4 · Length", 50, 100],
+    ])
+    expect(patch().modulations[2].target).toEqual({
+      kind: "action",
+      setting: "sync",
+      voice: 2,
+    })
+    // one undo for them all
+    rootStore.history.undo()
+    expect(patch().modulations).toEqual([])
+  })
+
+  it("says what it won't take", async () => {
+    const refused = async (modulation: object) =>
+      (await call("set_modulations", { modulations: [modulation] })).error
+
+    expect(await refused({ setting: "rule" })).toBe(
+      "modulations[0]: rule is a voice's, so give the voice, 1 to 4",
+    )
+    expect(await refused({ setting: "sync" })).toBe(
+      "modulations[0]: each voice has a sync of its own, so give the voice",
+    )
+    expect(await refused({ setting: "hold", voice: 1 })).toBe(
+      "modulations[0]: hold is an action for the whole sequence, so give no voice",
+    )
+    expect(await refused({ setting: "scale", voice: 1 })).toBe(
+      "modulations[0]: scale is the sequencer's, so give no voice",
+    )
+    expect(await refused({ setting: "tempo" })).toMatch(
+      /^modulations\[0\]\.setting can't be "tempo"; it is one of pace, length/,
+    )
+    expect(await refused({ setting: "pace", voice: 1, from: "17th" })).toMatch(
+      /^modulations\[0\]\.from can't be "17th"/,
+    )
+    expect(await refused({ setting: "flip", remove: true })).toBe(
+      "modulations[0]: Actions · Flip has no modulation to remove",
+    )
+
+    await call("set_modulations", {
+      modulations: [{ setting: "scale", cc: 22 }],
+    })
+    expect(await refused({ setting: "rule", voice: 1, cc: 22 })).toBe(
+      "modulations[0]: CC 22 drives Sequencer · Scale already, and a CC drives one setting, so give another cc",
+    )
+    expect(await refused({ setting: "scale" })).toBe(
+      "modulations[0] changes nothing: Sequencer · Scale is modulated already, so give its cc, from or to, or remove it",
+    )
+    expect(await refused({ setting: "scale", remove: true, cc: 3 })).toBe(
+      "modulations[0]: remove takes Sequencer · Scale's modulation away, so give no cc",
+    )
+    expect(patch().modulations).toHaveLength(1)
+  })
+
+  it("removes one, its envelopes staying as plain CCs", async () => {
+    await call("set_modulations", {
+      modulations: [{ setting: "rule", voice: 1, cc: 102 }],
+    })
+    await call("set_steps", {
+      steps: [
+        { step: 6, envelopes: [{ cc: 102, points: [{ beat: 0, value: 60 }] }] },
+      ],
+    })
+
+    expect(
+      await call("set_modulations", {
+        modulations: [{ setting: "rule", voice: 1, remove: true }],
+      }),
+    ).toEqual({ modulations: [], removed: ["Voice 1 · Rule"] })
+    expect(patch().modulations).toEqual([])
+    // as drawn on the rule's values, now just a CC
+    expect(patch().steps[5].envelopes[0]).toMatchObject({
+      cc: 102,
+      points: [{ time: 0, value: 58 }],
+    })
+  })
+
+  it("warns that envelopes already on its CC start driving the setting", async () => {
+    await call("set_steps", {
+      steps: [
+        { step: 7, envelopes: [{ cc: 25, points: [{ beat: 0, value: 0 }] }] },
+      ],
+    })
+    const made = await call("set_modulations", {
+      modulations: [{ setting: "offset_fit", voice: 1, cc: 25 }],
+    })
+    expect(made.warnings).toEqual([
+      "Voice 1 · Offset scale fit now follows the envelopes for CC 25 that step 7 already had",
+    ])
+    expect(made.modulations[0]).toMatchObject({
+      setting: "offset_fit",
+      from: "up",
+      to: "ignore",
+      steps: [7],
+    })
+  })
+})
+
+describe("step_menu", () => {
+  beforeEach(() => start(createDefaultPatch()))
+
+  it("copies a step, sharing the app's copy, and pastes it as one undo", async () => {
+    await call("set_steps", {
+      steps: [{ step: 1, notes: "C4 E4 G4", state: "rest" }],
+    })
+
+    const copied = await call("step_menu", { step: 1, action: "copy" })
+    expect(copied.copied).toMatchObject({
+      step: 1,
+      notes: ["C4", "E4", "G4"],
+      state: "rest",
+    })
+    expect(view.copied?.notes).toEqual([60, 64, 67])
+    // copying changes nothing, so the notes are all there is to undo
+    rootStore.history.undo()
+    expect(rootStore.history.canUndo).toBe(false)
+
+    // and the copy outlasts the step it came from
+    const pasted = await call("step_menu", { step: 5, action: "paste" })
+    expect(pasted.pasted).toMatchObject({
+      step: 5,
+      notes: ["C4", "E4", "G4"],
+      state: "rest",
+    })
+    expect(view.step).toBe(4)
+
+    rootStore.history.undo()
+    expect(patch().steps[4].notes).toEqual([])
+  })
+
+  it("has nothing to paste before a copy", async () => {
+    expect(await call("step_menu", { step: 2, action: "paste" })).toEqual({
+      error: "Nothing has been copied to paste: copy a step first",
+    })
+  })
+
+  it("inserts an empty step, the rest and their jumps moving along", async () => {
+    await call("set_steps", {
+      steps: [
+        { step: 2, notes: ["D4"] },
+        { step: 3, notes: ["E4"], jump: { rule: "always", destination: 2 } },
+      ],
+    })
+
+    expect(
+      await call("step_menu", { step: 2, action: "insert_before" }),
+    ).toEqual({
+      inserted: 2,
+      moved: "The steps from 2 on each moved along one",
+    })
+    expect(
+      patch()
+        .steps.slice(1, 4)
+        .map((step) => step.notes),
+    ).toEqual([[], [62], [64]])
+    // still to the step with D4 in it
+    expect(patch().steps[3].jump.dest).toBe(2)
+    expect(view.step).toBe(1)
+
+    await call("step_menu", { step: 4, action: "insert_after" })
+    expect(patch().steps[4].notes).toEqual([])
+    expect(view.step).toBe(4)
+  })
+
+  it("inserts nowhere out of sight, and warns of a step pushed past the grid", async () => {
+    await call("set_sequencer", { size: 16 })
+    await call("set_steps", { steps: [{ step: 16, notes: ["C5"] }] })
+
+    expect(
+      await call("step_menu", { step: 16, action: "insert_after" }),
+    ).toEqual({
+      error:
+        "Step 16 is the grid's last, so there is no room after it to see: insert before it, or give set_sequencer a bigger size first",
+    })
+    const pushed = await call("step_menu", { step: 1, action: "insert_after" })
+    expect(pushed.warnings).toEqual([
+      "Step 16 moved to step 17, past the grid's end, where it is kept for when the grid grows",
+    ])
+    expect(patch().steps[16].notes).toEqual([72])
+  })
+
+  it("deletes a step, the rest moving back and jumps to it dropped", async () => {
+    await call("set_steps", {
+      steps: [
+        { step: 2, notes: ["D4"] },
+        { step: 3, notes: ["E4"] },
+        { step: 5, notes: ["G4"], jump: { rule: "always", destination: 2 } },
+      ],
+    })
+
+    expect(await call("step_menu", { step: 2, action: "delete" })).toEqual({
+      deleted: 2,
+      moved:
+        "The steps after it each moved back one, and an empty step came in at the end",
+      warnings: ["Jumps to step 2 were dropped, from step 5"],
+    })
+    expect(patch().steps[1].notes).toEqual([64])
+    expect(patch().steps[3].jump.dest).toBeNull()
+
+    rootStore.history.undo()
+    expect(patch().steps[1].notes).toEqual([62])
+  })
+
+  it("clears a step, and ends a take before steps change", async () => {
+    await call("set_steps", { steps: [{ step: 1, notes: ["C4"] }] })
+    rootStore.recorder.setRecording(true)
+
+    await call("step_menu", { step: 1, action: "copy" })
+    expect(rootStore.recorder.isRecording).toBe(true)
+    const cleared = await call("step_menu", { step: 1, action: "clear" })
+    expect(cleared.cleared).toMatchObject({ step: 1, notes: [] })
+    expect(rootStore.recorder.isRecording).toBe(false)
+  })
+
+  it("says what it won't take", async () => {
+    expect(await call("step_menu", { step: 1, action: "cut" })).toEqual({
+      error:
+        'action can\'t be "cut"; it is one of copy, paste, insert_before, insert_after, clear, delete',
+    })
+    // as the menu words it
+    await call("step_menu", { step: 1, action: "Insert before" })
+    expect(view.step).toBe(0)
+  })
+})
+
+describe("set_recording", () => {
+  it("records a take into the step given, as one undo, and ends it", async () => {
+    const before = patch().steps[2].notes
+
+    expect(await call("set_recording", { recording: true, step: 3 })).toEqual({
+      recording: true,
+      record_step: 3,
+      inputs: [],
+      warnings: [
+        "No MIDI input is ticked and connected in Settings → MIDI, so nothing played can be recorded",
+      ],
+    })
+    expect(view.step).toBe(2)
+    expect((await call("get_sequence")).transport).toMatchObject({
+      recording: true,
+      record_step: 3,
+      inputs: [],
+    })
+
+    // what the person plays lands there
+    rootStore.recorder.onMessage({
+      type: "noteOn",
+      channel: 1,
+      note: 72,
+      velocity: 100,
+    })
+    expect(patch().steps[2].notes).toEqual([72])
+
+    expect(await call("set_recording", { recording: false })).toEqual({
+      recording: false,
+      record_step: 3,
+      inputs: [],
+    })
+    rootStore.history.undo()
+    expect(patch().steps[2].notes).toEqual(before)
+  })
+
+  it("moves where recording goes without starting it", async () => {
+    expect(await call("set_recording", { step: 5 })).toEqual({
+      recording: false,
+      record_step: 5,
+      inputs: [],
+    })
+    expect(rootStore.recorder.target).toBe(4)
+    expect(rootStore.history.canUndo).toBe(false)
+  })
+
+  it("says what it won't take", async () => {
+    expect(await call("set_recording", {})).toEqual({
+      error:
+        "Give recording, true or false, or the step to record into, or both",
+    })
+    expect(await call("set_recording", { step: 99 })).toEqual({
+      error: "step must be a whole number from 1 to 64, not 99",
+    })
   })
 })
 

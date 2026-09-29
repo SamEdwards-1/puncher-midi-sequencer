@@ -1,4 +1,5 @@
 import { clearPatch, EngineActions, MAX_STEPS, PatchJSON } from "@midiseq/core"
+import { portName } from "../stores/MIDIDeviceStore"
 import type RootStore from "../stores/RootStore"
 import { describePatch, describeStep, soundStatus } from "./describe"
 import {
@@ -9,7 +10,10 @@ import {
   readVoice,
 } from "./input"
 import { ModelContextTool } from "./modelContext"
+import { modulationsTool } from "./modulations"
+import { recordingTool } from "./recording"
 import { sequencerTool } from "./sequencer"
+import { stepMenuTool } from "./stepMenu"
 import { stepsTool } from "./steps"
 import {
   boolean,
@@ -99,6 +103,8 @@ export const createTools = (
       voice_outputs: voices.flatMap((output, index) =>
         output === null ? [] : [{ voice: index + 1, output }],
       ),
+      // what recording hears: the inputs ticked that are connected
+      inputs: midiDeviceStore.inputPorts.map(portName),
       ...(status !== null && { sound: status }),
     }
   }
@@ -108,7 +114,7 @@ export const createTools = (
       name: "get_sequence",
       title: "Read the sequence",
       description:
-        "Reads the whole sequence. Call it first, and again whenever you need to see how things stand. The sequencer walks a grid of steps at its own pace. Each step holds up to four notes — a chord for the voices to draw from — and can hold CC envelopes, a state (normal, rest or skip) and a jump to another step. Four voices play whatever step is current, each at its own pace, with its own rhythm pattern of dots and its own rule for which of the step's notes to play, so a single chord step can become an arpeggio, a bass line and a lead at once. Returns the sequencer's settings, the voices (pattern: x plays, . rests; dots: the options of the dots that have any), every step that holds anything, the scales its notes suggest, modulations (settings a CC's envelopes drive), the transport, what is selected, and whether there is anything to undo. Steps, voices and dots are numbered from 1, as the app shows them, and notes are named in scientific pitch, C4 being middle C.",
+        "Reads the whole sequence. Call it first, and again whenever you need to see how things stand. The sequencer walks a grid of steps at its own pace. Each step holds up to four notes — a chord for the voices to draw from — and can hold CC envelopes, a state (normal, rest or skip) and a jump to another step. Four voices play whatever step is current, each at its own pace, with its own rhythm pattern of dots and its own rule for which of the step's notes to play, so a single chord step can become an arpeggio, a bass line and a lead at once. Returns the sequencer's settings, the voices (pattern: x plays, . rests; dots: the options of the dots that have any), every step that holds anything, the scales its notes suggest, modulations (settings a CC drives, with the CC value standing for each of their values, and the steps with an envelope for it), the transport and the MIDI inputs recording hears, what is selected, and whether there is anything to undo. Steps, voices and dots are numbered from 1, as the app shows them, and notes are named in scientific pitch, C4 being middle C.",
       input: NO_INPUT,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       run: () => ({
@@ -133,6 +139,8 @@ export const createTools = (
     stepsTool(context),
     voicesTool(context),
     sequencerTool(context),
+    modulationsTool(context),
+    stepMenuTool(context),
 
     tool({
       name: "play",
@@ -163,6 +171,8 @@ export const createTools = (
         return { playing: false }
       },
     }),
+
+    recordingTool(context),
 
     tool({
       name: "set_actions",
@@ -284,7 +294,7 @@ export const createTools = (
       name: "clear_sequence",
       title: "Clear the sequence",
       description:
-        "Empties the sequence to start afresh: every step loses its notes, envelopes, jump, and rest or skip, and every voice goes back to its defaults, with only voice 1 playing. The tempo, size, pace, direction and loop stay as they are. It is one entry in the undo history, so Undo brings it all back.",
+        "Empties the sequence to start afresh: every step loses its notes, envelopes, jump, and rest or skip, and every voice goes back to its defaults, with only voice 1 playing, its modulations going with it. The tempo, size, pace, direction and loop stay as they are, as do the sequencer's and the actions' modulations. It is one entry in the undo history, so Undo brings it all back.",
       input: NO_INPUT,
       run: () => {
         // a take ends first, as for any edit of the whole patch

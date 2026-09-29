@@ -1,16 +1,22 @@
 import { PreparedMidi } from "@midiseq/core"
 import { FC, useState } from "react"
 import { useFileActions, useMidiFileLoader } from "../../actions/file"
+import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useSelectedStep } from "../../hooks/useSequencerView"
+import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { RecentFile } from "../../services/RecentFilesStorage"
 import { Loading } from "../ui/Loading"
-import { MenuBarMenu, MenuItem } from "../ui/Menu"
+import { MenuBarMenu, MenuDivider, MenuGroup, MenuItem } from "../ui/Menu"
 import { ExportMidiDialog } from "./ExportMidiDialog"
 import { ImportMidiDialog } from "./ImportMidiDialog"
 import { RenderAudioDialog } from "./RenderAudioDialog"
 
 export const FileMenu: FC = () => {
-  const { newPatch, open, save, saveAs } = useFileActions()
+  const { newPatch, open, openRecent, save, saveAs } = useFileActions()
+  const { recentFiles } = useStores()
+  const recentPatches = useMobxGetter(recentFiles, "patch")
+  const recentMidi = useMobxGetter(recentFiles, "midi")
   const localized = useLocalization()
   // the whole sequence, or the step in the editor when it was asked for
   const [exporting, setExporting] = useState<
@@ -25,9 +31,11 @@ export const FileMenu: FC = () => {
     | { status: "ready"; name: string; prepared: PreparedMidi }
     | null
   >(null)
-  const importMidi = async () => {
-    const loaded = await loadMidiFile((name) =>
-      setImporting({ status: "loading", name }),
+  // from the picker, or again from the recent MIDI files
+  const importMidi = async (recent?: RecentFile) => {
+    const loaded = await loadMidiFile(
+      (name) => setImporting({ status: "loading", name }),
+      recent,
     )
     setImporting(loaded === null ? null : { status: "ready", ...loaded })
   }
@@ -49,9 +57,41 @@ export const FileMenu: FC = () => {
             <MenuItem close={close} onSelect={saveAs}>
               <Localized name="sequencer-file-save-as" />
             </MenuItem>
-            <MenuItem close={close} onSelect={importMidi}>
+            {recentPatches.length > 0 && (
+              <>
+                <MenuDivider />
+                <MenuGroup label={localized["sequencer-file-recent-patches"]}>
+                  {recentPatches.map((recent, index) => (
+                    <MenuItem
+                      // a name can be there twice, from two folders
+                      key={`${index}-${recent.name}`}
+                      close={close}
+                      onSelect={() => openRecent(recent)}
+                    >
+                      {recent.name}
+                    </MenuItem>
+                  ))}
+                </MenuGroup>
+              </>
+            )}
+            <MenuDivider />
+            <MenuItem close={close} onSelect={() => importMidi()}>
               <Localized name="sequencer-file-import-midi" />
             </MenuItem>
+            {recentMidi.length > 0 && (
+              <MenuGroup label={localized["sequencer-file-recent-midi"]}>
+                {recentMidi.map((recent, index) => (
+                  <MenuItem
+                    key={`${index}-${recent.name}`}
+                    close={close}
+                    onSelect={() => importMidi(recent)}
+                  >
+                    {recent.name}
+                  </MenuItem>
+                ))}
+              </MenuGroup>
+            )}
+            <MenuDivider />
             <MenuItem
               close={close}
               onSelect={() => setExporting({ kind: "sequence" })}

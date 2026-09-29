@@ -27,12 +27,16 @@ import { useAccentAmount } from "../hooks/useAccentAmount"
 import { useStores } from "../hooks/useStores"
 import { AudioRenderCancelled, AudioRenderJob } from "../services/AudioRenderer"
 import {
+  isGone,
   MIDI_FILE,
   MP3_FILE,
   PATTERNS_FILE,
+  PickedFile,
   WAV_FILE,
 } from "../services/FileService"
+import { RecentFile, RecentKind } from "../services/RecentFilesStorage"
 import { ccKey, ExportSettingsStore } from "../stores/ExportSettingsStore"
+import { RecentFilesStore } from "../stores/RecentFilesStore"
 import { usePatchEditor } from "./patch"
 
 const nameFor = (fileName: string | null, patchName: string) =>
@@ -67,15 +71,50 @@ const attempt = async <T>(
   try {
     return await run()
   } catch (error) {
-    const reason = error instanceof Error ? ` ${error.message}` : ""
-    window.alert(`Couldn't ${what}.${reason}`)
+    complain(what, error)
+    return null
+  }
+}
+
+const complain = (what: string, error: unknown) => {
+  const reason = error instanceof Error ? ` ${error.message}` : ""
+  window.alert(`Couldn't ${what}.${reason}`)
+}
+
+/**
+ * A recent file read again: a file since moved or deleted comes off its
+ * list, saying so, and anything else that goes wrong says what.
+ */
+const attemptRecent = async <T>(
+  recentFiles: RecentFilesStore,
+  kind: RecentKind,
+  recent: RecentFile,
+  run: () => Promise<T>,
+): Promise<T | null> => {
+  try {
+    return await run()
+  } catch (error) {
+    if (isGone(error)) {
+      window.alert(
+        `Couldn't find ${recent.name}. It may have been moved or deleted.`,
+      )
+      await recentFiles.remove(kind, recent)
+    } else {
+      complain(`open ${recent.name}`, error)
+    }
     return null
   }
 }
 
 export function useFileActions() {
-  const { sequencerStore, history, fileService, autoSave, recorder } =
-    useStores()
+  const {
+    sequencerStore,
+    history,
+    fileService,
+    autoSave,
+    recorder,
+    recentFiles,
+  } = useStores()
 
   /**
    * Each of these acts on the whole patch, so a take ends first: a save
@@ -103,6 +142,46 @@ export function useFileActions() {
     [sequencerStore],
   )
 
+  // the patch's file goes to the top of the recent patches, once it has one
+  const remember = useCallback(
+    (name: string) => {
+      const handle = fileService.currentHandle
+      if (handle !== null) {
+        void recentFiles.add("patch", { name, handle })
+      }
+    },
+    [fileService, recentFiles],
+  )
+
+  const loadText = useCallback(
+    (opened: { name: string; text: string }) => {
+      const result = parseFile(opened.text)
+      if (!result.ok) {
+        window.alert(`Couldn't open that file. ${result.error}`)
+        return
+      }
+      // Older unnamed patches use their filename, including recent files.
+      load(
+        withPatchName(result.patch, exportBaseNameFor(opened.name, "")),
+        opened.name,
+      )
+      remember(opened.name)
+    },
+    [load, remember],
+  )
+
+  const saved = useCallback(
+    (name: string | null) => {
+      if (name !== null) {
+        sequencerStore.fileName = name
+        sequencerStore.isSaved = true
+        autoSave.clear()
+        remember(name)
+      }
+    },
+    [sequencerStore, autoSave, remember],
+  )
+
   return {
     newPatch: useCallback(() => {
       if (confirmDiscard()) {
@@ -117,20 +196,27 @@ export function useFileActions() {
       }
       endTake()
       const opened = await attempt("open a file", () => fileService.open())
-      if (opened === null) {
-        return
+      if (opened !== null) {
+        loadText(opened)
       }
-      const result = parseFile(opened.text)
-      if (!result.ok) {
-        window.alert(`Couldn't open that file. ${result.error}`)
-        return
-      }
-      // a file from before patches had names goes by the file's
-      load(
-        withPatchName(result.patch, exportBaseNameFor(opened.name, "")),
-        opened.name,
-      )
-    }, [confirmDiscard, endTake, fileService, load]),
+    }, [confirmDiscard, endTake, fileService, loadText]),
+
+    /** A patch from the recent ones, opened again without a picker. */
+    openRecent: useCallback(
+      async (recent: RecentFile) => {
+        if (!confirmDiscard()) {
+          return
+        }
+        endTake()
+        const opened = await attemptRecent(recentFiles, "patch", recent, () =>
+          fileService.reopen(recent.handle),
+        )
+        if (opened !== null) {
+          loadText(opened)
+        }
+      },
+      [confirmDiscard, endTake, fileService, recentFiles, loadText],
+    ),
 
     save: useCallback(async () => {
       endTake()
@@ -141,12 +227,8 @@ export function useFileActions() {
           nameFor(sequencerStore.fileName, sequencerStore.patch.name),
         ),
       )
-      if (name !== null) {
-        sequencerStore.fileName = name
-        sequencerStore.isSaved = true
-        autoSave.clear()
-      }
-    }, [endTake, sequencerStore, fileService, autoSave]),
+      saved(name)
+    }, [endTake, sequencerStore, fileService, saved]),
 
     saveAs: useCallback(async () => {
       endTake()
@@ -157,12 +239,8 @@ export function useFileActions() {
           nameFor(sequencerStore.fileName, sequencerStore.patch.name),
         ),
       )
-      if (name !== null) {
-        sequencerStore.fileName = name
-        sequencerStore.isSaved = true
-        autoSave.clear()
-      }
-    }, [endTake, sequencerStore, fileService, autoSave]),
+      saved(name)
+    }, [endTake, sequencerStore, fileService, saved]),
   }
 }
 
@@ -436,20 +514,31 @@ const nextPaint = () =>
 
 /**
  * Picks a MIDI file and reads it, ready for the import dialog; nothing is
- * changed until that dialog imports it. `onLoading` hears the file's name
- * once it is picked, before it is read, so the wait can be shown. A file
- * that can't be read says why.
+ * changed until that dialog imports it. Given one of the recent MIDI files,
+ * it reads that again instead of asking. `onLoading` hears the file's name
+ * once it is picked, before it is read, so the wait can be shown. Picking a
+ * file stops playback, so the sequence isn't left running under the import.
+ * A file that can't be read says why; one that can goes to the top of the
+ * recent MIDI files.
  */
 export function useMidiFileLoader() {
-  const { fileService } = useStores()
+  const { fileService, player, recentFiles } = useStores()
   return useCallback(
-    async (onLoading: (name: string) => void) => {
-      const file = await attempt("open the MIDI file", () =>
-        fileService.pickFile(MIDI_FILE),
-      )
-      if (file === null) {
+    async (onLoading: (name: string) => void, recent?: RecentFile) => {
+      const picked: PickedFile | null =
+        recent === undefined
+          ? await attempt("open the MIDI file", () =>
+              fileService.pickFile(MIDI_FILE),
+            )
+          : await attemptRecent(recentFiles, "midi", recent, async () => ({
+              file: await fileService.reread(recent.handle),
+              handle: recent.handle,
+            }))
+      if (picked === null) {
         return null
       }
+      const { file, handle } = picked
+      player.stop()
       onLoading(file.name)
       await nextPaint()
       const bytes = await attempt(
@@ -464,8 +553,11 @@ export function useMidiFileLoader() {
         window.alert(`Couldn't import that file. ${result.error}`)
         return null
       }
+      if (handle !== null) {
+        void recentFiles.add("midi", { name: file.name, handle })
+      }
       return { name: file.name, prepared: prepareMidi(result.midi) }
     },
-    [fileService],
+    [fileService, player, recentFiles],
   )
 }
