@@ -256,6 +256,8 @@ export default {
     "sequencer-voice-patterns": "Patterns",
     "sequencer-voice-pattern": "pattern",
     "sequencer-voice-select": "Select voice",
+    "sequencer-voice-mute": "Mute",
+    "sequencer-voice-solo": "Solo",
     "sequencer-patterns-export": "Export patterns",
     "sequencer-patterns-import": "Import patterns",
     "sequencer-dot-articulation": "Articulation",

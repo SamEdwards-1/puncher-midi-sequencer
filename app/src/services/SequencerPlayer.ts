@@ -51,6 +51,18 @@ export interface StepProgress {
   lengthBeats: number
 }
 
+/**
+ * A clicked step sounding on its own: when it started, how long a beat and
+ * the step last, and when it is cut off, which a slow step may be first.
+ */
+export interface StepPreview {
+  step: StepIndex
+  time: number
+  msPerBeat: number
+  lengthBeats: number
+  end: number
+}
+
 const sameSettings = (
   a: ModulatedSetting[] | null,
   b: ModulatedSetting[] | null,
@@ -83,6 +95,12 @@ const START_DELAY_MS = 50
 export class SequencerPlayer {
   isPlaying = false
   position: StepIndex | null = null
+  // the stored step sounding, which differs from `position` while Flip is
+  // held; null when stopped
+  step: StepIndex | null = null
+  // the clicked step sounding on its own, until another is clicked or the
+  // sound is stopped; it may have finished
+  preview: StepPreview | null = null
   // the dot each voice plays first on the sounding step, null when stopped
   voiceDots: number[] | null = null
   // the dot each voice is on right now; null for a voice yet to reach one,
@@ -134,6 +152,8 @@ export class SequencerPlayer {
     makeObservable(this, {
       isPlaying: observable,
       position: observable,
+      step: observable,
+      preview: observable.ref,
       voiceDots: observable.ref,
       playingDots: observable.ref,
       modulated: observable.ref,
@@ -200,6 +220,13 @@ export class SequencerPlayer {
     ]
 
     const now = this.now()
+    this.preview = {
+      step,
+      time: now,
+      msPerBeat,
+      lengthBeats: paceBeats(stepPace(patch, step)),
+      end: now + beats * msPerBeat,
+    }
     for (const event of events) {
       if (event.type === "step" || event.type === "dot" || !this.sends(event)) {
         continue
@@ -256,6 +283,30 @@ export class SequencerPlayer {
     }
   }
 
+  /**
+   * How far through `step` the playhead is, 0 to 1: as the sequence plays
+   * it, or else as a click on it sounds it. Null while it isn't sounding.
+   */
+  playhead = (step: StepIndex): number | null => {
+    const progress = this.stepProgress()
+    if (progress !== null && progress.step === step) {
+      return progress.time
+    }
+    const preview = this.preview
+    if (preview === null || preview.step !== step) {
+      return null
+    }
+    const now = this.now()
+    if (now < preview.time || now >= preview.end) {
+      return null
+    }
+    return (now - preview.time) / preview.msPerBeat / preview.lengthBeats
+  }
+
+  // Whether anything is sounding for a playhead to follow.
+  sounding = (): boolean =>
+    this.isPlaying || (this.preview !== null && this.now() < this.preview.end)
+
   play = () => {
     if (this.isPlaying) {
       return
@@ -298,6 +349,9 @@ export class SequencerPlayer {
     this.dotMarks = []
     this.isPlaying = false
     this.position = null
+    this.step = null
+    // the panic above silenced it
+    this.preview = null
     this.voiceDots = null
     this.playingDots = null
     this.modulated = null
@@ -310,6 +364,7 @@ export class SequencerPlayer {
     }
     const now = this.now()
     this.router.panic(now, this.horizon(now))
+    this.preview = null
   }
 
   tick = () => {
@@ -353,15 +408,20 @@ export class SequencerPlayer {
     this.pending = this.pending.slice(due)
 
     let position = this.position
+    let step = this.step
     let voiceDots = this.voiceDots
     while (this.stepMarks.length > 0 && this.stepMarks[0].time <= now) {
       position = this.stepMarks[0].position
+      step = this.stepMarks[0].step
       voiceDots = this.stepMarks[0].voiceDots
       this.landed = this.stepMarks[0]
       this.stepMarks.shift()
     }
     if (position !== this.position) {
       this.position = position
+    }
+    if (step !== this.step) {
+      this.step = step
     }
     // a new array only when a step has sounded, so observers of an unchanged
     // step are not woken every tick

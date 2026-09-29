@@ -9,7 +9,6 @@ import {
   noteNumberToName,
   PACE_LABELS,
   PACES,
-  PaceId,
   PatternStepJSON,
   playedVelocity,
   previewStep,
@@ -18,7 +17,6 @@ import {
   stepPace,
   VOICE_RULES,
   VoiceIndex,
-  VoiceRule,
   VoiceSetting,
   viewIndex,
 } from "@midiseq/core"
@@ -26,6 +24,8 @@ import ArrowCollapseDownIcon from "mdi-react/ArrowCollapseDownIcon"
 import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
 import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
+import HeadphonesIcon from "mdi-react/HeadphonesIcon"
+import VolumeOffIcon from "mdi-react/VolumeOffIcon"
 import { CSSProperties, FC, ReactNode, useMemo, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
@@ -37,6 +37,7 @@ import {
   useSelectedLane,
   useSelectedStep,
   useSelectedVoice,
+  useSoloRestore,
 } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
@@ -44,7 +45,8 @@ import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import { RULE_LABELS } from "../Modulation/labels"
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect } from "../Scale/ScalePicker"
-import { IconButton } from "../ui/Button"
+import { ButtonGroup, IconButton } from "../ui/Button"
+import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
@@ -53,6 +55,16 @@ import { Slider } from "../ui/Slider"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
 import { StepOptions } from "./StepOptions"
+
+const PACE_OPTIONS = PACES.map((pace) => ({
+  value: pace,
+  label: PACE_LABELS[pace],
+}))
+
+const RULE_OPTIONS = VOICE_RULES.map((rule) => ({
+  value: rule,
+  label: RULE_LABELS[rule],
+}))
 
 const TAB =
   "flex h-9 flex-1 items-center justify-center gap-[0.4rem] whitespace-nowrap border-b-[0.15rem] bg-transparent text-body hover:bg-highlight"
@@ -225,18 +237,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           target={target("pace")}
         >
           {(shown) => (
-            <Select
+            <ComboBox
               value={shown(voice.pace)}
-              onChange={(event) =>
-                editVoice(selected, { pace: event.target.value as PaceId })
-              }
-            >
-              {PACES.map((pace) => (
-                <option key={pace} value={pace}>
-                  {PACE_LABELS[pace]}
-                </option>
-              ))}
-            </Select>
+              options={PACE_OPTIONS}
+              onChange={(pace) => editVoice(selected, { pace })}
+            />
           )}
         </ModulatedField>
 
@@ -267,18 +272,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           target={target("rule")}
         >
           {(shown) => (
-            <Select
+            <ComboBox
               value={shown(voice.rule)}
-              onChange={(event) =>
-                editVoice(selected, { rule: event.target.value as VoiceRule })
-              }
-            >
-              {VOICE_RULES.map((rule) => (
-                <option key={rule} value={rule}>
-                  {RULE_LABELS[rule]}
-                </option>
-              ))}
-            </Select>
+              options={RULE_OPTIONS}
+              onChange={(rule) => editVoice(selected, { rule })}
+            />
           )}
         </ModulatedField>
 
@@ -412,7 +410,7 @@ const Patterns: FC<{
   const playingDots = useMobxGetter(player, "playingDots")
   const position = useMobxGetter(player, "position")
   const { actions } = useActions()
-  const { togglePatternDot } = usePatchEditor()
+  const { togglePatternDot, editVoice, editVoicesEnabled } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
   const [, setLane] = useSelectedLane()
   const [step] = useSelectedStep()
@@ -461,11 +459,43 @@ const Patterns: FC<{
     dotIndex: number
     at: { x: number; y: number }
   } | null>(null)
+  // Mute and solo are the voices' own Enable settings: a muted voice is one
+  // switched off, and a soloed voice the only one on.
+  const enabled = patch.voices.map((voice) => voice.enabled)
+  const soloed = (voice: VoiceIndex) =>
+    enabled.every((on, index) => on === (index === voice))
+  const [soloRestore, setSoloRestore] = useSoloRestore()
+  const mute = (voice: VoiceIndex) =>
+    editVoice(voice, { enabled: !enabled[voice] })
+  // Soloing switches the others off, remembering which were on; soloing
+  // another voice from a solo keeps what was on before the first. Un-soloing
+  // switches them back on, or, with nothing remembered — a solo made by
+  // hand, or before a reload — every voice.
+  const solo = (voice: VoiceIndex) => {
+    if (soloed(voice)) {
+      const before =
+        soloRestore?.voice === voice
+          ? soloRestore.enabled
+          : enabled.map(() => true)
+      editVoicesEnabled(before.map((on, index) => on || index === voice))
+      setSoloRestore(null)
+      return
+    }
+    const other = VOICES.find(soloed)
+    setSoloRestore({
+      voice,
+      enabled:
+        other !== undefined && soloRestore?.voice === other
+          ? soloRestore.enabled
+          : enabled,
+    })
+    editVoicesEnabled(enabled.map((_, index) => index === voice))
+  }
 
   return (
     <section
       aria-label={localized["sequencer-voice-patterns"]}
-      className="flex flex-col gap-[0.5rem] border-t border-divider px-3 pt-3"
+      className="flex flex-col gap-[1.1rem] border-t border-divider px-3 pt-3"
     >
       {VOICES.map((voiceIndex) => {
         const voice = patch.voices[voiceIndex]
@@ -496,164 +526,178 @@ const Patterns: FC<{
             aria-current={voiceIndex === selected}
             data-enabled={voice.enabled}
             data-reach={reach}
-            className={cn(
-              "m-0 flex min-w-0 items-center gap-2 px-0 py-[0.4rem]",
-              !voice.enabled && "opacity-55",
-            )}
+            className="m-0 flex min-w-0 flex-col gap-[0.6rem] border-0 px-0 py-[0.4rem]"
             style={voiceColor(voiceIndex)}
           >
-            <button
-              type="button"
-              aria-label={`${localized["sequencer-voice-select"]} ${voiceIndex + 1}`}
-              aria-pressed={voiceIndex === selected}
-              className="flex h-5 w-5 flex-none items-center justify-center rounded text-tiny text-voice hover:bg-highlight hover:brightness-125"
-              onClick={() => onSelect(voiceIndex)}
-            >
-              {voiceIndex === selected ? (
-                <ChevronRightIcon size={14} />
-              ) : (
-                voiceIndex + 1
+            <div
+              className={cn(
+                "flex min-w-0 items-center gap-2",
+                !voice.enabled && "opacity-55",
               )}
-            </button>
-            {/* dots fill the column, up to a size that still reads as a
+            >
+              <button
+                type="button"
+                aria-label={`${localized["sequencer-voice-select"]} ${voiceIndex + 1}`}
+                aria-pressed={voiceIndex === selected}
+                className="flex h-5 w-5 flex-none items-center justify-center rounded text-tiny text-voice hover:bg-highlight hover:brightness-125"
+                onClick={() => onSelect(voiceIndex)}
+              >
+                {voiceIndex === selected ? (
+                  <ChevronRightIcon size={14} />
+                ) : (
+                  voiceIndex + 1
+                )}
+              </button>
+              {/* dots fill the column, up to a size that still reads as a
                 row of dots when the panel has the whole window */}
-            <span className="grid flex-1 grid-cols-[repeat(16,minmax(0,1.75rem))] gap-[0.3rem]">
-              {runs.map(([first, count]) => (
-                <span
-                  key={first}
-                  aria-hidden
-                  data-band
-                  className="-m-[0.25rem] rounded-full border-[1.5px] border-theme"
-                  style={{
-                    gridRow: 1,
-                    gridColumn: `${first + 1} / span ${count}`,
-                  }}
-                />
-              ))}
-              {voice.pattern.map((dot, dotIndex) => {
-                const editing =
-                  options?.voiceIndex === voiceIndex &&
-                  options.dotIndex === dotIndex
-                // a velocity landing on an accent's shows as that accent
-                const accent = shownAccent(voice.velocity, accentAmount, dot)
-                const collided =
-                  collisionsAt.get(`${voiceIndex}:${dotIndex}`) ?? []
-                return (
-                  <button
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
-                    key={dotIndex}
-                    type="button"
-                    aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
-                    data-on={dot.on}
-                    data-beyond={dotIndex >= voice.patternLength}
-                    data-reached={reached(dotIndex)}
-                    data-editing={editing}
-                    data-playing={playingDots?.[voiceIndex] === dotIndex}
-                    data-articulation={dot.articulation}
-                    data-accent={accent}
-                    data-velocity={playedVelocity(
-                      voice.velocity,
-                      accentAmount,
-                      dot,
-                    )}
-                    data-chance={dot.probability < 100}
-                    data-condition={dot.condition !== "always"}
-                    data-collisions={
-                      collided.length > 0 ? collided.join(" ") : undefined
-                    }
-                    className={dotClass(
-                      dot,
-                      accent,
-                      dotIndex >= voice.patternLength,
-                      editing,
-                    )}
-                    style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
-                    title={[
-                      describe(
+              <span className="grid flex-1 grid-cols-[repeat(16,minmax(0,1.75rem))] gap-[0.3rem]">
+                {runs.map(([first, count]) => (
+                  <span
+                    key={first}
+                    aria-hidden
+                    data-band
+                    className="-m-[0.25rem] rounded-full border-[1.5px] border-theme"
+                    style={{
+                      gridRow: 1,
+                      gridColumn: `${first + 1} / span ${count}`,
+                    }}
+                  />
+                ))}
+                {voice.pattern.map((dot, dotIndex) => {
+                  const editing =
+                    options?.voiceIndex === voiceIndex &&
+                    options.dotIndex === dotIndex
+                  // a velocity landing on an accent's shows as that accent
+                  const accent = shownAccent(voice.velocity, accentAmount, dot)
+                  const collided =
+                    collisionsAt.get(`${voiceIndex}:${dotIndex}`) ?? []
+                  return (
+                    <button
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
+                      key={dotIndex}
+                      type="button"
+                      aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+                      data-on={dot.on}
+                      data-beyond={dotIndex >= voice.patternLength}
+                      data-reached={reached(dotIndex)}
+                      data-editing={editing}
+                      data-playing={playingDots?.[voiceIndex] === dotIndex}
+                      data-articulation={dot.articulation}
+                      data-accent={accent}
+                      data-velocity={playedVelocity(
+                        voice.velocity,
+                        accentAmount,
+                        dot,
+                      )}
+                      data-chance={dot.probability < 100}
+                      data-condition={dot.condition !== "always"}
+                      data-collisions={
+                        collided.length > 0 ? collided.join(" ") : undefined
+                      }
+                      className={dotClass(
                         dot,
                         accent,
-                        playedVelocity(voice.velocity, accentAmount, dot),
-                        localized,
-                      ),
-                      ...collided.map((index) =>
-                        describeCollision(
-                          collisions[index],
-                          voiceIndex,
+                        dotIndex >= voice.patternLength,
+                        editing,
+                      )}
+                      style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
+                      title={[
+                        describe(
+                          dot,
+                          accent,
+                          playedVelocity(voice.velocity, accentAmount, dot),
                           localized,
                         ),
-                      ),
-                    ]
-                      .filter((part) => part !== "")
-                      .join("\n")}
-                    onClick={() => {
-                      togglePatternDot(voiceIndex, dotIndex)
-                      focusVoice(voiceIndex)
-                    }}
-                    onMouseEnter={() => setHovered(`${voiceIndex}:${dotIndex}`)}
-                    onMouseLeave={() => setHovered(null)}
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      focusVoice(voiceIndex)
-                      setOptions({
-                        voiceIndex,
-                        dotIndex,
-                        at: { x: event.clientX, y: event.clientY },
-                      })
-                    }}
-                  >
-                    {dot.ratchet > 1 ? dot.ratchet : ""}
-                    {collided.length > 0 && (
-                      // above the dot and clear of the band's line, one
-                      // chevron per collision it is in, each in that
-                      // collision's colour. An accent scales the dot, and
-                      // everything in it, about its middle, so the marks
-                      // undo that: the same size and height on every dot.
-                      <span
-                        aria-hidden
-                        data-collision-mark
-                        className={cn(
-                          "pointer-events-none absolute left-1/2 flex origin-bottom -translate-x-1/2 -space-x-3",
-                          accent === "-"
-                            ? "bottom-[calc(112.5%+2.5px)] scale-[1.25]"
-                            : accent === "+"
-                              ? "bottom-[calc(93.5%+1.75px)] scale-[0.87]"
-                              : "bottom-[calc(100%+2px)]",
-                        )}
-                      >
-                        {collided.map((index) => (
-                          <span
-                            key={index}
-                            data-collision={index}
-                            data-bouncing={bouncing.has(index)}
-                            className={cn(
-                              "flex",
-                              bouncing.has(index) && "collision-bounce",
-                            )}
-                            style={{ color: collisionColor(index) }}
-                          >
-                            <ChevronDownIcon
-                              size={22}
-                              stroke="currentColor"
-                              strokeWidth={1.2}
-                              strokeLinejoin="round"
-                            />
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                    {playingDots?.[voiceIndex] === dotIndex && (
-                      // under the dot rather than on it, so it reads the same
-                      // on a dot that is on, off or hollow
-                      <span
-                        aria-hidden
-                        data-playhead
-                        className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
-                      />
-                    )}
-                  </button>
-                )
-              })}
-            </span>
+                        ...collided.map((index) =>
+                          describeCollision(
+                            collisions[index],
+                            voiceIndex,
+                            localized,
+                          ),
+                        ),
+                      ]
+                        .filter((part) => part !== "")
+                        .join("\n")}
+                      onClick={() => {
+                        togglePatternDot(voiceIndex, dotIndex)
+                        focusVoice(voiceIndex)
+                      }}
+                      onMouseEnter={() =>
+                        setHovered(`${voiceIndex}:${dotIndex}`)
+                      }
+                      onMouseLeave={() => setHovered(null)}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        focusVoice(voiceIndex)
+                        setOptions({
+                          voiceIndex,
+                          dotIndex,
+                          at: { x: event.clientX, y: event.clientY },
+                        })
+                      }}
+                    >
+                      {dot.ratchet > 1 ? dot.ratchet : ""}
+                      {collided.length > 0 && (
+                        // above the dot and clear of the band's line, one
+                        // chevron per collision it is in, each in that
+                        // collision's colour. An accent scales the dot, and
+                        // everything in it, about its middle, so the marks
+                        // undo that: the same size and height on every dot.
+                        <span
+                          aria-hidden
+                          data-collision-mark
+                          className={cn(
+                            "pointer-events-none absolute left-1/2 flex origin-bottom -translate-x-1/2 -space-x-3",
+                            accent === "-"
+                              ? "bottom-[calc(112.5%+2.5px)] scale-[1.25]"
+                              : accent === "+"
+                                ? "bottom-[calc(93.5%+1.75px)] scale-[0.87]"
+                                : "bottom-[calc(100%+2px)]",
+                          )}
+                        >
+                          {collided.map((index) => (
+                            <span
+                              key={index}
+                              data-collision={index}
+                              data-bouncing={bouncing.has(index)}
+                              className={cn(
+                                "flex",
+                                bouncing.has(index) && "collision-bounce",
+                              )}
+                              style={{ color: collisionColor(index) }}
+                            >
+                              <ChevronDownIcon
+                                size={22}
+                                stroke="currentColor"
+                                strokeWidth={1.2}
+                                strokeLinejoin="round"
+                              />
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                      {playingDots?.[voiceIndex] === dotIndex && (
+                        // under the dot rather than on it, so it reads the same
+                        // on a dot that is on, off or hollow
+                        <span
+                          aria-hidden
+                          data-playhead
+                          className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </span>
+            </div>
+            {/* under the dots, lined up with the first */}
+            <VoiceButtons
+              voice={voiceIndex}
+              muted={!voice.enabled}
+              soloed={soloed(voiceIndex)}
+              onMute={mute}
+              onSolo={solo}
+            />
           </fieldset>
         )
       })}
@@ -685,6 +729,55 @@ const Patterns: FC<{
         />
       )}
     </section>
+  )
+}
+
+const VoiceButtons: FC<{
+  voice: VoiceIndex
+  muted: boolean
+  soloed: boolean
+  onMute: (voice: VoiceIndex) => void
+  onSolo: (voice: VoiceIndex) => void
+}> = ({ voice, muted, soloed, onMute, onSolo }) => {
+  const localized = useLocalization()
+  const buttons = [
+    {
+      label: localized["sequencer-voice-mute"],
+      on: muted,
+      onClick: onMute,
+      icon: <VolumeOffIcon size={16} />,
+    },
+    {
+      label: localized["sequencer-voice-solo"],
+      on: soloed,
+      onClick: onSolo,
+      icon: <HeadphonesIcon size={16} />,
+    },
+  ]
+  return (
+    // the select button's width and the gap after it
+    <ButtonGroup className="ml-7 self-start">
+      {buttons.map(({ label, on, onClick, icon }) => (
+        // square, so not a Button: its padding would crowd the icon
+        <button
+          key={label}
+          type="button"
+          data-active={on}
+          aria-pressed={on}
+          aria-label={`${label} ${localized["sequencer-voice"]} ${voice + 1}`}
+          title={label}
+          className={cn(
+            "flex w-[1.7rem] items-center justify-center",
+            on
+              ? "bg-theme text-on-surface hover:brightness-110"
+              : "bg-background-secondary text-fg-secondary hover:bg-highlight hover:text-fg",
+          )}
+          onClick={() => onClick(voice)}
+        >
+          {icon}
+        </button>
+      ))}
+    </ButtonGroup>
   )
 }
 

@@ -267,6 +267,65 @@ describe("SequencerPlayer", () => {
     })
   })
 
+  describe("playhead", () => {
+    it("is nowhere while nothing sounds", () => {
+      expect(player.playhead(0)).toBeNull()
+      expect(player.sounding()).toBe(false)
+    })
+
+    it("crosses each step as the sequence plays it", () => {
+      player.play()
+      // step 1 lands at 1050 ms and lasts a beat, 500 ms
+      runFor(300)
+      expect(player.step).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.5)
+      expect(player.playhead(1)).toBeNull()
+
+      runFor(500)
+      expect(player.step).toBe(1)
+      expect(player.playhead(1)).toBeCloseTo(0.5)
+      expect(player.playhead(0)).toBeNull()
+
+      player.stop()
+      expect(player.step).toBeNull()
+      expect(player.playhead(1)).toBeNull()
+    })
+
+    it("crosses a clicked step as it sounds, and is gone once it has", () => {
+      player.previewStep(1)
+      expect(player.playhead(1)).toBe(0)
+      expect(player.playhead(0)).toBeNull()
+
+      clock.time += 250
+      expect(player.playhead(1)).toBeCloseTo(0.5)
+      expect(player.sounding()).toBe(true)
+
+      clock.time += 250
+      expect(player.playhead(1)).toBeNull()
+      expect(player.sounding()).toBe(false)
+    })
+
+    it("stops partway across a slow step, where its sound is cut off", () => {
+      const patch = makePatch()
+      // 4 bars, 8 seconds, of which 2 sound
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+
+      clock.time += 1000
+      expect(player.playhead(0)).toBeCloseTo(1 / 8)
+      clock.time += 1000
+      expect(player.playhead(0)).toBeNull()
+    })
+
+    it("goes with the sound when it is stopped", () => {
+      player.previewStep(0)
+      player.panic()
+      expect(player.playhead(0)).toBeNull()
+      expect(player.sounding()).toBe(false)
+    })
+  })
+
   describe("MIDI clock", () => {
     const clockBytesSent = () =>
       all.sent.filter((message) => message.data[0] >= 0xf8)

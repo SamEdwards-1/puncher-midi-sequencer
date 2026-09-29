@@ -83,6 +83,21 @@ export function useSidePane() {
   return useAtom(sidePaneAtom)
 }
 
+/**
+ * Which voices were on before a solo, and the voice soloed, so un-soloing
+ * it can bring them back. Soloing is only ever the voices' own Enable
+ * settings; this remembers what they were.
+ */
+export interface SoloRestore {
+  voice: VoiceIndex
+  enabled: readonly boolean[]
+}
+const soloRestoreAtom = atom<SoloRestore | null>(null)
+
+export function useSoloRestore() {
+  return useAtom(soloRestoreAtom)
+}
+
 export function useSelectedVoice() {
   return useAtom(selectedVoiceAtom)
 }
