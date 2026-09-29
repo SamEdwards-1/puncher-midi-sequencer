@@ -78,6 +78,38 @@ const pickerOptions = (kind: FileKind) => ({
   ],
 })
 
+// A file picked, with nothing read from it yet, and its handle where the
+// browser gives one, to open it again later.
+export interface PickedFile {
+  file: File
+  handle: FileSystemFileHandle | null
+}
+
+// Chrome and Edge ask again before a handle kept from an earlier visit is
+// read; the DOM types don't declare how.
+interface PermissionedHandle {
+  queryPermission?: (descriptor: { mode: "read" }) => Promise<PermissionState>
+  requestPermission?: (descriptor: { mode: "read" }) => Promise<PermissionState>
+}
+
+const allowReading = async (handle: FileSystemFileHandle) => {
+  const asking = handle as FileSystemFileHandle & PermissionedHandle
+  const read = { mode: "read" } as const
+  if (
+    asking.queryPermission === undefined ||
+    (await asking.queryPermission(read)) === "granted"
+  ) {
+    return
+  }
+  if ((await asking.requestPermission?.(read)) !== "granted") {
+    throw new Error("The browser wasn't allowed to read it.")
+  }
+}
+
+/** Whether a file opened again has since been moved or deleted. */
+export const isGone = (error: unknown) =>
+  error instanceof DOMException && error.name === "NotFoundError"
+
 // Closing a picker is a choice, and ends quietly. Anything else is a failure
 // the person clicking needs to hear about, so it carries on up.
 const dismissed = (error: unknown): null => {
@@ -105,6 +137,11 @@ export class FileService {
     return this.handle !== null
   }
 
+  // the patch's own file, as last opened or saved, where there is a handle
+  get currentHandle(): FileSystemFileHandle | null {
+    return this.handle
+  }
+
   forget() {
     this.handle = null
   }
@@ -117,6 +154,20 @@ export class FileService {
     return opened
   }
 
+  // Opens a patch file again by the handle kept for it, without a picker.
+  async reopen(handle: FileSystemFileHandle): Promise<OpenedFile> {
+    const file = await this.reread(handle)
+    const text = await file.text()
+    this.handle = handle
+    return { name: file.name, text }
+  }
+
+  // A file, such as MIDI, again by the handle kept for it, not yet read.
+  async reread(handle: FileSystemFileHandle): Promise<File> {
+    await allowReading(handle)
+    return handle.getFile()
+  }
+
   // Reads a file without making it the one Save writes to.
   async openCopy(kind: FileKind): Promise<OpenedFile | null> {
     return this.pick(kind)
@@ -124,23 +175,27 @@ export class FileService {
 
   // Reads a binary file, such as MIDI, as bytes.
   async openBinary(kind: FileKind): Promise<OpenedBinaryFile | null> {
-    const file = await this.pickFile(kind)
-    return file === null
+    const picked = await this.pickFile(kind)
+    return picked === null
       ? null
-      : { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }
+      : {
+          name: picked.file.name,
+          bytes: new Uint8Array(await picked.file.arrayBuffer()),
+        }
   }
 
   // The file picked, with nothing read from it yet, so whoever asked can
   // say it is loading before reading it.
-  async pickFile(kind: FileKind): Promise<File | null> {
+  async pickFile(kind: FileKind): Promise<PickedFile | null> {
     if (this.pickers.showOpenFilePicker === undefined) {
-      return this.fileFromInput(kind)
+      const file = await this.fileFromInput(kind)
+      return file === null ? null : { file, handle: null }
     }
     try {
       const [handle] = await this.pickers.showOpenFilePicker(
         pickerOptions(kind),
       )
-      return await handle.getFile()
+      return { file: await handle.getFile(), handle }
     } catch (error) {
       return dismissed(error)
     }

@@ -13,6 +13,7 @@ import { HistoryStore } from "./HistoryStore"
 import { ImportSettingsStore } from "./ImportSettingsStore"
 import { MIDIDeviceStore, RequestMIDIAccess } from "./MIDIDeviceStore"
 import { PlaybackSettingsStore } from "./PlaybackSettingsStore"
+import { RecentFilesStore } from "./RecentFilesStore"
 import { registerReactions } from "./reactions"
 import { SequencerStore } from "./SequencerStore"
 import { SettingsTabStore } from "./SettingsTabStore"
@@ -25,6 +26,7 @@ export interface RootStoreOptions {
   ticker?: Ticker
   now?: () => number
   fileService?: FileService
+  recentFiles?: RecentFilesStore
   synthStore?: SynthStore
   soundFonts?: SoundFontStore
   autoSave?: AutoSaveService
@@ -48,6 +50,7 @@ export default class RootStore {
   readonly synthStore: SynthStore
   readonly soundFonts: SoundFontStore
   readonly fileService: FileService
+  readonly recentFiles: RecentFilesStore
   readonly autoSave: AutoSaveService
   readonly audioRenderer: AudioRenderer
 
@@ -79,6 +82,7 @@ export default class RootStore {
     this.soundFonts =
       options.soundFonts ?? new SoundFontStore(undefined, options.storage)
     this.fileService = options.fileService ?? new FileService()
+    this.recentFiles = options.recentFiles ?? new RecentFilesStore()
     this.audioRenderer = options.audioRenderer ?? workerAudioRenderer
     this.autoSave =
       options.autoSave ??
@@ -93,6 +97,7 @@ export default class RootStore {
   init() {
     void this.midiDeviceStore.connectOnStart()
     void this.soundFonts.init()
+    void this.recentFiles.init()
     this.synthStore.resumeOnGesture(window)
 
     // A patch left behind by a crash or a closed tab comes back as unsaved
