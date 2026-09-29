@@ -73,6 +73,7 @@ import {
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
 import { PIANO_WIDTH, PianoKeys } from "./PianoKeys"
+import { Playhead } from "./Playhead"
 import { bandBeats } from "./rulerView"
 import {
   dotKey,
@@ -760,8 +761,6 @@ export const EnvelopeGraph: FC<{
           ),
         )
 
-  const gridLabel = GRIDS.find(({ beats }) => beats === gridBeats)?.label
-
   return (
     <div className="flex gap-1">
       <div className="flex flex-none flex-col">
@@ -1030,6 +1029,8 @@ export const EnvelopeGraph: FC<{
               </>
             )}
 
+            <Playhead step={step} plot={plot} />
+
             {mark !== null && (
               <line
                 data-zoom-mark
@@ -1071,17 +1072,6 @@ export const EnvelopeGraph: FC<{
                 </text>
               </g>
             )}
-
-            <text
-              x={width - PAD - 2}
-              y={height - PAD - 2}
-              textAnchor="end"
-              fontSize={11}
-              fill="var(--midiseq-fg-secondary)"
-              fontFamily="var(--midiseq-mono-font)"
-            >
-              {gridLabel}
-            </text>
           </svg>
         </div>
       </div>
