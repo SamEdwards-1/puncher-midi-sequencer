@@ -30,6 +30,7 @@ import {
   setStepNote,
   setStepState,
   setVoice,
+  stepCount,
   togglePatternStep,
   transposeStep,
   trimStepsToLimit,
@@ -38,7 +39,7 @@ import {
   VoicePattern,
 } from "@midiseq/core"
 import { useCallback } from "react"
-import { useLandGrid } from "../hooks/useSequencerView"
+import { useLandGrid, useShowGridEdit } from "../hooks/useSequencerView"
 import { useStores } from "../hooks/useStores"
 
 /**
@@ -48,6 +49,7 @@ import { useStores } from "../hooks/useStores"
 export function usePatchEditor() {
   const { sequencerStore, history, recorder } = useStores()
   const landGrid = useLandGrid()
+  const showGridEdit = useShowGridEdit()
 
   const apply = useCallback(
     (next: PatchJSON, key?: string) => {
@@ -184,34 +186,47 @@ export function usePatchEditor() {
       [apply, sequencerStore],
     ),
     // Clearing ends a take first, so what was recorded and the clear are
-    // two undo entries rather than one that loses both.
+    // two undo entries rather than one that loses both. This and the three
+    // below show on the grid, its steps moving with the edit.
     clearStepContent: useCallback(
       (step: number) => {
         recorder.setRecording(false)
         apply(clearStep(sequencerStore.patch, step))
+        showGridEdit("clear", step)
       },
-      [apply, recorder, sequencerStore],
+      [apply, recorder, sequencerStore, showGridEdit],
     ),
     paste: useCallback(
-      (step: number, source: StepJSON) =>
-        apply(pasteStep(sequencerStore.patch, step, source)),
-      [apply, sequencerStore],
+      (step: number, source: StepJSON) => {
+        apply(pasteStep(sequencerStore.patch, step, source))
+        showGridEdit("paste", step)
+      },
+      [apply, sequencerStore, showGridEdit],
     ),
     // Moving steps ends a take too, since it is recording into a step by
-    // where it is.
+    // where it is. The grid's last step goes off its end: with notes, it is
+    // shown falling away.
     insertStep: useCallback(
       (step: number) => {
         recorder.setRecording(false)
-        apply(insertStep(sequencerStore.patch, step))
+        const patch = sequencerStore.patch
+        const last = patch.steps[stepCount(patch.size) - 1]
+        apply(insertStep(patch, step))
+        showGridEdit(
+          "insert",
+          step,
+          last.notes.length > 0 ? last.state : undefined,
+        )
       },
-      [apply, recorder, sequencerStore],
+      [apply, recorder, sequencerStore, showGridEdit],
     ),
     deleteStep: useCallback(
       (step: number) => {
         recorder.setRecording(false)
         apply(deleteStep(sequencerStore.patch, step))
+        showGridEdit("delete", step)
       },
-      [apply, recorder, sequencerStore],
+      [apply, recorder, sequencerStore, showGridEdit],
     ),
     trimToLimit: useCallback(
       () => apply(trimStepsToLimit(sequencerStore.patch)),
