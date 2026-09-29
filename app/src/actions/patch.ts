@@ -2,9 +2,11 @@ import {
   addEnvelope,
   addStepNote,
   clearStep,
+  deleteStep,
   EnvelopeJSON,
   freeVoiceChannel,
   importMidi,
+  insertStep,
   JumpJSON,
   MidiImportOptions,
   ModulationJSON,
@@ -183,6 +185,22 @@ export function usePatchEditor() {
       (step: number, source: StepJSON) =>
         apply(pasteStep(sequencerStore.patch, step, source)),
       [apply, sequencerStore],
+    ),
+    // Moving steps ends a take too, since it is recording into a step by
+    // where it is.
+    insertStep: useCallback(
+      (step: number) => {
+        recorder.setRecording(false)
+        apply(insertStep(sequencerStore.patch, step))
+      },
+      [apply, recorder, sequencerStore],
+    ),
+    deleteStep: useCallback(
+      (step: number) => {
+        recorder.setRecording(false)
+        apply(deleteStep(sequencerStore.patch, step))
+      },
+      [apply, recorder, sequencerStore],
     ),
     trimToLimit: useCallback(
       () => apply(trimStepsToLimit(sequencerStore.patch)),

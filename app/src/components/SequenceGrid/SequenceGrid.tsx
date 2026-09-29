@@ -21,9 +21,11 @@ import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { cn } from "../ui/cn"
+import { menuPoint, Point } from "../ui/Menu"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
 import { ActionButtons, ActionIcons } from "./ActionButtons"
+import { StepMenu } from "./StepMenu"
 
 const STEP =
   "relative aspect-square min-w-[1.25rem] rounded-full border-2 font-mono text-[clamp(0.6rem,1.1vmin,0.85rem)]"
@@ -248,6 +250,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
     recorder.setTarget(index)
   }
 
+  // the step whose menu a right-click opened, and where
+  const [menu, setMenu] = useState<{ index: number; at: Point } | null>(null)
+
   const columns = gridWidth(size)
   const rows = gridRows(size)
 
@@ -421,6 +426,11 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                       } as CSSProperties
                     }
                     onClick={() => onStepClick(index)}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      setSelected(index)
+                      setMenu({ index, at: menuPoint(event) })
+                    }}
                     draggable
                     onDragStart={(event) => dragStep(index, event)}
                   >
@@ -441,6 +451,13 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
           <StepEditor column={column} />
         </div>
       </div>
+      {menu !== null && (
+        <StepMenu
+          index={menu.index}
+          at={menu.at}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </Panel>
   )
 }

@@ -370,6 +370,84 @@ export const pasteStep = (
     jump: { ...source.jump },
   })
 
+/**
+ * The steps rearranged to make or close a gap at `index`, their jumps and a
+ * custom loop's end following the steps they pointed at. `moved` says where
+ * a step at or past `index` now is, or null if it is gone, and a jump to one
+ * that is gone is dropped. `by` is how far the loop's end moves if it is at
+ * or past `index`: a step in the loop comes or goes.
+ */
+const shiftSteps = (
+  patch: PatchJSON,
+  steps: StepJSON[],
+  index: StepIndex,
+  moved: (step: StepIndex) => StepIndex | null,
+  by: 1 | -1,
+): PatchJSON => {
+  const follow = (step: StepIndex | null) =>
+    step === null || step < index ? step : moved(step)
+  const { mode, end } = patch.loop
+  return {
+    ...patch,
+    loop:
+      mode === "custom" && end >= index
+        ? {
+            mode,
+            end: Math.min(steps.length - 1, Math.max(0, end + by)),
+          }
+        : patch.loop,
+    steps: steps.map((step) =>
+      step.jump.dest === null && step.jump.normal === null
+        ? step
+        : {
+            ...step,
+            jump: {
+              ...step.jump,
+              dest: follow(step.jump.dest),
+              normal: follow(step.jump.normal),
+            },
+          },
+    ),
+  }
+}
+
+/**
+ * An empty step at `index`, the steps from there on each moving one along.
+ * Those pushed past the grid's size are kept beyond it, as a smaller size
+ * keeps any; only the last the patch can store falls off the end.
+ */
+export const insertStep = (patch: PatchJSON, index: StepIndex): PatchJSON => {
+  const last = patch.steps.length - 1
+  return shiftSteps(
+    patch,
+    [
+      ...patch.steps.slice(0, index),
+      createDefaultStep(),
+      ...patch.steps.slice(index, last),
+    ],
+    index,
+    (step) => (step < last ? step + 1 : null),
+    1,
+  )
+}
+
+/**
+ * Takes the step at `index` out, the steps after it each moving one back so
+ * no gap is left, and an empty step coming in at the end.
+ */
+export const deleteStep = (patch: PatchJSON, index: StepIndex): PatchJSON =>
+  shiftSteps(
+    patch,
+    [
+      ...patch.steps.slice(0, index),
+      ...patch.steps.slice(index + 1),
+      createDefaultStep(),
+    ],
+    index,
+    (step) => (step === index ? null : step - 1),
+    -1,
+  )
+
 export const setStepState = (
   patch: PatchJSON,
   index: StepIndex,
