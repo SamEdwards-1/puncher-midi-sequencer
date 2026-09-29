@@ -1,6 +1,6 @@
 import { stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
-import { PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
+import { MAX_STEPS, PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
 import { Engine } from "./Engine"
 import { EngineEvent } from "./events"
 import { playableSteps, stepCount, viewIndex } from "./loopRange"
@@ -146,13 +146,19 @@ const landing = (
   const reachable = playableSteps(patch, false).some(
     (position) => viewIndex(position, patch.size, false) === step,
   )
-  if (!reachable) {
+  const changingRange = patch.modulations.some(
+    ({ target }) =>
+      target.kind === "sequencer" &&
+      (target.setting === "size" || target.setting === "loop"),
+  )
+  if (!reachable && !changingRange) {
     return alone(patch, step, options)
   }
 
   const engine = new Engine(patch, options)
   engine.start(0)
-  const searched = SEARCH_PASSES * stepCount(patch.size)
+  const searched =
+    SEARCH_PASSES * (changingRange ? MAX_STEPS : stepCount(patch.size))
   for (let count = 0; count < searched; count++) {
     // the landing, which settles how long the step lasts, then the rest
     const beat = engine.nextStepBeat

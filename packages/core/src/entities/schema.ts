@@ -219,7 +219,16 @@ const CurrentModulationTargetSchema = z.union([
   }),
   z.object({
     kind: z.literal("sequencer"),
-    setting: z.enum(["pace", "scale", "shiftFit"]),
+    setting: z.enum([
+      "pace",
+      "scale",
+      "shiftFit",
+      "size",
+      "direction",
+      "loop",
+      "shiftAmt",
+      "maxNotesPerStep",
+    ]),
   }),
   z.object({
     kind: z.literal("action"),

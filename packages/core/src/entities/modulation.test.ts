@@ -118,7 +118,16 @@ describe("a modulation", () => {
         (setting) => ({ kind: "voice", voice: 0, setting }) as ModulationTarget,
       )
       .concat(
-        ["pace", "scale", "shiftFit"].map(
+        [
+          "pace",
+          "scale",
+          "shiftFit",
+          "size",
+          "direction",
+          "loop",
+          "shiftAmt",
+          "maxNotesPerStep",
+        ].map(
           (setting) => ({ kind: "sequencer", setting }) as ModulationTarget,
         ),
         { kind: "action", setting: "hold" },

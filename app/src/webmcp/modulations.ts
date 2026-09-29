@@ -39,7 +39,7 @@ const MODULATION = object(
   {
     setting: oneOf(
       MODULATION_SETTING_NAMES,
-      "The setting the CC drives: a voice's pace, length, rule, offset, offset_fit or pattern_length, or its sync; the sequencer's pace, scale or shift_fit; or the hold, flip or shift action",
+      "The setting the CC drives: a voice's pace, length, rule, offset, offset_fit or pattern_length, or its sync; the sequencer's pace, scale, shift_fit, size, direction, loop, shift_amt or max_notes_per_step; or the hold, flip or shift action",
     ),
     voice: integer(
       "The voice whose setting it is, 1 to 4: needed for a voice's settings and sync. Without one, pace is the sequencer's",
@@ -94,6 +94,11 @@ const readTarget = (
       return { kind: "action", setting, voice }
     case "scale":
     case "shiftFit":
+    case "size":
+    case "direction":
+    case "loop":
+    case "shiftAmt":
+    case "maxNotesPerStep":
       if (voice !== null) {
         throw new InputError(
           `${where}: ${name} is the sequencer's, so give no voice`,

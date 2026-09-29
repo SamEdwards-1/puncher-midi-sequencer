@@ -4,6 +4,10 @@ import { PACES, PaceId } from "./paces"
 import { SCALE_FITS, ScaleFit, ScaleJSON } from "./scale"
 import {
   ActionTarget,
+  Direction,
+  LoopMode,
+  MAX_STEPS,
+  NOTES_PER_STEP,
   MAX_PATTERN_LENGTH,
   ModulationJSON,
   ModulationTarget,
@@ -65,6 +69,20 @@ export const sequencerScale = (
 // what each field can be set to, in the order it lists them
 const LENGTHS = Array.from({ length: 19 }, (_, index) => (10 + index * 5) / 100)
 const OFFSETS = Array.from({ length: 49 }, (_, index) => index - 24)
+const SIZES = Array.from({ length: MAX_STEPS }, (_, index) => index + 1)
+const NOTE_COUNTS = Array.from(
+  { length: NOTES_PER_STEP },
+  (_, index) => index + 1,
+)
+const DIRECTIONS: Direction[] = [
+  "fwd",
+  "bwd",
+  "fwdbwd",
+  "bwdfwd",
+  "random",
+  "random+",
+]
+const LOOP_MODES: LoopMode[] = ["recorded", "all", "custom"]
 const PATTERN_LENGTHS = Array.from(
   { length: MAX_PATTERN_LENGTH },
   (_, index) => index + 1,
@@ -95,7 +113,16 @@ export const modulationChoices = (
     case "rule":
       return VOICE_RULES
     case "offset":
+    case "shiftAmt":
       return OFFSETS
+    case "size":
+      return SIZES
+    case "maxNotesPerStep":
+      return NOTE_COUNTS
+    case "direction":
+      return DIRECTIONS
+    case "loop":
+      return LOOP_MODES
     case "offsetFit":
     case "shiftFit":
       return SCALE_FITS
@@ -287,6 +314,13 @@ export const settingValue = (
     return patch.voices[target.voice][target.setting]
   }
   switch (target.setting) {
+    case "size":
+    case "direction":
+    case "shiftAmt":
+    case "maxNotesPerStep":
+      return patch[target.setting]
+    case "loop":
+      return patch.loop.mode
     case "pace":
       return patch.pace
     case "shiftFit":
@@ -406,6 +440,11 @@ export const modulatedVoice = (
 
 /** The sequencer's settings that can be modulated. */
 export interface SequencerSettings {
+  size: number
+  direction: Direction
+  loop: LoopMode
+  shiftAmt: number
+  maxNotesPerStep: number
   pace: PaceId
   scale: ScaleJSON | null
   shiftFit: ScaleFit
@@ -422,6 +461,11 @@ export const modulatedSequencer = (
   time: number,
 ): SequencerSettings => {
   const settings: SequencerSettings = {
+    size: patch.size,
+    direction: patch.direction,
+    loop: patch.loop.mode,
+    shiftAmt: patch.shiftAmt,
+    maxNotesPerStep: patch.maxNotesPerStep,
     pace: patch.pace,
     scale: patch.scale,
     shiftFit: patch.shiftFit,
@@ -443,8 +487,14 @@ export const modulatedSequencer = (
           : sequencerScale(value as ScaleChoiceJSON, patch.scale?.fit ?? "up")
     } else if (target.setting === "pace") {
       settings.pace = value as PaceId
-    } else {
+    } else if (target.setting === "shiftFit") {
       settings.shiftFit = value as ScaleFit
+    } else if (target.setting === "direction") {
+      settings.direction = value as Direction
+    } else if (target.setting === "loop") {
+      settings.loop = value as LoopMode
+    } else {
+      settings[target.setting] = value as number
     }
   }
   return settings

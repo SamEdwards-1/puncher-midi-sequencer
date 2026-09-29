@@ -11,6 +11,7 @@ import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
 import { fitToScale, ScaleFit, ScaleJSON } from "../entities/scale"
 import {
   ActionTarget,
+  Direction,
   ModSource,
   PatchJSON,
   StepIndex,
@@ -19,7 +20,7 @@ import {
   VoiceJSON,
 } from "../entities/types"
 import { DEFAULT_ACCENT_AMOUNT, playedVelocity } from "../entities/velocity"
-import { nextStep } from "./direction"
+import { initialDirectionState, nextStep } from "./direction"
 import { EngineEvent } from "./events"
 import { evalJumpRule } from "./jumpRules"
 import { playableSteps, viewIndex } from "./loopRange"
@@ -72,6 +73,7 @@ type Candidate = {
 export class Engine {
   private runtime: EngineRuntime
   private rng: Rng
+  private navigationDirection: Direction
   accentAmount: number
   actions: EngineActions = createActions()
   // the voice Sync keeps to the sequencer's pace while it is held
@@ -84,6 +86,7 @@ export class Engine {
     this.accentAmount = options.accentAmount ?? DEFAULT_ACCENT_AMOUNT
     this.rng = createRng(options.seed ?? 1)
     this.runtime = createRuntime(patch)
+    this.navigationDirection = patch.direction
   }
 
   get position(): StepIndex {
@@ -118,6 +121,7 @@ export class Engine {
 
   start(beat = 0) {
     this.runtime = createRuntime(this.patch)
+    this.navigationDirection = this.patch.direction
     this.runtime.started = true
     this.runtime.nextSeqBeat = beat
     for (const voice of this.runtime.voices) {
@@ -300,7 +304,19 @@ export class Engine {
     }
 
     const flip = this.actionAt({ kind: "action", setting: "flip" }, beat)
-    const steps = playableSteps(patch, flip)
+    // Navigation reads the outgoing step's envelopes at the transition.
+    // The first landing uses the saved settings, before any envelope plays.
+    const navigation = this.sequencerAt(beat)
+    if (navigation.direction !== this.navigationDirection) {
+      runtime.directionState = initialDirectionState(navigation.direction)
+      this.navigationDirection = navigation.direction
+    }
+    const navigationPatch = {
+      ...patch,
+      size: navigation.size,
+      loop: { ...patch.loop, mode: navigation.loop },
+    }
+    const steps = playableSteps(navigationPatch, flip)
     if (steps.length === 0) {
       runtime.nextSeqBeat = onPaceGrid(beat + paceBeats(patch.pace))
       return
@@ -312,11 +328,11 @@ export class Engine {
         runtime.position = steps[0]
       }
     } else {
-      runtime.position = this.advance(steps)
+      runtime.position = this.advance(steps, navigation.direction)
     }
 
     const position = runtime.position
-    const step = viewIndex(position, patch.size, flip)
+    const step = viewIndex(position, navigation.size, flip)
     // as long as the sequencer's pace as it lands, which the step itself
     // may modulate
     const lengthBeats = paceBeats(stepPace(patch, step))
@@ -339,7 +355,7 @@ export class Engine {
     })
 
     this.landEnvelopes(step, beat, lengthBeats, events)
-    this.emitSequencerMods(beat, position, flip, events)
+    this.emitSequencerMods(beat, position, flip, events, navigationPatch)
 
     if (patch.syncVoices) {
       for (const voice of runtime.voices) {
@@ -351,19 +367,19 @@ export class Engine {
     this.tickSynced(beat)
   }
 
-  private advance(steps: StepIndex[]): StepIndex {
-    const { patch, runtime } = this
+  private advance(steps: StepIndex[], direction: Direction): StepIndex {
+    const { runtime } = this
 
     if (runtime.queued !== null) {
       const queued = runtime.queued
       runtime.queued = null
-      return this.intoRange(queued, steps)
+      return this.intoRange(queued, steps, direction)
     }
 
     const jump = this.currentStep().jump
     const byDirection = () => {
       const result = nextStep(
-        patch.direction,
+        direction,
         runtime.position,
         steps,
         runtime.directionState,
@@ -376,7 +392,7 @@ export class Engine {
     if (jump.dest === null) {
       return jump.normal === null
         ? byDirection()
-        : this.intoRange(jump.normal, steps)
+        : this.intoRange(jump.normal, steps, direction)
     }
 
     const visitCount = runtime.jumpCounts[runtime.position] ?? 0
@@ -390,21 +406,25 @@ export class Engine {
     runtime.lastJumpResult = passed
 
     if (passed) {
-      return this.intoRange(jump.dest, steps)
+      return this.intoRange(jump.dest, steps, direction)
     }
     return jump.normal === null
       ? byDirection()
-      : this.intoRange(jump.normal, steps)
+      : this.intoRange(jump.normal, steps, direction)
   }
 
   // Jump targets may point at a skipped step or outside the loop range; from
   // there the direction rule walks back into it.
-  private intoRange(step: StepIndex, steps: StepIndex[]): StepIndex {
+  private intoRange(
+    step: StepIndex,
+    steps: StepIndex[],
+    direction: Direction,
+  ): StepIndex {
     if (steps.includes(step)) {
       return step
     }
     const result = nextStep(
-      this.patch.direction,
+      direction,
       step,
       steps,
       this.runtime.directionState,
@@ -519,8 +539,9 @@ export class Engine {
     position: StepIndex,
     flip: boolean,
     events: EngineEvent[],
+    patch: PatchJSON,
   ) {
-    const values = sequencerModValues(this.patch, position, flip)
+    const values = sequencerModValues(patch, position, flip)
     this.emitMod("seqX", values.seqX, beat, events)
     this.emitMod("seqY", values.seqY, beat, events)
     this.emitMod("phase", values.phase, beat, events)
@@ -547,7 +568,7 @@ export class Engine {
     const { patch } = this
     const envelope = this.runtime.envelope
     return envelope === null
-      ? { pace: patch.pace, scale: patch.scale, shiftFit: patch.shiftFit }
+      ? { ...patch, loop: patch.loop.mode }
       : modulatedSequencer(patch, envelope.step, beat - envelope.startBeat)
   }
 
@@ -580,7 +601,7 @@ export class Engine {
     // them lowest first
     const notes = [...step.notes]
       .sort((a, b) => a - b)
-      .slice(0, this.patch.maxNotesPerStep)
+      .slice(0, this.sequencerAt(beat).maxNotesPerStep)
     if (!patternStep.on || step.state === "rest" || notes.length === 0) {
       return
     }
@@ -610,7 +631,7 @@ export class Engine {
       return
     }
 
-    const { scale, shiftFit } = this.sequencerAt(beat)
+    const { scale, shiftFit, shiftAmt } = this.sequencerAt(beat)
     const offset = this.transposed(
       picked.note,
       voice.offset,
@@ -620,7 +641,7 @@ export class Engine {
     const note =
       offset !== null &&
       this.actionAt({ kind: "action", setting: "shift" }, beat)
-        ? this.transposed(offset, this.patch.shiftAmt, shiftFit, scale)
+        ? this.transposed(offset, shiftAmt, shiftFit, scale)
         : offset
     if (note === null) {
       return

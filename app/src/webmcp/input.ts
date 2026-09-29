@@ -7,6 +7,8 @@ import {
   JumpRule,
   LoopMode,
   MAX_PATTERN_LENGTH,
+  MAX_STEPS,
+  NOTES_PER_STEP,
   ModulationTarget,
   ModulationValue,
   noteNameToNumber,
@@ -424,6 +426,11 @@ const MODULATION_SETTING_CHOICES: Choice<ModulationTarget["setting"]>[] = [
   { value: "hold", names: ["hold"] },
   { value: "flip", names: ["flip"] },
   { value: "shift", names: ["shift"] },
+  { value: "size", names: ["size"] },
+  { value: "direction", names: ["direction"] },
+  { value: "loop", names: ["loop"] },
+  { value: "shiftAmt", names: ["shift_amt"] },
+  { value: "maxNotesPerStep", names: ["max_notes_per_step", "step_notes"] },
 ]
 
 export const MODULATION_SETTING_NAMES = namesOf(MODULATION_SETTING_CHOICES)
@@ -469,7 +476,16 @@ export const readModulationValue = (
     case "rule":
       return readRule(value, what)
     case "offset":
+    case "shiftAmt":
       return readNumber(value, what, -24, 24)
+    case "size":
+      return readNumber(value, what, 1, MAX_STEPS)
+    case "maxNotesPerStep":
+      return readNumber(value, what, 1, NOTES_PER_STEP)
+    case "direction":
+      return readDirection(value, what)
+    case "loop":
+      return readLoopMode(value, what)
     case "offsetFit":
     case "shiftFit":
       return readFit(value, what)

@@ -181,7 +181,15 @@ export type VoiceSetting =
   | "patternLength"
 
 /** The sequencer's settings that a CC can modulate. */
-export type SequencerSetting = "pace" | "scale" | "shiftFit"
+export type SequencerSetting =
+  | "pace"
+  | "scale"
+  | "shiftFit"
+  | "size"
+  | "direction"
+  | "loop"
+  | "shiftAmt"
+  | "maxNotesPerStep"
 
 /**
  * An action a CC can drive: Hold, Flip and Shift for the whole sequence,

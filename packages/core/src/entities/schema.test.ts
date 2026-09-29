@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "./defaults"
+import { defaultModulation } from "./modulation"
+import { SequencerSetting } from "./types"
 import { PatchSchema } from "./schema"
 
 describe("PatchSchema", () => {
+  it("preserves all sequencer modulation settings through JSON", () => {
+    const patch = createDefaultPatch()
+    const settings: SequencerSetting[] = [
+      "size",
+      "direction",
+      "loop",
+      "shiftAmt",
+      "shiftFit",
+      "maxNotesPerStep",
+    ]
+    patch.modulations = settings.map((setting, index) =>
+      defaultModulation(patch, { kind: "sequencer", setting }, 20 + index),
+    )
+    expect(
+      PatchSchema.parse(JSON.parse(JSON.stringify(patch))).modulations,
+    ).toEqual(patch.modulations)
+  })
   it("accepts the default patch", () => {
     expect(PatchSchema.safeParse(createDefaultPatch()).success).toBe(true)
   })

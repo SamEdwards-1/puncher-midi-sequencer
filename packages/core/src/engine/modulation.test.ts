@@ -51,6 +51,149 @@ describe("modulation as the sequence plays", () => {
   }
   const at = (value: number) => [{ time: 0, value }]
 
+  it("starts a newly modulated bouncing direction in its named direction", () => {
+    patch.size = 4
+    patch.loop.mode = "all"
+    modulate(
+      {
+        target: { kind: "sequencer", setting: "direction" },
+        cc: 3,
+        from: "fwd",
+        to: "bwdfwd",
+      },
+      [1, at(127)],
+    )
+    expect(
+      play(patch, 8)
+        .filter((event) => event.type === "step")
+        .map((event) => event.step),
+    ).toEqual([0, 1, 0])
+  })
+
+  it("uses the modulated size when mapping flipped positions", () => {
+    patch.size = 4
+    patch.loop.mode = "all"
+    modulate(
+      { target: { kind: "sequencer", setting: "size" }, cc: 3, from: 4, to: 9 },
+      [0, at(127)],
+    )
+    const engine = new Engine(patch)
+    engine.setActions({ flip: true })
+    engine.start()
+    expect(
+      engine
+        .render(4)
+        .filter((event) => event.type === "step")
+        .map((event) => event.step),
+    ).toEqual([0, 3])
+    expect(patch.size).toBe(4)
+  })
+
+  it("shrinks the navigation range on leaving a step and restores the base size elsewhere", () => {
+    patch.size = 4
+    patch.loop.mode = "all"
+    modulate(
+      { target: { kind: "sequencer", setting: "size" }, cc: 3, from: 1, to: 2 },
+      [1, at(127)],
+    )
+    const steps = play(patch, 12).filter((event) => event.type === "step")
+    expect(steps.map((event) => event.step)).toEqual([0, 1, 0, 1])
+    expect(patch.size).toBe(4)
+    expect(patch.steps).toHaveLength(64)
+  })
+
+  it("reads direction from the outgoing envelope and returns to the base direction", () => {
+    patch.size = 4
+    patch.loop.mode = "all"
+    modulate(
+      {
+        target: { kind: "sequencer", setting: "direction" },
+        cc: 3,
+        from: "fwd",
+        to: "bwd",
+      },
+      [0, at(127)],
+    )
+    expect(
+      play(patch, 8)
+        .filter((event) => event.type === "step")
+        .map((event) => event.step),
+    ).toEqual([0, 3, 0])
+  })
+
+  it("modulates the loop mode, keeping its custom end", () => {
+    patch.size = 4
+    patch.loop = { mode: "all", end: 1 }
+    modulate(
+      {
+        target: { kind: "sequencer", setting: "loop" },
+        cc: 3,
+        from: "recorded",
+        to: "custom",
+      },
+      [1, at(127)],
+    )
+    expect(
+      play(patch, 12)
+        .filter((event) => event.type === "step")
+        .map((event) => event.step),
+    ).toEqual([0, 1, 0, 1])
+    expect(patch.loop).toEqual({ mode: "all", end: 1 })
+  })
+
+  it("changes the shift amount across a step only while Shift is active", () => {
+    modulate(
+      {
+        target: { kind: "sequencer", setting: "shiftAmt" },
+        cc: 3,
+        from: 0,
+        to: 12,
+      },
+      [
+        0,
+        [
+          { time: 0, value: 0 },
+          { time: 2, value: 127 },
+        ],
+      ],
+    )
+    patch.steps[0].envelopes[0].shape = "steps"
+    expect(noteOns(play(patch, 3.9)).map((event) => event.note)).toEqual([
+      60, 60, 60, 60,
+    ])
+    const engine = new Engine(patch)
+    engine.setActions({ shift: true })
+    engine.start()
+    expect(noteOns(engine.render(3.9)).map((event) => event.note)).toEqual([
+      60, 60, 72, 72,
+    ])
+  })
+
+  it("changes the number of available step notes without deleting any", () => {
+    patch.steps[0].notes = [60, 64, 67, 72]
+    patch.voices[0].rule = "highest"
+    modulate(
+      {
+        target: { kind: "sequencer", setting: "maxNotesPerStep" },
+        cc: 3,
+        from: 1,
+        to: 4,
+      },
+      [
+        0,
+        [
+          { time: 0, value: 0 },
+          { time: 2, value: 127 },
+        ],
+      ],
+    )
+    patch.steps[0].envelopes[0].shape = "steps"
+    expect(noteOns(play(patch, 3.9)).map((event) => event.note)).toEqual([
+      60, 60, 72, 72,
+    ])
+    expect(patch.steps[0].notes).toEqual([60, 64, 67, 72])
+  })
+
   it("plays a voice at the pace its CC's envelope has on the step, and at its own elsewhere", () => {
     modulate(
       {
