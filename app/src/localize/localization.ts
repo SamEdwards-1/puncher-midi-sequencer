@@ -37,6 +37,8 @@ export default {
     "sequencer-file-export-midi": "Export MIDI…",
     "sequencer-file-import-midi": "Import MIDI…",
     "sequencer-file-render-audio": "Render Audio…",
+    "sequencer-file-recent-patches": "Recent patches",
+    "sequencer-file-recent-midi": "Recent MIDI imports",
     "sequencer-import-midi": "Import MIDI",
     "sequencer-import-action": "Import",
     "sequencer-import-nothing": "Nothing to import from this stretch",

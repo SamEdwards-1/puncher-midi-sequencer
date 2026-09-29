@@ -254,6 +254,23 @@ export const ContextMenu: FC<{
   )
 }
 
+/** Items that go together, under a heading of their own. */
+export const MenuGroup: FC<{ label: string; children: ReactNode }> = ({
+  label,
+  children,
+}) => (
+  // biome-ignore lint/a11y/useSemanticElements: a fieldset is for form controls, not menu items
+  <div role="group" aria-label={label} className="flex flex-col">
+    <div
+      aria-hidden
+      className="px-4 pt-1 pb-0.5 text-small text-fg-tertiary select-none"
+    >
+      {label}
+    </div>
+    {children}
+  </div>
+)
+
 /** A line between groups of items. */
 export const MenuDivider: FC = () => (
   <hr className="mx-0 my-1 h-0 border-0 border-t border-solid border-divider" />
