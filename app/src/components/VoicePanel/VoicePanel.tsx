@@ -50,7 +50,6 @@ import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
-import { Select } from "../ui/Select"
 import { Slider } from "../ui/Slider"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
@@ -59,6 +58,11 @@ import { StepOptions } from "./StepOptions"
 const PACE_OPTIONS = PACES.map((pace) => ({
   value: pace,
   label: PACE_LABELS[pace],
+}))
+
+const INSTRUMENT_OPTIONS = GM_PROGRAMS.map((label, value) => ({
+  value,
+  label,
 }))
 
 const RULE_OPTIONS = VOICE_RULES.map((rule) => ({
@@ -336,18 +340,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
 
         {playsBuiltIn && (
           <Field label={localized["sequencer-voice-instrument"]}>
-            <Select
-              value={String(voice.program)}
-              onChange={(event) =>
-                editVoice(selected, { program: Number(event.target.value) })
-              }
-            >
-              {GM_PROGRAMS.map((name, program) => (
-                <option key={name} value={program}>
-                  {name}
-                </option>
-              ))}
-            </Select>
+            <ComboBox
+              value={voice.program}
+              options={INSTRUMENT_OPTIONS}
+              onChange={(program) => editVoice(selected, { program })}
+            />
           </Field>
         )}
 
