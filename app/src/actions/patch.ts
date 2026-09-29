@@ -94,6 +94,17 @@ export function usePatchEditor() {
       },
       [apply, sequencerStore],
     ),
+    // every voice's Enable at once, as one undoable edit
+    editVoicesEnabled: useCallback(
+      (enabled: readonly boolean[]) =>
+        apply(
+          enabled.reduce(
+            (patch, on, index) => setVoice(patch, index, { enabled: on }),
+            sequencerStore.patch,
+          ),
+        ),
+      [apply, sequencerStore],
+    ),
     editPatternStep: useCallback(
       (
         voiceIndex: number,
