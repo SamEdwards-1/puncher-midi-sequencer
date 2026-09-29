@@ -73,6 +73,7 @@ import {
 } from "./envelopeGeometry"
 import { observeDrag } from "./observeDrag"
 import { PIANO_WIDTH, PianoKeys } from "./PianoKeys"
+import { Playhead } from "./Playhead"
 import { bandBeats } from "./rulerView"
 import {
   dotKey,
@@ -1029,6 +1030,8 @@ export const EnvelopeGraph: FC<{
                 ))}
               </>
             )}
+
+            <Playhead step={step} plot={plot} />
 
             {mark !== null && (
               <line

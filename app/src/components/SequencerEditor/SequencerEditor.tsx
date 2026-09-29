@@ -1,4 +1,5 @@
 import { FC, useEffect } from "react"
+import { useFollowPlayback } from "../../hooks/useFollowPlayback"
 import { useMediaQuery } from "../../hooks/useMediaQuery"
 import {
   SidePane,
@@ -20,6 +21,7 @@ const TWO_COLUMNS = "(min-width: 876px)"
 export const SequencerEditor: FC = () => {
   const three = useMediaQuery(THREE_COLUMNS)
   const two = useMediaQuery(TWO_COLUMNS)
+  useFollowPlayback()
 
   return (
     <div className="flex min-h-0 grow flex-col bg-background">

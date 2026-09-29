@@ -101,7 +101,9 @@ Clicking one selects it, sounds it, and shows it in the step editor. While
 the sequence plays, a click also queues that step to come next — or, while
 recording, moves where the recording goes. Turn **Audition step** off if
 you'd rather click silently. The step playing lights up, and while recording,
-the step being recorded into has a red ring.
+the step being recorded into has a red ring. With **Audition step** on, the
+step editor also follows the sequence as it plays, showing each step as it
+sounds; turn it off to keep one step open while you edit.
 
 <img src="screenshots/grid.png" width="483" alt="The grid's first two rows: jumps from 3 to 6, 8 to 1 and 12 to 14 as pairs of coloured dots, step 8 selected, step 11 a rest and step 15 a skip">
 
@@ -237,7 +239,11 @@ drag, and a line through the roll marks where you pressed.
 An envelope sends its first value as the sequencer lands on the step, then
 follows its line until the next. The open tab stays open as you click from
 step to step: on a step without that CC it shows an empty, dimmed lane, and
-drawing into it adds the CC there.
+drawing into it adds the CC there. It stays open, too, as the editor follows
+the sequence.
+
+While the step on show sounds — played in the sequence, or clicked with
+**Audition step** on — a yellow playhead crosses the roll in time with it.
 
 ### Voices
 
