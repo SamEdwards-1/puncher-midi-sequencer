@@ -139,26 +139,26 @@ Down the left are the sequencer's own settings:
   way.
 - **Step notes** — how many notes a step holds, 1 to 4; recording fills a
   step to it.
-- **Scale**, **Detected** and the scale fits — see [Scales](#scales).
+- **Scale**, the detected scales under it, and the scale fits — see
+  [Scales](#scales).
 - **Mark** — **Rest** and **Skip**, for marking steps in the grid.
 
-<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Shift amt, Shift scale fit, Step notes, Scale, Detected and Mark">
+<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Shift amt, Shift scale fit, Step notes, Scale, the detected scales and Mark">
 
 ### Scales
 
 Pick a scale under **Scale** — a tonic, and one of ten scales — or click one
-of the **Detected** ones, up to four that best fit every note the steps hold.
-The step editor then draws the scale's keys beside the notes and shows any
-note outside it in red; notes entered by hand are let be, only marked. The
-envelope editor's keyboard tints the keys in it.
+of the tags under it: **Chromatic**, for no scale, and up to four that best
+fit every note the steps hold. The wand beside **Scale** picks the best of
+them. The step editor then draws the scale's keys beside the notes and
+shows any note outside it in red; notes entered by hand are let be, only
+marked. The envelope editor's keyboard tints the keys in it.
 
 Notes you record are fitted to it — moved up to the nearest note in it,
 unless an import chose otherwise — and so is a note that a voice's
 **Offset**, or **Shift**, moves out of it, as **Offset scale fit** and
 **Shift scale fit** say: **Up** or **Down** to the nearest note in it,
-**Exclude** to leave the note out, or **Ignore** to play it anyway. The fit
-fields are off while there is no scale, unless a step can move the sequencer
-to one.
+**Exclude** to leave the note out, or **Ignore** to play it anyway.
 
 The ten are major, minor, dorian, phrygian, lydian, mixolydian, harmonic
 minor, the major and minor pentatonics, and minor blues — so that a

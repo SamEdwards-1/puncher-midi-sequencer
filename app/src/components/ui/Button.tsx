@@ -1,13 +1,15 @@
 import { ButtonHTMLAttributes, FC, FieldsetHTMLAttributes } from "react"
 import { cn } from "./cn"
 
-export type ButtonSize = "md" | "sm" | "field"
+export type ButtonSize = "md" | "sm" | "field" | "pill"
 
 const SIZES: Record<ButtonSize, string> = {
   md: "h-8 px-3 text-body",
   sm: "h-[1.7rem] px-[0.6rem] text-small",
   // the height of a select, so it lines up inside a field row
   field: "h-[1.9rem] px-[0.6rem] text-small",
+  // a small rounded tag, many to a row
+  pill: "h-[1.4rem] rounded-full px-2 text-small",
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,7 +29,8 @@ export const Button: FC<ButtonProps> = ({
   <button
     data-active={active}
     className={cn(
-      "flex items-center gap-[0.4rem] rounded-sm disabled:opacity-40",
+      "flex items-center gap-[0.4rem] disabled:opacity-40",
+      size !== "pill" && "rounded-sm",
       SIZES[size],
       active || primary
         ? "bg-theme text-on-surface enabled:hover:brightness-110"
@@ -40,7 +43,7 @@ export const Button: FC<ButtonProps> = ({
 
 export interface ButtonGroupProps
   extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
-  size?: Exclude<ButtonSize, "field">
+  size?: Exclude<ButtonSize, "field" | "pill">
 }
 
 const GROUP_HEIGHTS: Record<NonNullable<ButtonGroupProps["size"]>, string> = {

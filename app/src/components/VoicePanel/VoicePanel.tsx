@@ -12,7 +12,6 @@ import {
   PatternStepJSON,
   playedVelocity,
   previewStep,
-  scaleless,
   shownAccent,
   stepPace,
   VOICE_RULES,
@@ -308,7 +307,6 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <FitSelect
               value={shown(voice.offsetFit)}
-              disabled={scaleless(patch)}
               onChange={(offsetFit) => editVoice(selected, { offsetFit })}
             />
           )}
