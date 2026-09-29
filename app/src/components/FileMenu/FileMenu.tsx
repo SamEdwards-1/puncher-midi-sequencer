@@ -57,40 +57,10 @@ export const FileMenu: FC = () => {
             <MenuItem close={close} onSelect={saveAs}>
               <Localized name="sequencer-file-save-as" />
             </MenuItem>
-            {recentPatches.length > 0 && (
-              <>
-                <MenuDivider />
-                <MenuGroup label={localized["sequencer-file-recent-patches"]}>
-                  {recentPatches.map((recent, index) => (
-                    <MenuItem
-                      // a name can be there twice, from two folders
-                      key={`${index}-${recent.name}`}
-                      close={close}
-                      onSelect={() => openRecent(recent)}
-                    >
-                      {recent.name}
-                    </MenuItem>
-                  ))}
-                </MenuGroup>
-              </>
-            )}
             <MenuDivider />
             <MenuItem close={close} onSelect={() => importMidi()}>
               <Localized name="sequencer-file-import-midi" />
             </MenuItem>
-            {recentMidi.length > 0 && (
-              <MenuGroup label={localized["sequencer-file-recent-midi"]}>
-                {recentMidi.map((recent, index) => (
-                  <MenuItem
-                    key={`${index}-${recent.name}`}
-                    close={close}
-                    onSelect={() => importMidi(recent)}
-                  >
-                    {recent.name}
-                  </MenuItem>
-                ))}
-              </MenuGroup>
-            )}
             <MenuDivider />
             <MenuItem
               close={close}
@@ -109,6 +79,39 @@ export const FileMenu: FC = () => {
             <MenuItem close={close} onSelect={() => setRendering(true)}>
               <Localized name="sequencer-file-render-audio" />
             </MenuItem>
+            {recentPatches.length > 0 && (
+              <>
+                <MenuDivider />
+                <MenuGroup label={localized["sequencer-file-recent-patches"]}>
+                  {recentPatches.map((recent, index) => (
+                    <MenuItem
+                      // a name can be there twice, from two folders
+                      key={`${index}-${recent.name}`}
+                      close={close}
+                      onSelect={() => openRecent(recent)}
+                    >
+                      {recent.name}
+                    </MenuItem>
+                  ))}
+                </MenuGroup>
+              </>
+            )}
+            {recentMidi.length > 0 && (
+              <>
+                <MenuDivider />
+                <MenuGroup label={localized["sequencer-file-recent-midi"]}>
+                  {recentMidi.map((recent, index) => (
+                    <MenuItem
+                      key={`${index}-${recent.name}`}
+                      close={close}
+                      onSelect={() => importMidi(recent)}
+                    >
+                      {recent.name}
+                    </MenuItem>
+                  ))}
+                </MenuGroup>
+              </>
+            )}
           </>
         )}
       </MenuBarMenu>
