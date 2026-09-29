@@ -553,9 +553,10 @@ from its first dot, where in play it carries on from wherever it was.
 
 [WebMCP](https://webmachinelearning.github.io/webmcp/) lets a page offer
 tools to an agent in the browser: each a name, a description, a JSON Schema
-for its input, and a function. midiseq registers eleven on
+for its input, and a function. midiseq registers fourteen on
 `document.modelContext` while the editor is shown, and takes them away with
-it; a browser without WebMCP is offered nothing.
+it; a browser without WebMCP is offered nothing. WEBMCP.md has each tool's
+input, how to try them, and how they're built.
 
 **The app's own controls, not a second API.** A tool edits the patch as the
 UI does — a core command's result, with the old patch pushed onto the undo
@@ -567,9 +568,12 @@ would select it, so the person sees the edit land.
 **Few tools, each a whole job.** Every tool costs the agent context, so
 they follow the patch's shape rather than its controls: one reads
 everything; `set_steps` changes any number of steps — notes, state, jump,
-envelopes — and `set_voices` any number of voices, dots included. The
-transport, the actions, selecting a step, undo, redo and clearing are tools
-of their own.
+envelopes — and `set_voices` any number of voices, dots included, as
+`set_modulations` does any number of modulations. The transport, recording,
+the actions, selecting a step, undo, redo and clearing are tools of their
+own. The step menu's copy, paste, insert, clear and delete are one tool,
+`step_menu`: a call an action, as the menu is a click an item, since moving
+steps renumbers the ones after them.
 
 **Numbered and named as the app shows them.** Steps, voices and dots count
 from 1; notes are names, though a MIDI number is taken too; paces and rules
@@ -588,11 +592,20 @@ its file's — is marked as content the page didn't write.
 an agent calling `play` is neither, so its result says when the built-in
 synth is waiting for one, as it says when nothing is routed at all.
 
+**Modulations in the setting's terms.** A modulation is read and made with
+its setting's own values — a pace, a length in percent, "A minor" — and
+every one comes with the CC value that stands for each of them, so an agent
+can draw an envelope that sets the setting exactly, rather than working the
+spread out.
+
+**Shared with the person.** A step the agent copies is the one the app's
+Paste puts down, and the other way round. Recording is the person's to play
+into: an agent can start a take and choose where it goes, and the take is
+one undo, as the Record button's is.
+
 **What is not offered:** saving, opening and exporting, which need a file
-picker and so a person's click; recording, which needs something to play;
-the settings, which describe the rig rather than the music; and making a
-modulation — an agent sees one, and what its envelopes stand for, but
-can't yet add one.
+picker and so a person's click; and the settings, which describe the rig
+rather than the music.
 
 ## 6. Decisions
 
