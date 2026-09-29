@@ -184,6 +184,8 @@ describe("recent patches", () => {
 
     await waitFor(() => expect(patch().tempo).toBe(90))
     expect(rootStore.sequencerStore.fileName).toBe("a.midiseq.json")
+    expect(patch().name).toBe("a")
+    expect(rootStore.sequencerStore.isSaved).toBe(true)
     // it moves back to the top, once
     await waitFor(() =>
       expect(recentPatches()).toEqual(["a.midiseq.json", "b.midiseq.json"]),

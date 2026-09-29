@@ -19,6 +19,7 @@ import {
   serializeFile,
   serializePatterns,
   VoiceIndex,
+  withPatchName,
 } from "@midiseq/core"
 import { useCallback } from "react"
 import { AudioRenderProgress } from "../audio/renderAudio"
@@ -159,7 +160,11 @@ export function useFileActions() {
         window.alert(`Couldn't open that file. ${result.error}`)
         return
       }
-      load(result.patch, opened.name)
+      // Older unnamed patches use their filename, including recent files.
+      load(
+        withPatchName(result.patch, exportBaseNameFor(opened.name, "")),
+        opened.name,
+      )
       remember(opened.name)
     },
     [load, remember],
@@ -181,7 +186,7 @@ export function useFileActions() {
     newPatch: useCallback(() => {
       if (confirmDiscard()) {
         endTake()
-        load(createDefaultPatch(), null)
+        load(withPatchName(createDefaultPatch()), null)
       }
     }, [confirmDiscard, endTake, load]),
 
@@ -316,14 +321,22 @@ export const exportOptionsFor = (
   passes: settings.passes,
 })
 
-// "Bassline.midiseq.json" exports its step 3 as "Bassline step 3.mid"
+// Characters a file's name can't hold somewhere, and the colon that would
+// end the name early in a drag's DownloadURL
+const UNSAFE_IN_FILE_NAME = /[\\/:*?"<>|]/g
+
+// The patch "Velvet Heron" exports its step 3 as "Velvet Heron step 3.mid";
+// one with no name goes by its file's, "Bassline step 3.mid"
 const stepMidiNameFor = (
   fileName: string | null,
   patchName: string,
   step: number,
 ) => {
-  const name = midiNameFor(fileName, patchName)
-  return `${name.slice(0, -MIDI_EXTENSION.length)} step ${step + 1}${MIDI_EXTENSION}`
+  const base =
+    patchName.trim() !== ""
+      ? patchName.trim()
+      : exportBaseNameFor(fileName, patchName)
+  return `${base.replace(UNSAFE_IN_FILE_NAME, "-")} step ${step + 1}${MIDI_EXTENSION}`
 }
 
 // A performance rolls chance afresh each time, and so does an export.

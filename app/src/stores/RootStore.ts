@@ -1,3 +1,4 @@
+import { withPatchName } from "@midiseq/core"
 import { AudioRenderer, workerAudioRenderer } from "../services/AudioRenderer"
 import { AutoSaveService } from "../services/AutoSaveService"
 import { ClockFollower } from "../services/ClockFollower"
@@ -104,7 +105,7 @@ export default class RootStore {
     // work, rather than being lost.
     const recovered = this.autoSave.restore()
     if (recovered !== null) {
-      this.sequencerStore.patch = recovered
+      this.sequencerStore.patch = withPatchName(recovered)
       this.sequencerStore.isSaved = false
     }
     this.autoSave.start()

@@ -1,8 +1,9 @@
-import { createDemoPatch, PatchJSON } from "@midiseq/core"
+import { createDemoPatch, PatchJSON, withPatchName } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 
 export class SequencerStore {
-  patch: PatchJSON = createDemoPatch()
+  // the demo under a name of its own, as any new patch gets
+  patch: PatchJSON = withPatchName({ ...createDemoPatch(), name: "" })
   // the file this patch came from, and whether it has changed since
   fileName: string | null = null
   isSaved = true
