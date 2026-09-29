@@ -39,6 +39,7 @@ import {
   useSelectedLane,
   useSelectedStep,
   useSelectedVoice,
+  useSoloRestore,
 } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
@@ -414,7 +415,7 @@ const Patterns: FC<{
   const playingDots = useMobxGetter(player, "playingDots")
   const position = useMobxGetter(player, "position")
   const { actions } = useActions()
-  const { togglePatternDot } = usePatchEditor()
+  const { togglePatternDot, editVoice, editVoicesEnabled } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
   const [, setLane] = useSelectedLane()
   const [step] = useSelectedStep()
@@ -463,20 +464,38 @@ const Patterns: FC<{
     dotIndex: number
     at: { x: number; y: number }
   } | null>(null)
-  // Which voices are muted and soloed. The buttons only show it so far:
-  // playback doesn't hear them yet.
-  const [muted, setMuted] = useState<ReadonlySet<VoiceIndex>>(new Set())
-  const [soloed, setSoloed] = useState<ReadonlySet<VoiceIndex>>(new Set())
-  const toggle =
-    (set: typeof setMuted) =>
-    (voice: VoiceIndex): void =>
-      set((current) => {
-        const next = new Set(current)
-        if (!next.delete(voice)) {
-          next.add(voice)
-        }
-        return next
-      })
+  // Mute and solo are the voices' own Enable settings: a muted voice is one
+  // switched off, and a soloed voice the only one on.
+  const enabled = patch.voices.map((voice) => voice.enabled)
+  const soloed = (voice: VoiceIndex) =>
+    enabled.every((on, index) => on === (index === voice))
+  const [soloRestore, setSoloRestore] = useSoloRestore()
+  const mute = (voice: VoiceIndex) =>
+    editVoice(voice, { enabled: !enabled[voice] })
+  // Soloing switches the others off, remembering which were on; soloing
+  // another voice from a solo keeps what was on before the first. Un-soloing
+  // switches them back on, or, with nothing remembered — a solo made by
+  // hand, or before a reload — every voice.
+  const solo = (voice: VoiceIndex) => {
+    if (soloed(voice)) {
+      const before =
+        soloRestore?.voice === voice
+          ? soloRestore.enabled
+          : enabled.map(() => true)
+      editVoicesEnabled(before.map((on, index) => on || index === voice))
+      setSoloRestore(null)
+      return
+    }
+    const other = VOICES.find(soloed)
+    setSoloRestore({
+      voice,
+      enabled:
+        other !== undefined && soloRestore?.voice === other
+          ? soloRestore.enabled
+          : enabled,
+    })
+    editVoicesEnabled(enabled.map((_, index) => index === voice))
+  }
 
   return (
     <section
@@ -679,10 +698,10 @@ const Patterns: FC<{
             {/* under the dots, lined up with the first */}
             <VoiceButtons
               voice={voiceIndex}
-              muted={muted.has(voiceIndex)}
-              soloed={soloed.has(voiceIndex)}
-              onMute={toggle(setMuted)}
-              onSolo={toggle(setSoloed)}
+              muted={!voice.enabled}
+              soloed={soloed(voiceIndex)}
+              onMute={mute}
+              onSolo={solo}
             />
           </fieldset>
         )
