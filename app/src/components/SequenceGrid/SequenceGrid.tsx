@@ -11,6 +11,8 @@ import {
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import {
+  GridEdit,
+  useGridEdit,
   useGridLanding,
   useGridMode,
   usePreviewOnClick,
@@ -27,8 +29,16 @@ import { Toggle } from "../ui/Toggle"
 import { ActionButtons, ActionIcons } from "./ActionButtons"
 import { StepMenu } from "./StepMenu"
 
-const STEP =
-  "relative aspect-square min-w-[1.25rem] rounded-full border-2 font-mono text-[clamp(0.6rem,1.1vmin,0.85rem)]"
+const STEP_FACE =
+  "rounded-full border-2 font-mono text-[clamp(0.6rem,1.1vmin,0.85rem)]"
+const STEP = `relative aspect-square min-w-[1.25rem] ${STEP_FACE}`
+
+// a step's fill and number, by its state, where it has notes
+const FULL_FILL = {
+  normal: "bg-step text-fg",
+  rest: "bg-step-rest text-fg",
+  skip: "bg-step-skip text-fg-tertiary",
+} as const
 
 /* A jump shows as a pair sharing a colour: the source is marked at the
    north-east, its destination at the south-west, each just outside the
@@ -79,6 +89,81 @@ const useLanding = (count: number) => {
         : "step-land-again"
       : null,
     gap,
+  }
+}
+
+// A step pushed off the grid's end slides out past its edge, then falls
+// away and fades, in this long.
+const FALL_MS = 560
+
+// When a step an insert or a delete moved starts moving: in a wave from the
+// edit to the grid's end, over the time a landing's wave takes.
+const waveDelay = (edit: GridEdit, index: number, count: number) =>
+  ((index - edit.step) * (LAND_TOTAL_MS - LAND_MS)) /
+  Math.max(1, count - edit.step - 1)
+
+/**
+ * The edit to show, from each until its steps are done moving; null the
+ * rest of the time. Set in a layout effect, so the steps an insert or a
+ * delete moved never show where they end up before they are moving there.
+ * Only an edit made while the grid is shown sets it off.
+ */
+const useEditShown = (count: number): GridEdit | null => {
+  const edit = useGridEdit()
+  const shownAt = useRef(edit)
+  const [shown, setShown] = useState<GridEdit | null>(null)
+  // the count only times the fall, so a change to it alone starts nothing
+  const counted = useRef(count)
+  counted.current = count
+  useLayoutEffect(() => {
+    if (edit === shownAt.current || edit === null) {
+      return
+    }
+    setShown(edit)
+    const last = counted.current - 1
+    const falling =
+      edit.pushedOff === undefined
+        ? 0
+        : waveDelay(edit, last, counted.current) + FALL_MS
+    const done = setTimeout(
+      () => setShown(null),
+      Math.max(LAND_TOTAL_MS, falling) + 50,
+    )
+    return () => clearTimeout(done)
+  }, [edit])
+  return shown
+}
+
+/**
+ * How a step moves with an edit, if it does. A cleared step squashes and
+ * springs back empty; a pasted or an inserted one bounces in as an import's
+ * steps do. The steps an insert or a delete moved nudge in from the side
+ * they came from, in a wave from the edit to the grid's end. As with an
+ * import, each edit takes the other of two classes, so one that follows
+ * another mid-move starts it over.
+ */
+const editBounce = (edit: GridEdit, index: number, count: number) => {
+  const again = edit.id % 2 === 0 ? "" : "-again"
+  if (edit.kind === "clear" || edit.kind === "paste") {
+    return index === edit.step
+      ? {
+          className: `${edit.kind === "clear" ? "step-clear" : "step-land"}${again}`,
+          delay: 0,
+        }
+      : null
+  }
+  if (index < edit.step) {
+    return null
+  }
+  const name =
+    edit.kind === "delete"
+      ? "step-shift-back"
+      : index === edit.step
+        ? "step-land"
+        : "step-shift-on"
+  return {
+    className: `${name}${again}`,
+    delay: waveDelay(edit, index, count),
   }
 }
 
@@ -222,6 +307,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const [selected, setSelected] = useSelectedStep()
   const landing = useLanding(stepCount(size))
   const arrivals = useArrivals(stepCount(size))
+  const edit = useEditShown(stepCount(size))
 
   const onStepClick = (index: number) => {
     // a mode takes over the click: set a jump target, or mark rests and skips
@@ -255,6 +341,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
 
   const columns = gridWidth(size)
   const rows = gridRows(size)
+  const last = stepCount(size) - 1
 
   /**
    * The column scrolls as one, with the grid stuck to its top. The grid's
@@ -347,7 +434,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                 however far the grid has shrunk. A grid a row short of
                 square sits in its middle. */}
             <div
-              className="grid aspect-square h-full max-w-full content-center gap-[0.4rem]"
+              className="relative grid aspect-square h-full max-w-full content-center gap-[0.4rem]"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 gridTemplateRows: `repeat(${rows}, auto)`,
@@ -361,16 +448,20 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                   mark[1] === "r" ? "rest" : mark[1] === "s" ? "skip" : "normal"
                 const hasNotes = mark[0] === "n"
                 const active = position === index
+                // an empty step is only its ring, a step with notes filled in
+                const hollow = state === "normal" && !hasNotes && !active
                 const arrival = arrivals.get(index)
                 const bounce =
-                  arrival === undefined
-                    ? landing.className === null
-                      ? null
-                      : {
-                          className: landing.className,
-                          delay: index * landing.gap,
-                        }
-                    : { className: "step-land", delay: arrival.delay }
+                  arrival !== undefined
+                    ? { className: "step-land", delay: arrival.delay }
+                    : edit !== null
+                      ? editBounce(edit, index, stepCount(size))
+                      : landing.className === null
+                        ? null
+                        : {
+                            className: landing.className,
+                            delay: index * landing.gap,
+                          }
                 return (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
@@ -394,8 +485,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                               : active
                                 ? "bg-theme"
                                 : hasNotes
-                                  ? "bg-background-secondary"
-                                  : "bg-step",
+                                  ? "bg-step"
+                                  : "bg-transparent",
                             active
                               ? "text-on-surface"
                               : hasNotes
@@ -406,7 +497,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                         ? "border-record"
                         : selected === index
                           ? "border-fg-secondary"
-                          : "border-transparent",
+                          : hollow
+                            ? "border-step"
+                            : "border-transparent",
                       source !== undefined && SOURCE_MARK,
                       dest !== undefined && DEST_MARK,
                       bounce?.className,
@@ -438,6 +531,33 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                   </button>
                 )
               })}
+              {/* The grid's last step as it was before an insert pushed it
+                  off the end: over its cell, it slides out past the grid's
+                  edge, one cell on from the last column, then falls away.
+                  Placed absolutely, it takes the cell without moving the
+                  steps. */}
+              {edit?.pushedOff !== undefined && (
+                <div
+                  key={edit.id}
+                  aria-hidden
+                  data-falling-step
+                  className={cn(
+                    STEP_FACE,
+                    FULL_FILL[edit.pushedOff],
+                    "step-fall pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-transparent",
+                  )}
+                  style={
+                    {
+                      gridRow: Math.floor(last / columns) + 1,
+                      gridColumn: (last % columns) + 1,
+                      "--fall-slide": `calc(${columns - (last % columns)} * (100% + 0.4rem))`,
+                      animationDelay: `${waveDelay(edit, last, last + 1)}ms`,
+                    } as CSSProperties
+                  }
+                >
+                  {last + 1}
+                </div>
+              )}
             </div>
           </div>
         </div>

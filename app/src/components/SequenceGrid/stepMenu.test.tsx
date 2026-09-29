@@ -1,5 +1,11 @@
 import { createDefaultPatch, setStepNotes } from "@midiseq/core"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -93,6 +99,61 @@ describe("a step's menu", () => {
     setup()
     choose(2, "Clear")
     expect(notes()).toEqual([60, null, 62, 63, null])
+  })
+
+  it("fills a step with notes in, leaving an empty one a ring", () => {
+    setup()
+    expect(step(1)).toHaveClass("bg-step", "border-transparent")
+    expect(step(5)).toHaveClass("bg-transparent", "border-step")
+  })
+
+  it("squashes a cleared step, and bounces a pasted one in", async () => {
+    setup()
+    choose(2, "Clear")
+    expect(step(2).className).toMatch(/\bstep-clear(-again)?\b/)
+    expect(step(3).className).not.toMatch(/\bstep-/)
+
+    choose(1, "Copy")
+    choose(5, "Paste")
+    expect(step(5).className).toMatch(/\bstep-land(-again)?\b/)
+    // done with once it has run
+    await waitFor(() => expect(step(5).className).not.toMatch(/\bstep-/), {
+      timeout: 1500,
+    })
+  })
+
+  it("bounces an inserted step in, the rest moving on in a wave", () => {
+    setup()
+    choose(2, "Insert before")
+    expect(step(1).className).not.toMatch(/\bstep-/)
+    expect(step(2).className).toMatch(/\bstep-land(-again)?\b/)
+    expect(step(3).className).toMatch(/\bstep-shift-on(-again)?\b/)
+    // the last starting 240ms in, so its 360ms move ends at 0.6s
+    expect(step(64).style.animationDelay).toBe("240ms")
+    // an empty step went off the end, so nothing falls
+    expect(document.querySelector("[data-falling-step]")).toBeNull()
+  })
+
+  it("drops the last step off the grid when an insert pushes out notes", async () => {
+    setup()
+    rootStore.sequencerStore.patch = setStepNotes(patch(), 63, [72])
+    choose(2, "Insert before")
+    const falling = document.querySelector("[data-falling-step]")
+    expect(falling).toHaveTextContent("64")
+    expect(falling).toHaveClass("step-fall", "bg-step")
+    expect(falling).toHaveAttribute("aria-hidden", "true")
+    await waitFor(
+      () => expect(document.querySelector("[data-falling-step]")).toBeNull(),
+      { timeout: 1500 },
+    )
+  })
+
+  it("moves the steps after a deleted one back", () => {
+    setup()
+    choose(2, "Delete")
+    expect(step(1).className).not.toMatch(/\bstep-/)
+    expect(step(2).className).toMatch(/\bstep-shift-back(-again)?\b/)
+    expect(step(64).className).toMatch(/\bstep-shift-back(-again)?\b/)
   })
 
   it("deletes a step, pulling those after it back, as one undo", () => {

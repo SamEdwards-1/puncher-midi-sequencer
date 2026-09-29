@@ -316,9 +316,54 @@
     animation: midiseq-step-land-again 360ms ease-out both;
   }
 
+  /* A step cleared: the bounce the other way, squashed to 70% and springing
+     back out empty. */
+  .step-clear {
+    animation: midiseq-step-clear 360ms ease-out both;
+  }
+
+  .step-clear-again {
+    animation: midiseq-step-clear-again 360ms ease-out both;
+  }
+
+  /* The steps an insert moved on, or a delete moved back: each bounces in
+     from the side it came from, in a wave from the edit (see SequenceGrid). */
+  .step-shift-on {
+    animation: midiseq-step-shift-on 360ms ease-out both;
+  }
+
+  .step-shift-on-again {
+    animation: midiseq-step-shift-on-again 360ms ease-out both;
+  }
+
+  .step-shift-back {
+    animation: midiseq-step-shift-back 360ms ease-out both;
+  }
+
+  .step-shift-back-again {
+    animation: midiseq-step-shift-back-again 360ms ease-out both;
+  }
+
+  /* The step an insert pushed off the grid's end: it slides out past the
+     grid's edge (--fall-slide, see SequenceGrid), then drops, tipping over
+     and fading as it goes. */
+  .step-fall {
+    animation: midiseq-step-fall 560ms both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    .step-fall {
+      display: none;
+    }
+
     .step-land,
-    .step-land-again {
+    .step-land-again,
+    .step-clear,
+    .step-clear-again,
+    .step-shift-on,
+    .step-shift-on-again,
+    .step-shift-back,
+    .step-shift-back-again {
       animation: none;
     }
   }
@@ -425,5 +470,130 @@
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes midiseq-step-clear {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  80% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes midiseq-step-clear-again {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  80% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes midiseq-step-shift-on {
+  0% {
+    transform: translateX(-60%) scale(0.85);
+  }
+  55% {
+    transform: translateX(12%) scale(1.06);
+  }
+  75% {
+    transform: translateX(-5%) scale(0.98);
+  }
+  90% {
+    transform: translateX(2%) scale(1.01);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes midiseq-step-shift-on-again {
+  0% {
+    transform: translateX(-60%) scale(0.85);
+  }
+  55% {
+    transform: translateX(12%) scale(1.06);
+  }
+  75% {
+    transform: translateX(-5%) scale(0.98);
+  }
+  90% {
+    transform: translateX(2%) scale(1.01);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes midiseq-step-fall {
+  0% {
+    transform: none;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+  45% {
+    transform: translateX(var(--fall-slide));
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  100% {
+    transform: translateX(var(--fall-slide)) translateY(260%) rotate(35deg);
+    opacity: 0;
+  }
+}
+
+@keyframes midiseq-step-shift-back {
+  0% {
+    transform: translateX(60%) scale(0.85);
+  }
+  55% {
+    transform: translateX(-12%) scale(1.06);
+  }
+  75% {
+    transform: translateX(5%) scale(0.98);
+  }
+  90% {
+    transform: translateX(-2%) scale(1.01);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes midiseq-step-shift-back-again {
+  0% {
+    transform: translateX(60%) scale(0.85);
+  }
+  55% {
+    transform: translateX(-12%) scale(1.06);
+  }
+  75% {
+    transform: translateX(5%) scale(0.98);
+  }
+  90% {
+    transform: translateX(-2%) scale(1.01);
+  }
+  100% {
+    transform: none;
   }
 }

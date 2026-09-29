@@ -1,7 +1,7 @@
-import { StepJSON, VoiceIndex } from "@midiseq/core"
+import { StepJSON, StepState, VoiceIndex } from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai"
 import { atomWithStorage } from "jotai/utils"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 
 // View state, kept out of the patch so it is never saved or undone.
 const selectedVoiceAtom = atom<VoiceIndex>(0)
@@ -19,6 +19,35 @@ export function useGridLanding() {
 export function useLandGrid() {
   const set = useSetAtom(gridLandingAtom)
   return () => set((count) => count + 1)
+}
+
+/**
+ * The last edit made to one step in place — cleared, pasted onto, or a step
+ * inserted or deleted there — so the grid can move its steps to show it.
+ * `id` counts the edits, so the same one twice over is still news. An
+ * insert that pushes a step with notes off the grid's end says what state
+ * that step was in, so the grid can show it falling away.
+ */
+export type GridEditKind = "clear" | "paste" | "insert" | "delete"
+export interface GridEdit {
+  kind: GridEditKind
+  step: number
+  id: number
+  pushedOff?: StepState
+}
+const gridEditAtom = atom<GridEdit | null>(null)
+
+export function useGridEdit() {
+  return useAtomValue(gridEditAtom)
+}
+
+export function useShowGridEdit() {
+  const set = useSetAtom(gridEditAtom)
+  return useCallback(
+    (kind: GridEditKind, step: number, pushedOff?: StepState) =>
+      set((last) => ({ kind, step, id: (last?.id ?? 0) + 1, pushedOff })),
+    [set],
+  )
 }
 
 /**
