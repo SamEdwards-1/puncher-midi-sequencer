@@ -11,9 +11,14 @@ import {
   TONICS,
 } from "../../theory/scales"
 import { Button } from "../ui/Button"
-import { Select } from "../ui/Select"
+import { ComboBox, ComboOption } from "../ui/ComboBox"
 
 const NONE = ""
+
+const TONIC_OPTIONS = TONICS.map((name, pitch) => ({
+  value: pitch,
+  label: name,
+}))
 
 /**
  * A scale's tonic and name, or none. The tonic can be picked before a name,
@@ -30,70 +35,60 @@ export const ScaleSelects: FC<{
   const [tonic, setTonic] = useState(scale?.tonic ?? 0)
   const shownTonic = scale?.tonic ?? tonic
   const fit = scale?.fit ?? "up"
-  const common = choices.filter((choice) => choice.common)
-  const more = choices.filter((choice) => !choice.common)
   // a scale from a file or an import that isn't offered still shows as
   // itself
   const known = choices.some((choice) => choice.name === scale?.name)
-  const options = (list: readonly ScaleChoice[]) =>
-    list.map((choice) => (
-      <option key={choice.name} value={choice.name}>
-        {choice.label}
-      </option>
-    ))
+  // common names come first, under a heading of their own where there are
+  // others
+  const common = choices.filter((choice) => choice.common)
+  const more = choices.filter((choice) => !choice.common)
+  const grouped = common.length > 0 && more.length > 0
+  const names: ComboOption<string>[] = [
+    { value: NONE, label: localized["sequencer-scale-none"] },
+    ...(scale !== null && !known
+      ? [
+          {
+            value: scale.name,
+            label:
+              SCALE_CHOICES.find((choice) => choice.name === scale.name)
+                ?.label ?? scale.name,
+          },
+        ]
+      : []),
+    ...(grouped ? [...common, ...more] : choices).map((choice) => ({
+      value: choice.name,
+      label: choice.label,
+      group: !grouped
+        ? undefined
+        : choice.common
+          ? localized["sequencer-scale-common"]
+          : localized["sequencer-scale-more"],
+    })),
+  ]
 
   return (
     <div className="flex min-w-0 gap-1">
-      <Select
+      <ComboBox
         aria-label={localized["sequencer-scale-tonic"]}
-        className="w-[3.6rem] flex-none"
+        className="w-[4.2rem] flex-none"
         value={shownTonic}
-        onChange={(event) => {
-          const next = Number(event.target.value)
+        options={TONIC_OPTIONS}
+        onChange={(next) => {
           setTonic(next)
           if (scale !== null) {
             onScale({ ...scale, tonic: next })
           }
         }}
-      >
-        {TONICS.map((name, pitch) => (
-          <option key={name} value={pitch}>
-            {name}
-          </option>
-        ))}
-      </Select>
-      <Select
+      />
+      <ComboBox
         aria-label={localized["sequencer-scale"]}
         className="min-w-0 flex-1"
         value={scale?.name ?? NONE}
-        onChange={(event) =>
-          onScale(
-            event.target.value === NONE
-              ? null
-              : makeScale(shownTonic, event.target.value, fit),
-          )
+        options={names}
+        onChange={(name) =>
+          onScale(name === NONE ? null : makeScale(shownTonic, name, fit))
         }
-      >
-        <option value={NONE}>{localized["sequencer-scale-none"]}</option>
-        {scale !== null && !known && (
-          <option value={scale.name}>
-            {SCALE_CHOICES.find((choice) => choice.name === scale.name)
-              ?.label ?? scale.name}
-          </option>
-        )}
-        {common.length === 0 || more.length === 0 ? (
-          options(choices)
-        ) : (
-          <>
-            <optgroup label={localized["sequencer-scale-common"]}>
-              {options(common)}
-            </optgroup>
-            <optgroup label={localized["sequencer-scale-more"]}>
-              {options(more)}
-            </optgroup>
-          </>
-        )}
-      </Select>
+      />
     </div>
   )
 }
@@ -132,17 +127,15 @@ export const FitSelect: FC<{
 }> = ({ value, disabled, onChange }) => {
   const localized = useLocalization()
   return (
-    <Select
+    <ComboBox
       value={value}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value as ScaleFit)}
-    >
-      {SCALE_FITS.map((fit) => (
-        <option key={fit} value={fit}>
-          {localized[`sequencer-scale-fit-${fit}`]}
-        </option>
-      ))}
-    </Select>
+      options={SCALE_FITS.map((fit) => ({
+        value: fit,
+        label: localized[`sequencer-scale-fit-${fit}`],
+      }))}
+      onChange={onChange}
+    />
   )
 }
 

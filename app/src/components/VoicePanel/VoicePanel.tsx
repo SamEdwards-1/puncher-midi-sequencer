@@ -9,7 +9,6 @@ import {
   noteNumberToName,
   PACE_LABELS,
   PACES,
-  PaceId,
   PatternStepJSON,
   playedVelocity,
   previewStep,
@@ -18,7 +17,6 @@ import {
   stepPace,
   VOICE_RULES,
   VoiceIndex,
-  VoiceRule,
   VoiceSetting,
   viewIndex,
 } from "@midiseq/core"
@@ -45,6 +43,7 @@ import { RULE_LABELS } from "../Modulation/labels"
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect } from "../Scale/ScalePicker"
 import { IconButton } from "../ui/Button"
+import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
 import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
@@ -53,6 +52,16 @@ import { Slider } from "../ui/Slider"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
 import { StepOptions } from "./StepOptions"
+
+const PACE_OPTIONS = PACES.map((pace) => ({
+  value: pace,
+  label: PACE_LABELS[pace],
+}))
+
+const RULE_OPTIONS = VOICE_RULES.map((rule) => ({
+  value: rule,
+  label: RULE_LABELS[rule],
+}))
 
 const TAB =
   "flex h-9 flex-1 items-center justify-center gap-[0.4rem] whitespace-nowrap border-b-[0.15rem] bg-transparent text-body hover:bg-highlight"
@@ -225,18 +234,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           target={target("pace")}
         >
           {(shown) => (
-            <Select
+            <ComboBox
               value={shown(voice.pace)}
-              onChange={(event) =>
-                editVoice(selected, { pace: event.target.value as PaceId })
-              }
-            >
-              {PACES.map((pace) => (
-                <option key={pace} value={pace}>
-                  {PACE_LABELS[pace]}
-                </option>
-              ))}
-            </Select>
+              options={PACE_OPTIONS}
+              onChange={(pace) => editVoice(selected, { pace })}
+            />
           )}
         </ModulatedField>
 
@@ -267,18 +269,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           target={target("rule")}
         >
           {(shown) => (
-            <Select
+            <ComboBox
               value={shown(voice.rule)}
-              onChange={(event) =>
-                editVoice(selected, { rule: event.target.value as VoiceRule })
-              }
-            >
-              {VOICE_RULES.map((rule) => (
-                <option key={rule} value={rule}>
-                  {RULE_LABELS[rule]}
-                </option>
-              ))}
-            </Select>
+              options={RULE_OPTIONS}
+              onChange={(rule) => editVoice(selected, { rule })}
+            />
           )}
         </ModulatedField>
 

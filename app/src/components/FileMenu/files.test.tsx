@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AutoSaveService } from "../../services/AutoSaveService"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
+import { choose } from "../../test/combobox"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -236,15 +237,13 @@ describe("saving everything", () => {
     setup({ fileService: files.service })
     const voices = screen.getByRole("region", { name: "Voices" })
     fireEvent.click(screen.getByRole("button", { name: "Voice 3" }))
-    fireEvent.change(within(voices).getByLabelText("Rule"), {
-      target: { value: "fall" },
-    })
+    choose(within(voices).getByLabelText("Rule"), "Fall")
     fireEvent.click(screen.getByRole("button", { name: "Voice 2 Dot 6" }))
-    fireEvent.change(
+    choose(
       within(screen.getByRole("region", { name: "Sequencer" })).getByLabelText(
         "Direction",
       ),
-      { target: { value: "bwd" } },
+      "Backwards",
     )
 
     click("File")
@@ -266,12 +265,8 @@ describe("pattern files", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voice 4 Dot 2" }))
     fireEvent.click(screen.getByRole("button", { name: "Voice 4" }))
     const voices = within(screen.getByRole("region", { name: "Voices" }))
-    fireEvent.change(voices.getByLabelText("Pace"), {
-      target: { value: "16th" },
-    })
-    fireEvent.change(voices.getByLabelText("Rule"), {
-      target: { value: "rise" },
-    })
+    choose(voices.getByLabelText("Pace"), "16th")
+    choose(voices.getByLabelText("Rule"), "Rise")
 
     click("Export patterns")
 

@@ -6,7 +6,6 @@ import {
   NOTES_PER_STEP,
   PACE_LABELS,
   PACES,
-  PaceId,
   ScaleChoiceJSON,
   SequencerSetting,
   scaleless,
@@ -27,12 +26,17 @@ import {
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { Button } from "../ui/Button"
+import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
 import { ButtonField, Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
-import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
+
+const PACE_OPTIONS = PACES.map((pace) => ({
+  value: pace,
+  label: PACE_LABELS[pace],
+}))
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: "fwd", label: "Forwards" },
@@ -98,51 +102,30 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           target={target("pace")}
         >
           {(shown) => (
-            <Select
+            <ComboBox
               value={shown(patch.pace)}
-              onChange={(event) =>
-                editSequencer({ pace: event.target.value as PaceId })
-              }
-            >
-              {PACES.map((pace) => (
-                <option key={pace} value={pace}>
-                  {PACE_LABELS[pace]}
-                </option>
-              ))}
-            </Select>
+              options={PACE_OPTIONS}
+              onChange={(pace) => editSequencer({ pace })}
+            />
           )}
         </ModulatedField>
 
         <Field label={localized["sequencer-direction"]}>
-          <Select
+          <ComboBox
             value={patch.direction}
-            onChange={(event) =>
-              editSequencer({ direction: event.target.value as Direction })
-            }
-          >
-            {DIRECTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
+            options={DIRECTIONS}
+            onChange={(direction) => editSequencer({ direction })}
+          />
         </Field>
 
         <Field label={localized["sequencer-loop"]}>
-          <Select
+          <ComboBox
             value={patch.loop.mode}
-            onChange={(event) =>
-              editSequencer({
-                loop: { ...patch.loop, mode: event.target.value as LoopMode },
-              })
+            options={LOOP_MODES}
+            onChange={(mode) =>
+              editSequencer({ loop: { ...patch.loop, mode } })
             }
-          >
-            {LOOP_MODES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
+          />
         </Field>
 
         {patch.loop.mode === "custom" && (

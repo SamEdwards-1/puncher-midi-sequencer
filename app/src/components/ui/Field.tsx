@@ -12,9 +12,9 @@ const ASIDE = "order-2 mr-1 flex flex-none items-center"
 const CONTROL = "order-3 ml-auto grid w-[calc(100%-7rem)] flex-none"
 // A control showing what a step's envelope has its setting at, rather than
 // its own value, does so in the envelopes' colour: a select's text and edge,
-// a typed value, a slider's thumb.
+// a typed value, a combo box's edge, a slider's thumb.
 const LIVE =
-  "[&_input]:text-envelope [&_select]:border-envelope [&_select]:text-envelope [--midiseq-slider-thumb:var(--midiseq-envelope)]"
+  "[&_input]:text-envelope [&_select]:border-envelope [&_select]:text-envelope [&_[data-combobox]]:border-envelope [--midiseq-slider-thumb:var(--midiseq-envelope)]"
 
 export const Fields: FC<{ children: ReactNode }> = ({ children }) => (
   <div className="flex flex-col px-4 pt-2 pb-3">{children}</div>

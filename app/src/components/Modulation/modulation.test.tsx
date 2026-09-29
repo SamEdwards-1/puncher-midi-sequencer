@@ -7,6 +7,7 @@ import {
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { choose as chooseIn, comboOptions } from "../../test/combobox"
 import { ManualTicker } from "../../test/fakes"
 import { editItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -355,7 +356,7 @@ describe("a modulated setting while the sequence plays", () => {
     next.steps[1].notes = [64]
     return next
   }
-  const pace = () => voices().getByLabelText("Pace") as HTMLSelectElement
+  const pace = () => voices().getByLabelText("Pace")
   const live = (control: HTMLElement) =>
     control.closest("[data-live]")?.getAttribute("data-live")
   const play = () => act(() => rootStore.player.play())
@@ -395,7 +396,7 @@ describe("a modulated setting while the sequence plays", () => {
     fireEvent.mouseEnter(pace())
     expect(pace()).toHaveDisplayValue("8th")
     expect(live(pace())).toBe("false")
-    fireEvent.change(pace(), { target: { value: "16th" } })
+    chooseIn(pace(), "16th")
     expect(patch().voices[0].pace).toBe("16th")
     fireEvent.mouseLeave(pace())
     expect(pace()).toHaveDisplayValue("4th")
@@ -560,8 +561,8 @@ describe("modulating an action", () => {
 describe("the sequencer's scale", () => {
   it("offers the ten scales its modulation reaches at every tonic", () => {
     setup()
-    const names = sequencer().getByLabelText("Scale") as HTMLSelectElement
-    expect([...names.options].map((option) => option.text)).toEqual([
+    const names = comboOptions(sequencer().getByLabelText("Scale"))
+    expect(names.map((option) => option.textContent)).toEqual([
       "None",
       "major",
       "minor",
