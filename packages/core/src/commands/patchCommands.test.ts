@@ -9,7 +9,9 @@ import {
   addStepNote,
   clearPatch,
   clearStep,
+  deleteStep,
   freeVoiceChannel,
+  insertStep,
   nextFreeCC,
   pasteStep,
   removeEnvelope,
@@ -338,6 +340,86 @@ describe("patch commands", () => {
     expect(cleared.size).toBe(patch.size)
     expect(cleared.loop).toEqual(patch.loop)
     expect(cleared.name).toBe(patch.name)
+  })
+
+  describe("inserting and deleting a step", () => {
+    // steps 0 to 3 hold 60 to 63, so each can be told by its note
+    const numbered = () => {
+      let patch = createDefaultPatch()
+      for (let step = 0; step < 4; step++) {
+        patch = setStepNotes(patch, step, [60 + step])
+      }
+      return patch
+    }
+    const notes = (patch: ReturnType<typeof createDefaultPatch>) =>
+      patch.steps.slice(0, 5).map((step) => step.notes[0] ?? null)
+
+    it("insert an empty step, moving the rest along", () => {
+      const next = insertStep(numbered(), 1)
+      expect(notes(next)).toEqual([60, null, 61, 62, 63])
+      expect(next.steps).toHaveLength(64)
+    })
+
+    it("drop only the last step the patch stores", () => {
+      let patch = setStepNotes(createDefaultPatch(), 62, [70])
+      patch = setStepNotes(patch, 63, [71])
+      const next = insertStep(patch, 0)
+      expect(next.steps[63].notes).toEqual([70])
+      expect(next.steps).toHaveLength(64)
+    })
+
+    it("delete a step, pulling the rest back with no gap", () => {
+      const next = deleteStep(numbered(), 1)
+      expect(notes(next)).toEqual([60, 62, 63, null, null])
+      expect(next.steps).toHaveLength(64)
+      expect(next.steps[63]).toEqual(createDefaultPatch().steps[63])
+    })
+
+    it("keep jumps pointing at the steps they pointed at", () => {
+      let patch = numbered()
+      patch = setJump(patch, 0, { dest: 3, normal: 2 })
+      patch = setJump(patch, 3, { dest: 0 })
+
+      const inserted = insertStep(patch, 1)
+      expect(inserted.steps[0].jump).toMatchObject({ dest: 4, normal: 3 })
+      // the step that jumps moved too, and still goes back to the first
+      expect(inserted.steps[4].jump.dest).toBe(0)
+
+      const deleted = deleteStep(patch, 1)
+      expect(deleted.steps[0].jump).toMatchObject({ dest: 2, normal: 1 })
+      expect(deleted.steps[2].jump.dest).toBe(0)
+    })
+
+    it("drop a jump to the step deleted, or pushed off the end", () => {
+      const patch = setJump(numbered(), 0, { dest: 2, normal: 2 })
+      expect(deleteStep(patch, 2).steps[0].jump).toMatchObject({
+        dest: null,
+        normal: null,
+      })
+
+      const toLast = setJump(createDefaultPatch(), 0, { dest: 63 })
+      expect(insertStep(toLast, 5).steps[0].jump.dest).toBeNull()
+    })
+
+    it("grow or shrink a custom loop with the steps in it", () => {
+      const patch = setSequencer(numbered(), {
+        loop: { mode: "custom", end: 3 },
+      })
+      expect(insertStep(patch, 3).loop.end).toBe(4)
+      expect(insertStep(patch, 4).loop.end).toBe(3)
+      expect(deleteStep(patch, 3).loop.end).toBe(2)
+      expect(deleteStep(patch, 4).loop.end).toBe(3)
+
+      // it stays within the steps there are
+      const whole = setSequencer(patch, { loop: { mode: "custom", end: 63 } })
+      expect(insertStep(whole, 0).loop.end).toBe(63)
+      const first = setSequencer(patch, { loop: { mode: "custom", end: 0 } })
+      expect(deleteStep(first, 0).loop.end).toBe(0)
+
+      // a loop that isn't custom finds its own end
+      const recorded = numbered()
+      expect(insertStep(recorded, 0).loop).toBe(recorded.loop)
+    })
   })
 
   it("trim the notes no voice can reach for good", () => {
