@@ -241,6 +241,8 @@ export default {
       "Ruler — drag up to zoom in, down to zoom out, sideways to scroll",
     "sequencer-action-latch": "Latch",
     "sequencer-preview": "Audition step",
+    "sequencer-patch-name": "Patch name",
+    "sequencer-patch-rename": "Rename the patch",
     "sequencer-mark": "Mark",
     "sequencer-jump-rule": "Rule",
     "sequencer-jump-dest": "Destination",

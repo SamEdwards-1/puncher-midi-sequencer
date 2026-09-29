@@ -25,6 +25,7 @@ import { menuPoint, Point } from "../ui/Menu"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
 import { ActionButtons, ActionIcons } from "./ActionButtons"
+import { PatchName } from "./PatchName"
 import { StepMenu } from "./StepMenu"
 
 const STEP =
@@ -303,8 +304,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
       {/* three columns, the outer two equal, so the action icons sit in the
           middle of the bar */}
       <PanelHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 overflow-hidden">
-        <span>
-          <Localized name="sequencer-grid" />
+        <span className="min-w-0">
+          <PatchName />
         </span>
         <ActionIcons shown={actionsAway} />
         <span className="flex items-center justify-end gap-[0.4rem] text-small font-normal text-fg-secondary">
