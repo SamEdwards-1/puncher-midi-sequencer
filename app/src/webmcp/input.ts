@@ -6,6 +6,9 @@ import {
   GM_PROGRAMS,
   JumpRule,
   LoopMode,
+  MAX_PATTERN_LENGTH,
+  ModulationTarget,
+  ModulationValue,
   noteNameToNumber,
   PACE_LABELS,
   PACES,
@@ -402,6 +405,103 @@ export const readInstrument = (value: unknown, what = "instrument"): number => {
       : `${what} ${show(value)} isn't a General MIDI instrument; name one, "Electric Bass (finger)" say, or give its number from 1 to 128`,
   )
 }
+
+/**
+ * The settings a CC can drive, as the tools name the fields: a voice's —
+ * pace is the sequencer's too — a voice's Sync, the sequencer's, and the
+ * actions.
+ */
+const MODULATION_SETTING_CHOICES: Choice<ModulationTarget["setting"]>[] = [
+  { value: "pace", names: ["pace"] },
+  { value: "length", names: ["length"] },
+  { value: "rule", names: ["rule"] },
+  { value: "offset", names: ["offset"] },
+  { value: "offsetFit", names: ["offset_fit"] },
+  { value: "patternLength", names: ["pattern_length"] },
+  { value: "sync", names: ["sync"] },
+  { value: "scale", names: ["scale"] },
+  { value: "shiftFit", names: ["shift_fit"] },
+  { value: "hold", names: ["hold"] },
+  { value: "flip", names: ["flip"] },
+  { value: "shift", names: ["shift"] },
+]
+
+export const MODULATION_SETTING_NAMES = namesOf(MODULATION_SETTING_CHOICES)
+
+export const readModulationSetting = (value: unknown, what = "setting") =>
+  readChoice(value, what, MODULATION_SETTING_CHOICES)
+
+// the name a setting goes by in the tools: offset_fit for offsetFit
+export const modulationSettingName = (setting: ModulationTarget["setting"]) =>
+  MODULATION_SETTING_CHOICES.find((choice) => choice.value === setting)
+    ?.names[0] ?? setting
+
+// An action is on or off, as its button is.
+const readSwitch = (value: unknown, what: string): boolean =>
+  typeof value === "string" && /^\s*(on|off)\s*$/i.test(value)
+    ? value.trim().toLowerCase() === "on"
+    : readBoolean(value, what)
+
+/**
+ * One of a setting's values, as the field for it takes it: a pace, a length
+ * in percent, a rule, semitones, a fit, a pattern length, a scale or none,
+ * or an action on or off.
+ */
+export const readModulationValue = (
+  target: ModulationTarget,
+  value: unknown,
+  what: string,
+): ModulationValue => {
+  switch (target.setting) {
+    case "pace":
+      return readPace(value, what)
+    case "length": {
+      const percent = readNumber(
+        typeof value === "string" ? value.replace(/%\s*$/, "") : value,
+        what,
+        10,
+        100,
+        false,
+      )
+      // on the slider's steps, as a voice's length is
+      return (Math.round(percent / 5) * 5) / 100
+    }
+    case "rule":
+      return readRule(value, what)
+    case "offset":
+      return readNumber(value, what, -24, 24)
+    case "offsetFit":
+    case "shiftFit":
+      return readFit(value, what)
+    case "patternLength":
+      return readNumber(value, what, 1, MAX_PATTERN_LENGTH)
+    case "scale": {
+      // its fit is the patch's, whatever this one would say
+      const scale = readScale(value, "up", what)
+      return scale === null ? null : { tonic: scale.tonic, name: scale.name }
+    }
+    case "hold":
+    case "sync":
+    case "flip":
+    case "shift":
+      return readSwitch(value, what)
+  }
+}
+
+/** What a right-click on a step in the grid offers. */
+export const STEP_ACTION_NAMES = [
+  "copy",
+  "paste",
+  "insert_before",
+  "insert_after",
+  "clear",
+  "delete",
+] as const
+
+export type StepAction = (typeof STEP_ACTION_NAMES)[number]
+
+export const readStepAction = (value: unknown, what = "action") =>
+  readChoice(value, what, plain(STEP_ACTION_NAMES))
 
 /**
  * A rhythm as a string, a character a dot: x (or X, o, 1, *) plays, . (or

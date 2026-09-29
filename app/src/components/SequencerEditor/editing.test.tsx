@@ -236,7 +236,13 @@ describe("editing the sequencer", () => {
         rootStore.player.voiceDots = [0, 15, 0, 0]
       })
       expect(reached(2)).toEqual([1, 16])
-      expect(row(2).querySelectorAll("[data-band]").length).toBe(2)
+      // squared off where it breaks at the end and carries on from the start
+      const cuts = (voice: number) =>
+        [...row(voice).querySelectorAll<HTMLElement>("[data-band]")].map(
+          (band) => band.dataset.cut,
+        )
+      expect(cuts(2)).toEqual(["end", "start"])
+      expect(cuts(1)).toEqual([undefined])
     })
 
     it("underlines the dot each voice is playing", () => {

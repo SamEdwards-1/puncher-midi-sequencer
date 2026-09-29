@@ -551,12 +551,28 @@ const Patterns: FC<{
               {/* dots fill the column, up to a size that still reads as a
                 row of dots when the panel has the whole window */}
               <span className="grid flex-1 grid-cols-[repeat(16,minmax(0,1.75rem))] gap-[0.3rem]">
-                {runs.map(([first, count]) => (
+                {/* a band the pattern's end cuts in two is square where it
+                    breaks off and where it carries on, round at its ends */}
+                {runs.map(([first, count], run) => (
                   <span
                     key={first}
                     aria-hidden
                     data-band
-                    className="-m-[0.25rem] rounded-full border-[1.5px] border-theme"
+                    data-cut={
+                      runs.length === 1
+                        ? undefined
+                        : run === 0
+                          ? "end"
+                          : "start"
+                    }
+                    className={cn(
+                      "-m-[0.25rem] border-[1.5px] border-theme",
+                      runs.length === 1
+                        ? "rounded-full"
+                        : run === 0
+                          ? "rounded-l-full"
+                          : "rounded-r-full",
+                    )}
                     style={{
                       gridRow: 1,
                       gridColumn: `${first + 1} / span ${count}`,

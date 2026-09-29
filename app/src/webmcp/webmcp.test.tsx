@@ -1,5 +1,12 @@
 import { createDefaultPatch } from "@midiseq/core"
-import { act, render, screen, waitFor, within } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { App } from "../components/App/App"
 import RootStore from "../stores/RootStore"
@@ -33,7 +40,7 @@ afterEach(() => {
   delete (document as { modelContext?: ModelContext }).modelContext
 })
 
-const TOOLS = 11
+const TOOLS = 14
 
 const show = async () => {
   const rootStore = new RootStore({
@@ -115,5 +122,21 @@ describe("WebMCP", () => {
     )
     const { selected } = await run("get_sequence", {})
     expect(selected.step).toBe(12)
+  })
+
+  it("shares the step it copies with the grid's menu", async () => {
+    const { rootStore } = await show()
+    await run("set_steps", { steps: [{ step: 1, notes: ["C4", "E4"] }] })
+    await run("step_menu", { step: 1, action: "copy" })
+
+    // a person pastes it from a step's right-click menu
+    fireEvent.contextMenu(
+      within(screen.getByRole("region", { name: "Grid" })).getByRole("button", {
+        name: "Step 3",
+      }),
+    )
+    const menu = screen.getByRole("menu", { name: "Step 3" })
+    fireEvent.click(within(menu).getByRole("button", { name: "Paste" }))
+    expect(rootStore.sequencerStore.patch.steps[2].notes).toEqual([60, 64])
   })
 })

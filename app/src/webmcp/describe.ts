@@ -9,7 +9,10 @@ import {
   JumpRule,
   loopEndIndex,
   ModulationJSON,
+  ModulationTarget,
+  ModulationValue,
   modulationForCC,
+  modulationStops,
   modulationValueAt,
   noteNumberToName,
   PatchJSON,
@@ -17,6 +20,7 @@ import {
   PatternStepJSON,
   paceBeats,
   playedVelocity,
+  ScaleChoiceJSON,
   StepIndex,
   stepPace,
   VoiceIndex,
@@ -37,9 +41,14 @@ import {
   scaleLabel,
   weightsOfNotes,
 } from "../theory/scales"
+import { modulationSettingName } from "./input"
 
 // settings are named as the app's fields name them, in its one language
 const localized = localization.en
+
+// where a setting is and what it's called: "Voice 2 · Pace"
+export const modulationLabel = (target: ModulationTarget) =>
+  modulationTargetLabel(target, localized)
 
 // times such as 1/3 of a beat, to a precision that still reads
 const tidy = (beats: number) => Math.round(beats * 10000) / 10000
@@ -78,7 +87,7 @@ const describeEnvelope = (patch: PatchJSON, envelope: EnvelopeJSON) => {
     channel: envelope.channel,
     shape: envelopeShape(envelope),
     ...(modulation !== undefined && {
-      modulates: modulationTargetLabel(modulation.target, localized),
+      modulates: modulationLabel(modulation.target),
     }),
     points: envelope.points.map((point) => ({
       beat: tidy(point.time),
@@ -198,12 +207,51 @@ export const describeSequencer = (patch: PatchJSON) => ({
   scale: patch.scale === null ? null : scaleLabel(patch.scale),
 })
 
-const describeModulation = (modulation: ModulationJSON) => ({
-  setting: modulationTargetLabel(modulation.target, localized),
-  cc: modulation.cc,
-  from: modulationValueLabel(modulation.target, modulation.from, localized),
-  to: modulationValueLabel(modulation.target, modulation.to, localized),
-})
+/**
+ * One of a setting's values as set_modulations takes it: a pace's or a
+ * rule's id, a length in percent, semitones, a fit, a pattern length, a
+ * scale or "none", or whether an action is on.
+ */
+export const modulationValueName = (
+  target: ModulationTarget,
+  value: ModulationValue,
+): string | number | boolean => {
+  switch (target.setting) {
+    case "length":
+      return Math.round((value as number) * 100)
+    case "scale":
+      return value === null ? "none" : scaleLabel(value as ScaleChoiceJSON)
+    default:
+      return value as string | number | boolean
+  }
+}
+
+/**
+ * A setting a CC drives, named as set_modulations names it, with the CC
+ * value standing for each of the values it moves through — what a step's
+ * envelope sends to have the setting there — and the steps that have one.
+ */
+export const describeModulation = (
+  patch: PatchJSON,
+  modulation: ModulationJSON,
+) => {
+  const { target, cc } = modulation
+  return {
+    setting: modulationSettingName(target.setting),
+    ...("voice" in target && { voice: target.voice + 1 }),
+    label: modulationLabel(target),
+    cc,
+    from: modulationValueName(target, modulation.from),
+    to: modulationValueName(target, modulation.to),
+    values: modulationStops(modulation).map((stop) => ({
+      value: modulationValueName(target, stop.value),
+      cc: stop.cc,
+    })),
+    steps: patch.steps.flatMap((step, index) =>
+      step.envelopes.some((envelope) => envelope.cc === cc) ? [index + 1] : [],
+    ),
+  }
+}
 
 /**
  * The patch as an agent reads it: numbered from 1 as the app shows it,
@@ -232,7 +280,9 @@ export const describePatch = (patch: PatchJSON, accentAmount: number) => {
     ...(past.length > 0 && {
       kept_past_size: past.map((index) => index + 1),
     }),
-    modulations: patch.modulations.map(describeModulation),
+    modulations: patch.modulations.map((modulation) =>
+      describeModulation(patch, modulation),
+    ),
   }
 }
 

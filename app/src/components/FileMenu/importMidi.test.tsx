@@ -141,6 +141,14 @@ describe("importing MIDI", () => {
     expect(preview()).toEqual({ steps: 5, dealt: 20, cut: 0, filtered: 0 })
   })
 
+  it("stops playback once a file is picked", async () => {
+    setup()
+    rootStore.player.play()
+    expect(rootStore.player.isPlaying).toBe(true)
+    await openImport()
+    expect(rootStore.player.isPlaying).toBe(false)
+  })
+
   it("says it is reading the file until it can show it", async () => {
     setup()
     let release = () => {}

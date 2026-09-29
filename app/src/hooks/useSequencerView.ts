@@ -161,6 +161,9 @@ export function useSelectionAccess() {
       selectVoice: (voice: VoiceIndex) => store.set(selectedVoiceAtom, voice),
       // whether a click on a step sounds it
       auditions: () => store.get(previewOnClickAtom),
+      // the step copied, which the grid's menu and the step editor paste
+      copiedStep: () => store.get(copiedStepAtom),
+      copyStep: (step: StepJSON) => store.set(copiedStepAtom, step),
     }),
     [store],
   )

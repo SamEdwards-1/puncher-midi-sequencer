@@ -492,11 +492,12 @@ Sequencer.
 midiseq offers itself to AI agents in the browser through
 [WebMCP](https://webmachinelearning.github.io/webmcp/), so an agent can read
 the sequence and write it while you watch: the steps, the voices, the
-sequencer's settings, the transport and the actions. What it changes shows as
-it lands, with the step or voice it changed selected, and each change it asks
-for is one entry in the undo history, like any of yours — **Edit → Undo**
-takes it back. Saving, opening, exporting and recording stay yours, as do the
-settings.
+sequencer's settings, modulations, the transport, recording and the actions.
+What it changes shows as it lands, with the step or voice it changed
+selected, and each change it asks for is one entry in the undo history, like
+any of yours — **Edit → Undo** takes it back. Saving, opening and exporting
+stay yours, as do the settings, and while an agent can start recording, only
+you can play into it.
 
 WebMCP is new. Chrome has it behind `chrome://flags/#enable-webmcp-testing`,
 which is enough on localhost, and in an origin trial for a site that's
@@ -508,7 +509,10 @@ deployed. Where the browser has no WebMCP, nothing is offered.
 | `set_steps` | notes, rests and skips, jumps and CC envelopes, on any number of steps at once |
 | `set_voices` | a voice's settings, its pattern and its dots' options |
 | `set_sequencer` | tempo, size, pace, direction, loop, scale and the rest of the Sequencer panel |
+| `set_modulations` | binds a setting to a CC, as its gear does, so the steps' envelopes drive it |
+| `step_menu` | what right-clicking a step offers: copy, paste, insert before or after, clear, delete |
 | `play`, `stop` | the transport |
+| `set_recording` | the **Record** button, and the step recording goes into |
 | `set_actions` | Hold, Sync, Flip and Shift, on until turned off |
 | `select_step` | what a click on the grid does: shows the step, sounds it, or plays it next |
 | `undo`, `redo` | **Edit → Undo** and **Redo** |
@@ -517,6 +521,9 @@ deployed. Where the browser has no WebMCP, nothing is offered.
 Steps, voices and dots are numbered from 1, as the app shows them, and notes
 are named, C4 being middle C. A call asking for something the app can't do
 changes nothing and says why, so the agent can put it right.
+
+[WEBMCP.md](WEBMCP.md) has more: how to try the tools, what each one takes,
+a worked example, and how it's built.
 
 ## Keyboard
 
