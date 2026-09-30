@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { PatchJSON } from "../entities/types"
+import { Engine } from "./Engine"
 import {
+  nextRound,
   noteCollisions,
   oneStepPatch,
   previewStep,
@@ -312,5 +314,60 @@ describe("collisions between voices", () => {
         ],
       },
     ])
+  })
+})
+
+describe("the sequencer's next round", () => {
+  // quarter-note steps, a dotted-8th voice at a chance of each dot, so the
+  // voice comes to each step at a different point, rolling as it goes
+  const driftingPatch = () => {
+    const patch = createDefaultPatch()
+    patch.pace = "4th"
+    patch.steps[0].notes = [60, 64]
+    patch.steps[1].notes = [62, 65]
+    patch.voices[0] = {
+      ...patch.voices[0],
+      enabled: true,
+      pace: "8thD",
+      rule: "random",
+      pattern: patch.voices[0].pattern.map((dot) => ({
+        ...dot,
+        probability: 50,
+      })),
+    }
+    return patch
+  }
+
+  it("is what the engine goes on to play, round after round", () => {
+    const engine = new Engine(driftingPatch(), { seed: 9 })
+    engine.start(0)
+    for (let count = 0; count < 12; count++) {
+      const { round } = nextRound(engine)
+      const beat = engine.nextStepBeat
+      // played live, a little at a time
+      const played = []
+      for (let to = beat; to < beat + round.length; to += 0.1) {
+        played.push(...engine.render(to))
+      }
+      played.push(...engine.render(beat + round.length - 1e-9))
+      expect(round.beat).toBe(beat)
+      expect(round.notes.map(({ note, start }) => ({ note, start }))).toEqual(
+        played
+          .filter((event) => event.type === "noteOn" && event.beat >= beat)
+          .map((event) => ({
+            note: event.type === "noteOn" ? event.note : 0,
+            start: (event.beat - beat) / round.length,
+          })),
+      )
+    }
+  })
+
+  it("leaves the engine as it was, and a fork to go on from", () => {
+    const engine = new Engine(driftingPatch(), { seed: 9 })
+    engine.start(0)
+    const { round, after } = nextRound(engine)
+    expect(engine.nextStepBeat).toBe(0)
+    expect(after.nextStepBeat).toBe(round.beat + round.length)
+    expect(nextRound(after).round.step).toBe(1)
   })
 })

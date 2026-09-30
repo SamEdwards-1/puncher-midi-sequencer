@@ -204,6 +204,7 @@ describe("SequencerPlayer", () => {
     it("plays the step through the voices instead of as a chord", () => {
       player.setPatch(previewPatch())
       player.previewStep(0)
+      runFor(500)
 
       // the arpeggio steps through the notes rather than sounding together
       expect(all.ofType(0x90)).toEqual([
@@ -228,6 +229,7 @@ describe("SequencerPlayer", () => {
       }
       player.setPatch(patch)
       player.previewStep(0)
+      runFor(500)
 
       // every other 16th rests, so notes land on the beat and halfway
       expect(all.ofType(0x90).map((message) => message.time)).toEqual([
@@ -248,6 +250,7 @@ describe("SequencerPlayer", () => {
       patch.voices[0] = { ...patch.voices[0], pace: "16th" }
       player.setPatch(patch)
       player.previewStep(0)
+      runFor(500)
 
       // one note per voice, lowest first; the fifth never sounds
       expect(all.ofType(0x90).map((message) => message.data[1])).toEqual([
@@ -255,15 +258,117 @@ describe("SequencerPlayer", () => {
       ])
     })
 
-    it("caps how long a slow step sounds", () => {
+    it("sounds a slow step all the way through", () => {
       const patch = previewPatch()
-      // 4 bars would otherwise run for 8 seconds
+      // 4 bars, 8 seconds of 8ths
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+      runFor(9000)
+
+      const ons = all.ofType(0x90).map((message) => message.time ?? 0)
+      expect(ons).toHaveLength(32)
+      expect(Math.max(...ons)).toBe(1000 + 7750)
+      expect(ticker.isRunning).toBe(false)
+    })
+
+    it("sends ahead only as far as the lookahead", () => {
+      const patch = previewPatch()
       patch.pace = "4bar"
       player.setPatch(patch)
       player.previewStep(0)
 
       const last = Math.max(...all.sent.map((message) => message.time ?? 0))
-      expect(last).toBeLessThanOrEqual(1000 + 2000)
+      expect(last).toBeLessThanOrEqual(1000 + 100)
+    })
+
+    it("plays a step as the sequence first reaches it", () => {
+      const patch = previewPatch()
+      // a dotted-8th voice comes to step 1 a quarter of a beat in
+      patch.voices[0] = { ...patch.voices[0], pace: "8thD" }
+      player.setPatch(patch)
+      player.previewStep(1)
+      runFor(500)
+
+      expect(all.ofType(0x90).map((message) => message.time)).toEqual([1250])
+    })
+
+    it("is cut short by clicking another step, its notes ended", () => {
+      const patch = previewPatch()
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+      runFor(1000)
+      player.previewStep(1)
+      runFor(9000)
+
+      // step 0 sounds for a second of its 8, and none of it is left hanging
+      const step0 = all.sent.filter(
+        (message) => message.data[1] === 60 || message.data[1] === 64,
+      )
+      const ons = step0.filter((message) => (message.data[0] & 0xf0) === 0x90)
+      const offs = step0.filter((message) => (message.data[0] & 0xf0) === 0x80)
+      expect(Math.max(...ons.map((message) => message.time ?? 0))).toBeLessThan(
+        2200,
+      )
+      expect(offs).toHaveLength(ons.length)
+    })
+
+    it("stops sending once silenced", () => {
+      const patch = previewPatch()
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+      runFor(1000)
+      player.panic()
+      const sent = all.ofType(0x90).length
+      runFor(2000)
+
+      expect(all.ofType(0x90)).toHaveLength(sent)
+      expect(ticker.isRunning).toBe(false)
+    })
+  })
+
+  describe("roundNotes", () => {
+    // each step is a beat; a dotted-8th voice comes to it at a different
+    // point each time round
+    const driftingPatch = () => {
+      const patch = makePatch()
+      patch.voices[0] = { ...patch.voices[0], pace: "8thD" }
+      return patch
+    }
+
+    it("are the notes the sounding step plays this time round", () => {
+      player.setPatch(driftingPatch())
+      player.play()
+      // step 0 lands at 1050 ms, and again at 2050 ms, 2 beats on
+      runFor(100)
+      expect(player.roundNotes?.step).toBe(0)
+      expect(player.roundNotes?.notes.map((note) => note.start)).toEqual([
+        0, 0.75,
+      ])
+
+      runFor(1000)
+      expect(player.roundNotes?.step).toBe(0)
+      // its only dot, at beat 2.25, falls a quarter of the way in
+      expect(player.roundNotes?.notes.map((note) => note.start)).toEqual([0.25])
+      expect(all.ofType(0x90).map((message) => message.time)).toContain(2175)
+
+      player.stop()
+      expect(player.roundNotes).toBeNull()
+    })
+
+    it("follow an edit made while the step sounds", () => {
+      player.setPatch(driftingPatch())
+      player.play()
+      runFor(100)
+      const patch = driftingPatch()
+      patch.steps[0].notes = [67]
+      player.setPatch(patch)
+
+      expect(player.roundNotes?.notes.map((note) => note.note)).toEqual([
+        67, 67,
+      ])
     })
   })
 
@@ -330,16 +435,16 @@ describe("SequencerPlayer", () => {
       expect(player.sounding()).toBe(false)
     })
 
-    it("stops partway across a slow step, where its sound is cut off", () => {
+    it("crosses a slow step all the way", () => {
       const patch = makePatch()
-      // 4 bars, 8 seconds, of which 2 sound
+      // 4 bars, 8 seconds
       patch.pace = "4bar"
       player.setPatch(patch)
       player.previewStep(0)
 
-      clock.time += 1000
-      expect(player.playhead(0)).toBeCloseTo(1 / 8)
-      clock.time += 1000
+      clock.time += 6000
+      expect(player.playhead(0)).toBeCloseTo(3 / 4)
+      clock.time += 2000
       expect(player.playhead(0)).toBeNull()
     })
 

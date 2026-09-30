@@ -2,7 +2,7 @@ import { stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
 import { MAX_STEPS, PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
 import { Engine } from "./Engine"
-import { EngineEvent } from "./events"
+import { EngineEvent, StepAdvanceEvent } from "./events"
 import { playableSteps, stepCount, viewIndex } from "./loopRange"
 
 const BEAT_EPSILON = 1e-9
@@ -160,17 +160,64 @@ const landing = (
   const searched =
     SEARCH_PASSES * (changingRange ? MAX_STEPS : stepCount(patch.size))
   for (let count = 0; count < searched; count++) {
-    // the landing, which settles how long the step lasts, then the rest
-    const beat = engine.nextStepBeat
-    const events = engine.render(beat)
-    const length = engine.nextStepBeat - beat
-    events.push(...engine.render(beat + length - BEAT_EPSILON))
-    const landed = events.find((event) => event.type === "step")
-    if (landed?.type === "step" && landed.step === step) {
-      return { events, beat, length, voiceDots: landed.voiceDots }
+    const window = nextWindow(engine)
+    if (window.landed?.step === step) {
+      return { ...window, voiceDots: window.landed.voiceDots }
     }
   }
   return alone(patch, step, options)
+}
+
+/**
+ * The sequencer's next round as `engine` plays it — a step landing, or Hold
+ * keeping one round again — and the step it landed, if it landed one.
+ * Everything before the round is played out first and left out.
+ */
+const nextWindow = (
+  engine: Engine,
+): Omit<StepWindow, "voiceDots"> & { landed: StepAdvanceEvent | null } => {
+  const beat = engine.nextStepBeat
+  engine.render(beat - BEAT_EPSILON)
+  // the landing, which settles how long the round lasts, then the rest
+  const events = engine.render(beat)
+  const length = engine.nextStepBeat - beat
+  events.push(...engine.render(beat + length - BEAT_EPSILON))
+  const landed = events.find(
+    (event): event is StepAdvanceEvent => event.type === "step",
+  )
+  return { events, beat, length, landed: landed ?? null }
+}
+
+/**
+ * One round of the sequencer: the step it landed on, or null where Hold kept
+ * the step it was on, and the notes it plays there.
+ */
+export interface StepRound {
+  beat: number
+  length: number
+  step: StepIndex | null
+  notes: StepNote[]
+}
+
+/**
+ * What the sequencer plays on its next round, as an engine playing live will
+ * play it — played on a fork of it, which is left just before the round
+ * after. The engine itself is left as it was.
+ */
+export const nextRound = (
+  engine: Engine,
+): { round: StepRound; after: Engine } => {
+  const after = engine.fork()
+  const { events, beat, length, landed } = nextWindow(after)
+  return {
+    round: {
+      beat,
+      length,
+      step: landed?.step ?? null,
+      notes: notesIn(events, beat, length),
+    },
+    after,
+  }
 }
 
 /**

@@ -38,6 +38,7 @@ import {
   useSelectedVoice,
   useSoloRestore,
 } from "../../hooks/useSequencerView"
+import { useStepNotes } from "../../hooks/useStepNotes"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
@@ -427,7 +428,9 @@ const Patterns: FC<{
     () => previewStep(patch, step, { accentAmount }),
     [patch, step, accentAmount],
   )
-  const collisions = useMemo(() => noteCollisions(preview.notes), [preview])
+  // while the step sounds, the ones it has this time round
+  const notes = useStepNotes(step)
+  const collisions = useMemo(() => noteCollisions(notes), [notes])
   const collisionsAt = useMemo(() => {
     const at = new Map<string, number[]>()
     collisions.forEach((collision, index) => {

@@ -102,6 +102,20 @@ export class Engine {
     return this.runtime.nextSeqBeat
   }
 
+  /**
+   * A copy that plays on from where this one is, rolling the same chances,
+   * so what it renders is what this one will — leaving this one as it was.
+   */
+  fork(): Engine {
+    const copy = new Engine(this.patch, { accentAmount: this.accentAmount })
+    copy.runtime = structuredClone(this.runtime)
+    copy.rng = this.rng.fork()
+    copy.navigationDirection = this.navigationDirection
+    copy.actions = { ...this.actions }
+    copy.selectedVoice = this.selectedVoice
+    return copy
+  }
+
   getPatch(): PatchJSON {
     return this.patch
   }
