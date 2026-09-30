@@ -575,11 +575,18 @@ On a Mac, `⌘` stands in for `Ctrl`.
 |---|---|
 | `npm start` | dev server |
 | `npm run build` | production build |
-| `npm test` | all tests |
+| `npm test` | the quick tests: all but the app's whole-app ones |
+| `npm run test:all` | all tests |
 | `npm run typecheck` | `tsc --noEmit` everywhere |
 | `npm run check` | Biome lint and format |
 | `npm run format` | Biome format, rewriting files |
 | `npm run theme -- <theme.json>` | a theme from a VS Code theme (below) |
+
+The app's whole-app tests, any test file that renders `<App>`, take about
+half a second each and make up most of the time, so `npm test` leaves them
+out. Run the ones for what you've changed with, say,
+`npm run test:all -w app -- src/components/StepEditor`, and all of them with
+`npm run test:all`.
 
 - `packages/core` — the sequencer itself: entities, the engine, patch
   commands, the file format, and MIDI files and messages. No React, no MobX,

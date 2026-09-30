@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:all": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "exports": {

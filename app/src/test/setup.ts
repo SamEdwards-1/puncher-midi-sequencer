@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest"
 import { configure } from "mobx"
 import { beforeAll } from "vitest"
+import { cacheComputedStyles } from "./computedStyles"
 
 // Match the app's MobX configuration in src/index.tsx
 configure({
@@ -17,3 +18,5 @@ beforeAll(() => {
 // jsdom has no canvas: drawing is skipped, as it is when a context can't be
 // had, rather than jsdom saying so on every render
 HTMLCanvasElement.prototype.getContext = () => null
+
+cacheComputedStyles()
