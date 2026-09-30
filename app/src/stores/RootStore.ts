@@ -1,4 +1,4 @@
-import { withPatchName } from "@midiseq/core"
+import { StepPreviews, withPatchName } from "@midiseq/core"
 import { AudioRenderer, workerAudioRenderer } from "../services/AudioRenderer"
 import { AutoSaveService } from "../services/AutoSaveService"
 import { ClockFollower } from "../services/ClockFollower"
@@ -48,6 +48,8 @@ export default class RootStore {
   readonly settingsTab: SettingsTabStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
+  // what the step in the editor plays, shared by the panels showing it
+  readonly stepPreviews = new StepPreviews()
   readonly synthStore: SynthStore
   readonly soundFonts: SoundFontStore
   readonly fileService: FileService
