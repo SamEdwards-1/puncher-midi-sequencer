@@ -191,6 +191,30 @@ describe("autosave", () => {
     autoSave.save()
     expect(storage.getItem("midiseq.autosave")).toBeNull()
   })
+
+  it("writes an unchanged patch once, and retries after a failure", () => {
+    const storage = memoryStorage()
+    const setItem = vi.spyOn(storage, "setItem")
+    let patch = createDefaultPatch()
+    const autoSave = new AutoSaveService(
+      () => patch,
+      () => false,
+      storage,
+    )
+    autoSave.save()
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(1)
+
+    patch = { ...patch, tempo: 99 }
+    setItem.mockImplementationOnce(() => {
+      throw new Error("full")
+    })
+    autoSave.save()
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(3)
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(3)
+  })
 })
 
 // Pickers that record what they were asked for, and hand over one file.

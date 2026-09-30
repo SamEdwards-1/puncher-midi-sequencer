@@ -9,6 +9,9 @@ const INTERVAL_MS = 10000
  */
 export class AutoSaveService {
   private timer: ReturnType<typeof setInterval> | null = null
+  // The patch reference last written to storage. Patches are immutable, so an
+  // unchanged reference means the snapshot is already current.
+  private persisted: PatchJSON | null = null
 
   constructor(
     private readonly getPatch: () => PatchJSON,
@@ -19,23 +22,33 @@ export class AutoSaveService {
   start(intervalMs = INTERVAL_MS) {
     this.stop()
     this.timer = setInterval(() => this.save(), intervalMs)
+    // Flush before the page goes away rather than waiting for the next tick.
+    window.addEventListener("pagehide", this.flush)
   }
+
+  private readonly flush = () => this.save()
 
   stop() {
     if (this.timer !== null) {
       clearInterval(this.timer)
       this.timer = null
     }
+    window.removeEventListener("pagehide", this.flush)
   }
 
   save() {
     if (this.isSaved()) {
       return
     }
+    const patch = this.getPatch()
+    if (patch === this.persisted) {
+      return
+    }
     try {
-      this.storage?.setItem(KEY, serializeFile(createFile(this.getPatch())))
+      this.storage?.setItem(KEY, serializeFile(createFile(patch)))
+      this.persisted = patch
     } catch {
-      // storage can be full or blocked; the patch just won't be recoverable
+      // storage can be full or blocked; the next tick retries
     }
   }
 
@@ -50,6 +63,7 @@ export class AutoSaveService {
   }
 
   clear() {
+    this.persisted = null
     try {
       this.storage?.removeItem(KEY)
     } catch {
