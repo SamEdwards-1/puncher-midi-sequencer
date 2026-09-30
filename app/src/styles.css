@@ -59,13 +59,13 @@
   /* One per jump, so a source and its destination share a colour. They keep
      clear of the accent and the record red, and stay apart from each other
      in hue. */
-  --midiseq-jump-0: #d5971a;
+  --midiseq-jump-0: #ffce03;
   --midiseq-jump-1: #53f8ed;
   --midiseq-jump-2: #df769b;
-  --midiseq-jump-3: #70bf56;
+  --midiseq-jump-3: #a6e22e;
   --midiseq-jump-4: #fa841d;
   --midiseq-jump-5: #9959ff;
-  --midiseq-jump-6: #cded1c;
+  --midiseq-jump-6: #16b673;
   --midiseq-jump-7: #4fbfff;
 
   /* One per collision on the step in the editor, marking the dots of each
@@ -129,20 +129,20 @@
   --midiseq-step-skip: #dfe3e6;
   --midiseq-scrollbar: #00000040;
   --midiseq-scrollbar-hover: #00000073;
-  --midiseq-jump-0: #b88000;
+  --midiseq-jump-0: #a88700;
   --midiseq-jump-1: #009b93;
   --midiseq-jump-2: #e55598;
-  --midiseq-jump-3: #00a128;
-  --midiseq-jump-4: #ee5a00;
+  --midiseq-jump-3: #6c9800;
+  --midiseq-jump-4: #d86d00;
   --midiseq-jump-5: #9959ff;
-  --midiseq-jump-6: #7f9400;
-  --midiseq-jump-7: #6c81f6;
+  --midiseq-jump-6: #009f62;
+  --midiseq-jump-7: #0090e2;
   --midiseq-collision-0: #d73b41;
-  --midiseq-collision-1: #e21968;
+  --midiseq-collision-1: #007db3;
   --midiseq-collision-2: #00847d;
   --midiseq-collision-3: #628000;
   --midiseq-collision-4: #596bde;
-  --midiseq-collision-5: #b95479;
+  --midiseq-collision-5: #8f61b9;
   --midiseq-voice-0: #4a3cc3;
   --midiseq-voice-1: #c16f00;
   --midiseq-voice-2: #0fa21f;

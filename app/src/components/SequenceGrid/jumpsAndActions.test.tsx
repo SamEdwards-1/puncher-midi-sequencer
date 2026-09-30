@@ -124,6 +124,28 @@ describe("jumps", () => {
     expect(first).not.toBe(second)
   })
 
+  it("gives steps a palette's length apart colours of their own", () => {
+    setup()
+    openJump()
+    click("Pick destination")
+    click("Step 5")
+
+    click("Step 9")
+    openJump()
+    click("Pick destination")
+    click("Step 13")
+
+    const colour = (name: string) =>
+      grid().getByRole("button", { name }).getAttribute("data-jump-source")
+    expect(colour("Step 9")).toBeTruthy()
+    expect(colour("Step 9")).not.toBe(colour("Step 1"))
+    expect(
+      grid()
+        .getByRole("button", { name: "Step 13" })
+        .getAttribute("data-jump-dest"),
+    ).toBe(colour("Step 9"))
+  })
+
   it("keeps a jump's colour when another is added before it", () => {
     setup()
     click("Step 3")

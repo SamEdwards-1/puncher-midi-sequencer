@@ -261,6 +261,10 @@ describe("a VS Code theme made into one of ours", () => {
       colours.forEach((one, index) => {
         for (const other of colours.slice(index + 1)) {
           expect(difference(one, other)).toBeGreaterThan(0.05)
+          // they're dots, so told apart by hue: no amber beside an orange
+          expect(
+            hueDistance(toOKLCH(one).h, toOKLCH(other).h),
+          ).toBeGreaterThanOrEqual(30)
         }
       })
     }
