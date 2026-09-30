@@ -60,6 +60,8 @@ export const workerAudioRenderer: AudioRenderer = (request, onProgress) => {
       fail(new Error(event.message || "The render stopped unexpectedly"))
     }
   })
-  worker.postMessage(request)
+  // the SoundFont is the render's own, read afresh for it, so it moves to
+  // the worker rather than being copied there
+  worker.postMessage(request, { transfer: [request.soundFont] })
   return { result, cancel: () => fail(new AudioRenderCancelled()) }
 }

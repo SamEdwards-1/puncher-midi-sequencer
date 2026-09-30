@@ -444,6 +444,7 @@ export function useAudioRender() {
           return null
         }
         onStatus({ phase: "loading" })
+        // a copy of its own, since the render takes it
         const soundFont = await attempt("load the SoundFont", () =>
           soundFonts.bytes(soundFonts.selectedId),
         )

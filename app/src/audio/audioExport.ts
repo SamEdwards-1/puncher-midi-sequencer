@@ -1,4 +1,4 @@
-import type { PatchJSON } from "@midiseq/core"
+import { exportBeats, type PatchJSON } from "@midiseq/core"
 
 // What an audio export can be, and what is said between the page and the
 // render. The page reads these to draw its dialog and keep its settings, so
@@ -17,6 +17,19 @@ export const WAV_BIT_DEPTHS: WavBitDepth[] = [16, 24, 32]
 export const MP3_BITRATES = [128, 192, 256, 320]
 export const AUDIO_CHANNELS = [2, 1]
 export const MAX_TAIL_SECONDS = 10
+
+// The longest a render can be, its tail included. A render holds all of its
+// sound at once while it is made — 46 MB of samples for two minutes of
+// stereo at 48 kHz, before the file — so its length is what bounds the
+// memory it takes. Passes alone don't: a slow tempo or long steps can run a
+// few passes to any length.
+export const MAX_RENDER_SECONDS = 120
+
+/** How long a render of the patch runs, in seconds, its tail included. */
+export const renderSeconds = (
+  patch: PatchJSON,
+  { passes, tail }: Pick<AudioRenderSettings, "passes" | "tail">,
+) => (exportBeats(patch, passes) * 60) / patch.tempo + tail
 
 export const AUDIO_EXTENSIONS: Record<AudioFormat, string> = {
   wav: ".wav",
@@ -42,7 +55,8 @@ export interface AudioRenderSettings {
 
 export interface AudioRenderRequest {
   patch: PatchJSON
-  // the SoundFont the built-in sound plays
+  // the SoundFont the built-in sound plays, handed over to the render: a
+  // renderer may take it to another thread, leaving it empty here
   soundFont: ArrayBuffer
   settings: AudioRenderSettings
   // chance and the random rules are rolled from this, as an export's are

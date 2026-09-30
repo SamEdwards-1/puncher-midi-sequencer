@@ -1,4 +1,3 @@
-import { exportBeats } from "@midiseq/core"
 import { FC, ReactNode, useEffect, useId, useRef, useState } from "react"
 import {
   AudioRenderStatus,
@@ -9,8 +8,10 @@ import {
   AUDIO_CHANNELS,
   AUDIO_EXTENSIONS,
   AUDIO_FORMATS,
+  MAX_RENDER_SECONDS,
   MAX_TAIL_SECONDS,
   MP3_BITRATES,
+  renderSeconds,
   SAMPLE_RATES,
   WAV_BIT_DEPTHS,
 } from "../../audio/audioExport"
@@ -120,7 +121,20 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   useEffect(() => () => cancel.current?.(), [])
 
   const baseName = withoutExtension(name)
-  const seconds = (exportBeats(patch, settings.passes) * 60) / patch.tempo
+  const seconds = renderSeconds(patch, settings)
+  // the sequence itself plays for no time at all: there is nothing to hear
+  const silent = seconds === settings.tail
+  const tooLong = seconds > MAX_RENDER_SECONDS
+  // as many passes as fit in a render with this tail, though never fewer
+  // than one, which may itself be too long
+  let maxPasses = 1
+  while (
+    maxPasses < MAX_EXPORT_PASSES &&
+    renderSeconds(patch, { ...settings, passes: maxPasses + 1 }) <=
+      MAX_RENDER_SECONDS
+  ) {
+    maxPasses++
+  }
   const extension = AUDIO_EXTENSIONS[settings.format]
 
   const start = async () => {
@@ -160,7 +174,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
             <Button
               type="button"
               primary
-              disabled={baseName === "" || seconds === 0 || picking}
+              disabled={baseName === "" || silent || tooLong || picking}
               onClick={() => void start()}
             >
               <Localized name="sequencer-render-audio-action" />
@@ -187,7 +201,13 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
               spellCheck={false}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && baseName !== "" && !picking) {
+                if (
+                  event.key === "Enter" &&
+                  baseName !== "" &&
+                  !silent &&
+                  !tooLong &&
+                  !picking
+                ) {
                   void start()
                 }
               }}
@@ -262,14 +282,28 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
                 label={localized["sequencer-export-passes"]}
                 value={settings.passes}
                 min={1}
-                max={MAX_EXPORT_PASSES}
+                max={maxPasses}
+                invalid={tooLong}
                 onChange={(passes) => set("passes", passes)}
               />
             </div>
-            <span className="text-small text-fg-tertiary" data-render-length>
-              {clock(seconds + settings.tail)}
+            <span
+              className={cn(
+                "text-small",
+                tooLong ? "text-error" : "text-fg-tertiary",
+              )}
+              data-render-length
+            >
+              {clock(seconds)}
             </span>
           </Row>
+
+          {tooLong && (
+            <p className="m-0 text-small text-error" role="alert">
+              <Localized name="sequencer-render-too-long" />{" "}
+              {clock(MAX_RENDER_SECONDS)}.
+            </p>
+          )}
 
           <Row label={<Localized name="sequencer-render-tail" />}>
             <div className="w-28 flex-none">

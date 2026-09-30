@@ -6,11 +6,17 @@ import { Mp3Encoder } from "@breezystack/lamejs"
 // LAME takes whole frames of this many samples most readily.
 const MP3_FRAME = 1152
 
-const pcm16 = (samples: Float32Array) =>
-  Int16Array.from(samples, (sample) => {
-    const clipped = Math.max(-1, Math.min(1, sample))
-    return Math.round(clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff)
-  })
+// a chunk of frames at a time, so progress can be told as it goes
+const CHUNK = MP3_FRAME * 64
+
+// Samples from `from` as 16-bit PCM, written into `into` as far as it goes.
+const pcm16 = (samples: Float32Array, from: number, into: Int16Array) => {
+  for (let index = 0; index < into.length; index++) {
+    const clipped = Math.max(-1, Math.min(1, samples[from + index]))
+    into[index] = Math.round(clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff)
+  }
+  return into
+}
 
 export const encodeMp3 = (
   channels: Float32Array[],
@@ -19,14 +25,16 @@ export const encodeMp3 = (
   onProgress: (done: number) => void = () => {},
 ): Uint8Array<ArrayBuffer> => {
   const encoder = new Mp3Encoder(channels.length, sampleRate, bitrate)
-  const pcm = channels.map(pcm16)
-  const length = pcm[0].length
-  // a chunk of frames at a time, so progress can be told as it goes
-  const chunk = MP3_FRAME * 64
+  const length = channels[0].length
+  // converted a chunk at a time, into the same buffers each time, rather
+  // than as a second copy of the whole sound
+  const buffers = channels.map(() => new Int16Array(CHUNK))
   const parts: Uint8Array[] = []
-  for (let from = 0; from < length; from += chunk) {
-    const to = Math.min(length, from + chunk)
-    const [left, right] = pcm.map((samples) => samples.subarray(from, to))
+  for (let from = 0; from < length; from += CHUNK) {
+    const to = Math.min(length, from + CHUNK)
+    const [left, right] = channels.map((samples, channel) =>
+      pcm16(samples, from, buffers[channel].subarray(0, to - from)),
+    )
     parts.push(encoder.encodeBuffer(left, right))
     onProgress(to / length)
   }

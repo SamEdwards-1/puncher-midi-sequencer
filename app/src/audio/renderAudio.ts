@@ -11,10 +11,12 @@ import {
 } from "spessasynth_core"
 import WavEncoder from "wav-encoder"
 import { AllOutDedupe } from "../services/AllOutDedupe"
-import type {
-  AudioRenderProgress,
-  AudioRenderRequest,
-  WavBitDepth,
+import {
+  type AudioRenderProgress,
+  type AudioRenderRequest,
+  MAX_RENDER_SECONDS,
+  renderSeconds,
+  type WavBitDepth,
 } from "./audioExport"
 
 /** A MIDI message and when it plays, in seconds from the start. */
@@ -184,9 +186,14 @@ export const normalize = (channels: Float32Array[]) => {
   }
 }
 
-// Both sides as one, at the level each had.
-const mono = ([left, right]: Float32Array[]) =>
-  left.map((sample, index) => (sample + right[index]) / 2)
+// Both sides as one, at the level each had: folded into the left, so a
+// mono render never holds a third copy of its sound.
+const mono = ([left, right]: Float32Array[]) => {
+  for (let index = 0; index < left.length; index++) {
+    left[index] = (left[index] + right[index]) / 2
+  }
+  return left
+}
 
 export const encodeWav = (
   channels: Float32Array[],
@@ -203,7 +210,8 @@ export const encodeWav = (
 /**
  * The sequence as an audio file, played through the built-in sound's
  * SoundFont, from its start for as many passes as asked, then left to ring
- * out. It takes a while, so it tells how far along it is as it goes.
+ * out. It takes a while, so it tells how far along it is as it goes. One
+ * longer than a render can be is refused before anything is made.
  */
 export const renderAudio = async (
   {
@@ -216,6 +224,11 @@ export const renderAudio = async (
   }: AudioRenderRequest,
   onProgress: (progress: AudioRenderProgress) => void = () => {},
 ): Promise<Uint8Array<ArrayBuffer>> => {
+  if (renderSeconds(patch, settings) > MAX_RENDER_SECONDS) {
+    throw new Error(
+      `A render can be at most ${MAX_RENDER_SECONDS / 60} minutes long`,
+    )
+  }
   const { messages, length } = audioTimeline(patch, {
     passes: settings.passes,
     seed,

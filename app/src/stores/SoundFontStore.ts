@@ -129,7 +129,10 @@ export class SoundFontStore {
     }
   }
 
-  /** A font's bytes: from the browser where it has them, else the web. */
+  /**
+   * A font's bytes: from the browser where it has them, else the web. Each
+   * call's are its own, so they can be handed to a worker, not copied.
+   */
   bytes = async (id: number): Promise<ArrayBuffer> => {
     if (id !== FACTORY_SOUNDFONT.id) {
       const data = await this.fonts.load(id)

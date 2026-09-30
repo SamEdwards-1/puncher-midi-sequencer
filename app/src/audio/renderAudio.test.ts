@@ -1,9 +1,10 @@
 import { createDefaultPatch, PatchJSON } from "@midiseq/core"
 import { describe, expect, it, vi } from "vitest"
-import type {
-  AudioRenderProgress,
-  AudioRenderRequest,
-  AudioRenderSettings,
+import {
+  type AudioRenderProgress,
+  type AudioRenderRequest,
+  type AudioRenderSettings,
+  MAX_RENDER_SECONDS,
 } from "./audioExport"
 import { encodeMp3 } from "./encodeMp3"
 import { audioTimeline, encodeWav, normalize, renderAudio } from "./renderAudio"
@@ -140,6 +141,24 @@ describe("encoding", () => {
     expect(told.at(-1)).toBe(1)
   })
 
+  it("encodes MP3 longer than a chunk, the last one short, as one", () => {
+    const told: number[] = []
+    // two seconds: a whole chunk of frames and part of another
+    const [left, right] = tone(44100)
+    const long = [left, right].map((samples) => {
+      const twice = new Float32Array(samples.length * 2)
+      twice.set(samples)
+      twice.set(samples, samples.length)
+      return twice
+    })
+    const bytes = encodeMp3(long, 44100, 128, (done) => told.push(done))
+    // about two seconds at 128 kbps
+    expect(bytes.length).toBeGreaterThan(28000)
+    expect(bytes.length).toBeLessThan(36000)
+    expect(told).toHaveLength(2)
+    expect(told.at(-1)).toBe(1)
+  })
+
   it("normalizes to just under full scale, both sides alike", () => {
     const [left, right] = tone(1000)
     right[0] = -0.5
@@ -151,9 +170,12 @@ describe("encoding", () => {
 })
 
 describe("rendering a file", () => {
-  const render = async (settings: Partial<AudioRenderSettings>) => {
+  const render = async (
+    settings: Partial<AudioRenderSettings>,
+    patch = twoSteps(),
+  ) => {
     const request: AudioRenderRequest = {
-      patch: twoSteps(),
+      patch,
       soundFont: new ArrayBuffer(8),
       settings: {
         format: "wav",
@@ -194,5 +216,42 @@ describe("rendering a file", () => {
     expect(sync).toBeGreaterThanOrEqual(0)
     expect(text(bytes, 0, 4)).not.toBe("RIFF")
     expect(told.at(-1)).toEqual({ phase: "encode", done: 1 })
+  })
+
+  it("folds both sides into one for mono", async () => {
+    const { bytes } = await render({ format: "wav", channels: 1 })
+    const view = new DataView(bytes.buffer)
+    expect(view.getUint16(22, true)).toBe(1)
+    expect(bytes.length).toBe(44 + 44100 * 2)
+  })
+
+  it("refuses a render longer than it can be, before making any of it", async () => {
+    // twelve seconds a pass at 10 BPM, eleven passes: 2:12
+    const patch = twoSteps()
+    patch.tempo = 10
+    const told: AudioRenderProgress[] = []
+    await expect(
+      renderAudio(
+        {
+          patch,
+          soundFont: new ArrayBuffer(8),
+          settings: {
+            format: "wav",
+            sampleRate: 44100,
+            channels: 2,
+            wavBitDepth: 16,
+            mp3Bitrate: 128,
+            passes: 11,
+            tail: 0,
+            normalize: true,
+          },
+          seed: 1,
+          accentAmount: 0,
+          modulationCCs: true,
+        },
+        (progress) => told.push(progress),
+      ),
+    ).rejects.toThrow(`at most ${MAX_RENDER_SECONDS / 60} minutes`)
+    expect(told).toEqual([])
   })
 })

@@ -143,6 +143,7 @@ export default {
     "sequencer-render-tail-note": "left to ring out after the last step",
     "sequencer-render-normalize": "Normalize",
     "sequencer-render-normalize-note": "loudest peak at −1 dB",
+    "sequencer-render-too-long": "A render can run at most",
     "sequencer-render-loading": "Loading the SoundFont…",
     "sequencer-render-rendering": "Rendering…",
     "sequencer-render-encoding": "Encoding…",

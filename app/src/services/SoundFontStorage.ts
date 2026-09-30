@@ -6,7 +6,8 @@ export interface SavedSoundFont {
 /**
  * Where SoundFonts are kept between visits: the ones added from disk, and a
  * copy of any fetched from the web, so the built-in sound starts without a
- * download after the first time.
+ * download after the first time. What is read out is the reader's own copy,
+ * to use up or hand to another thread: none is shared with what is kept.
  */
 export interface SoundFontStorage {
   list(): Promise<SavedSoundFont[]>
@@ -127,12 +128,13 @@ export class MemorySoundFontStorage implements SoundFontStorage {
 
   async add(name: string, data: ArrayBuffer) {
     const id = this.next++
-    this.fonts.set(id, { name, data })
+    this.fonts.set(id, { name, data: data.slice(0) })
     return id
   }
 
+  // a copy, as IndexedDB reads one, so a render taking it leaves this whole
   async load(id: number) {
-    return this.fonts.get(id)?.data ?? null
+    return this.fonts.get(id)?.data.slice(0) ?? null
   }
 
   async remove(id: number) {

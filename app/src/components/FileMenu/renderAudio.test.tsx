@@ -156,6 +156,35 @@ describe("rendering audio", () => {
     expect(length()).toBe("0:04")
   })
 
+  it("keeps a render to two minutes, its tail included", () => {
+    const tempo = (bpm: number) =>
+      act(() => {
+        rootStore.sequencerStore.patch = {
+          ...rootStore.sequencerStore.patch,
+          tempo: bpm,
+        }
+      })
+    // twelve seconds a pass at 10 BPM, and two seconds to ring out
+    tempo(10)
+    for (let press = 0; press < 12; press++) {
+      fireEvent.click(button("Passes up"))
+    }
+    // nine passes and the tail fit; a tenth would run to 2:02
+    expect(rootStore.audioExportSettings.settings.passes).toBe(9)
+    expect(dialog().queryByRole("alert")).toBeNull()
+    expect(button("Render")).toBeEnabled()
+
+    // slower, the same passes run over
+    tempo(8)
+    expect(dialog().getByRole("alert").textContent).toBe(
+      "A render can run at most 2:00.",
+    )
+    expect(document.querySelector("[data-render-length]")?.textContent).toBe(
+      "2:17",
+    )
+    expect(button("Render")).toBeDisabled()
+  })
+
   it("asks where the file goes, shows its progress, then writes it", async () => {
     fireEvent.change(dialog().getByRole("textbox", { name: "File name" }), {
       target: { value: "Take 2.wav" },
