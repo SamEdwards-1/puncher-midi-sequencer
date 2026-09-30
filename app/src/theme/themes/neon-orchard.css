@@ -39,19 +39,19 @@
   --midiseq-step-skip: #302746;             /* derived, dramatised */
   --midiseq-scrollbar: #4b4363aa;           /* scrollbarSlider.background */
   --midiseq-scrollbar-hover: #7cd82766;     /* scrollbarSlider.hoverBackground, more opaque */
-  --midiseq-jump-0: #d5971a;                /* bright, from abyss syntax constant */
+  --midiseq-jump-0: #ffce03;                /* bright, from plum-dusk syntax variable.parameter */
   --midiseq-jump-1: #53f8ed;                /* bright, from espresso terminal.ansiBrightBlue */
   --midiseq-jump-2: #df769b;                /* bright, from abyss syntax keyword */
-  --midiseq-jump-3: #15ac31;                /* bright, from abyss settings.modifiedItemIndicator */
-  --midiseq-jump-4: #fd6209;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule */
+  --midiseq-jump-3: #7e9e2d;                /* bright, from espresso syntax entity.name.type */
+  --midiseq-jump-4: #fa841d;                /* bright, from frost syntax variable.other.object.property */
   --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
-  --midiseq-jump-6: #cded1c;                /* bright, from neon-orchard syntax string */
+  --midiseq-jump-6: #16b673;                /* bright, from abyss syntax string.template */
   --midiseq-jump-7: #4fbfff;                /* bright, from night-market terminal.ansiBlue */
-  --midiseq-collision-0: #f23074;           /* bright, from plum-dusk syntax keyword */
+  --midiseq-collision-0: #ff6262;           /* bright, from ember-room syntax storage */
   --midiseq-collision-1: #ffdd71;           /* bright, from espresso terminal.ansiBrightYellow */
   --midiseq-collision-2: #53f8ed;           /* bright, from espresso terminal.ansiBrightBlue */
   --midiseq-collision-3: #7cd827;           /* bright, from neon-orchard syntax storage.type */
-  --midiseq-collision-4: #fa841d;           /* bright, from frost syntax variable.other.object.property */
+  --midiseq-collision-4: #d0a1ff;           /* bright, from night-market terminal.ansiMagenta */
   --midiseq-collision-5: #fe85d8;           /* bright, from lavender-field terminal.ansiBrightMagenta */
   --midiseq-voice-0: #52a4ff;               /* charts.blue, chosen, made vivid */
   --midiseq-voice-1: #f5af00;               /* editorGutter.modifiedBackground, chosen, made vivid */

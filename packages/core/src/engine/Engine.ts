@@ -44,9 +44,25 @@ export const createActions = (): EngineActions => ({
   transpose: false,
 })
 
+/**
+ * Where an engine has got to, as plain data: everything it needs to play on
+ * from there, on this thread or another. The patch and accent amount are
+ * not part of it, so it can be played on with an edited one.
+ */
+export interface EngineSnapshot {
+  runtime: EngineRuntime
+  rng: number
+  navigationDirection: Direction
+  actions: EngineActions
+  selectedVoice: VoiceIndex
+}
+
 export interface EngineOptions {
   accentAmount?: number
+  // the seed goes unused where the engine plays on from a snapshot
   seed?: number
+  // where to play on from, which is left as it was; a fresh engine otherwise
+  from?: EngineSnapshot
 }
 
 // guards against a pathological patch spinning the render loop forever
@@ -84,9 +100,18 @@ export class Engine {
     options: EngineOptions = {},
   ) {
     this.accentAmount = options.accentAmount ?? DEFAULT_ACCENT_AMOUNT
-    this.rng = createRng(options.seed ?? 1)
-    this.runtime = createRuntime(patch)
-    this.navigationDirection = patch.direction
+    if (options.from === undefined) {
+      this.rng = createRng(options.seed ?? 1)
+      this.runtime = createRuntime(patch)
+      this.navigationDirection = patch.direction
+    } else {
+      const from = structuredClone(options.from)
+      this.rng = createRng(from.rng)
+      this.runtime = from.runtime
+      this.navigationDirection = from.navigationDirection
+      this.actions = from.actions
+      this.selectedVoice = from.selectedVoice
+    }
   }
 
   get position(): StepIndex {
@@ -100,6 +125,21 @@ export class Engine {
   // Where the sequencer next moves: once a step has landed, where it ends.
   get nextStepBeat(): number {
     return this.runtime.nextSeqBeat
+  }
+
+  /**
+   * Where this engine has got to, copied: an engine made from it plays on
+   * from here, rolling the same chances, so what it renders is what this
+   * one will — however this one goes on.
+   */
+  snapshot(): EngineSnapshot {
+    return structuredClone({
+      runtime: this.runtime,
+      rng: this.rng.state(),
+      navigationDirection: this.navigationDirection,
+      actions: this.actions,
+      selectedVoice: this.selectedVoice,
+    })
   }
 
   getPatch(): PatchJSON {

@@ -1,5 +1,4 @@
-import { exportBeats } from "@midiseq/core"
-import { FC, ReactNode, useEffect, useRef, useState } from "react"
+import { FC, ReactNode, useEffect, useId, useRef, useState } from "react"
 import {
   AudioRenderStatus,
   exportBaseNameFor,
@@ -11,9 +10,10 @@ import {
   AUDIO_FORMATS,
   MAX_TAIL_SECONDS,
   MP3_BITRATES,
+  renderSeconds,
   SAMPLE_RATES,
   WAV_BIT_DEPTHS,
-} from "../../audio/renderAudio"
+} from "../../audio/audioExport"
 import { useAudioExportSettings } from "../../hooks/useAudioExportSettings"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
@@ -22,6 +22,7 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { MAX_EXPORT_PASSES } from "../../stores/ExportSettingsStore"
 import { Button, ButtonGroup } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
+import { cn } from "../ui/cn"
 import { Dialog } from "../ui/Dialog"
 import { Stepper } from "../ui/Stepper"
 
@@ -44,7 +45,8 @@ const Row: FC<{ label: ReactNode; children: ReactNode }> = ({
   </div>
 )
 
-// One of a few choices, as a bar of buttons, the chosen one lit.
+// One of a few choices, as a bar of radio buttons, the chosen one lit. The
+// inputs are hidden but stay focusable, so the arrow keys move between them.
 const Choice = <T extends string | number>({
   label,
   choices,
@@ -57,22 +59,36 @@ const Choice = <T extends string | number>({
   value: T
   name: (choice: T) => string
   onChange: (choice: T) => void
-}) => (
-  <ButtonGroup aria-label={label}>
-    {choices.map((choice) => (
-      <Button
-        key={choice}
-        type="button"
-        size="sm"
-        active={choice === value}
-        aria-pressed={choice === value}
-        onClick={() => onChange(choice)}
-      >
-        {name(choice)}
-      </Button>
-    ))}
-  </ButtonGroup>
-)
+}) => {
+  const group = useId()
+  return (
+    <ButtonGroup role="radiogroup" aria-label={label}>
+      {choices.map((choice) => {
+        const chosen = choice === value
+        return (
+          <label
+            key={choice}
+            className={cn(
+              "flex cursor-pointer items-center whitespace-nowrap px-[0.6rem] text-small has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-theme",
+              chosen
+                ? "bg-theme text-on-surface hover:brightness-110"
+                : "bg-background-secondary text-fg hover:bg-highlight",
+            )}
+          >
+            <input
+              type="radio"
+              name={group}
+              checked={chosen}
+              onChange={() => onChange(choice)}
+              className="sr-only"
+            />
+            {name(choice)}
+          </label>
+        )
+      })}
+    </ButtonGroup>
+  )
+}
 
 // A name typed with the extension on the end already doesn't get another.
 const withoutExtension = (name: string) =>
@@ -104,7 +120,9 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   useEffect(() => () => cancel.current?.(), [])
 
   const baseName = withoutExtension(name)
-  const seconds = (exportBeats(patch, settings.passes) * 60) / patch.tempo
+  const seconds = renderSeconds(patch, settings)
+  // the sequence itself plays for no time at all: there is nothing to hear
+  const silent = seconds === settings.tail
   const extension = AUDIO_EXTENSIONS[settings.format]
 
   const start = async () => {
@@ -134,7 +152,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
       title={localized["sequencer-render-audio"]}
       closeLabel={localized["sequencer-export-cancel"]}
       onClose={rendering ? stop : onClose}
-      narrow
+      medium
       footer={
         <>
           <Button type="button" onClick={rendering ? stop : onClose}>
@@ -144,7 +162,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
             <Button
               type="button"
               primary
-              disabled={baseName === "" || seconds === 0 || picking}
+              disabled={baseName === "" || silent || picking}
               onClick={() => void start()}
             >
               <Localized name="sequencer-render-audio-action" />
@@ -251,7 +269,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
               />
             </div>
             <span className="text-small text-fg-tertiary" data-render-length>
-              {clock(seconds + settings.tail)}
+              {clock(seconds)}
             </span>
           </Row>
 
@@ -287,17 +305,19 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   )
 }
 
+const PHASE_LABELS = {
+  loading: "sequencer-render-loading",
+  measure: "sequencer-render-measuring",
+  render: "sequencer-render-rendering",
+  saving: "sequencer-render-saving",
+} as const
+
 // How far along a render is: what it is doing, and a bar that fills as it
-// goes — one that just waits while the SoundFont loads.
+// goes — one that just waits while the SoundFont loads and the file is kept.
 const Progress: FC<{ status: AudioRenderStatus }> = ({ status }) => {
   const localized = useLocalization()
-  const done = status.phase === "loading" ? null : status.done
-  const label =
-    status.phase === "loading"
-      ? localized["sequencer-render-loading"]
-      : status.phase === "render"
-        ? localized["sequencer-render-rendering"]
-        : localized["sequencer-render-encoding"]
+  const done = "done" in status ? status.done : null
+  const label = localized[PHASE_LABELS[status.phase]]
   const percent = done === null ? null : Math.round(done * 100)
 
   return (

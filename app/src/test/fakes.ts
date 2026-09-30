@@ -1,4 +1,10 @@
 import { MIDISink } from "../services/MIDISink"
+import {
+  CreateRoundPreviewer,
+  PlayedRound,
+  playJob,
+  RoundJob,
+} from "../services/RoundPreviewer"
 import { Ticker } from "../services/Ticker"
 
 export interface SentMessage {
@@ -41,6 +47,29 @@ export class ManualTicker implements Ticker {
 
   tick() {
     this.onTick?.()
+  }
+}
+
+// Plays rounds ahead only when told to, as a worker would in its own time.
+export class ManualRoundPreviewer {
+  wakes = 0
+  private next: () => RoundJob | null = () => null
+  private played: (round: PlayedRound) => void = () => {}
+
+  readonly create: CreateRoundPreviewer = (next, played) => {
+    this.next = next
+    this.played = played
+    return { wake: () => this.wakes++, dispose: () => {} }
+  }
+
+  // the next round the player wants played, without playing it yet
+  take(): RoundJob | null {
+    return this.next()
+  }
+
+  // hands back what a round taken earlier played
+  finish(job: RoundJob) {
+    this.played(playJob(job))
   }
 }
 

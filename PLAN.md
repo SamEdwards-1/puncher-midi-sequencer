@@ -236,6 +236,16 @@ packages/core/
   clears queued messages, releases held notes and sends All Notes Off both
   immediately and after the last scheduled message (not every browser can
   cancel queued MIDI).
+- **Deadline first:** a tick sends what is due before anything for show. The
+  engine is snapshotted as each round lands, and the round is played ahead
+  from that snapshot for its notes on a worker (`RoundPreviewer`), one at a
+  time, soonest first; an edit bumps a revision and plays them again, and
+  notes never replace ones from a later revision. A tick up to 20 ms late
+  sends what fell due at once; a longer stall pauses the sequence for the time
+  lost instead (anchor moved on), so nothing bursts or is dropped: the clock
+  keeps its pulse and notes held across the stall end when the sequence
+  reaches their ends. `player.stats` records tick durations, gaps, late events
+  and stalls.
 - **State split:** patch = MobX (undoable, saved); view state = jotai; engine
   runtime and transport = service observables, playhead throttled to animation
   frames.

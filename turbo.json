@@ -7,7 +7,10 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "inputs": ["src/**/*.tsx", "src/**/*.ts"]
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "vitest.config.ts"]
+    },
+    "test:all": {
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "vitest.config.ts"]
     },
     "typecheck": {
       "inputs": ["src/**/*.tsx", "src/**/*.ts", "tsconfig.json"]

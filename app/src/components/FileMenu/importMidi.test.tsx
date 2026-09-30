@@ -257,6 +257,17 @@ describe("importing MIDI", () => {
     expect(patch().maxNotesPerStep).toBe(3)
   })
 
+  it("sizes the sequence as chosen, or to the steps it fills", async () => {
+    setup()
+    await openImport()
+    fireEvent.click(dialog().getByRole("button", { name: "Size down" }))
+    expect(summary()).toBe("Fills steps 1–5 of 63 · 5 steps of 4 notes")
+    fireEvent.click(dialog().getByRole("button", { name: "Fit" }))
+    expect(summary()).toBe("Fills steps 1–5 of 5 · 5 steps of 4 notes")
+    fireEvent.click(dialog().getByRole("button", { name: "Import" }))
+    expect(patch().size).toBe(5)
+  })
+
   it("sets the stretch with the handles on the ruler, a bar at a time", async () => {
     setup()
     await openImport()

@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --project quick",
+    "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
     "theme": "node --disable-warning=ExperimentalWarning scripts/theme-from-vscode.ts"
   },
@@ -26,8 +27,7 @@
     "spessasynth_core": "^4.3.22",
     "spessasynth_lib": "^4.3.14",
     "use-l10n": "^0.0.4",
-    "use-sync-external-store": "^1.6.0",
-    "wav-encoder": "^1.3.0"
+    "use-sync-external-store": "^1.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -44,6 +44,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "wav-encoder": "^1.3.0"
   }
 }

@@ -562,6 +562,7 @@ a worked example, and how it's built.
 | `Ctrl+S` / `Ctrl+Shift+S` | save / save as |
 | `Ctrl+O` | open |
 | `Ctrl+C` / `Ctrl+V` | copy the selected step / paste onto it |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | zoom the whole app in / out / back to 100%, as the browser does any page |
 | `H` `Y` `F` `T` | hold Hold, Sync, Flip, Transpose — or, with Latch on, turn them on and off |
 | `B` | Draw, and back to Edit, with the envelope graph focused |
 | `Alt` | points and strokes off the grid, while dragging or drawing |
@@ -575,11 +576,18 @@ On a Mac, `⌘` stands in for `Ctrl`.
 |---|---|
 | `npm start` | dev server |
 | `npm run build` | production build |
-| `npm test` | all tests |
+| `npm test` | the quick tests: all but the app's whole-app ones |
+| `npm run test:all` | all tests |
 | `npm run typecheck` | `tsc --noEmit` everywhere |
 | `npm run check` | Biome lint and format |
 | `npm run format` | Biome format, rewriting files |
 | `npm run theme -- <theme.json>` | a theme from a VS Code theme (below) |
+
+The app's whole-app tests, any test file that renders `<App>`, take about
+half a second each and make up most of the time, so `npm test` leaves them
+out. Run the ones for what you've changed with, say,
+`npm run test:all -w app -- src/components/StepEditor`, and all of them with
+`npm run test:all`.
 
 - `packages/core` — the sequencer itself: entities, the engine, patch
   commands, the file format, and MIDI files and messages. No React, no MobX,
@@ -589,7 +597,11 @@ On a Mac, `⌘` stands in for `Ctrl`.
 
 The engine works in floating-point beats and hands the player timestamped
 events; the player schedules about 100 ms ahead, ticked from a Web Worker, so
-playback keeps time even when the tab is in the background.
+playback keeps time even when the tab is in the background. The notes each
+round of the sequencer plays, which the step editor shows, are worked out on a
+worker of their own, so a long step never holds up what is due. In the
+console, `midiseq.player.stats.report()` shows how the scheduling is keeping
+up: how long ticks take, and any events sent late.
 
 ### Themes
 

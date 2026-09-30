@@ -6,6 +6,7 @@ import RootStore from "./RootStore"
 // first step lands 50 ms after Play.
 const STEP_MS = 2000
 const START_DELAY_MS = 50
+const TICK_MS = 25
 
 describe("recording controllers while the sequence plays", () => {
   const setup = () => {
@@ -16,9 +17,15 @@ describe("recording controllers while the sequence plays", () => {
       ticker,
       now: () => now,
     })
+    // plays on to `ms` after the first step lands, ticking as often as the
+    // ticker does: time going by without a tick is a stall, which the
+    // sequence pauses for
     const at = (ms: number) => {
-      now = 1000 + START_DELAY_MS + ms
-      ticker.tick()
+      const until = 1000 + START_DELAY_MS + ms
+      while (now < until) {
+        now = Math.min(until, now + TICK_MS)
+        ticker.tick()
+      }
     }
     const envelope = (step: number, cc: number) =>
       rootStore.sequencerStore.patch.steps[step].envelopes.find(

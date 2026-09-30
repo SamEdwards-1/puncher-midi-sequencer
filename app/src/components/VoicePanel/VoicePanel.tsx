@@ -11,7 +11,6 @@ import {
   PACES,
   PatternStepJSON,
   playedVelocity,
-  previewStep,
   shownAccent,
   stepPace,
   VOICE_RULES,
@@ -38,6 +37,7 @@ import {
   useSelectedVoice,
   useSoloRestore,
 } from "../../hooks/useSequencerView"
+import { useStepPreview } from "../../hooks/useStepPreview"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
@@ -421,13 +421,14 @@ const Patterns: FC<{
       : step
 
   // The step in the editor as the sequence reaches it — which dots each
-  // voice has come round to by then, and what they play — and the voices
-  // sounding one key at once on it, each collision numbered in time order.
-  const preview = useMemo(
-    () => previewStep(patch, step, { accentAmount }),
-    [patch, step, accentAmount],
+  // voice has come round to by then, and what they play, this time round
+  // while it sounds — and the voices sounding one key at once on it, each
+  // collision numbered in time order.
+  const preview = useStepPreview(step)
+  const collisions = useMemo(
+    () => noteCollisions(preview.notes),
+    [preview.notes],
   )
-  const collisions = useMemo(() => noteCollisions(preview.notes), [preview])
   const collisionsAt = useMemo(() => {
     const at = new Map<string, number[]>()
     collisions.forEach((collision, index) => {

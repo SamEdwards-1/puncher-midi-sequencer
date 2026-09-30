@@ -146,6 +146,11 @@ export class MIDIDeviceStore {
 
   private readonly requestAccess: RequestMIDIAccess | null
   private readonly queryPermission: QueryMIDIPermission | null
+  private disposers: (() => void)[]
+  // what it listens to, to stop listening when disposed
+  private access: MIDIAccess | null = null
+  private permissionStatus: PermissionStatus | null = null
+  private disposed = false
 
   constructor(
     requestAccess: RequestMIDIAccess | null = defaultRequestAccess(),
@@ -180,26 +185,49 @@ export class MIDIDeviceStore {
       inputPorts: computed({ keepAlive: true }),
     })
 
-    reaction(
-      () => this.outputNames,
-      (value) => write(storage, STORAGE_KEY, value),
-    )
-    reaction(
-      () => this.inputNames,
-      (value) => write(storage, INPUT_STORAGE_KEY, value),
-    )
-    reaction(
-      () => this.filter,
-      (value) => write(storage, FILTER_STORAGE_KEY, value),
-    )
-    reaction(
-      () => this.clock,
-      (value) => write(storage, CLOCK_STORAGE_KEY, value),
-    )
-    reaction(
-      () => this.sendModulationCCs,
-      (value) => write(storage, MODULATION_CCS_STORAGE_KEY, value),
-    )
+    this.disposers = [
+      reaction(
+        () => this.outputNames,
+        (value) => write(storage, STORAGE_KEY, value),
+      ),
+      reaction(
+        () => this.inputNames,
+        (value) => write(storage, INPUT_STORAGE_KEY, value),
+      ),
+      reaction(
+        () => this.filter,
+        (value) => write(storage, FILTER_STORAGE_KEY, value),
+      ),
+      reaction(
+        () => this.clock,
+        (value) => write(storage, CLOCK_STORAGE_KEY, value),
+      ),
+      reaction(
+        () => this.sendModulationCCs,
+        (value) => write(storage, MODULATION_CCS_STORAGE_KEY, value),
+      ),
+    ]
+  }
+
+  /**
+   * Stops saving the settings, and stops listening to the browser's MIDI
+   * access and permission, which outlive the store. Access granted after
+   * this is left alone.
+   */
+  dispose = () => {
+    this.disposed = true
+    for (const dispose of this.disposers) {
+      dispose()
+    }
+    this.disposers = []
+    if (this.access !== null) {
+      this.access.onstatechange = null
+      this.access = null
+    }
+    if (this.permissionStatus !== null) {
+      this.permissionStatus.onchange = null
+      this.permissionStatus = null
+    }
   }
 
   get isSupported(): boolean {
@@ -224,10 +252,17 @@ export class MIDIDeviceStore {
     }
     try {
       const status = await this.queryPermission()
+      if (this.disposed) {
+        return
+      }
       this.permission = status.state as MIDIPermission
+      if (this.permissionStatus !== null) {
+        this.permissionStatus.onchange = null
+      }
       status.onchange = () => {
         this.permission = status.state as MIDIPermission
       }
+      this.permissionStatus = status
     } catch {
       // Firefox and Safari don't answer for "midi"
       this.permission = "unknown"
@@ -243,8 +278,15 @@ export class MIDIDeviceStore {
     this.requestError = null
     try {
       const access = await this.requestAccess()
+      if (this.disposed) {
+        return
+      }
       this.updatePorts(access)
+      if (this.access !== null) {
+        this.access.onstatechange = null
+      }
       access.onstatechange = () => this.updatePorts(access)
+      this.access = access
       this.hasAccess = true
     } catch (error) {
       this.requestError =

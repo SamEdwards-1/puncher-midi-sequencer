@@ -39,20 +39,20 @@
   --midiseq-step-skip: #f5eff0;             /* derived */
   --midiseq-scrollbar: #00000040;           /* built-in */
   --midiseq-scrollbar-hover: #00000073;     /* built-in */
-  --midiseq-jump-0: #c58900;                /* bright, from abyss syntax constant, darkened */
+  --midiseq-jump-0: #b49000;                /* bright, from plum-dusk syntax variable.parameter, darkened */
   --midiseq-jump-1: #00a69e;                /* bright, from espresso terminal.ansiBrightBlue, darkened */
   --midiseq-jump-2: #e06abc;                /* bright, from lavender-field terminal.ansiBrightMagenta, darkened */
-  --midiseq-jump-3: #15ac31;                /* bright, from abyss settings.modifiedItemIndicator */
-  --midiseq-jump-4: #fd6209;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule */
+  --midiseq-jump-3: #74a300;                /* bright, from neon-orchard syntax markup.inserted, darkened */
+  --midiseq-jump-4: #e77500;                /* bright, from frost syntax variable.other.object.property, darkened */
   --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
-  --midiseq-jump-6: #889e00;                /* bright, from neon-orchard syntax string, darkened */
+  --midiseq-jump-6: #00aa6a;                /* bright, from abyss syntax string.template, darkened */
   --midiseq-jump-7: #239ddc;                /* bright, from night-market terminal.ansiBlue, darkened */
   --midiseq-collision-0: #e2474a;           /* bright, from ember-room syntax storage, darkened */
   --midiseq-collision-1: #a67600;           /* bright, from neon-orchard syntax markup.changed, darkened */
   --midiseq-collision-2: #0087c1;           /* bright, from night-market terminal.ansiBlue, darkened */
   --midiseq-collision-3: #748700;           /* bright, from neon-orchard syntax string, darkened */
-  --midiseq-collision-4: #9959ff;           /* bright, from plum-dusk syntax constant.numeric */
-  --midiseq-collision-5: #d8488d;           /* bright, from espresso terminal.ansiBrightMagenta, darkened */
+  --midiseq-collision-4: #7e72d2;           /* bright, from nightshade activityBarBadge.background, darkened */
+  --midiseq-collision-5: #c753a5;           /* bright, from lavender-field terminal.ansiBrightMagenta, darkened */
   --midiseq-voice-0: #1745c2;               /* syntax meta.diff.header, made vivid */
   --midiseq-voice-1: #7f5c00;               /* syntax entity.name.function, made vivid */
   --midiseq-voice-2: #008657;               /* syntax constant.numeric, made vivid */

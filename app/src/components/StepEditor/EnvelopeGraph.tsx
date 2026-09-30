@@ -25,7 +25,6 @@ import {
   snapTime,
   snapToModulation,
   stairsFor,
-  stepNotes,
   stepPace,
   toBeatTimes,
   toStepTimes,
@@ -49,6 +48,7 @@ import { usePatchGesture } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { usePatch } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
+import { useStepPreview } from "../../hooks/useStepPreview"
 import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
 import { modulationValueLabel } from "../Modulation/labels"
@@ -317,10 +317,7 @@ export const EnvelopeGraph: FC<{
     () => gridTimes(stepBeats, gridBeats),
     [stepBeats, gridBeats],
   )
-  const notes = useMemo(
-    () => stepNotes(patch, step, { accentAmount }),
-    [patch, step, accentAmount],
-  )
+  const { notes } = useStepPreview(step)
   const velocities =
     lane.kind === "velocity" ? velocityPoints(notes, lane.voice) : []
   // every other voice's notes, dimmed behind the voice on show

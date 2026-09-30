@@ -279,18 +279,27 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   /**
    * What each cell draws, as a compact signature so the grid only re-renders
    * when it changes. A jump's colour comes from the step it leaves, so adding
-   * another never recolours the rest, and its source and destination both
-   * carry it. A step targeted by several jumps shows the first one's colour.
+   * another seldom recolours the rest, and its source and destination both
+   * carry it. Where an earlier step's jump already has that colour, as steps
+   * 1 and 9 would, it takes the next one free, so no two share one until
+   * there are more jumps than colours. A step targeted by several jumps shows
+   * the first one's colour.
    */
   const marks = useMobxSelector(() => {
-    const steps = sequencerStore.patch.steps
+    const { steps, size } = sequencerStore.patch
     const source: (number | null)[] = steps.map(() => null)
     const dest: (number | null)[] = steps.map(() => null)
-    steps.forEach((step, index) => {
+    const taken = new Set<number>()
+    // only the steps in the grid, so a hidden one's jump holds no colour
+    steps.slice(0, stepCount(size)).forEach((step, index) => {
       if (step.jump.dest === null) {
         return
       }
-      const colour = index % JUMP_COLOURS
+      let colour = index % JUMP_COLOURS
+      for (let tries = 1; taken.has(colour) && tries < JUMP_COLOURS; tries++) {
+        colour = (index + tries) % JUMP_COLOURS
+      }
+      taken.add(colour)
       source[index] = colour
       dest[step.jump.dest] ??= colour
     })

@@ -120,6 +120,17 @@ describe("SoundFontStore", () => {
     expect(await again.bytes(id)).toEqual(soundBank())
   })
 
+  it("gives each reader a copy of its own, for a render to take away", async () => {
+    const { store } = setup()
+    await store.init()
+    const id = await store.add("Piano.sf2", soundBank())
+    const taken = await store.bytes(id)
+    // handed to a worker, as a render's are
+    structuredClone(taken, { transfer: [taken] })
+    expect(taken.byteLength).toBe(0)
+    expect(await store.bytes(id)).toEqual(soundBank())
+  })
+
   it("turns away a file that isn't a sound bank", async () => {
     const { store } = setup()
     await expect(store.add("notes.txt", soundBank("WAVE"))).rejects.toThrow(

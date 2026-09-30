@@ -39,19 +39,19 @@
   --midiseq-step-skip: #ece7c5;             /* derived */
   --midiseq-scrollbar: #d5c4a199;           /* scrollbarSlider.background */
   --midiseq-scrollbar-hover: #bdae93;       /* scrollbarSlider.hoverBackground */
-  --midiseq-jump-0: #bb8200;                /* bright, from abyss syntax constant, darkened */
+  --midiseq-jump-0: #ab8900;                /* bright, from plum-dusk syntax variable.parameter, darkened */
   --midiseq-jump-1: #009e96;                /* bright, from espresso terminal.ansiBrightBlue, darkened */
   --midiseq-jump-2: #e8589b;                /* bright, from espresso terminal.ansiBrightMagenta, darkened */
-  --midiseq-jump-3: #00a429;                /* bright, from abyss settings.modifiedItemIndicator, darkened */
-  --midiseq-jump-4: #f25c00;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule, darkened */
+  --midiseq-jump-3: #6e9a00;                /* bright, from neon-orchard syntax markup.inserted, darkened */
+  --midiseq-jump-4: #dc6f00;                /* bright, from frost syntax variable.other.object.property, darkened */
   --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
-  --midiseq-jump-6: #819600;                /* bright, from neon-orchard syntax string, darkened */
+  --midiseq-jump-6: #00a164;                /* bright, from abyss syntax string.template, darkened */
   --midiseq-jump-7: #1496d3;                /* bright, from night-market terminal.ansiBlue, darkened */
   --midiseq-collision-0: #da3e44;           /* bright, from ember-room syntax storage, darkened */
-  --midiseq-collision-1: #9251f7;           /* bright, from plum-dusk syntax constant.numeric, darkened */
+  --midiseq-collision-1: #53850f;           /* bright, from neon-orchard terminal.ansiBrightGreen, darkened */
   --midiseq-collision-2: #0080b7;           /* bright, from night-market terminal.ansiBlue, darkened */
   --midiseq-collision-3: #5c6de1;           /* bright, from lavender-field syntax variable.other.member.haskell, darkened */
-  --midiseq-collision-4: #53850f;           /* bright, from neon-orchard terminal.ansiBrightGreen, darkened */
+  --midiseq-collision-4: #a06f00;           /* bright, from abyss syntax constant, darkened */
   --midiseq-collision-5: #9164bc;           /* bright, from night-market terminal.ansiMagenta, darkened */
   --midiseq-voice-0: #008c80;               /* terminal.ansiBlue, made vivid in another hue */
   --midiseq-voice-1: #a67300;               /* terminal.ansiYellow, made vivid */

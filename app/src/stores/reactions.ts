@@ -12,7 +12,11 @@ const sameAssignment = (a: OutputAssignment, b: OutputAssignment) =>
   a.all.every((sink, index) => sink === b.all[index]) &&
   a.voices.every((voice, index) => voice === b.voices[index])
 
-export const registerReactions = (rootStore: RootStore) => {
+/**
+ * Wires the stores and services together, and returns what unwires them
+ * again: every reaction, and the listener on the MIDI input.
+ */
+export const registerReactions = (rootStore: RootStore): (() => void) => {
   const {
     clockFollower,
     midiDeviceStore,
@@ -24,94 +28,105 @@ export const registerReactions = (rootStore: RootStore) => {
     soundFonts,
     synthStore,
   } = rootStore
+  const disposers: (() => void)[] = []
 
   // Outputs are ports, except where the built-in sound was chosen; that slot
   // gets the synth once it has loaded.
-  reaction(
-    () => {
-      const { assignment, outputNames } = midiDeviceStore
-      const sink = (name: string | null, port: MIDISink | null) =>
-        name === BUILTIN_OUTPUT ? synthStore.synth : port
-      return {
-        all: assignment.all
-          .map((port, index) => sink(outputNames.all[index], port))
-          .filter((out): out is MIDISink => out !== null),
-        voices: assignment.voices.map((port, index) =>
-          sink(outputNames.voices[index], port),
-        ),
-      }
-    },
-    (outputs) => player.setOutputs(outputs),
-    { fireImmediately: true, equals: sameAssignment },
+  disposers.push(
+    reaction(
+      () => {
+        const { assignment, outputNames } = midiDeviceStore
+        const sink = (name: string | null, port: MIDISink | null) =>
+          name === BUILTIN_OUTPUT ? synthStore.synth : port
+        return {
+          all: assignment.all
+            .map((port, index) => sink(outputNames.all[index], port))
+            .filter((out): out is MIDISink => out !== null),
+          voices: assignment.voices.map((port, index) =>
+            sink(outputNames.voices[index], port),
+          ),
+        }
+      },
+      (outputs) => player.setOutputs(outputs),
+      { fireImmediately: true, equals: sameAssignment },
+    ),
   )
 
   /**
    * The built-in sound loads its SoundFont as soon as it is wanted, at
    * startup when it was chosen last time, and again whenever another font is
-   * picked. Choosing it is a click, which lets its audio start; at startup
-   * the first click anywhere does.
+   * picked. Choosing it is a click, which lets its audio start; at startup,
+   * with no click yet, the first click anywhere does.
    */
-  reaction(
-    () => {
-      const { outputNames } = midiDeviceStore
-      const wanted = [...outputNames.all, ...outputNames.voices].includes(
-        BUILTIN_OUTPUT,
-      )
-      return wanted ? soundFonts.selectedId : null
-    },
-    (id) => {
-      if (id !== null) {
-        void synthStore.use(id, soundFonts.bytes)
-        synthStore.resume()
-      }
-    },
-    { fireImmediately: true },
+  disposers.push(
+    reaction(
+      () => {
+        const { outputNames } = midiDeviceStore
+        const wanted = [...outputNames.all, ...outputNames.voices].includes(
+          BUILTIN_OUTPUT,
+        )
+        return wanted ? soundFonts.selectedId : null
+      },
+      (id) => {
+        if (id !== null) {
+          void synthStore.use(id, soundFonts.bytes)
+          synthStore.resume()
+        }
+      },
+      { fireImmediately: true },
+    ),
   )
 
   // Each voice's instrument follows its channel and program, and is set
   // again on each SoundFont loaded.
-  reaction(
-    () => ({
-      ready: synthStore.synth,
-      font: synthStore.fontId,
-      voices: sequencerStore.patch.voices.map((voice) => ({
-        channel: voice.channel,
-        program: voice.program,
-      })),
-    }),
-    ({ ready, voices }) => {
-      for (const { channel, program } of voices) {
-        ready?.setProgram(channel, program)
-      }
-    },
-    {
-      fireImmediately: true,
-      equals: (a, b) =>
-        a.ready === b.ready &&
-        a.font === b.font &&
-        a.voices.every(
-          (voice, index) =>
-            voice.channel === b.voices[index].channel &&
-            voice.program === b.voices[index].program,
-        ),
-    },
+  disposers.push(
+    reaction(
+      () => ({
+        ready: synthStore.synth,
+        font: synthStore.fontId,
+        voices: sequencerStore.patch.voices.map((voice) => ({
+          channel: voice.channel,
+          program: voice.program,
+        })),
+      }),
+      ({ ready, voices }) => {
+        for (const { channel, program } of voices) {
+          ready?.setProgram(channel, program)
+        }
+      },
+      {
+        fireImmediately: true,
+        equals: (a, b) =>
+          a.ready === b.ready &&
+          a.font === b.font &&
+          a.voices.every(
+            (voice, index) =>
+              voice.channel === b.voices[index].channel &&
+              voice.program === b.voices[index].program,
+          ),
+      },
+    ),
   )
 
-  reaction(
-    () => midiDeviceStore.inputPorts,
-    // a Web MIDI input is a wider type than the service needs
-    (ports) => midiInput.setPorts(ports as MIDIInputPort[]),
-    {
-      fireImmediately: true,
-      equals: (a, b) =>
-        a.length === b.length && a.every((port, index) => port === b[index]),
-    },
+  disposers.push(
+    reaction(
+      () => midiDeviceStore.inputPorts,
+      // a Web MIDI input is a wider type than the service needs
+      (ports) => midiInput.setPorts(ports as MIDIInputPort[]),
+      {
+        fireImmediately: true,
+        equals: (a, b) =>
+          a.length === b.length && a.every((port, index) => port === b[index]),
+      },
+    ),
   )
 
-  reaction(
-    () => midiDeviceStore.filter,
-    (filter) => midiInput.setFilter(filter),
-    { fireImmediately: true },
+  disposers.push(
+    reaction(
+      () => midiDeviceStore.filter,
+      (filter) => midiInput.setFilter(filter),
+      { fireImmediately: true },
+    ),
   )
 
   /**
@@ -120,37 +135,47 @@ export const registerReactions = (rootStore: RootStore) => {
    * written in. Arming Record once playing still records on top — which is
    * how a knob is recorded as a curve.
    */
-  reaction(
-    () => player.isPlaying,
-    (playing) => {
-      if (playing) {
-        recorder.setRecording(false)
-      }
-    },
+  disposers.push(
+    reaction(
+      () => player.isPlaying,
+      (playing) => {
+        if (playing) {
+          recorder.setRecording(false)
+        }
+      },
+    ),
   )
 
-  reaction(
-    () => midiDeviceStore.clock.send,
-    (send) => player.setSendClock(send),
-    { fireImmediately: true },
+  disposers.push(
+    reaction(
+      () => midiDeviceStore.clock.send,
+      (send) => player.setSendClock(send),
+      { fireImmediately: true },
+    ),
   )
 
-  reaction(
-    () => midiDeviceStore.sendModulationCCs,
-    (send) => player.setSendModulationCCs(send),
-    { fireImmediately: true },
+  disposers.push(
+    reaction(
+      () => midiDeviceStore.sendModulationCCs,
+      (send) => player.setSendModulationCCs(send),
+      { fireImmediately: true },
+    ),
   )
 
-  reaction(
-    () => playbackSettings.accentAmount,
-    (amount) => player.setAccentAmount(amount),
-    { fireImmediately: true },
+  disposers.push(
+    reaction(
+      () => playbackSettings.accentAmount,
+      (amount) => player.setAccentAmount(amount),
+      { fireImmediately: true },
+    ),
   )
 
   // what has been heard so far says nothing about a clock just switched on
-  reaction(
-    () => midiDeviceStore.clock.followTempo,
-    () => clockFollower.reset(),
+  disposers.push(
+    reaction(
+      () => midiDeviceStore.clock.followTempo,
+      () => clockFollower.reset(),
+    ),
   )
 
   /**
@@ -159,22 +184,32 @@ export const registerReactions = (rootStore: RootStore) => {
    * patch, where the field shows it, but only when the number actually
    * changes — a steady clock writes once and then says nothing.
    */
-  midiInput.on((message) => {
-    if (message.type !== "clock" || !midiDeviceStore.clock.followTempo) {
-      return
-    }
-    const tempo = clockFollower.onTick()
-    if (tempo !== null && tempo !== sequencerStore.patch.tempo) {
-      sequencerStore.patch = { ...sequencerStore.patch, tempo }
-    }
-  })
-
-  reaction(
-    () => sequencerStore.patch,
-    (patch) => {
-      player.setPatch(patch)
-      // any edit means the file on disk is behind
-      sequencerStore.isSaved = false
-    },
+  disposers.push(
+    midiInput.on((message) => {
+      if (message.type !== "clock" || !midiDeviceStore.clock.followTempo) {
+        return
+      }
+      const tempo = clockFollower.onTick()
+      if (tempo !== null && tempo !== sequencerStore.patch.tempo) {
+        sequencerStore.patch = { ...sequencerStore.patch, tempo }
+      }
+    }),
   )
+
+  disposers.push(
+    reaction(
+      () => sequencerStore.patch,
+      (patch) => {
+        player.setPatch(patch)
+        // any edit means the file on disk is behind
+        sequencerStore.isSaved = false
+      },
+    ),
+  )
+
+  return () => {
+    for (const dispose of disposers) {
+      dispose()
+    }
+  }
 }

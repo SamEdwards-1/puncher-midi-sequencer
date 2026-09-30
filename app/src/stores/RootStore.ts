@@ -1,4 +1,4 @@
-import { withPatchName } from "@midiseq/core"
+import { StepPreviews, withPatchName } from "@midiseq/core"
 import { AudioRenderer, workerAudioRenderer } from "../services/AudioRenderer"
 import { AutoSaveService } from "../services/AutoSaveService"
 import { ClockFollower } from "../services/ClockFollower"
@@ -21,6 +21,12 @@ import { SettingsTabStore } from "./SettingsTabStore"
 import { SoundFontStore } from "./SoundFontStore"
 import { SynthStore } from "./SynthStore"
 
+/**
+ * What can be handed in rather than made. Whatever is handed in belongs to
+ * whoever made it, and outlives the root store: disposing the store only
+ * undoes what the store itself did with it, such as starting the autosave,
+ * and never disposes it. What the store makes, it disposes.
+ */
 export interface RootStoreOptions {
   requestMIDIAccess?: RequestMIDIAccess | null
   storage?: Storage | null
@@ -48,12 +54,21 @@ export default class RootStore {
   readonly settingsTab: SettingsTabStore
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
+  // what the step in the editor plays, shared by the panels showing it
+  readonly stepPreviews = new StepPreviews()
   readonly synthStore: SynthStore
   readonly soundFonts: SoundFontStore
   readonly fileService: FileService
   readonly recentFiles: RecentFilesStore
   readonly autoSave: AutoSaveService
   readonly audioRenderer: AudioRenderer
+
+  private readonly ownsSynthStore: boolean
+  private readonly unregisterReactions: () => void
+  // what init started, to stop again
+  private stopResumeOnGesture: (() => void) | null = null
+  private autoSaveStarted = false
+  private disposed = false
 
   constructor(options: RootStoreOptions = {}) {
     this.midiDeviceStore = new MIDIDeviceStore(
@@ -79,6 +94,7 @@ export default class RootStore {
       { ticker: options.ticker, now: options.now },
     )
     this.clockFollower = new ClockFollower(options.now)
+    this.ownsSynthStore = options.synthStore === undefined
     this.synthStore = options.synthStore ?? new SynthStore()
     this.soundFonts =
       options.soundFonts ?? new SoundFontStore(undefined, options.storage)
@@ -92,14 +108,15 @@ export default class RootStore {
         () => this.sequencerStore.isSaved,
         options.storage,
       )
-    registerReactions(this)
+    this.unregisterReactions = registerReactions(this)
   }
 
   init() {
     void this.midiDeviceStore.connectOnStart()
     void this.soundFonts.init()
     void this.recentFiles.init()
-    this.synthStore.resumeOnGesture(window)
+    this.stopResumeOnGesture?.()
+    this.stopResumeOnGesture = this.synthStore.resumeOnGesture(window)
 
     // A patch left behind by a crash or a closed tab comes back as unsaved
     // work, rather than being lost.
@@ -109,5 +126,31 @@ export default class RootStore {
       this.sequencerStore.isSaved = false
     }
     this.autoSave.start()
+    this.autoSaveStarted = true
+  }
+
+  /**
+   * Takes the app down: the reactions wiring it together stop, anything
+   * sounding is silenced, the MIDI ports and the browser's MIDI access are
+   * let go, what init started is stopped, and the workers and audio the
+   * store made are ended. Disposing again does nothing.
+   */
+  dispose() {
+    if (this.disposed) {
+      return
+    }
+    this.disposed = true
+    this.unregisterReactions()
+    this.player.dispose()
+    this.midiInput.dispose()
+    this.midiDeviceStore.dispose()
+    this.stopResumeOnGesture?.()
+    this.stopResumeOnGesture = null
+    if (this.autoSaveStarted) {
+      this.autoSave.stop()
+    }
+    if (this.ownsSynthStore) {
+      this.synthStore.dispose()
+    }
   }
 }

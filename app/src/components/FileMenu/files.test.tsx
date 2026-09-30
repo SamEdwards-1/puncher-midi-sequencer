@@ -178,7 +178,7 @@ describe("autosave", () => {
     expect(reopened.sequencerStore.patch.tempo).toBe(132)
     // it comes back as work still to be saved
     expect(reopened.sequencerStore.isSaved).toBe(false)
-    reopened.autoSave.stop()
+    reopened.dispose()
   })
 
   it("writes nothing once the patch is saved", () => {
@@ -190,6 +190,30 @@ describe("autosave", () => {
     )
     autoSave.save()
     expect(storage.getItem("midiseq.autosave")).toBeNull()
+  })
+
+  it("writes an unchanged patch once, and retries after a failure", () => {
+    const storage = memoryStorage()
+    const setItem = vi.spyOn(storage, "setItem")
+    let patch = createDefaultPatch()
+    const autoSave = new AutoSaveService(
+      () => patch,
+      () => false,
+      storage,
+    )
+    autoSave.save()
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(1)
+
+    patch = { ...patch, tempo: 99 }
+    setItem.mockImplementationOnce(() => {
+      throw new Error("full")
+    })
+    autoSave.save()
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(3)
+    autoSave.save()
+    expect(setItem).toHaveBeenCalledTimes(3)
   })
 })
 
