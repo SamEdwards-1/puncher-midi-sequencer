@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --project quick",
+    "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
     "theme": "node --disable-warning=ExperimentalWarning scripts/theme-from-vscode.ts"
   },
