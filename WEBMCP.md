@@ -100,7 +100,7 @@ await call("set_sequencer", { tempo: 96 })
 | `step_menu` | what right-clicking a step offers: copy, paste, insert before or after, clear, delete | one entry a change |
 | `play`, `stop` | the transport | — |
 | `set_recording` | the Record button, and where recording goes | a take is one entry |
-| `set_actions` | Hold, Sync, Flip and Shift, each on until turned off, and the voice Sync plays | not saved or undone, like the buttons |
+| `set_actions` | Hold, Sync, Flip and Transpose, each on until turned off, and the voice Sync plays | not saved or undone, like the buttons |
 | `select_step` | what clicking a step in the grid does: shows it, sounds it, plays it next | — |
 | `undo`, `redo` | **Edit → Undo** and **Redo**, 1 to 50 times | — |
 | `clear_sequence` | empties every step and resets the voices; tempo, size, pace, direction and loop stay | one entry |
@@ -162,9 +162,9 @@ No input. Returns:
 
 - `name`, `file`, `unsaved`
 - `sequencer`: tempo, size, columns, pace, step_beats, direction, loop,
-  loop_end, sync_voices, shift, shift_fit, step_notes, scale
+  loop_end, sync_voices, transpose, transpose_fit, step_notes, scale
 - `detected_scales`: the scales the notes suggest, most likely first
-- `voices`: voice, enabled, pace, length (%), rule, offset, offset_fit,
+- `voices`: voice, enabled, pace, length (%), rule, transpose, transpose_fit,
   velocity, channel, instrument, pattern (`"x..x"`), and `dots` with the
   options of the dots that have any
 - `steps`: only those holding something, each with its notes, state, jump
@@ -226,7 +226,7 @@ No input. Returns:
 | `pace` | how often it plays a dot. See paces below |
 | `length` | note length, 10 to 100 % of its pace, rounded to 5 |
 | `rule` | `nth`, `lowest`, `highest`, `random`, `up`, `down`, `updown`, `downup`, `updown+`, `downup+`, `rise`, `fall` (or labels such as "Up / Down") |
-| `offset`, `offset_fit` | −24 to 24 semitones; `up`, `down`, `exclude` or `ignore` for notes moved out of the scale |
+| `transpose`, `transpose_fit` | −24 to 24 semitones; `up`, `down`, `exclude` or `ignore` for notes moved out of the scale |
 | `velocity` | 1 to 127 |
 | `channel` | 1 to 16. No two voices share one: a channel already taken moves the voice on to the next free one, with a warning |
 | `instrument` | a General MIDI name, or enough of one to be unique ("vibraphone"), or 1 to 128. Only the built-in synth plays it |
@@ -256,7 +256,7 @@ Give any of these:
 | `direction` | `fwd`, `bwd`, `fwdbwd`, `bwdfwd`, `random` or `random+` |
 | `loop`, `loop_end` | `recorded`, `all` or `custom`. Giving `loop_end` makes it custom |
 | `sync_voices` | whether every voice restarts its pattern on each step |
-| `shift`, `shift_fit` | the Shift action's semitones (−24 to 24) and its fit |
+| `transpose`, `transpose_fit` | the Transpose action's semitones (−24 to 24) and its fit |
 | `step_notes` | 1 to 4, how many of a step's notes play, lowest first |
 | `scale` | `"A minor"`, `"F# dorian"` or `"none"`. The scales are major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, major pentatonic, minor pentatonic and minor blues. Notes outside the scale are only marked |
 | `name` | the patch's name |
@@ -277,8 +277,8 @@ the setting keeps its own value.
 
 | Field | Takes |
 |---|---|
-| `setting` | a voice's `pace`, `length`, `rule`, `offset`, `offset_fit`, `pattern_length` or `sync`; the sequencer's `pace`, `scale`, `shift_fit`, `size`, `direction`, `loop`, `shift_amt` or `max_notes_per_step` (also `step_notes`); or the `hold`, `flip` or `shift` action |
-| `voice` | 1 to 4, for a voice's settings and `sync`. Without it, `pace` is the sequencer's |
+| `setting` | a voice's `pace`, `length`, `rule`, `transpose_amt`, `transpose_fit`, `pattern_length` or `sync`; the sequencer's `pace`, `scale`, `transpose_amt`, `transpose_fit`, `size`, `direction`, `loop` or `max_notes_per_step` (also `step_notes`); or the `hold`, `flip` or `transpose` action |
+| `voice` | 1 to 4, for a voice's settings and `sync`. Without it, `pace`, `transpose_amt` and `transpose_fit` are the sequencer's |
 | `cc` | 0 to 119, one no other modulation has. A new modulation takes the first undefined controller nothing uses, unless given |
 | `from`, `to` | the setting's values the CC's 0 and 127 stand for, as its field has them: a pace (`"16th"`), a length in percent (`35`), a rule, semitones (`-7`), a fit, a pattern length, a scale (`"A minor"` or `"none"`), or `on`/`off` for an action. A new modulation spans every value unless given; for the scale, the ten scales at its tonic |
 | `remove` | `true` stops the CC driving the setting. Its envelopes stay, as plain CCs |
@@ -299,7 +299,7 @@ the setting keeps its own value.
 - `clear_sequence` takes the voices' modulations away with the voices, and
   keeps the sequencer's and the actions'.
 
-Sequencer modulation timing: Size, Direction and Loop use the outgoing step's envelope at each transition. The first step starts from the saved settings. Shift amount and Step notes follow envelopes as notes play; Shift amount applies while the Shift action is on. Size keeps all stored steps, Step notes keeps all stored notes, and Loop changes the mode while preserving the custom loop end.
+Sequencer modulation timing: Size, Direction and Loop use the outgoing step's envelope at each transition. The first step starts from the saved settings. Transpose and Step notes follow envelopes as notes play; the Transpose setting applies while the Transpose action is on. Size keeps all stored steps, Step notes keeps all stored notes, and Loop changes the mode while preserving the custom loop end.
 
 ### step_menu
 
@@ -342,7 +342,7 @@ empty step is. Each change is one undo entry.
 ### The rest
 
 - **`play`, `stop`:** no input. `play` starts from the start.
-- **`set_actions`:** any of `hold`, `sync`, `flip` and `shift` (true or
+- **`set_actions`:** any of `hold`, `sync`, `flip` and `transpose` (true or
   false), and `sync_voice` (1 to 4).
 - **`select_step`:** `{ step, audition }`. It shows the step in the step
   editor. It sounds the step if `audition` is true; when `audition` isn't

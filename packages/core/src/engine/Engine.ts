@@ -34,14 +34,14 @@ export interface EngineActions {
   hold: boolean
   sync: boolean
   flip: boolean
-  shift: boolean
+  transpose: boolean
 }
 
 export const createActions = (): EngineActions => ({
   hold: false,
   sync: false,
   flip: false,
-  shift: false,
+  transpose: false,
 })
 
 export interface EngineOptions {
@@ -636,18 +636,18 @@ export class Engine {
       return
     }
 
-    const { scale, shiftFit, shiftAmt } = this.sequencerAt(beat)
-    const offset = this.transposed(
+    const { scale, transposeFit, transposeAmt } = this.sequencerAt(beat)
+    const moved = this.transposed(
       picked.note,
-      voice.offset,
-      voice.offsetFit,
+      voice.transposeAmt,
+      voice.transposeFit,
       scale,
     )
     const note =
-      offset !== null &&
-      this.actionAt({ kind: "action", setting: "shift" }, beat)
-        ? this.transposed(offset, shiftAmt, shiftFit, scale)
-        : offset
+      moved !== null &&
+      this.actionAt({ kind: "action", setting: "transpose" }, beat)
+        ? this.transposed(moved, transposeAmt, transposeFit, scale)
+        : moved
     if (note === null) {
       return
     }
@@ -722,7 +722,7 @@ export class Engine {
     )
   }
 
-  // A note moved by the voice's offset or the shift. A note that moves is
+  // A note moved by its voice's transpose or by Transpose. A note that moves is
   // fitted to the scale as that move's fit says, or null where the fit
   // leaves it out; one that stays plays as written, in the scale or not.
   private transposed(

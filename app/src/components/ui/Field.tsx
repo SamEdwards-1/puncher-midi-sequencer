@@ -1,6 +1,6 @@
 import { FC, HTMLAttributes, ReactNode } from "react"
 import { cn } from "./cn"
-import { GUTTER_RIGHT } from "./Panel"
+import { BLEED_RIGHT, GUTTER_RIGHT } from "./Panel"
 
 // A label and its control, the controls of a column of rows lined up past
 // the longest label. The row is a named group, so what sits beside a label
@@ -19,6 +19,20 @@ const LIVE =
 
 export const Fields: FC<{ children: ReactNode }> = ({ children }) => (
   <div className={cn("flex flex-col pl-4", GUTTER_RIGHT, "pt-2 pb-3")}>
+    {children}
+  </div>
+)
+
+// Rows that go together, set apart by a rule across the panel above and
+// below them.
+export const FieldGroup: FC<{ children: ReactNode }> = ({ children }) => (
+  <div
+    className={cn(
+      "-ml-4 my-2 border-y border-divider py-2 pl-4",
+      BLEED_RIGHT,
+      GUTTER_RIGHT,
+    )}
+  >
     {children}
   </div>
 )

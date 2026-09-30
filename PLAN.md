@@ -24,8 +24,8 @@ to another when a condition is met.
 | Area | Contents |
 |---|---|
 | Top bar | File, Clear all, Undo/Redo · Play, Record, Tempo, position · output status, Settings · later: Presets, Mod Outs, Keyboard |
-| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Shift Amt, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Grid · Voices · Sequencer |
-| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hold/Sync/Flip/Shift buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
+| Left | Sequencer settings (Size, Loop, Sync Voices, Pace, Direction, Transpose, Scale fit, Rest/Skip). Below a 1200px window this column folds away and the settings become a tab before Voices, in a column on the left with the grid to its right; below 876px everything shares one column, tabbed Grid · Voices · Sequencer |
+| Center | 8×8 or 4×4 step grid, step editor (with the step's jump), Hold/Sync/Flip/Transpose buttons — one scrolling column, the grid stuck to its top and shrinking to 13rem as it scrolls, the editors then passing underneath |
 | Right | Voice tabs 1–4, 100px wider than their first 18–22rem so the dots are bigger; below 1200px, tabbed with the sequencer settings. Dots fill the column, up to 1.75rem |
 
 ### Sequencer
@@ -48,7 +48,7 @@ to another when a condition is met.
   repeats).
 - **Sync Voices:** each advance resets every voice's pattern, rule cursor and
   phase.
-- **Shift Amt:** ±24; notes starting while Shift is held are transposed.
+- **Transpose (setting):** ±24; notes starting while Transpose is held are transposed.
 - **Queue:** clicking a step while playing makes it the next step.
 
 ### Jumps (one per step)
@@ -64,7 +64,7 @@ to another when a condition is met.
 
 ### Voices (×4)
 - Enable, Pace (plus six golden-ratio paces, ~1.618× the straight note),
-  Length (gate 10–100%), Offset (±24), Velocity, Channel.
+  Length (gate 10–100%), Transpose (±24), Velocity, Channel.
 - **Rules:** Nth, Lowest, Highest, Random, Up, Down, UpDown, DownUp, UpDown+,
   DownUp+ (ends repeat), Rise (up 2, down 1), Fall (down 2, up 1).
 - **Pattern:** 1–16 dots, each on/off with options:
@@ -82,7 +82,7 @@ to another when a condition is met.
 - **Sync:** the selected voice plays at the sequencer's pace, one dot per
   sequencer tick, while held.
 - **Flip:** swaps rows and columns.
-- **Shift:** transposes new notes by Shift Amt.
+- **Transpose:** transposes new notes by the Transpose setting.
 
 ### Step editor, recording, undo
 - **Step editor:** edit notes by hand (typed as a name or stepped, transpose
@@ -250,11 +250,11 @@ interface StepJSON { notes: number[]; envelopes: EnvelopeJSON[]; state: "normal"
 interface EnvelopeJSON { id: number; cc: number; channel: number; points: { time: number /* 0..1 of the step */; value: number }[] }
 interface JumpJSON { rule: JumpRule; dest: StepIndex | null; normal: StepIndex | null }
 interface LoopJSON { mode: "recorded"|"all"|"custom"; end: StepIndex }
-interface VoiceJSON { enabled; pace; length; rule; offset; patternLength; pattern: PatternStepJSON[16]; velocity; channel }
+interface VoiceJSON { enabled; pace; length; rule; transposeAmt; transposeFit; patternLength; pattern: PatternStepJSON[16]; velocity; channel }
 interface PatternStepJSON { on; articulation; accent: "none"|"+"|"-"; velocityOffset /* from the voice's velocity */; ratchet; probability; condition }
 interface PatchJSON {
   version: 1; name; size: "small"|"large"; loop: LoopJSON
-  syncVoices; pace; direction; shiftAmt; tempo
+  syncVoices; pace; direction; transposeAmt; tempo
   steps: StepJSON[64]; voices: VoiceJSON[4]; modOuts: ModOutJSON[8]
 }
 ```
@@ -490,10 +490,10 @@ clicked step is auditioned: every voice starting together on its first dot.
 Chance and the random rules use a fixed seed, so the picture holds still
 while editing. The keys run exactly from the lowest note anything plays to
 the highest: the grid's keys, and those keys moved by each playing voice's
-offset. They are taken across every step rather than the step on show, so the
-roll doesn't jump from step to step; setting a key or an offset beyond them
-moves that edge. (Keeping to the grid's keys alone, tried first, hid voices
-whose offsets took them outside.)
+transpose. They are taken across every step rather than the step on show, so
+the roll doesn't jump from step to step; setting a key or a transpose beyond
+them moves that edge. (Keeping to the grid's keys alone, tried first, hid
+voices whose transposes took them outside.)
 
 **Velocity is the dot's.** Notes come from pattern dots, and a voice's
 pattern plays on every step, so a velocity point edits its dot: every point

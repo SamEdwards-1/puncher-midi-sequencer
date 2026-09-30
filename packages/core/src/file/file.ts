@@ -3,9 +3,10 @@ import { toBeatTimes } from "../entities/envelope"
 import { paceBeats } from "../entities/paces"
 import { PatchSchema } from "../entities/schema"
 import { PatchJSON } from "../entities/types"
+import { renamedPatch, savedBefore } from "./renames"
 
 export const FILE_FORMAT = "midiseq"
-export const FILE_VERSION = 2
+export const FILE_VERSION = 3
 export const FILE_EXTENSION = ".midiseq.json"
 
 export const MidiseqFileSchema = z.object({
@@ -66,26 +67,37 @@ export const describeIssue = (error: z.ZodError): string => {
  * 1 → 2: envelope point times were fractions of the step, and are now beats
  * from its start. Scaled by the pace the file was saved with, every envelope
  * sounds exactly as it did.
+ *
+ * 2 → 3: Shift became Transpose, and a voice's Offset its own Transpose. The
+ * settings are renamed before the file is checked, as it is checked under
+ * the new names; see renames.ts.
  */
 const migrate = (file: MidiseqFile): MidiseqFile => {
   if (file.version >= FILE_VERSION) {
     return file
   }
   const patch = file.patch as unknown as PatchJSON
-  const stepBeats = paceBeats(patch.pace)
   return {
     ...file,
     version: FILE_VERSION,
-    patch: {
-      ...patch,
-      steps: patch.steps.map((step) => ({
-        ...step,
-        envelopes: step.envelopes.map((envelope) => ({
-          ...envelope,
-          points: toBeatTimes(envelope.points, stepBeats),
-        })),
+    patch: (file.version < 2
+      ? inBeats(patch)
+      : patch) as unknown as MidiseqFile["patch"],
+  }
+}
+
+// 1 → 2: a patch's envelope times in beats, scaled by its pace
+const inBeats = (patch: PatchJSON): PatchJSON => {
+  const stepBeats = paceBeats(patch.pace)
+  return {
+    ...patch,
+    steps: patch.steps.map((step) => ({
+      ...step,
+      envelopes: step.envelopes.map((envelope) => ({
+        ...envelope,
+        points: toBeatTimes(envelope.points, stepBeats),
       })),
-    } as unknown as MidiseqFile["patch"],
+    })),
   }
 }
 
@@ -97,7 +109,9 @@ export const parseFile = (text: string): ParseResult => {
     return { ok: false, error: "That file isn't JSON." }
   }
 
-  const parsed = MidiseqFileSchema.safeParse(json)
+  const parsed = MidiseqFileSchema.safeParse(
+    savedBefore(json, 3) ? { ...json, patch: renamedPatch(json.patch) } : json,
+  )
   if (!parsed.success) {
     return { ok: false, error: describeIssue(parsed.error) }
   }

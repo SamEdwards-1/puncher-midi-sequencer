@@ -203,7 +203,7 @@ describe("exporting MIDI", () => {
         ...rootStore.sequencerStore.patch,
         modulations: [
           {
-            target: { kind: "voice", voice: 0, setting: "offset" },
+            target: { kind: "voice", voice: 0, setting: "transposeAmt" },
             cc: 1,
             from: 0,
             to: 12,
@@ -212,7 +212,7 @@ describe("exporting MIDI", () => {
       }
     })
     fireEvent.click(fileItem("Export MIDI…"))
-    expect(dialog().getByText("Voice 1 · Offset")).toBeInTheDocument()
+    expect(dialog().getByText("Voice 1 · Transpose")).toBeInTheDocument()
 
     const modulation = box("Modulation CCs")
     expect(modulation).toBeChecked()
