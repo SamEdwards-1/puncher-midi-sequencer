@@ -192,6 +192,38 @@ describe("SequencerPlayer", () => {
     expect(player.isPlaying).toBe(false)
   })
 
+  describe("dispose", () => {
+    it("silences what is playing, and plays nothing after", () => {
+      player.play()
+      runFor(600)
+      player.dispose()
+
+      expect(player.isPlaying).toBe(false)
+      expect(all.ofType(0xb0)).toHaveLength(32)
+      expect(ticker.isRunning).toBe(false)
+
+      const sent = all.sent.length
+      player.play()
+      player.previewStep(0)
+      player.dispose()
+      runFor(1000)
+      expect(player.isPlaying).toBe(false)
+      expect(all.sent).toHaveLength(sent)
+    })
+
+    it("silences a clicked step still sounding", () => {
+      player.previewStep(0)
+      player.dispose()
+      expect(all.ofType(0xb0)).toHaveLength(32)
+      expect(ticker.isRunning).toBe(false)
+    })
+
+    it("sends nothing when nothing is sounding", () => {
+      player.dispose()
+      expect(all.sent).toEqual([])
+    })
+  })
+
   describe("a late tick", () => {
     it("sends what fell due a little late, rather than pausing", () => {
       player.play()

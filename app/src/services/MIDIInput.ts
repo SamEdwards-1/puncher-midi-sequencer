@@ -105,6 +105,12 @@ export class MIDIInput {
     }
   }
 
+  // Lets go of the ports, which outlive it, and of its listeners.
+  dispose() {
+    this.setPorts([])
+    this.listeners.clear()
+  }
+
   handleMessage(data: Uint8Array | number[] | null) {
     if (data === null) {
       return

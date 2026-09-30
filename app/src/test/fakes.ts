@@ -59,7 +59,7 @@ export class ManualRoundPreviewer {
   readonly create: CreateRoundPreviewer = (next, played) => {
     this.next = next
     this.played = played
-    return { wake: () => this.wakes++ }
+    return { wake: () => this.wakes++, dispose: () => {} }
   }
 
   // the next round the player wants played, without playing it yet
