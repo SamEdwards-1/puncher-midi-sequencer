@@ -27,7 +27,8 @@ import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { modulationTabLabel, modulationTargetLabel } from "../Modulation/labels"
 import { Button, ButtonGroup, IconButton } from "../ui/Button"
-import { PanelHeader } from "../ui/Panel"
+import { cn } from "../ui/cn"
+import { BLEED_RIGHT, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeGraph, GRIDS } from "./EnvelopeGraph"
@@ -219,7 +220,10 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
       >
         {/* the page's gutter is the header's own, so its title lines up
             with the step editor's */}
-        <PanelHeader as="div" className="-mx-4 flex items-center gap-2">
+        <PanelHeader
+          as="div"
+          className={cn("-ml-4", BLEED_RIGHT, "flex items-center gap-2")}
+        >
           <span className="grow">
             <Localized name="sequencer-step-ccs" />
           </span>

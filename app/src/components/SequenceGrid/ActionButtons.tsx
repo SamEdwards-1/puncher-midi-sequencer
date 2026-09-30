@@ -11,6 +11,7 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { targetKey, useShownModulation } from "../Modulation/ModulatedField"
 import { ModulationButton } from "../Modulation/ModulationButton"
 import { cn } from "../ui/cn"
+import { GUTTER_RIGHT } from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
 
 const ACTION_BUTTON = "h-8 min-w-20 touch-none rounded-2xl text-body"
@@ -165,7 +166,11 @@ export const ActionButtons: FC = () => {
   return (
     <div
       data-action-buttons
-      className="flex items-center justify-center gap-2 border-t border-divider px-4 py-3"
+      className={cn(
+        "flex items-center justify-center gap-2 border-t border-divider pl-4",
+        GUTTER_RIGHT,
+        "py-3",
+      )}
     >
       {ACTIONS.map(({ action }) => (
         <ActionButton key={action} action={action} />

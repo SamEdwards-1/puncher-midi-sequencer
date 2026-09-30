@@ -192,7 +192,8 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   return (
     <Panel
       aria-label={localized["sequencer-voices"]}
-      className={cn("overflow-y-auto", className)}
+      scrolls
+      className={className}
     >
       {header && (
         <PanelHeader>
@@ -492,7 +493,9 @@ const Patterns: FC<{
   return (
     <section
       aria-label={localized["sequencer-voice-patterns"]}
-      className="flex flex-col gap-[1.1rem] border-t border-divider px-3 pt-3"
+      // 0.75rem each side, the right less the panel's scrollbar, though
+      // never less than the 0.25rem a band hangs past its dots
+      className="flex flex-col gap-[1.1rem] border-t border-divider pr-[max(0.25rem,calc(0.75rem-var(--scrollbar-gutter,0px)))] pt-3 pl-3"
     >
       {VOICES.map((voiceIndex) => {
         const voice = patch.voices[voiceIndex]

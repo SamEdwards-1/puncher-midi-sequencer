@@ -27,7 +27,6 @@ import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { Button } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
-import { cn } from "../ui/cn"
 import { ButtonField, Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Stepper } from "../ui/Stepper"
@@ -78,7 +77,8 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
   return (
     <Panel
       aria-label={localized["sequencer-panel"]}
-      className={cn("overflow-y-auto", className)}
+      scrolls
+      className={className}
     >
       {header && (
         <PanelHeader>

@@ -113,7 +113,8 @@ export const StepOptions: FC<StepOptionsProps> = ({
       ref={popup}
       role="dialog"
       aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
-      className="fixed z-20 w-60 rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)]"
+      // over the panel, not beside its scrollbar, so its gutters are whole
+      className="fixed z-20 w-60 rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)] [--scrollbar-gutter:0px]"
       style={{ left: at.x, top: at.y }}
     >
       <div className="pt-2 pb-1 text-small font-semibold text-fg">

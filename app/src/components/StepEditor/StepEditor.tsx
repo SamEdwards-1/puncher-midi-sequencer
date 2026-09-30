@@ -12,7 +12,7 @@ import { ScaleKeys } from "../Scale/ScaleKeys"
 import { Button, ButtonGroup, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { parseNoteText, sanitizeNoteText } from "../ui/noteInput"
-import { PanelHeader } from "../ui/Panel"
+import { GUTTER_RIGHT, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
 import { EnvelopeEditor } from "./EnvelopeEditor"
@@ -97,7 +97,13 @@ export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
       </PanelHeader>
 
       {/* no gutter at the bottom: the envelope editor, last, keeps its own */}
-      <div className="flex flex-col gap-2 px-4 pt-2 text-body text-fg-secondary">
+      <div
+        className={cn(
+          "flex flex-col gap-2 pl-4",
+          GUTTER_RIGHT,
+          "pt-2 text-body text-fg-secondary",
+        )}
+      >
         <Row>
           {/* the scale the patch is in */}
           {scale !== null && (
