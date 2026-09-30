@@ -225,7 +225,7 @@ No input. Returns:
 | `enabled` | true or false. The voice's mute and solo buttons switch this too (PR #55) |
 | `pace` | how often it plays a dot. See paces below |
 | `length` | note length, 10 to 100 % of its pace, rounded to 5 |
-| `rule` | `nth`, `lowest`, `highest`, `random`, `up`, `down`, `updown`, `downup`, `updown+`, `downup+`, `rise`, `fall` (or labels such as "Up / Down") |
+| `rule` | `nth`, `lowest`, `highest`, `random`, `up`, `down`, `updown`, `downup`, `updown+`, `downup+`, `rise`, `fall`, `outsidein`, `insideout`, `ends`, `shuffle`, `walk`, `norepeat` (or labels such as "Outside In") |
 | `offset`, `offset_fit` | −24 to 24 semitones; `up`, `down`, `exclude` or `ignore` for notes moved out of the scale |
 | `velocity` | 1 to 127 |
 | `channel` | 1 to 16. No two voices share one: a channel already taken moves the voice on to the next free one, with a warning |

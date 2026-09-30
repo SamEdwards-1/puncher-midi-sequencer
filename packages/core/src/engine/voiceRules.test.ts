@@ -63,10 +63,77 @@ describe("pickNote", () => {
     }
   })
 
-  it("copes with one note and with none", () => {
-    for (const rule of ["up", "updown", "rise", "fall", "downup+"] as const) {
-      expect(play(rule, 3, [60])).toEqual([60, 60, 60])
+  it("outside in and inside out visit each note from their respective starting points", () => {
+    expect(play("outsidein", 8)).toEqual([60, 72, 64, 67, 60, 72, 64, 67])
+    expect(play("insideout", 8)).toEqual([64, 67, 60, 72, 64, 67, 60, 72])
+    expect(play("outsidein", 6, [60, 64, 67])).toEqual([60, 67, 64, 60, 67, 64])
+    expect(play("insideout", 6, [60, 64, 67])).toEqual([64, 67, 60, 64, 67, 60])
+  })
+
+  it("ends alternates the lowest and highest notes", () => {
+    expect(play("ends", 6)).toEqual([60, 72, 60, 72, 60, 72])
+  })
+
+  it("shuffle plays each note once per cycle and avoids a repeat at the boundary", () => {
+    const played = play("shuffle", 40) as number[]
+    for (let start = 0; start < played.length; start += NOTES.length) {
+      expect(
+        [...played.slice(start, start + NOTES.length)].sort((a, b) => a - b),
+      ).toEqual(NOTES)
+      if (start > 0) expect(played[start]).not.toBe(played[start - 1])
     }
-    expect(play("up", 2, [])).toEqual([null, null])
+  })
+
+  it("walk moves one note position at a time without wrapping", () => {
+    const played = play("walk", 50) as number[]
+    for (let index = 1; index < played.length; index++) {
+      expect(
+        Math.abs(
+          NOTES.indexOf(played[index]) - NOTES.indexOf(played[index - 1]),
+        ),
+      ).toBe(1)
+    }
+  })
+
+  it("no repeat picks randomly without playing the same note twice in a row", () => {
+    const played = play("norepeat", 50) as number[]
+    for (let index = 1; index < played.length; index++) {
+      expect(NOTES).toContain(played[index])
+      expect(played[index]).not.toBe(played[index - 1])
+    }
+  })
+
+  it("no repeat avoids the same pitch when the chord changes", () => {
+    const rng = createRng(1)
+    const first = pickNote(
+      "norepeat",
+      NOTES,
+      initialCursor("norepeat", 4),
+      0,
+      rng,
+    )
+    const previous = first.note as number
+    const changed = [previous - 1, previous, previous + 1]
+    const next = pickNote("norepeat", changed, first.cursor, 0, rng)
+    expect(next.note).not.toBe(previous)
+  })
+
+  it("copes with one note and with none", () => {
+    for (const rule of [
+      "up",
+      "updown",
+      "rise",
+      "fall",
+      "downup+",
+      "outsidein",
+      "insideout",
+      "ends",
+      "shuffle",
+      "walk",
+      "norepeat",
+    ] as const) {
+      expect(play(rule, 3, [60])).toEqual([60, 60, 60])
+      expect(play(rule, 2, [])).toEqual([null, null])
+    }
   })
 })

@@ -107,7 +107,7 @@ const VOICE = object(
     ),
     rule: oneOf(
       RULE_NAMES,
-      "Which of the step's notes it plays: nth, voice N the Nth from the bottom; lowest; highest; random; up and down run through them; updown and downup bounce between the ends, updown+ and downup+ playing the ends twice; rise goes up 2 and down 1, fall down 2 and up 1",
+      "Which of the step's notes it plays: nth, voice N the Nth from the bottom; lowest; highest; random; up and down run through them; updown and downup bounce between the ends, updown+ and downup+ playing the ends twice; rise goes up 2 and down 1, fall down 2 and up 1; outsidein and insideout alternate from the ends or middle; ends alternates the lowest and highest; shuffle plays every note once per random order; walk moves to a neighboring note; norepeat picks randomly without repeating the previous note",
     ),
     offset: integer("Semitones its notes are moved by", -24, 24),
     offset_fit: oneOf(FIT_NAMES, FIT_HINT),

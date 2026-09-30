@@ -134,6 +134,12 @@ export type VoiceRule =
   | "downup+"
   | "rise"
   | "fall"
+  | "outsidein"
+  | "insideout"
+  | "ends"
+  | "shuffle"
+  | "walk"
+  | "norepeat"
 
 export interface VoiceJSON {
   enabled: boolean

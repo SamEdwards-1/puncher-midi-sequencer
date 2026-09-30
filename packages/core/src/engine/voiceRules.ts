@@ -8,6 +8,12 @@ export interface RuleCursor {
   forward: boolean
   // for rise/fall: true when the next move is the long one (up 2 / down 2)
   longStep: boolean
+  // previous note position for the walk rule
+  lastIndex: number | null
+  // previous pitch for rules that avoid an immediate repeat
+  lastNote: number | null
+  // note positions remaining in the current shuffle cycle
+  order: number[]
 }
 
 export const initialCursor = (
@@ -15,15 +21,16 @@ export const initialCursor = (
   noteCount: number,
 ): RuleCursor => {
   const top = Math.max(0, noteCount - 1)
+  const start = { lastIndex: null, lastNote: null, order: [] }
   switch (rule) {
     case "down":
     case "downup":
     case "downup+":
     case "fall":
     case "highest":
-      return { index: top, forward: false, longStep: true }
+      return { ...start, index: top, forward: false, longStep: true }
     default:
-      return { index: 0, forward: true, longStep: true }
+      return { ...start, index: 0, forward: true, longStep: true }
   }
 }
 
@@ -53,6 +60,85 @@ export const pickNote = (
       return { note: notes[top], cursor }
     case "random":
       return { note: notes[Math.floor(rng.next() * count)], cursor }
+    case "outsidein": {
+      const position = wrap(cursor.index, count)
+      const index = position % 2 === 0 ? position / 2 : top - (position - 1) / 2
+      return {
+        note: notes[index],
+        cursor: { ...cursor, index: wrap(position + 1, count) },
+      }
+    }
+    case "insideout": {
+      const position = wrap(cursor.index, count)
+      const middle = Math.floor(top / 2)
+      const index =
+        position % 2 === 0 ? middle - position / 2 : middle + (position + 1) / 2
+      return {
+        note: notes[index],
+        cursor: { ...cursor, index: wrap(position + 1, count) },
+      }
+    }
+    case "ends": {
+      const index = cursor.index === 0 ? 0 : top
+      return {
+        note: notes[index],
+        cursor: { ...cursor, index: index === 0 ? top : 0 },
+      }
+    }
+    case "shuffle": {
+      let order = cursor.order
+      if (order.length !== count || cursor.index >= count) {
+        order = Array.from({ length: count }, (_, index) => index)
+        for (let index = top; index > 0; index--) {
+          const other = Math.floor(rng.next() * (index + 1))
+          ;[order[index], order[other]] = [order[other], order[index]]
+        }
+        // A new cycle should not immediately repeat the last note of the old one.
+        if (count > 1 && notes[order[0]] === cursor.lastNote) {
+          const different = order.findIndex(
+            (index) => notes[index] !== cursor.lastNote,
+          )
+          if (different > 0) {
+            ;[order[0], order[different]] = [order[different], order[0]]
+          }
+        }
+      }
+      const position = order === cursor.order ? cursor.index : 0
+      const index = order[position]
+      return {
+        note: notes[index],
+        cursor: {
+          ...cursor,
+          index: position + 1,
+          lastNote: notes[index],
+          order,
+        },
+      }
+    }
+    case "walk": {
+      const previous = cursor.lastIndex
+      const index =
+        previous === null || previous >= count
+          ? Math.floor(rng.next() * count)
+          : previous === 0
+            ? 1 % count
+            : previous === top
+              ? top - 1
+              : previous + (rng.next() < 0.5 ? -1 : 1)
+      return { note: notes[index], cursor: { ...cursor, lastIndex: index } }
+    }
+    case "norepeat": {
+      const different = notes
+        .map((_, index) => index)
+        .filter((index) => notes[index] !== cursor.lastNote)
+      const choices =
+        different.length > 0 ? different : notes.map((_, index) => index)
+      const index = choices[Math.floor(rng.next() * choices.length)]
+      return {
+        note: notes[index],
+        cursor: { ...cursor, lastNote: notes[index] },
+      }
+    }
     case "up": {
       const index = wrap(cursor.index, count)
       return {
