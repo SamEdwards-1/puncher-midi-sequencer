@@ -5,8 +5,14 @@ import {
   PatchJSON,
 } from "@midiseq/core"
 import { beforeEach, describe, expect, it } from "vitest"
-import { FakeClock, FakeSink, ManualTicker } from "../test/fakes"
+import {
+  FakeClock,
+  FakeSink,
+  ManualRoundPreviewer,
+  ManualTicker,
+} from "../test/fakes"
 import { OutputRouter } from "./OutputRouter"
+import { RoundJob } from "./RoundPreviewer"
 import { SequencerPlayer } from "./SequencerPlayer"
 
 // 120 BPM: one beat every 500 ms, one quarter-note voice at half gate
@@ -186,6 +192,72 @@ describe("SequencerPlayer", () => {
     expect(player.isPlaying).toBe(false)
   })
 
+  describe("a late tick", () => {
+    it("sends what fell due a little late, rather than pausing", () => {
+      player.play()
+      runFor(925)
+      // everything up to 2045 ms is out; the next tick comes 110 ms on
+      clock.time = 1945
+      ticker.tick()
+      clock.time = 2055
+      ticker.tick()
+
+      expect(all.ofType(0x90).map((message) => message.time)).toEqual([
+        1050, 1550, 2055,
+      ])
+      expect(player.stats.report()).toMatchObject({
+        late: 1,
+        maxLate: 5,
+        stalls: 0,
+      })
+    })
+
+    it("pauses the sequence after a stall, then picks up where it was", () => {
+      player.play()
+      runFor(1000)
+      // everything up to 2100 ms is out when the page stalls for two seconds
+      clock.time += 2000
+      ticker.tick()
+      // what was due 0.1 beat into the second step is due now
+      expect(player.step).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.1)
+      runFor(1000)
+
+      // no burst: the beat goes on 500 ms apart from where it paused, and
+      // the note sounding across the stall ends as the sequence reaches its
+      // end
+      expect(all.ofType(0x90).map((message) => message.time)).toEqual([
+        1050, 1550, 2050, 4450, 4950,
+      ])
+      expect(all.ofType(0x80).map((message) => message.time)).toEqual([
+        1300, 1800, 4200, 4700,
+      ])
+      expect(player.stats.report()).toMatchObject({
+        late: 0,
+        stalls: 1,
+        stalled: 1900,
+      })
+    })
+
+    it("keeps the clock pulsing through a stall rather than bursting", () => {
+      player.setSendClock(true)
+      player.play()
+      runFor(1000)
+      clock.time += 2000
+      ticker.tick()
+      runFor(1000)
+
+      const ticks = all.sent
+        .filter((message) => message.data[0] === 0xf8)
+        .map((message) => message.time ?? 0)
+      const gaps = ticks.slice(1).map((time, index) => time - ticks[index])
+      // a 24th of a beat apart, but for the one pause
+      const uneven = gaps.filter((gap) => Math.abs(gap - 500 / 24) > 1e-6)
+      expect(uneven).toHaveLength(1)
+      expect(uneven[0]).toBeGreaterThan(1900)
+    })
+  })
+
   describe("previewStep", () => {
     // one sequencer step is 1 beat (500 ms); the voice plays 8ths
     const previewPatch = () => {
@@ -314,6 +386,26 @@ describe("SequencerPlayer", () => {
       expect(offs).toHaveLength(ons.length)
     })
 
+    it("pauses after a stall, as the sequence does", () => {
+      const patch = previewPatch()
+      patch.pace = "4bar"
+      player.setPatch(patch)
+      player.previewStep(0)
+      // sent up to 2100 ms when the page stalls for three seconds
+      runFor(1000)
+      clock.time += 3000
+      ticker.tick()
+      // 1100 ms into its 8 seconds, where it paused
+      expect(player.playhead(0)).toBeCloseTo(1100 / 8000)
+      runFor(1000)
+
+      const ons = all.ofType(0x90).map((message) => message.time ?? 0)
+      const gaps = ons.slice(1).map((time, index) => time - ons[index])
+      // 8ths 250 ms apart, but for the one pause
+      expect(gaps.filter((gap) => gap !== 250)).toEqual([250 + 2900])
+      expect(player.stats.report()).toMatchObject({ stalls: 1, late: 0 })
+    })
+
     it("stops sending once silenced", () => {
       const patch = previewPatch()
       patch.pace = "4bar"
@@ -369,6 +461,75 @@ describe("SequencerPlayer", () => {
       expect(player.roundNotes?.notes.map((note) => note.note)).toEqual([
         67, 67,
       ])
+    })
+
+    describe("played ahead in their own time", () => {
+      let previewer: ManualRoundPreviewer
+      let deferred: SequencerPlayer
+
+      beforeEach(() => {
+        previewer = new ManualRoundPreviewer()
+        deferred = new SequencerPlayer(driftingPatch(), new OutputRouter(), {
+          now: clock.now,
+          ticker,
+          seed: 1,
+          roundPreviewer: previewer.create,
+        })
+        deferred.setOutputs({ all: [all], voices: [voice0, null, null, null] })
+      })
+
+      it("wait on what is due, and show once played", () => {
+        deferred.play()
+        // the first note is out before its round has been played ahead
+        expect(all.ofType(0x90).map((message) => message.time)).toEqual([1050])
+        expect(previewer.wakes).toBe(1)
+        runFor(100)
+        expect(deferred.step).toBe(0)
+        expect(deferred.roundNotes).toBeNull()
+
+        const job = previewer.take()
+        expect(job).not.toBeNull()
+        previewer.finish(job as RoundJob)
+        expect(deferred.roundNotes?.notes.map((note) => note.start)).toEqual([
+          0, 0.75,
+        ])
+        expect(previewer.take()).toBeNull()
+      })
+
+      it("keep to the latest edit, whichever is played first", () => {
+        deferred.play()
+        runFor(100)
+        const before = previewer.take() as RoundJob
+        const patch = driftingPatch()
+        patch.steps[0].notes = [67]
+        deferred.setPatch(patch)
+        expect(previewer.wakes).toBe(2)
+        const after = previewer.take() as RoundJob
+        expect(after.id).toBe(before.id)
+        expect(after.revision).toBeGreaterThan(before.revision)
+
+        previewer.finish(after)
+        previewer.finish(before)
+        expect(deferred.roundNotes?.notes.map((note) => note.note)).toEqual([
+          67, 67,
+        ])
+      })
+
+      it("forget a round gone by, and play the sounding one first", () => {
+        deferred.play()
+        runFor(100)
+        const gone = previewer.take() as RoundJob
+        // step 1 lands at 1550 ms, then step 0 again at 2050 ms
+        runFor(1000)
+        previewer.finish(gone)
+        expect(deferred.roundNotes).toBeNull()
+
+        previewer.finish(previewer.take() as RoundJob)
+        expect(deferred.roundNotes?.step).toBe(0)
+        expect(deferred.roundNotes?.notes.map((note) => note.start)).toEqual([
+          0.25,
+        ])
+      })
     })
   })
 

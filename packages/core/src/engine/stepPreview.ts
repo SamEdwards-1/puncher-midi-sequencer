@@ -201,22 +201,17 @@ export interface StepRound {
 
 /**
  * What the sequencer plays on its next round, as an engine playing live will
- * play it — played on a fork of it, which is left just before the round
- * after. The engine itself is left as it was.
+ * play it: played on `engine`, which is left just before the round after.
+ * To know a live engine's next round, play it on an engine made from its
+ * snapshot.
  */
-export const nextRound = (
-  engine: Engine,
-): { round: StepRound; after: Engine } => {
-  const after = engine.fork()
-  const { events, beat, length, landed } = nextWindow(after)
+export const playRound = (engine: Engine): StepRound => {
+  const { events, beat, length, landed } = nextWindow(engine)
   return {
-    round: {
-      beat,
-      length,
-      step: landed?.step ?? null,
-      notes: notesIn(events, beat, length),
-    },
-    after,
+    beat,
+    length,
+    step: landed?.step ?? null,
+    notes: notesIn(events, beat, length),
   }
 }
 

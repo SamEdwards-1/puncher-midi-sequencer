@@ -597,7 +597,11 @@ out. Run the ones for what you've changed with, say,
 
 The engine works in floating-point beats and hands the player timestamped
 events; the player schedules about 100 ms ahead, ticked from a Web Worker, so
-playback keeps time even when the tab is in the background.
+playback keeps time even when the tab is in the background. The notes each
+round of the sequencer plays, which the step editor shows, are worked out on a
+worker of their own, so a long step never holds up what is due. In the
+console, `midiseq.player.stats.report()` shows how the scheduling is keeping
+up: how long ticks take, and any events sent late.
 
 ### Themes
 

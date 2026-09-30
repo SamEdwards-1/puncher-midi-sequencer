@@ -3,9 +3,9 @@ import { createDefaultPatch } from "../entities/defaults"
 import { PatchJSON } from "../entities/types"
 import { Engine } from "./Engine"
 import {
-  nextRound,
   noteCollisions,
   oneStepPatch,
+  playRound,
   previewStep,
   StepNote,
   stepNotes,
@@ -342,7 +342,9 @@ describe("the sequencer's next round", () => {
     const engine = new Engine(driftingPatch(), { seed: 9 })
     engine.start(0)
     for (let count = 0; count < 12; count++) {
-      const { round } = nextRound(engine)
+      const round = playRound(
+        new Engine(engine.getPatch(), { from: engine.snapshot() }),
+      )
       const beat = engine.nextStepBeat
       // played live, a little at a time
       const played = []
@@ -362,12 +364,11 @@ describe("the sequencer's next round", () => {
     }
   })
 
-  it("leaves the engine as it was, and a fork to go on from", () => {
+  it("leaves the engine it plays on just before the round after", () => {
     const engine = new Engine(driftingPatch(), { seed: 9 })
     engine.start(0)
-    const { round, after } = nextRound(engine)
-    expect(engine.nextStepBeat).toBe(0)
-    expect(after.nextStepBeat).toBe(round.beat + round.length)
-    expect(nextRound(after).round.step).toBe(1)
+    const round = playRound(engine)
+    expect(engine.nextStepBeat).toBe(round.beat + round.length)
+    expect(playRound(engine).step).toBe(1)
   })
 })

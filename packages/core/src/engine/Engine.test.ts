@@ -793,6 +793,26 @@ describe("Engine", () => {
     expect(run(7)).not.toEqual(run(8))
   })
 
+  it("plays on from a snapshot as it goes on itself, as often as asked", () => {
+    patch.direction = "random"
+    patch.voices[0].rule = "random"
+    patch.voices[0].pattern[1].probability = 50
+    patch.steps[0].notes = [60, 64, 67, 72]
+    patch.loop = { mode: "custom", end: 7 }
+    const engine = new Engine(patch, { seed: 7 })
+    engine.start(0)
+    engine.setActions({ transpose: true })
+    engine.render(5.3)
+
+    const snapshot = engine.snapshot()
+    const copy = () => new Engine(patch, { from: snapshot }).render(15.9)
+    const played = copy()
+    expect(played.length).toBeGreaterThan(0)
+    // the snapshot is left as it was, for another copy to play on from
+    expect(copy()).toEqual(played)
+    expect(engine.render(15.9)).toEqual(played)
+  })
+
   it("releases sounding notes on stop", () => {
     patch.voices[0].length = 1
     const engine = new Engine(patch)

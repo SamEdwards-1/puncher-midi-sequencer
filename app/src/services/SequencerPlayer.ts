@@ -6,16 +6,16 @@ import {
   Engine,
   EngineActions,
   EngineEvent,
+  EngineSnapshot,
   ModulatedSetting,
   modulatedSettings,
   NoteOffEvent,
   NoteOnEvent,
-  nextRound,
   PatchJSON,
   paceBeats,
+  StepAdvanceEvent,
   StepIndex,
   StepNote,
-  StepRound,
   sameModulationValue,
   sameTarget,
   stepEvents,
@@ -24,11 +24,20 @@ import {
 } from "@midiseq/core"
 import { makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
+import {
+  CreateRoundPreviewer,
+  createWorkerRoundPreviewer,
+  PlayedRound,
+  RoundJob,
+  RoundPreviewer,
+} from "./RoundPreviewer"
+import { SchedulerStats } from "./SchedulerStats"
 import { createWorkerTicker, Ticker } from "./Ticker"
 
 export interface SequencerPlayerOptions {
   now?: () => number
   ticker?: Ticker
+  roundPreviewer?: CreateRoundPreviewer
   lookaheadMs?: number
   startDelayMs?: number
   seed?: number
@@ -56,12 +65,21 @@ export interface StepProgress {
 }
 
 /**
- * A round of the sequencer on its way or sounding, and the engine as it was
- * just before it, to play the round again from should the patch change.
+ * A round of the sequencer on its way or sounding: when it lands, the step
+ * it lands on — or null where Hold keeps the one it was on — and the engine
+ * as it was just before it, to play it ahead from for its notes, and again
+ * should the patch change.
  */
-interface Round extends StepRound {
+interface Round {
+  id: number
   time: number
-  from: Engine
+  step: StepIndex | null
+  from: EngineSnapshot
+  // as played at `notesRevision` of the patch; null until played
+  notes: StepNote[] | null
+  notesRevision: number
+  // the latest revision it has been handed out to be played at
+  askedRevision: number
 }
 
 /** The notes the sounding step plays, as the sequence plays it this time. */
@@ -102,6 +120,10 @@ const TICK_MS = 25
 const LOOKAHEAD_MS = 100
 // gives the first events time to be scheduled before they are due
 const START_DELAY_MS = 50
+// how late events may go out before a stall pauses the sequence instead
+const STALL_TOLERANCE_MS = 20
+// renders up to, but not including, a beat
+const BEAT_EPSILON = 1e-9
 
 /**
  * Drives the engine in real time: on every tick it renders the next lookahead
@@ -130,10 +152,13 @@ export class SequencerPlayer {
   // patterns; null when stopped
   roundNotes: RoundNotes | null = null
   actions: EngineActions = createActions()
+  // how the scheduling keeps up, for reading from the console
+  readonly stats = new SchedulerStats()
 
   private readonly engine: Engine
   private readonly now: () => number
   private readonly ticker: Ticker
+  private readonly previewer: RoundPreviewer
   private readonly lookaheadMs: number
   private readonly startDelayMs: number
   private patch: PatchJSON
@@ -142,18 +167,25 @@ export class SequencerPlayer {
   private anchorBeat = 0
   // rendered events not yet due for scheduling, in beat order
   private pending: EngineEvent[] = []
+  // how far ahead the sequence has been scheduled
+  private scheduledUntil = 0
   private stepMarks: StepMark[] = []
   // the last step that has sounded, for recording onto it
   private landed: StepMark | null = null
   private dotMarks: { time: number; voice: number; dot: number }[] = []
-  // the rounds played ahead and not yet reached, and the one sounding
+  // the rounds rendered ahead and not yet reached, and the one sounding
   private rounds: Round[] = []
   private round: Round | null = null
+  private roundCount = 0
+  // counts the edits to the patch and accent amount the rounds play with
+  private revision = 0
   // the clicked step's events not yet handed to the router, in time order;
-  // the notes it has started and not yet ended; and its latest sent
+  // the notes it has started and not yet ended; its latest sent; and how
+  // far ahead it has been sent
   private previewPending: { time: number; event: EngineEvent }[] = []
   private previewSounding = new Map<string, NoteOnEvent>()
   private previewScheduled = 0
+  private previewUntil = 0
   private lastScheduledTime = 0
   private sendClock = false
   // whether the envelopes whose CC drives a setting go out as well
@@ -171,6 +203,10 @@ export class SequencerPlayer {
     this.tempo = patch.tempo
     this.now = options.now ?? (() => performance.now())
     this.ticker = options.ticker ?? createWorkerTicker(TICK_MS)
+    this.previewer = (options.roundPreviewer ?? createWorkerRoundPreviewer)(
+      this.nextRoundJob,
+      this.roundPlayed,
+    )
     this.lookaheadMs = options.lookaheadMs ?? LOOKAHEAD_MS
     this.startDelayMs = options.startDelayMs ?? START_DELAY_MS
     this.engine = new Engine(patch, {
@@ -251,6 +287,7 @@ export class SequencerPlayer {
       .filter((event) => this.sends(event))
       .map((event) => ({ time: now + event.beat * msPerBeat, event }))
       .sort((a, b) => a.time - b.time)
+    this.previewUntil = now
     this.sendPreview(now)
     if (!this.isPlaying) {
       this.ticker.start(this.tick)
@@ -259,13 +296,33 @@ export class SequencerPlayer {
 
   // Hands the clicked step's events due within the lookahead to the router.
   private sendPreview(now: number) {
+    // a stall pauses it, as it does the sequence
+    const overdue = now - this.previewUntil
+    if (
+      this.preview !== null &&
+      this.previewPending.length > 0 &&
+      overdue > STALL_TOLERANCE_MS
+    ) {
+      this.previewPending = this.previewPending.map(({ time, event }) => ({
+        time: time + overdue,
+        event,
+      }))
+      this.preview = {
+        ...this.preview,
+        time: this.preview.time + overdue,
+        end: this.preview.end + overdue,
+      }
+      this.stats.stall(overdue)
+    }
+
     const until = now + this.lookaheadMs
     let due = 0
     while (
       due < this.previewPending.length &&
       this.previewPending[due].time <= until
     ) {
-      const { time, event } = this.previewPending[due++]
+      const { time: at, event } = this.previewPending[due++]
+      const time = this.sendTime(at, now)
       if (event.type === "noteOn") {
         this.previewSounding.set(noteKey(event), event)
       } else if (event.type === "noteOff") {
@@ -276,6 +333,7 @@ export class SequencerPlayer {
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
     }
     this.previewPending = this.previewPending.slice(due)
+    this.previewUntil = until
   }
 
   // Cuts the clicked step short: what it has yet to send is dropped, and
@@ -295,20 +353,54 @@ export class SequencerPlayer {
     this.preview = null
   }
 
-  // The rounds on their way, played again from where each began, so what
-  // they show follows an edit made while they sound.
+  // The rounds on their way, and the one sounding, played again from where
+  // each began, so what they show follows an edit made while they sound.
   private replayRounds() {
-    const replay = (round: Round): Round => {
-      const from = round.from.fork()
-      from.setPatch(this.patch)
-      from.accentAmount = this.accentAmount
-      return { ...round, notes: nextRound(from).round.notes }
+    this.revision++
+    this.previewer.wake()
+  }
+
+  // The next round to play ahead for its notes, as the patch is now: the
+  // one sounding, then those on their way, soonest first.
+  private nextRoundJob = (): RoundJob | null => {
+    const round = [this.round, ...this.rounds].find(
+      (each): each is Round =>
+        each !== null && each.askedRevision < this.revision,
+    )
+    if (round === undefined) {
+      return null
     }
-    this.rounds = this.rounds.map(replay)
-    if (this.round !== null && this.roundNotes !== null) {
-      this.round = replay(this.round)
-      this.roundNotes = { ...this.roundNotes, notes: this.round.notes }
+    round.askedRevision = this.revision
+    return {
+      id: round.id,
+      revision: this.revision,
+      from: round.from,
+      patch: this.patch,
+      accentAmount: this.accentAmount,
     }
+  }
+
+  // A round's notes, played ahead: kept unless the round has gone by, or
+  // already has some played after a later edit.
+  private roundPlayed = ({ id, revision, notes }: PlayedRound) => {
+    const round = [this.round, ...this.rounds].find((each) => each?.id === id)
+    if (round == null || revision <= round.notesRevision) {
+      return
+    }
+    round.notes = notes
+    round.notesRevision = revision
+    if (round === this.round) {
+      this.roundNotes = this.notesOf(round)
+    }
+  }
+
+  // What a round plays, once played ahead; a round Hold keeps goes on with
+  // the step it was on.
+  private notesOf(round: Round | null): RoundNotes | null {
+    const step = round?.step ?? this.step
+    return round === null || round.notes === null || step === null
+      ? null
+      : { step, notes: round.notes }
   }
 
   setSendClock = (send: boolean) => {
@@ -404,6 +496,7 @@ export class SequencerPlayer {
     this.anchorTime = now + this.startDelayMs
     this.anchorBeat = 0
     this.pending = []
+    this.scheduledUntil = now
     this.stepMarks = []
     this.landed = null
     this.dotMarks = []
@@ -425,6 +518,7 @@ export class SequencerPlayer {
       return
     }
     this.ticker.stop()
+    this.stats.idle()
     const now = this.now()
     const sounding = this.engine
       .stop(Math.max(0, this.beatAt(now)))
@@ -456,21 +550,30 @@ export class SequencerPlayer {
       return
     }
     this.ticker.stop()
+    this.stats.idle()
     const now = this.now()
     this.router.panic(now, this.horizon(now))
     this.dropPreview()
   }
 
+  /**
+   * Schedules what falls due within the lookahead, then shows where the
+   * sequence has got to. What is due goes out first: the notes of the
+   * rounds it comes to are played ahead after that, being only for show.
+   */
   tick = () => {
     const now = this.now()
     this.sendPreview(now)
     if (!this.isPlaying) {
+      this.stats.tick(now, this.now())
       if (this.previewPending.length === 0) {
         this.ticker.stop()
+        this.stats.idle()
       }
       return
     }
 
+    this.recoverFromStall(now)
     // a tempo change keeps the current beat and bends time from here on
     if (this.patch.tempo !== this.tempo) {
       this.anchorBeat = this.beatAt(now)
@@ -480,14 +583,15 @@ export class SequencerPlayer {
 
     const toBeat = this.beatAt(now + this.lookaheadMs)
     this.emitClock(toBeat, now)
-    this.queueRounds(toBeat, now)
-    this.pending.push(...this.engine.render(toBeat))
+    const queued = this.rounds.length
+    this.pending.push(...this.renderRounds(toBeat, now))
     this.pending.sort((a, b) => a.beat - b.beat)
 
     let due = 0
     while (due < this.pending.length && this.pending[due].beat <= toBeat) {
       const event = this.pending[due++]
-      const time = Math.max(this.timeAt(event.beat), now)
+      const at = this.timeAt(event.beat)
+      const time = Math.max(at, now)
       if (event.type === "step") {
         this.stepMarks.push({
           time,
@@ -500,11 +604,16 @@ export class SequencerPlayer {
       } else if (event.type === "dot") {
         this.dotMarks.push({ time, voice: event.voice, dot: event.dot })
       } else if (this.sends(event)) {
-        this.router.route(event, time)
+        this.router.route(event, this.sendTime(at, now))
       }
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
     }
     this.pending = this.pending.slice(due)
+    this.scheduledUntil = now + this.lookaheadMs
+
+    if (this.rounds.length > queued) {
+      this.previewer.wake()
+    }
 
     let position = this.position
     let step = this.step
@@ -534,12 +643,7 @@ export class SequencerPlayer {
     }
     if (round !== this.round) {
       this.round = round
-      // a round Hold keeps goes on with the step it was on
-      const roundStep = round?.step ?? step
-      this.roundNotes =
-        round === null || roundStep === null
-          ? null
-          : { step: roundStep, notes: round.notes }
+      this.roundNotes = this.notesOf(round)
     }
 
     if (this.dotMarks.length > 0 && this.dotMarks[0].time <= now) {
@@ -565,23 +669,63 @@ export class SequencerPlayer {
     if (!sameSettings(modulated, this.modulated)) {
       this.modulated = modulated
     }
+    this.stats.tick(now, this.now())
   }
 
-  // Plays each round of the sequencer due by `toBeat` on a fork of the
-  // engine, before the engine itself plays into it, so all a step's notes
-  // are known as it lands.
-  private queueRounds(toBeat: number, now: number) {
-    let from = this.engine
-    while (from.nextStepBeat <= toBeat) {
-      const before = from === this.engine ? from.fork() : from
-      const { round, after } = nextRound(before)
-      this.rounds.push({
-        ...round,
-        time: Math.max(this.timeAt(round.beat), now),
-        from: before,
-      })
-      from = after
+  /**
+   * After a stall — the page held up, or put to sleep — long enough that
+   * events have gone by unsent, the sequence pauses for the time lost and
+   * picks up where it was, rather than rushing out all that was due at once.
+   * The notes keep their rhythm and the clock its pulse, nothing is dropped,
+   * and a note sounding across the stall holds on until the sequence comes
+   * to its end.
+   */
+  private recoverFromStall(now: number) {
+    const overdue = now - this.scheduledUntil
+    if (overdue <= STALL_TOLERANCE_MS) {
+      return
     }
+    this.anchorBeat = this.beatAt(this.scheduledUntil)
+    this.anchorTime = now
+    this.stats.stall(overdue)
+  }
+
+  // Renders on to `toBeat`, noting each round of the sequencer as it lands:
+  // the step it lands on, and the engine as it was just before, to play the
+  // round ahead from for its notes.
+  private renderRounds(toBeat: number, now: number): EngineEvent[] {
+    const events: EngineEvent[] = []
+    while (this.engine.isStarted && this.engine.nextStepBeat <= toBeat) {
+      const beat = this.engine.nextStepBeat
+      events.push(...this.engine.render(beat - BEAT_EPSILON))
+      const from = this.engine.snapshot()
+      const landing = this.engine.render(beat)
+      events.push(...landing)
+      const landed = landing.find(
+        (event): event is StepAdvanceEvent => event.type === "step",
+      )
+      this.rounds.push({
+        id: this.roundCount++,
+        time: Math.max(this.timeAt(beat), now),
+        step: landed?.step ?? null,
+        from,
+        notes: null,
+        notesRevision: -1,
+        askedRevision: -1,
+      })
+    }
+    events.push(...this.engine.render(toBeat))
+    return events
+  }
+
+  // When an event due at `time` goes out: then, or at once if that has gone
+  // by, which counts as late.
+  private sendTime(time: number, now: number): number {
+    if (time >= now) {
+      return time
+    }
+    this.stats.lateEvent(now - time)
+    return now
   }
 
   private sends(event: EngineEvent): boolean {
@@ -600,7 +744,7 @@ export class SequencerPlayer {
     const due = Math.floor(toBeat * CLOCKS_PER_BEAT)
     const bytes = clockBytes("clock")
     for (let tick = this.clockSent + 1; tick <= due; tick++) {
-      const time = Math.max(this.timeAt(tick / CLOCKS_PER_BEAT), now)
+      const time = this.sendTime(this.timeAt(tick / CLOCKS_PER_BEAT), now)
       this.router.clock(bytes, time)
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
     }
