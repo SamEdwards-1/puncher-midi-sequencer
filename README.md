@@ -538,6 +538,7 @@ a worked example, and how it's built.
 | `Ctrl+Z` / `Ctrl+Shift+Z` or `Ctrl+Y` | undo / redo |
 | `Ctrl+S` / `Ctrl+Shift+S` | save / save as |
 | `Ctrl+O` | open |
+| `Ctrl+C` / `Ctrl+V` | copy the selected step / paste onto it |
 | `H` `Y` `F` `S` | hold Hold, Sync, Flip, Shift — or, with Latch on, turn them on and off |
 | `B` | Draw, and back to Edit, with the envelope graph focused |
 | `Alt` | points and strokes off the grid, while dragging or drawing |

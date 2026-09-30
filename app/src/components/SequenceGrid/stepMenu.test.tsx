@@ -71,6 +71,20 @@ describe("a step's menu", () => {
     expect(patch().steps[4].notes).toEqual([60])
   })
 
+  it("copies and pastes the selected step with Ctrl+C and Ctrl+V", () => {
+    setup()
+    fireEvent.click(step(2))
+    fireEvent.keyDown(window, { code: "KeyC", ctrlKey: true })
+    fireEvent.click(step(5))
+    fireEvent.keyDown(window, { code: "KeyV", ctrlKey: true })
+    expect(patch().steps[4].notes).toEqual([61])
+
+    // Cmd stands in for Ctrl
+    fireEvent.click(step(3))
+    fireEvent.keyDown(window, { code: "KeyV", metaKey: true })
+    expect(patch().steps[2].notes).toEqual([61])
+  })
+
   it("inserts an empty step before or after, and selects it", () => {
     setup()
     choose(2, "Insert before")
