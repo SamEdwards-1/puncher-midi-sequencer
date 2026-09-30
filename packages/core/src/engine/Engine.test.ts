@@ -394,7 +394,7 @@ describe("Engine", () => {
       expect(ccs(engine.render(1.1))).toEqual([{ beat: 1 + 1 / 48, value: 40 }])
     })
 
-    it("plays out once and then holds while Hold keeps the step", () => {
+    it("starts over each time round while Hold keeps the step", () => {
       patch.steps[0].envelopes = [
         envelope([
           { time: 0, value: 0 },
@@ -405,9 +405,19 @@ describe("Engine", () => {
       engine.start(0)
       engine.render(0.5)
       engine.setActions({ hold: true })
-      const later = ccs(engine.render(3.9))
-      // the rest of the first step's line, then nothing more
-      expect(later.at(-1)).toEqual({ beat: 47 / 48, value: 47 })
+      const later = ccs(engine.render(2.99))
+      // the rest of the first step's line, then the whole of it twice more,
+      // each round from its opening value
+      expect(later.filter((cc) => cc.value === 0).map((cc) => cc.beat)).toEqual(
+        [1, 2],
+      )
+      expect(later.find((cc) => cc.beat === 1.5)?.value).toBe(24)
+      expect(later.find((cc) => cc.beat === 2.5)?.value).toBe(24)
+      expect(later.at(-1)).toEqual({ beat: 2 + 47 / 48, value: 47 })
+
+      // let go, the next step lands, and it has no envelope to start
+      engine.setActions({ hold: false })
+      expect(ccs(engine.render(3.9))).toEqual([])
     })
 
     it("sends nothing for an envelope without points", () => {

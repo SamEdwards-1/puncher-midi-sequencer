@@ -291,14 +291,18 @@ export class Engine {
     const { patch, runtime } = this
 
     // Hold keeps the phase moving but never advances the step, which goes on
-    // as long as it lasts each time round. Hold and Flip are read as the
-    // step ends, so a step's envelope has them as it leaves it.
+    // as long as it lasts each time round, its envelopes starting over with
+    // it. Hold and Flip are read as the step ends, so a step's envelope has
+    // them as it leaves it.
     if (this.actionAt({ kind: "action", setting: "hold" }, beat)) {
       const held = runtime.envelope?.step
-      runtime.nextSeqBeat = onPaceGrid(
-        beat +
-          paceBeats(held === undefined ? patch.pace : stepPace(patch, held)),
+      const lengthBeats = paceBeats(
+        held === undefined ? patch.pace : stepPace(patch, held),
       )
+      runtime.nextSeqBeat = onPaceGrid(beat + lengthBeats)
+      if (held !== undefined) {
+        this.landEnvelopes(held, beat, lengthBeats, events)
+      }
       this.tickSynced(beat)
       return
     }
@@ -437,7 +441,8 @@ export class Engine {
   /**
    * Starts the landed step's envelopes: each sends its opening value now,
    * in list order and ahead of the notes on this beat — rests included, as
-   * a rest still lands — and then follows its curve across the step.
+   * a rest still lands — and then follows its curve across the step. Hold
+   * starts them over each time round it keeps the step.
    */
   private landEnvelopes(
     step: StepIndex,
