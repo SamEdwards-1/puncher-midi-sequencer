@@ -39,15 +39,15 @@
   --midiseq-step-skip: #312d3c;             /* derived */
   --midiseq-scrollbar: #ffefff38;           /* scrollbarSlider.background, more opaque */
   --midiseq-scrollbar-hover: #ffefff66;     /* scrollbarSlider.hoverBackground, more opaque */
-  --midiseq-jump-0: #d5971a;                /* bright, from abyss syntax constant */
+  --midiseq-jump-0: #ffce03;                /* bright, from plum-dusk syntax variable.parameter */
   --midiseq-jump-1: #53f8ed;                /* bright, from espresso terminal.ansiBrightBlue */
   --midiseq-jump-2: #df769b;                /* bright, from abyss syntax keyword */
-  --midiseq-jump-3: #70bf56;                /* bright, from night-market syntax markup.inserted */
-  --midiseq-jump-4: #fd6209;                /* bright, from ember-room syntax meta.preprocessor.at-rule keyword.control.at-rule */
+  --midiseq-jump-3: #a6e22e;                /* bright, from neon-orchard syntax markup.inserted */
+  --midiseq-jump-4: #fa841d;                /* bright, from frost syntax variable.other.object.property */
   --midiseq-jump-5: #9959ff;                /* bright, from plum-dusk syntax constant.numeric */
-  --midiseq-jump-6: #cded1c;                /* bright, from neon-orchard syntax string */
+  --midiseq-jump-6: #16b673;                /* bright, from abyss syntax string.template */
   --midiseq-jump-7: #4fbfff;                /* bright, from night-market terminal.ansiBlue */
-  --midiseq-collision-0: #f43275;           /* bright, from plum-dusk syntax keyword */
+  --midiseq-collision-0: #d0a1ff;           /* bright, from night-market terminal.ansiMagenta */
   --midiseq-collision-1: #ffce03;           /* bright, from plum-dusk syntax variable.parameter */
   --midiseq-collision-2: #53f8ed;           /* bright, from espresso terminal.ansiBrightBlue */
   --midiseq-collision-3: #7cd827;           /* bright, from neon-orchard syntax storage.type */

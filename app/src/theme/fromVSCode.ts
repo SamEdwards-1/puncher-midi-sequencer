@@ -223,6 +223,10 @@ const BRIGHT_CHROMA = 0.13
 const BRIGHT_LIGHTNESS = [0.62, 0.92]
 // and no two in the list look closer than this
 const BRIGHT_APART = 0.05
+// The jumps and collisions are small dots, told apart by hue alone: an amber
+// and an orange differ enough in lightness to pass DISTINCT, yet read as one
+// colour. No two of a set are nearer in hue than this.
+const BRIGHT_HUE_APART = 30
 // Keys for what lies over the editor for a moment, a drop target or a
 // search's matches, often a bare primary: loud, not the theme's palette.
 const PASSING = /drop|highlight|selection|hover|find|match|range|bracket/i
@@ -293,7 +297,8 @@ export type Drawn = {
  * Each of the names gets a colour from the brights, the one nearest the hue
  * it has in the layout, the closest pairs settled first, and then made
  * legible against what it sits on. None is taken that looks too like one
- * already taken or one the set keeps clear of. A name with no hue in the
+ * already taken, or sits too near it in hue, or looks too like one the set
+ * keeps clear of. A name with no hue in the
  * layout, or none near enough, takes the hue furthest from those taken, and
  * failing that one clear only of the set's own. Should nothing be left, a
  * name keeps its layout colour, made legible.
@@ -320,7 +325,11 @@ export const drawBrights = (
     const colour = legible(bright.colour)
     if (
       chosen.has(name) ||
-      taken.some((other) => difference(other, colour) < DISTINCT) ||
+      taken.some(
+        (other) =>
+          difference(other, colour) < DISTINCT ||
+          hueDistance(toOKLCH(other).h, toOKLCH(colour).h) < BRIGHT_HUE_APART,
+      ) ||
       (clear && avoid.some((other) => difference(other, colour) < CLEAR))
     ) {
       return
