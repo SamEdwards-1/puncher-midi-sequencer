@@ -1,5 +1,6 @@
 import { FC, HTMLAttributes, ReactNode } from "react"
 import { cn } from "./cn"
+import { GUTTER_RIGHT } from "./Panel"
 
 // A label and its control, the controls of a column of rows lined up past
 // the longest label. The row is a named group, so what sits beside a label
@@ -17,7 +18,9 @@ const LIVE =
   "[&_input]:text-envelope [&_select]:border-envelope [&_select]:text-envelope [&_[data-combobox]]:border-envelope [--midiseq-slider-thumb:var(--midiseq-envelope)]"
 
 export const Fields: FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="flex flex-col px-4 pt-2 pb-3">{children}</div>
+  <div className={cn("flex flex-col pl-4", GUTTER_RIGHT, "pt-2 pb-3")}>
+    {children}
+  </div>
 )
 
 interface FieldProps {

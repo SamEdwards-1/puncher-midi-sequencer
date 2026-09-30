@@ -7,6 +7,8 @@ import { usePatch } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { IconButton } from "../ui/Button"
+import { cn } from "../ui/cn"
+import { BLEED_RIGHT, GUTTER_RIGHT } from "../ui/Panel"
 import { Select } from "../ui/Select"
 
 const VALUE = "font-mono text-fg"
@@ -110,7 +112,15 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
   }
 
   return (
-    <div className="-mx-4 flex flex-col gap-2 border-t border-divider px-4 pt-2">
+    <div
+      className={cn(
+        "-ml-4",
+        BLEED_RIGHT,
+        "flex flex-col gap-2 border-t border-divider pl-4",
+        GUTTER_RIGHT,
+        "pt-2",
+      )}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center gap-[0.4rem]">
           <label htmlFor="jump-rule">{localized["sequencer-jump-rule"]}</label>

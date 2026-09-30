@@ -24,7 +24,12 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { cn } from "../ui/cn"
 import { menuPoint, Point } from "../ui/Menu"
-import { Panel, PanelHeader } from "../ui/Panel"
+import {
+  GUTTER_RIGHT,
+  Panel,
+  PanelHeader,
+  useScrollbarGutter,
+} from "../ui/Panel"
 import { Toggle } from "../ui/Toggle"
 import { ActionButtons, ActionIcons } from "./ActionButtons"
 import { PatchName } from "./PatchName"
@@ -359,9 +364,10 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
    */
   const scroller = useRef<HTMLDivElement>(null)
   const { width, height } = useSize(scroller)
+  const gutter = useScrollbarGutter(scroller)
   const fullGrid = Math.max(
     MIN_GRID,
-    Math.min(width - 32, height * START_SHARE - 2 * GRID_PAD),
+    Math.min(width + gutter - 32, height * START_SHARE - 2 * GRID_PAD),
   )
   const fullLayer = fullGrid + 2 * GRID_PAD
   const smallestLayer = MIN_GRID + 2 * GRID_PAD
@@ -408,8 +414,14 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
         ref={scroller}
         data-grid-scroller
         className="min-h-0 flex-1 overflow-y-auto"
-        // what focus scrolls to lands below the grid, not under it
-        style={{ scrollPaddingTop: smallestLayer }}
+        style={
+          {
+            // what focus scrolls to lands below the grid, not under it
+            scrollPaddingTop: smallestLayer,
+            // for the gutters inside to give up the scrollbar's width
+            "--scrollbar-gutter": `${gutter}px`,
+          } as CSSProperties
+        }
         onScroll={onScroll}
       >
         {/* the grid's layer: its full height in the layout, see-through and
@@ -422,7 +434,11 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
             ref={frame}
             data-grid-frame
             // without Preflight, padding would add to the height it is given
-            className="pointer-events-auto box-border flex items-center justify-center bg-background px-4 shadow-[0_1px_0_var(--midiseq-divider)]"
+            className={cn(
+              "pointer-events-auto box-border flex items-center justify-center bg-background pl-4",
+              GUTTER_RIGHT,
+              "shadow-[0_1px_0_var(--midiseq-divider)]",
+            )}
             style={
               {
                 "--grid-scroll": "0px",
