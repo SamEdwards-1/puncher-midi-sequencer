@@ -1,9 +1,16 @@
 import { stepPace } from "../entities/modulation"
 import { paceBeats } from "../entities/paces"
-import { MAX_STEPS, PatchJSON, StepIndex, VoiceIndex } from "../entities/types"
+import {
+  MAX_STEPS,
+  PatchJSON,
+  StepIndex,
+  StepJSON,
+  VoiceIndex,
+} from "../entities/types"
+import { DEFAULT_ACCENT_AMOUNT } from "../entities/velocity"
 import { Engine } from "./Engine"
 import { EngineEvent, StepAdvanceEvent } from "./events"
-import { playableSteps, stepCount, viewIndex } from "./loopRange"
+import { hasContent, playableSteps, stepCount, viewIndex } from "./loopRange"
 
 const BEAT_EPSILON = 1e-9
 
@@ -284,6 +291,102 @@ export const stepNotes = (
   step: StepIndex,
   options: StepNotesOptions = {},
 ): StepNote[] => previewStep(patch, step, options).notes
+
+// Whether two objects hold the same values, by reference, but for the keys
+// in `except`, which are left to the caller.
+const sameBut = <T extends object>(a: T, b: T, except: (keyof T)[] = []) =>
+  a === b ||
+  [...new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[])].every(
+    (key) => except.includes(key) || a[key] === b[key],
+  )
+
+const sameEach = <T>(a: T[], b: T[], same: (x: T, y: T) => boolean) =>
+  a === b || (a.length === b.length && a.every((x, i) => same(x, b[i])))
+
+/**
+ * Whether every step previews alike in two patches: they differ at most in
+ * what no preview hears. That is the name; the tempo, as a preview counts
+ * in beats; the mod outs, which send CCs but roll no chances; the voices'
+ * programs, which only the built-in sound plays; and the points of any
+ * envelope on a CC that drives no setting — though not whether a step has
+ * points at all, which a recorded loop reaches to. Everything else is
+ * compared by reference, so an edit that rebuilds a part the same is taken
+ * as a change.
+ */
+export const previewsAlike = (a: PatchJSON, b: PatchJSON): boolean => {
+  if (!sameBut(a, b, ["name", "tempo", "modOuts", "voices", "steps"])) {
+    return false
+  }
+  // the modulations are the same, so the CCs they read are
+  const read = new Set(a.modulations.map(({ cc }) => cc))
+  const heard = (step: StepJSON) =>
+    step.envelopes.filter(({ cc }) => read.has(cc))
+  return (
+    sameEach(a.voices, b.voices, (x, y) => sameBut(x, y, ["program"])) &&
+    sameEach(
+      a.steps,
+      b.steps,
+      (x, y) =>
+        x === y ||
+        (sameBut(x, y, ["envelopes"]) &&
+          hasContent(x) === hasContent(y) &&
+          sameEach(heard(x), heard(y), Object.is)),
+    )
+  )
+}
+
+/**
+ * previewStep, keeping what it made, so everything showing a step shares
+ * one preview of it: a patch that previews alike (see previewsAlike) has
+ * the same one back, the same object, and an edit nothing on the step hears
+ * costs nothing. Only the latest few are kept, so patches gone from the
+ * page are let go.
+ */
+export class StepPreviews {
+  // how many previews it has had to make, rather than had kept: for
+  // reading from the console
+  made = 0
+  private kept: {
+    patch: PatchJSON
+    step: StepIndex
+    seed: number
+    accentAmount: number
+    preview: StepPreview
+  }[] = []
+
+  constructor(private readonly size = 8) {}
+
+  get(
+    patch: PatchJSON,
+    step: StepIndex,
+    { seed = 1, accentAmount = DEFAULT_ACCENT_AMOUNT }: StepNotesOptions = {},
+  ): StepPreview {
+    const index = this.kept.findIndex(
+      (each) =>
+        each.step === step &&
+        each.seed === seed &&
+        each.accentAmount === accentAmount &&
+        previewsAlike(each.patch, patch),
+    )
+    const preview =
+      index === -1
+        ? this.make(patch, step, { seed, accentAmount })
+        : this.kept.splice(index, 1)[0].preview
+    // held with the latest patch, and first, to be found again soonest
+    this.kept.unshift({ patch, step, seed, accentAmount, preview })
+    this.kept.length = Math.min(this.kept.length, this.size)
+    return preview
+  }
+
+  private make(
+    patch: PatchJSON,
+    step: StepIndex,
+    options: StepNotesOptions,
+  ): StepPreview {
+    this.made++
+    return previewStep(patch, step, options)
+  }
+}
 
 /** A pattern dot: which voice, and where in its pattern. */
 export interface VoiceDot {

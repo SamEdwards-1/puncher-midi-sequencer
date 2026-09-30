@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
-import { PatchJSON } from "../entities/types"
+import { EnvelopeJSON, PatchJSON, StepJSON } from "../entities/types"
+import { DEFAULT_ACCENT_AMOUNT } from "../entities/velocity"
 import { Engine } from "./Engine"
 import {
   noteCollisions,
@@ -8,6 +9,7 @@ import {
   playRound,
   previewStep,
   StepNote,
+  StepPreviews,
   stepNotes,
 } from "./stepPreview"
 
@@ -204,6 +206,184 @@ describe("where the voices are when a step lands", () => {
     patch.steps[1].state = "skip"
     expect(previewStep(patch, 1).voiceDots).toEqual([0, 0, 0, 0])
     expect(stepNotes(patch, 1)[0].dot).toBe(0)
+  })
+})
+
+describe("previews kept to share", () => {
+  let patch: PatchJSON
+  let previews: StepPreviews
+
+  // Edits made as the app makes them, sharing what they leave alone.
+  const withStep = (
+    patch: PatchJSON,
+    index: number,
+    changes: Partial<StepJSON>,
+  ): PatchJSON => ({
+    ...patch,
+    steps: patch.steps.map((step, at) =>
+      at === index ? { ...step, ...changes } : step,
+    ),
+  })
+  const envelope = (cc: number, value: number): EnvelopeJSON => ({
+    id: 1,
+    cc,
+    channel: 1,
+    points: [{ time: 0, value }],
+  })
+
+  // Bar-long steps holding notes, voice 1 in 8ths and voice 2 at random, in
+  // dotted quarters at a chance: where the voices are on step 3, and what
+  // they play there, depends on everything before it.
+  beforeEach(() => {
+    patch = createDefaultPatch()
+    patch.pace = "1bar"
+    patch.steps = patch.steps.map((step, index) =>
+      index < 4 ? { ...step, notes: [60 + index, 64 + index] } : step,
+    )
+    patch.voices = patch.voices.map((voice, index) =>
+      index === 1
+        ? {
+            ...voice,
+            enabled: true,
+            pace: "4thD",
+            rule: "random",
+            pattern: voice.pattern.map((dot) => ({ ...dot, probability: 50 })),
+          }
+        : voice,
+    )
+    previews = new StepPreviews()
+  })
+
+  it("is the preview previewStep makes", () => {
+    expect(previews.get(patch, 2)).toEqual(previewStep(patch, 2))
+    expect(previews.get(patch, 2, { seed: 7, accentAmount: 30 })).toEqual(
+      previewStep(patch, 2, { seed: 7, accentAmount: 30 }),
+    )
+  })
+
+  it("hands back the same one for a patch no step hears differently", () => {
+    const first = previews.get(patch, 2)
+    const alike: PatchJSON[] = [
+      { ...patch, name: "Renamed", tempo: 90 },
+      {
+        ...patch,
+        modOuts: patch.modOuts.map((out) => ({ ...out, enabled: true })),
+      },
+      {
+        ...patch,
+        voices: patch.voices.map((voice) => ({ ...voice, program: 40 })),
+      },
+      // an envelope, and the same envelope redrawn, on a CC that drives
+      // nothing, on a step that already counts toward the loop
+      withStep(patch, 2, { envelopes: [envelope(1, 0)] }),
+      withStep(patch, 2, { envelopes: [envelope(1, 127)] }),
+    ]
+    for (const each of alike) {
+      expect(previews.get(each, 2)).toBe(first)
+      // and it is truly what the step plays
+      expect(previewStep(each, 2)).toEqual(first)
+    }
+    expect(previews.made).toBe(1)
+  })
+
+  it("makes a new one for any edit the step hears, on it or before it", () => {
+    const first = previews.get(patch, 3)
+    const heard: PatchJSON[] = [
+      withStep(patch, 3, { notes: [70] }),
+      // jumps, skips and rests on the way there
+      withStep(patch, 0, {
+        jump: { rule: { kind: "always" }, dest: 2, normal: null },
+      }),
+      withStep(patch, 1, { state: "skip" }),
+      withStep(patch, 1, { state: "rest" }),
+      { ...patch, direction: "random" },
+      { ...patch, direction: "bwd" },
+      // a step the sequence never reaches
+      withStep(patch, 3, { state: "skip" }),
+      { ...patch, syncVoices: true },
+      {
+        ...patch,
+        voices: patch.voices.map((voice) => ({ ...voice, pace: "16th" })),
+      },
+      {
+        ...patch,
+        voices: patch.voices.map((voice) => ({ ...voice, transposeAmt: 7 })),
+      },
+    ]
+    heard.forEach((each, index) => {
+      expect(previews.get(each, 3)).toEqual(previewStep(each, 3))
+      expect(previews.made).toBe(index + 2)
+    })
+    // an edit before the step that moves it along its patterns
+    expect(previews.get(heard[1], 3).voiceDots).not.toEqual(first.voiceDots)
+    // and back to where it started, found again or made again, as it was
+    expect(previews.get(patch, 3)).toEqual(first)
+  })
+
+  it("follows the envelopes that drive a setting, and not the others", () => {
+    patch.modulations = [
+      {
+        target: { kind: "voice", voice: 0, setting: "pace" },
+        cc: 30,
+        from: "4th",
+        to: "8th",
+      },
+    ]
+    // quarters rather than eighths across the step before
+    const slow = withStep(patch, 1, { envelopes: [envelope(30, 0)] })
+    const fast = withStep(patch, 1, { envelopes: [envelope(30, 127)] })
+    const slowPreview = previews.get(slow, 3)
+    const fastPreview = previews.get(fast, 3)
+    expect(fastPreview).toEqual(previewStep(fast, 3))
+    expect(fastPreview.voiceDots).not.toEqual(slowPreview.voiceDots)
+    expect(previews.made).toBe(2)
+
+    // one that drives nothing is not heard
+    const other = withStep(fast, 1, {
+      envelopes: [...fast.steps[1].envelopes, { ...envelope(1, 64), id: 2 }],
+    })
+    expect(previews.get(other, 3)).toBe(fastPreview)
+  })
+
+  it("follows the points that stretch a recorded loop", () => {
+    // step 7 lies past the notes, so it plays on its own until an envelope
+    // there, driving nothing, takes the loop to it
+    const reached = withStep(patch, 7, { envelopes: [envelope(1, 64)] })
+    expect(previews.get(patch, 7).voiceDots).toEqual([0, 0, 0, 0])
+    expect(previews.get(reached, 7)).toEqual(previewStep(reached, 7))
+    expect(previews.get(reached, 7).voiceDots[0]).toBe(8)
+    // though an envelope with no points is no content
+    const empty = withStep(patch, 7, {
+      envelopes: [{ ...envelope(1, 64), points: [] }],
+    })
+    expect(previews.get(empty, 7).voiceDots).toEqual([0, 0, 0, 0])
+  })
+
+  it("keeps each step, seed and accent amount apart", () => {
+    previews.get(patch, 1)
+    previews.get(patch, 2)
+    previews.get(patch, 2, { seed: 5 })
+    previews.get(patch, 2, { accentAmount: 30 })
+    expect(previews.made).toBe(4)
+    previews.get(patch, 1)
+    previews.get(patch, 2, { seed: 1, accentAmount: DEFAULT_ACCENT_AMOUNT })
+    previews.get(patch, 2, { seed: 5 })
+    previews.get(patch, 2, { accentAmount: 30 })
+    expect(previews.made).toBe(4)
+  })
+
+  it("lets the least lately used go once it holds its fill", () => {
+    const two = new StepPreviews(2)
+    two.get(patch, 0)
+    two.get(patch, 1)
+    // step 0 used again, so step 1 is the one to go
+    two.get(patch, 0)
+    two.get(patch, 2)
+    expect(two.made).toBe(3)
+    two.get(patch, 0)
+    expect(two.made).toBe(3)
+    two.get(patch, 1)
+    expect(two.made).toBe(4)
   })
 })
 
