@@ -18,13 +18,6 @@ export const MP3_BITRATES = [128, 192, 256, 320]
 export const AUDIO_CHANNELS = [2, 1]
 export const MAX_TAIL_SECONDS = 10
 
-// The longest a render can be, its tail included. A render holds all of its
-// sound at once while it is made — 46 MB of samples for two minutes of
-// stereo at 48 kHz, before the file — so its length is what bounds the
-// memory it takes. Passes alone don't: a slow tempo or long steps can run a
-// few passes to any length.
-export const MAX_RENDER_SECONDS = 120
-
 /** How long a render of the patch runs, in seconds, its tail included. */
 export const renderSeconds = (
   patch: PatchJSON,
@@ -67,8 +60,23 @@ export interface AudioRenderRequest {
   modulationCCs: boolean
 }
 
-// How far along a render is: its sound, then its file, each from 0 to 1.
+// How far along a render is, from 0 to 1: finding its loudest moment,
+// when it is to be normalized, then playing it into its file.
 export interface AudioRenderProgress {
-  phase: "render" | "encode"
+  phase: "measure" | "render"
   done: number
 }
+
+// What the page tells a render's worker: what to render, then, as each
+// piece of the file it sent is written, that it has been.
+export type AudioWorkerMessage =
+  | { type: "render"; request: AudioRenderRequest }
+  | { type: "written" }
+
+// What the worker tells the page: how far along it is, each piece of the
+// file in turn, and that it is done, or why it stopped.
+export type AudioWorkerReply =
+  | { type: "progress"; progress: AudioRenderProgress }
+  | { type: "piece"; bytes: Uint8Array<ArrayBuffer> }
+  | { type: "done" }
+  | { type: "error"; message: string }

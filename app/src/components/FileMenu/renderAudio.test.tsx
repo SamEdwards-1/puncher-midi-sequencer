@@ -24,17 +24,20 @@ import { ManualTicker, soundBank } from "../../test/fakes"
 import { fileItem } from "../../test/menus"
 import { App } from "../App/App"
 
-// A render that waits to be told how far along it is, and when it is done.
+// A render that waits to be told how far along it is, what it writes, and
+// when it is done.
 const fakeRenderer = () => {
   const requests: AudioRenderRequest[] = []
   let report: (progress: AudioRenderProgress) => void = () => {}
-  let finish: (bytes: Uint8Array<ArrayBuffer>) => void = () => {}
+  let write: (bytes: Uint8Array<ArrayBuffer>) => Promise<void> = async () => {}
+  let finish: () => void = () => {}
   let cancelled = false
-  const renderer: AudioRenderer = (request, onProgress) => {
+  const renderer: AudioRenderer = (request, onProgress, writer) => {
     requests.push(request)
     report = onProgress
+    write = writer
     let fail: (error: Error) => void = () => {}
-    const result = new Promise<Uint8Array<ArrayBuffer>>((resolve, reject) => {
+    const result = new Promise<void>((resolve, reject) => {
       finish = resolve
       fail = reject
     })
@@ -50,14 +53,16 @@ const fakeRenderer = () => {
     renderer,
     requests,
     report: (progress: AudioRenderProgress) => act(() => report(progress)),
-    finish: (bytes: Uint8Array<ArrayBuffer>) => act(() => finish(bytes)),
+    write: (bytes: Uint8Array<ArrayBuffer>) => act(() => write(bytes)),
+    finish: () => act(() => finish()),
     get cancelled() {
       return cancelled
     },
   }
 }
 
-// A save picker that keeps what it is asked and what is written through it.
+// A save picker that keeps what it is asked and what is written through it,
+// and whether the file was kept or its writing thrown away.
 const fakeSaving = () => {
   const written: unknown[] = []
   const asked: { suggestedName?: string; types?: unknown }[] = []
@@ -67,12 +72,19 @@ const fakeSaving = () => {
       write: async (contents: unknown) => {
         written.push(contents)
       },
-      close: async () => {},
+      close: async () => {
+        saving.closed = true
+      },
+      abort: async () => {
+        saving.aborted = true
+      },
     }),
   } as unknown as FileSystemFileHandle
   const saving = {
     written,
     asked,
+    closed: false,
+    aborted: false,
     // the picker closed without a place chosen
     dismiss: false,
     service: new FileService({
@@ -156,36 +168,7 @@ describe("rendering audio", () => {
     expect(length()).toBe("0:04")
   })
 
-  it("keeps a render to two minutes, its tail included", () => {
-    const tempo = (bpm: number) =>
-      act(() => {
-        rootStore.sequencerStore.patch = {
-          ...rootStore.sequencerStore.patch,
-          tempo: bpm,
-        }
-      })
-    // twelve seconds a pass at 10 BPM, and two seconds to ring out
-    tempo(10)
-    for (let press = 0; press < 12; press++) {
-      fireEvent.click(button("Passes up"))
-    }
-    // nine passes and the tail fit; a tenth would run to 2:02
-    expect(rootStore.audioExportSettings.settings.passes).toBe(9)
-    expect(dialog().queryByRole("alert")).toBeNull()
-    expect(button("Render")).toBeEnabled()
-
-    // slower, the same passes run over
-    tempo(8)
-    expect(dialog().getByRole("alert").textContent).toBe(
-      "A render can run at most 2:00.",
-    )
-    expect(document.querySelector("[data-render-length]")?.textContent).toBe(
-      "2:17",
-    )
-    expect(button("Render")).toBeDisabled()
-  })
-
-  it("asks where the file goes, shows its progress, then writes it", async () => {
+  it("asks where the file goes, shows its progress, and writes it as it goes", async () => {
     fireEvent.change(dialog().getByRole("textbox", { name: "File name" }), {
       target: { value: "Take 2.wav" },
     })
@@ -203,17 +186,24 @@ describe("rendering audio", () => {
       new Uint8Array(soundBank()),
     )
 
-    rendering.report({ phase: "render", done: 0.42 })
+    rendering.report({ phase: "measure", done: 0.42 })
     const bar = dialog().getByRole("progressbar", { name: "Render progress" })
     expect(bar).toHaveAttribute("aria-valuenow", "42")
+    expect(dialog().getByText("Measuring the level…")).toBeTruthy()
+
+    rendering.report({ phase: "render", done: 0.5 })
     expect(dialog().getByText("Rendering…")).toBeTruthy()
 
-    rendering.report({ phase: "encode", done: 0.5 })
-    expect(dialog().getByText("Encoding…")).toBeTruthy()
-
-    const bytes = new Uint8Array([1, 2, 3])
-    rendering.finish(bytes)
-    await waitFor(() => expect(saving.written).toEqual([bytes]))
+    // each piece goes to the file as it comes, which is kept once all is
+    const pieces = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5])]
+    for (const piece of pieces) {
+      await rendering.write(piece)
+    }
+    expect(saving.written).toEqual(pieces)
+    expect(saving.closed).toBe(false)
+    rendering.finish()
+    await waitFor(() => expect(saving.closed).toBe(true))
+    expect(saving.aborted).toBe(false)
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
@@ -225,14 +215,15 @@ describe("rendering audio", () => {
     expect(JSON.stringify(saving.asked[0].types)).toContain("audio/mpeg")
   })
 
-  it("stops the render when cancelled, writing nothing", async () => {
+  it("stops the render when cancelled, throwing away what was written", async () => {
     fireEvent.click(button("Render"))
     await waitFor(() => expect(rendering.requests).toHaveLength(1))
+    await rendering.write(new Uint8Array([1, 2, 3]))
     fireEvent.click(button("Cancel"))
     expect(rendering.cancelled).toBe(true)
     expect(screen.queryByRole("dialog")).toBeNull()
-    await act(() => new Promise((done) => setTimeout(done, 0)))
-    expect(saving.written).toEqual([])
+    await waitFor(() => expect(saving.aborted).toBe(true))
+    expect(saving.closed).toBe(false)
     expect(window.alert).not.toHaveBeenCalled()
   })
 

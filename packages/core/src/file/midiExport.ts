@@ -137,26 +137,32 @@ const BEAT_EPSILON = 1e-9
 
 /**
  * Everything the sequence plays over `passes` passes from its start, worked
- * out at once and in silence: the notes and CCs a performance would send,
- * without sending any. A step at a time, since the engine caps what one
- * render returns. Whatever still sounds at the end is released there.
+ * out in silence: the notes and CCs a performance would send, without
+ * sending any, in the order they fall. A step at a time, since the engine
+ * caps what one render returns, and each step only as it is asked for, so a
+ * long sequence need never be held all at once. Whatever still sounds at the
+ * end is released there. The same seed gives the same events every time.
  */
-export const renderSequence = (
+export function* sequenceEvents(
   patch: PatchJSON,
   { passes, seed = 1, accentAmount }: MidiExportOptions,
-): EngineEvent[] => {
+): Generator<EngineEvent, void, undefined> {
   const steps = passes * passSteps(patch)
   const engine = new Engine(patch, { seed, accentAmount })
   engine.start(0)
-  const events: EngineEvent[] = []
   for (let step = 0; step < steps; step++) {
     // the landing, which settles how long the step lasts, then the rest
-    events.push(...engine.render(engine.nextStepBeat))
-    events.push(...engine.render(engine.nextStepBeat - BEAT_EPSILON))
+    yield* engine.render(engine.nextStepBeat)
+    yield* engine.render(engine.nextStepBeat - BEAT_EPSILON)
   }
-  events.push(...engine.stop(engine.nextStepBeat))
-  return events
+  yield* engine.stop(engine.nextStepBeat)
 }
+
+/** Everything the sequence plays over `passes` passes, all at once. */
+export const renderSequence = (
+  patch: PatchJSON,
+  options: MidiExportOptions,
+): EngineEvent[] => [...sequenceEvents(patch, options)]
 
 const ticks = (beat: number) => beat * MIDI_FILE_PPQ
 

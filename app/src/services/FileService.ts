@@ -33,6 +33,21 @@ export interface FileKind {
 // A file's contents: text, or bytes for a binary format such as MIDI.
 export type FileContents = string | Uint8Array<ArrayBuffer>
 
+/**
+ * A file written a piece at a time, for one too large to hold at once:
+ * kept, under the name `close` gives back, once closed, or left as it was
+ * if aborted instead.
+ */
+export interface FileStream {
+  write(bytes: Uint8Array<ArrayBuffer>): Promise<void>
+  close(): Promise<string>
+  abort(): Promise<void>
+}
+
+// How much of a download is gathered in pieces before they are folded into
+// the file so far: a file the browser may keep out of the page's memory.
+const DOWNLOAD_FOLD = 16 * 1024 * 1024
+
 export const PATCH_FILE: FileKind = {
   description: "midiseq patch",
   extension: FILE_EXTENSION,
@@ -117,6 +132,29 @@ const dismissed = (error: unknown): null => {
     return null
   }
   throw error
+}
+
+// A picked file, written a piece at a time. It is only opened for writing
+// once written to, and what is written goes to a copy the browser keeps
+// aside, which takes the file's place once closed, or is thrown away.
+const handleStream = (handle: FileSystemFileHandle): FileStream => {
+  let opened: Promise<FileSystemWritableFileStream> | null = null
+  const open = () => {
+    opened ??= handle.createWritable()
+    return opened
+  }
+  return {
+    write: async (bytes) => (await open()).write(bytes),
+    close: async () => {
+      await (await open()).close()
+      return handle.name
+    },
+    abort: async () => {
+      if (opened !== null) {
+        await (await opened).abort()
+      }
+    },
+  }
 }
 
 /**
@@ -243,23 +281,26 @@ export class FileService {
 
   /**
    * Asks where a copy goes now, while the click that asked for it still
-   * lets a picker open, and gives back what writes it there — for a file
-   * that takes a while to make. Where there is no picker, the copy is
-   * downloaded under `suggestedName` once it is written.
+   * lets a picker open, and gives back a stream that writes it there a piece
+   * at a time — for a file that takes a while to make, and may be too large
+   * to hold. Where the browser can write to the file, each piece goes to
+   * disk as it comes, and the file is only replaced once the stream is
+   * closed. Where there is no picker, the pieces are gathered up as a
+   * download under `suggestedName`, and downloaded once it is closed.
    */
-  async saveCopyLater(
+  async streamCopyLater(
     suggestedName: string,
     kind: FileKind,
-  ): Promise<((contents: FileContents) => Promise<string>) | null> {
+  ): Promise<FileStream | null> {
     if (this.pickers.showSaveFilePicker === undefined) {
-      return async (contents) => this.download(contents, suggestedName, kind)
+      return this.downloadStream(suggestedName, kind)
     }
     try {
       const handle = await this.pickers.showSaveFilePicker({
         ...pickerOptions(kind),
         suggestedName,
       })
-      return (contents) => this.write(handle, contents)
+      return handleStream(handle)
     } catch (error) {
       return dismissed(error)
     }
@@ -314,8 +355,38 @@ export class FileService {
     })
   }
 
+  // Pieces gathered into a download, folded into a file as they add up.
+  private downloadStream(name: string, kind: FileKind): FileStream {
+    const type = mimeTypeOf(kind)
+    let file = new Blob([], { type })
+    let pieces: Uint8Array<ArrayBuffer>[] = []
+    let gathered = 0
+    const fold = () => {
+      file = new Blob([file, ...pieces], { type })
+      pieces = []
+      gathered = 0
+    }
+    return {
+      write: async (bytes) => {
+        pieces.push(bytes)
+        gathered += bytes.length
+        if (gathered >= DOWNLOAD_FOLD) {
+          fold()
+        }
+      },
+      close: async () => {
+        fold()
+        return this.download(file, name, kind)
+      },
+      abort: async () => {
+        pieces = []
+        file = new Blob([], { type })
+      },
+    }
+  }
+
   private download(
-    contents: FileContents,
+    contents: FileContents | Blob,
     name: string,
     kind: FileKind = PATCH_FILE,
   ): string {

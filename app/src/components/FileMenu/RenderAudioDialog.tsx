@@ -8,7 +8,6 @@ import {
   AUDIO_CHANNELS,
   AUDIO_EXTENSIONS,
   AUDIO_FORMATS,
-  MAX_RENDER_SECONDS,
   MAX_TAIL_SECONDS,
   MP3_BITRATES,
   renderSeconds,
@@ -124,17 +123,6 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   const seconds = renderSeconds(patch, settings)
   // the sequence itself plays for no time at all: there is nothing to hear
   const silent = seconds === settings.tail
-  const tooLong = seconds > MAX_RENDER_SECONDS
-  // as many passes as fit in a render with this tail, though never fewer
-  // than one, which may itself be too long
-  let maxPasses = 1
-  while (
-    maxPasses < MAX_EXPORT_PASSES &&
-    renderSeconds(patch, { ...settings, passes: maxPasses + 1 }) <=
-      MAX_RENDER_SECONDS
-  ) {
-    maxPasses++
-  }
   const extension = AUDIO_EXTENSIONS[settings.format]
 
   const start = async () => {
@@ -174,7 +162,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
             <Button
               type="button"
               primary
-              disabled={baseName === "" || silent || tooLong || picking}
+              disabled={baseName === "" || silent || picking}
               onClick={() => void start()}
             >
               <Localized name="sequencer-render-audio-action" />
@@ -201,13 +189,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
               spellCheck={false}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  baseName !== "" &&
-                  !silent &&
-                  !tooLong &&
-                  !picking
-                ) {
+                if (event.key === "Enter" && baseName !== "" && !picking) {
                   void start()
                 }
               }}
@@ -282,28 +264,14 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
                 label={localized["sequencer-export-passes"]}
                 value={settings.passes}
                 min={1}
-                max={maxPasses}
-                invalid={tooLong}
+                max={MAX_EXPORT_PASSES}
                 onChange={(passes) => set("passes", passes)}
               />
             </div>
-            <span
-              className={cn(
-                "text-small",
-                tooLong ? "text-error" : "text-fg-tertiary",
-              )}
-              data-render-length
-            >
+            <span className="text-small text-fg-tertiary" data-render-length>
               {clock(seconds)}
             </span>
           </Row>
-
-          {tooLong && (
-            <p className="m-0 text-small text-error" role="alert">
-              <Localized name="sequencer-render-too-long" />{" "}
-              {clock(MAX_RENDER_SECONDS)}.
-            </p>
-          )}
 
           <Row label={<Localized name="sequencer-render-tail" />}>
             <div className="w-28 flex-none">
@@ -337,17 +305,19 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   )
 }
 
+const PHASE_LABELS = {
+  loading: "sequencer-render-loading",
+  measure: "sequencer-render-measuring",
+  render: "sequencer-render-rendering",
+  saving: "sequencer-render-saving",
+} as const
+
 // How far along a render is: what it is doing, and a bar that fills as it
-// goes — one that just waits while the SoundFont loads.
+// goes — one that just waits while the SoundFont loads and the file is kept.
 const Progress: FC<{ status: AudioRenderStatus }> = ({ status }) => {
   const localized = useLocalization()
-  const done = status.phase === "loading" ? null : status.done
-  const label =
-    status.phase === "loading"
-      ? localized["sequencer-render-loading"]
-      : status.phase === "render"
-        ? localized["sequencer-render-rendering"]
-        : localized["sequencer-render-encoding"]
+  const done = "done" in status ? status.done : null
+  const label = localized[PHASE_LABELS[status.phase]]
   const percent = done === null ? null : Math.round(done * 100)
 
   return (
