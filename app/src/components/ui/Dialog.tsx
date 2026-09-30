@@ -15,7 +15,17 @@ export const Dialog: FC<{
   children: ReactNode
   footer?: ReactNode
   narrow?: boolean
-}> = ({ title, closeLabel, onClose, children, footer, narrow = false }) => {
+  // between narrow and the full width: a few rows of wide controls
+  medium?: boolean
+}> = ({
+  title,
+  closeLabel,
+  onClose,
+  children,
+  footer,
+  narrow = false,
+  medium = false,
+}) => {
   const panel = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -47,7 +57,9 @@ export const Dialog: FC<{
         tabIndex={0}
         className={cn(
           "flex max-h-[min(44rem,90vh)] flex-col rounded-lg border border-popup-border bg-background shadow-[0_1rem_3rem_var(--midiseq-shadow)] focus:outline-none",
-          narrow ? "w-[min(26rem,100%)]" : "w-[min(46rem,100%)]",
+          narrow && "w-[min(26rem,100%)]",
+          medium && "w-[min(36rem,100%)]",
+          !narrow && !medium && "w-[min(46rem,100%)]",
         )}
       >
         <h2 className="m-0 px-6 pt-5 pb-3 text-title font-semibold text-fg">
