@@ -1,4 +1,5 @@
-import { AudioRenderRequest, renderAudio } from "./renderAudio"
+import type { AudioRenderRequest } from "./audioExport"
+import { renderAudio } from "./renderAudio"
 
 /**
  * A render on a thread of its own, so the page carries on while it runs. It

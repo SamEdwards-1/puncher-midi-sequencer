@@ -1,6 +1,40 @@
 import { createDefaultPatch, PatchJSON } from "@midiseq/core"
-import { describe, expect, it } from "vitest"
-import { audioTimeline, encodeMp3, encodeWav, normalize } from "./renderAudio"
+import { describe, expect, it, vi } from "vitest"
+import type {
+  AudioRenderProgress,
+  AudioRenderRequest,
+  AudioRenderSettings,
+} from "./audioExport"
+import { encodeMp3 } from "./encodeMp3"
+import { audioTimeline, encodeWav, normalize, renderAudio } from "./renderAudio"
+
+// There is no SoundFont to play in a test, so the synth is a stand-in that
+// plays a quiet tone whatever it is sent: the render around it is what is
+// tested here.
+vi.mock("spessasynth_core", () => ({
+  MIDIController: {},
+  SoundBankLoader: { fromArrayBuffer: () => ({}) },
+  SpessaSynthProcessor: class {
+    soundBankManager = { addSoundBank: () => {} }
+    processorInitialized = Promise.resolve()
+    setSystemParameter() {}
+    noteOn() {}
+    noteOff() {}
+    controllerChange() {}
+    programChange() {}
+    process(
+      left: Float32Array,
+      right: Float32Array,
+      at: number,
+      count: number,
+    ) {
+      for (let index = at; index < at + count; index++) {
+        left[index] = right[index] = Math.sin(index / 20) * 0.25
+      }
+    }
+    destroySynthProcessor() {}
+  },
+}))
 
 // two steps a quarter note each at 120, one note in each, voice 1 alone
 const twoSteps = (): PatchJSON => {
@@ -113,5 +147,52 @@ describe("encoding", () => {
     const peak = Math.max(...[...left, ...right].map(Math.abs))
     expect(peak).toBeCloseTo(10 ** (-1 / 20), 5)
     expect(right[0]).toBeCloseTo(-(10 ** (-1 / 20)), 5)
+  })
+})
+
+describe("rendering a file", () => {
+  const render = async (settings: Partial<AudioRenderSettings>) => {
+    const request: AudioRenderRequest = {
+      patch: twoSteps(),
+      soundFont: new ArrayBuffer(8),
+      settings: {
+        format: "wav",
+        sampleRate: 44100,
+        channels: 2,
+        wavBitDepth: 16,
+        mp3Bitrate: 128,
+        passes: 1,
+        tail: 0,
+        normalize: true,
+        ...settings,
+      },
+      seed: 1,
+      accentAmount: 0,
+      modulationCCs: true,
+    }
+    const told: AudioRenderProgress[] = []
+    const bytes = await renderAudio(request, (progress) => told.push(progress))
+    return { bytes, told }
+  }
+
+  it("writes a WAV of the sequence, its sound told before its file", async () => {
+    const { bytes, told } = await render({ format: "wav" })
+    expect(text(bytes, 0, 4)).toBe("RIFF")
+    expect(text(bytes, 8, 4)).toBe("WAVE")
+    // two steps of a quarter note at 120: a second of 16-bit stereo
+    expect(bytes.length).toBe(44 + 44100 * 2 * 2)
+    const phases = told.map(({ phase }) => phase)
+    expect(phases.indexOf("encode")).toBe(phases.lastIndexOf("render") + 1)
+    expect(told.at(-1)).toEqual({ phase: "encode", done: 1 })
+  })
+
+  it("writes an MP3 of it when that is the format", async () => {
+    const { bytes, told } = await render({ format: "mp3", channels: 1 })
+    const sync = bytes.findIndex(
+      (byte, at) => byte === 0xff && (bytes[at + 1] & 0xe0) === 0xe0,
+    )
+    expect(sync).toBeGreaterThanOrEqual(0)
+    expect(text(bytes, 0, 4)).not.toBe("RIFF")
+    expect(told.at(-1)).toEqual({ phase: "encode", done: 1 })
   })
 })

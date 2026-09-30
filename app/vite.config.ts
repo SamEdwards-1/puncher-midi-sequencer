@@ -2,6 +2,7 @@ import { createServer } from "node:net"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { bundleBudget } from "./scripts/bundleBudget.ts"
 
 // the app's own types are the browser's; the dev server needs PORT
 declare const process: { env: Record<string, string | undefined> }
@@ -43,9 +44,30 @@ export default defineConfig(async () => {
     chosen === undefined ? await findPort(DEFAULT_PORT) : Number(chosen)
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      // a few percent over the build of 2026-09-30: 779.4 kB of first-download
+      // code, 242.1 kB gzipped, and a 460.7 kB render worker
+      bundleBudget({
+        initial: { bytes: 800_000, gzip: 250_000 },
+        notInitial: [
+          "@breezystack/lamejs",
+          "wav-encoder",
+          "spessasynth_core",
+          "spessasynth_lib",
+          "stb-vorbis",
+        ],
+        files: { "renderAudio.worker": 480_000 },
+      }),
+    ],
     build: {
       sourcemap: true,
+    },
+    worker: {
+      // an ES module worker can split off the code only some renders need,
+      // which an IIFE one, the default, inlines back into itself
+      format: "es" as const,
     },
     server: {
       port,
@@ -58,6 +80,11 @@ export default defineConfig(async () => {
       // the core package is workspace source; pre-bundling it serves stale
       // copies after it changes
       exclude: ["@midiseq/core"],
+      // only the render worker and what it loads import these, and the
+      // dependency scan doesn't follow workers: left to be found when the
+      // first render starts, they're optimized then and the page reloaded
+      // under it
+      include: ["spessasynth_core", "wav-encoder", "@breezystack/lamejs"],
     },
   }
 })

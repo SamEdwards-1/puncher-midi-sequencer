@@ -1,4 +1,3 @@
-import { Mp3Encoder } from "@breezystack/lamejs"
 import {
   controlChangeBytes,
   exportBeats,
@@ -12,59 +11,11 @@ import {
 } from "spessasynth_core"
 import WavEncoder from "wav-encoder"
 import { AllOutDedupe } from "../services/AllOutDedupe"
-
-export type AudioFormat = "wav" | "mp3"
-
-// 32 is floating point, as WAV keeps it
-export type WavBitDepth = 16 | 24 | 32
-
-export const AUDIO_FORMATS: AudioFormat[] = ["wav", "mp3"]
-export const SAMPLE_RATES = [44100, 48000]
-export const WAV_BIT_DEPTHS: WavBitDepth[] = [16, 24, 32]
-export const MP3_BITRATES = [128, 192, 256, 320]
-export const AUDIO_CHANNELS = [2, 1]
-export const MAX_TAIL_SECONDS = 10
-
-export const AUDIO_EXTENSIONS: Record<AudioFormat, string> = {
-  wav: ".wav",
-  mp3: ".mp3",
-}
-
-/** How a render sounds and what it is written as. */
-export interface AudioRenderSettings {
-  format: AudioFormat
-  sampleRate: number
-  // 2 for stereo, 1 to fold both sides into one
-  channels: number
-  wavBitDepth: WavBitDepth
-  // kilobits a second
-  mp3Bitrate: number
-  // how many times through the sequence
-  passes: number
-  // seconds left to ring out after the last step, for releases and reverb
-  tail: number
-  // raised or lowered so the loudest moment peaks just short of full scale
-  normalize: boolean
-}
-
-export interface AudioRenderRequest {
-  patch: PatchJSON
-  // the SoundFont the built-in sound plays
-  soundFont: ArrayBuffer
-  settings: AudioRenderSettings
-  // chance and the random rules are rolled from this, as an export's are
-  seed: number
-  accentAmount: number
-  // whether the envelopes driving modulated settings reach the synth, as
-  // they do the outputs while playing
-  modulationCCs: boolean
-}
-
-// How far along a render is: its sound, then its file, each from 0 to 1.
-export interface AudioRenderProgress {
-  phase: "render" | "encode"
-  done: number
-}
+import type {
+  AudioRenderProgress,
+  AudioRenderRequest,
+  WavBitDepth,
+} from "./audioExport"
 
 /** A MIDI message and when it plays, in seconds from the start. */
 export interface TimedMessage {
@@ -249,45 +200,6 @@ export const encodeWav = (
     ),
   )
 
-// LAME takes whole frames of this many samples most readily.
-const MP3_FRAME = 1152
-
-const pcm16 = (samples: Float32Array) =>
-  Int16Array.from(samples, (sample) => {
-    const clipped = Math.max(-1, Math.min(1, sample))
-    return Math.round(clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff)
-  })
-
-export const encodeMp3 = (
-  channels: Float32Array[],
-  sampleRate: number,
-  bitrate: number,
-  onProgress: (done: number) => void = () => {},
-): Uint8Array<ArrayBuffer> => {
-  const encoder = new Mp3Encoder(channels.length, sampleRate, bitrate)
-  const pcm = channels.map(pcm16)
-  const length = pcm[0].length
-  // a chunk of frames at a time, so progress can be told as it goes
-  const chunk = MP3_FRAME * 64
-  const parts: Uint8Array[] = []
-  for (let from = 0; from < length; from += chunk) {
-    const to = Math.min(length, from + chunk)
-    const [left, right] = pcm.map((samples) => samples.subarray(from, to))
-    parts.push(encoder.encodeBuffer(left, right))
-    onProgress(to / length)
-  }
-  parts.push(encoder.flush())
-  const bytes = new Uint8Array(
-    parts.reduce((total, part) => total + part.length, 0),
-  )
-  let offset = 0
-  for (const part of parts) {
-    bytes.set(part, offset)
-    offset += part.length
-  }
-  return bytes
-}
-
 /**
  * The sequence as an audio file, played through the built-in sound's
  * SoundFont, from its start for as many passes as asked, then left to ring
@@ -322,12 +234,18 @@ export const renderAudio = async (
     normalize(channels)
   }
   onProgress({ phase: "encode", done: 0 })
-  const bytes =
-    settings.format === "mp3"
-      ? encodeMp3(channels, settings.sampleRate, settings.mp3Bitrate, (done) =>
-          onProgress({ phase: "encode", done }),
-        )
-      : encodeWav(channels, settings.sampleRate, settings.wavBitDepth)
+  let bytes: Uint8Array<ArrayBuffer>
+  if (settings.format === "mp3") {
+    const { encodeMp3 } = await import("./encodeMp3")
+    bytes = encodeMp3(
+      channels,
+      settings.sampleRate,
+      settings.mp3Bitrate,
+      (done) => onProgress({ phase: "encode", done }),
+    )
+  } else {
+    bytes = encodeWav(channels, settings.sampleRate, settings.wavBitDepth)
+  }
   onProgress({ phase: "encode", done: 1 })
   return bytes
 }

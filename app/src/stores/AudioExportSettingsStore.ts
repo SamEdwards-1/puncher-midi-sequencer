@@ -7,7 +7,7 @@ import {
   MP3_BITRATES,
   SAMPLE_RATES,
   WAV_BIT_DEPTHS,
-} from "../audio/renderAudio"
+} from "../audio/audioExport"
 import { MAX_EXPORT_PASSES } from "./ExportSettingsStore"
 import { defaultStorage, read, write } from "./storage"
 
