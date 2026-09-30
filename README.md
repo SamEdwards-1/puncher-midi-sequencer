@@ -135,30 +135,29 @@ Down the left are the sequencer's own settings:
   **Loop end** you give it.
 - **Sync voices** — every step starts each voice from the first dot of its
   pattern (see [Voices](#voices)).
-- **Shift amt** — how far **Shift** transposes, up to 24 semitones either
-  way.
 - **Step notes** — how many notes a step holds, 1 to 4; recording fills a
   step to it.
-- **Scale**, the detected scales under it, and the scale fits — see
-  [Scales](#scales).
+- **Scale** and the detected scales under it — see [Scales](#scales).
+- **Transpose** — how far the **Transpose** action moves new notes, up to 24
+  semitones either way — and its **Scale fit** (see [Scales](#scales)).
 - **Mark** — **Rest** and **Skip**, for marking steps in the grid.
 
-<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Shift amt, Shift scale fit, Step notes, Scale, the detected scales and Mark">
+<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Step notes, Scale, the detected scales, Transpose, Scale fit and Mark">
 
 ### Scales
 
 Pick a scale under **Scale** — a tonic, and one of ten scales — or click one
-of the tags under it: **Chromatic**, for no scale, and up to four that best
-fit every note the steps hold. The wand beside **Scale** picks the best of
+of the tags under it: up to four that best fit every note the steps hold,
+then **Chromatic**, for no scale. The wand beside **Scale** picks the best of
 them. The step editor then draws the scale's keys beside the notes and
 shows any note outside it in red; notes entered by hand are let be, only
 marked. The envelope editor's keyboard tints the keys in it.
 
 Notes you record are fitted to it — moved up to the nearest note in it,
 unless an import chose otherwise — and so is a note that a voice's
-**Offset**, or **Shift**, moves out of it, as **Offset scale fit** and
-**Shift scale fit** say: **Up** or **Down** to the nearest note in it,
-**Exclude** to leave the note out, or **Ignore** to play it anyway.
+**Transpose**, or the sequencer's, moves out of it, as the **Scale fit**
+under each says: **Up** or **Down** to the nearest note in it, **Exclude** to
+leave the note out, or **Ignore** to play it anyway.
 
 The ten are major, minor, dorian, phrygian, lydian, mixolydian, harmonic
 minor, the major and minor pentatonics, and minor blues — so that a
@@ -248,7 +247,7 @@ While the step on show sounds — played in the sequence, or clicked with
 ### Voices
 
 Each of the four voices has its own pace, gate length, note-picking rule (up,
-down, random, highest, and so on), offset of up to 24 semitones either way,
+down, random, highest, and so on), transpose of up to 24 semitones either way,
 velocity, channel and rhythm pattern — and, played through the built-in synth,
 an instrument. Because voices run at their own pace, a single chord step can
 become an arpeggio, a bass line and a lead at once.
@@ -293,13 +292,13 @@ is held — or, with **Latch** on, from one press until the next:
 | **Hold** | the step stops advancing while the voices keep playing |
 | **Sync** | the selected voice plays at the sequencer's pace, a note each step; let go, it picks its own pace up again |
 | **Flip** | swaps the grid's rows and columns, from the next step on |
-| **Shift** | transposes new notes by the Shift amount |
+| **Transpose** | transposes new notes by the sequencer's Transpose setting |
 
 ### Modulation
 
 A CC can drive a setting from the steps: a voice's pace, length, rule,
-offset, offset scale fit and pattern, and the sequencer's size, pace,
-direction, loop mode, shift amount, shift scale fit, step notes and scale.
+transpose, transpose fit and pattern, and the sequencer's size, pace,
+direction, loop mode, transpose amount, transpose fit, step notes and scale.
 Hover a setting's label and a gear appears beside it. Click
 it to choose the CC — it offers the next one MIDI leaves undefined that
 nothing in the patch uses yet — and the range the CC's 0 to 127 runs across,
@@ -312,10 +311,11 @@ numbers give way to the setting's values — paces, rules, scales — its points
 snap to them, and a dashed line marks the field's own value. A step lasts as
 long as the sequencer's pace as it lands; the voices follow their envelopes as
 they play. Size, Direction and Loop are read from the outgoing step at each
-transition; the first step starts from the saved settings. Shift amount and
-Step notes follow the envelope as notes play, with Shift amount applying
-while Shift is on. Modulating Size or Step notes keeps the stored steps and
-notes; Loop changes the mode while keeping the custom loop end.
+transition; the first step starts from the saved settings. The Transpose
+setting and Step notes follow the envelope as notes play, the Transpose
+setting applying while the Transpose action is on. Modulating Size or Step
+notes keeps the stored steps and notes; Loop changes the mode while keeping
+the custom loop end.
 While the sequence plays, a modulated field shows the value the
 sounding step's envelope has it at, in the envelopes' colour, and goes back to
 its own value on a step without one. Point at the field, or use it, and it
@@ -334,11 +334,11 @@ setting beside each one.
 ![Voice 1's Pace modulated by CC 3: its gear open, from 8th to 32nd, on steps 5 and 8; in the envelope editor, the Pace 1 tab reading paces down its right side, a dashed line at the field's own 16th](screenshots/modulation.png)
 
 The actions can be driven the same way. Hover **Hold**, **Sync**, **Flip** or
-**Shift** under the grid and a gear appears at its corner; the title bar's
+**Transpose** under the grid and a gear appears at its corner; the title bar's
 icons have none. An action's envelope is Off or On, and a step with one turns
 the action on or off whatever its button says: Hold and Flip as the step ends
 — a step whose envelope has Hold on at its end is kept until the envelope
-changes or the sequence stops — Sync as the step lands, and Shift at each
+changes or the sequence stops — Sync as the step lands, and Transpose at each
 note. Every other step leaves the action to its button. Sync's gear is the
 selected voice's, so each voice is synced on steps of its own. While the
 sequence plays, a button a step's envelope drives shows it on or off in the
@@ -519,7 +519,7 @@ deployed. Where the browser has no WebMCP, nothing is offered.
 | `step_menu` | what right-clicking a step offers: copy, paste, insert before or after, clear, delete |
 | `play`, `stop` | the transport |
 | `set_recording` | the **Record** button, and the step recording goes into |
-| `set_actions` | Hold, Sync, Flip and Shift, on until turned off |
+| `set_actions` | Hold, Sync, Flip and Transpose, on until turned off |
 | `select_step` | what a click on the grid does: shows the step, sounds it, or plays it next |
 | `undo`, `redo` | **Edit → Undo** and **Redo** |
 | `clear_sequence` | empties the steps and resets the voices |
@@ -538,7 +538,7 @@ a worked example, and how it's built.
 | `Ctrl+Z` / `Ctrl+Shift+Z` or `Ctrl+Y` | undo / redo |
 | `Ctrl+S` / `Ctrl+Shift+S` | save / save as |
 | `Ctrl+O` | open |
-| `H` `Y` `F` `S` | hold Hold, Sync, Flip, Shift — or, with Latch on, turn them on and off |
+| `H` `Y` `F` `T` | hold Hold, Sync, Flip, Transpose — or, with Latch on, turn them on and off |
 | `B` | Draw, and back to Edit, with the envelope graph focused |
 | `Alt` | points and strokes off the grid, while dragging or drawing |
 | `Esc` | closes a dialog, menu or popup |

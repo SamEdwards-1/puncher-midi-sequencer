@@ -33,7 +33,9 @@ const ACTIONS = object({
     "Plays the synced voice at the sequencer's pace, a note each step",
   ),
   flip: boolean("Swaps the grid's rows and columns, from the next step on"),
-  shift: boolean("Transposes new notes by the sequencer's shift amount"),
+  transpose: boolean(
+    "Transposes new notes by the sequencer's Transpose setting",
+  ),
   sync_voice: integer(
     "The voice Sync plays, which selects it in the Voices panel",
     1,
@@ -176,13 +178,13 @@ export const createTools = (
 
     tool({
       name: "set_actions",
-      title: "Hold, Sync, Flip or Shift",
+      title: "Hold, Sync, Flip or Transpose",
       description:
         "Turns the actions under the grid on or off; they change the sequence as it plays. Each stays as set until set again, as the buttons do with Latch on, and none is saved with the patch or undone. Returns them as they now are.",
       input: ACTIONS,
       run: (input) => {
         const changes: Partial<EngineActions> = {}
-        for (const action of ["hold", "sync", "flip", "shift"] as const) {
+        for (const action of ["hold", "sync", "flip", "transpose"] as const) {
           if (present(input[action])) {
             changes[action] = readBoolean(input[action], action)
           }
@@ -192,7 +194,7 @@ export const createTools = (
           : null
         if (voice === null && Object.keys(changes).length === 0) {
           throw new InputError(
-            "Give an action to turn on or off — hold, sync, flip or shift — or the sync_voice",
+            "Give an action to turn on or off — hold, sync, flip or transpose — or the sync_voice",
           )
         }
         // Sync plays the voice selected, as a click on its tab selects it

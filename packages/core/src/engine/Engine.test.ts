@@ -498,22 +498,22 @@ describe("Engine", () => {
       expect(notesOn(events)).toEqual([60, 67])
     })
 
-    it("shift transposes notes that start while it is held", () => {
+    it("Transpose transposes notes that start while it is held", () => {
       const engine = new Engine(patch)
       engine.start(0)
       expect(notesOn(engine.render(0.1))).toEqual([60])
 
-      engine.setActions({ shift: true })
+      engine.setActions({ transpose: true })
       expect(notesOn(engine.render(1.1))).toEqual([62 + 12])
 
-      engine.setActions({ shift: false })
+      engine.setActions({ transpose: false })
       expect(notesOn(engine.render(2.1))).toEqual([60])
     })
 
     describe("with a scale", () => {
       beforeEach(() => {
         // the scale's own fit is for importing and recording, so it is
-        // set against the offset's and the shift's to show it goes unused
+        // set against the voice's and Transpose's to show it goes unused
         patch.scale = {
           tonic: 0,
           name: "major",
@@ -521,17 +521,17 @@ describe("Engine", () => {
           fit: "ignore",
         }
       })
-      const played = (seconds: number, shift = false) => {
+      const played = (seconds: number, transpose = false) => {
         const engine = new Engine(patch)
-        engine.setActions({ shift })
+        engine.setActions({ transpose })
         engine.start(0)
         return notesOn(engine.render(seconds))
       }
 
-      it("fits the notes an offset moves out of it as the voice says", () => {
-        patch.voices[0].offset = 1
+      it("fits the notes a voice's transpose moves out of it as the voice says", () => {
+        patch.voices[0].transposeAmt = 1
         const fitted = (fit: ScaleFit) => {
-          patch.voices[0].offsetFit = fit
+          patch.voices[0].transposeFit = fit
           return played(1.9)
         }
         // C# up to D, D# up to E
@@ -541,20 +541,20 @@ describe("Engine", () => {
         expect(fitted("ignore")).toEqual([61, 63])
       })
 
-      it("fits the notes the shift moves out of it as the patch says", () => {
-        patch.shiftAmt = 3
-        patch.shiftFit = "up"
+      it("fits the notes Transpose moves out of it as the patch says", () => {
+        patch.transposeAmt = 3
+        patch.transposeFit = "up"
         // D# up to E, F stays
         expect(played(1.9, true)).toEqual([64, 65])
-        patch.shiftFit = "exclude"
+        patch.transposeFit = "exclude"
         expect(played(1.9, true)).toEqual([65])
       })
 
-      it("fits the offset and then the shift, each its own way", () => {
-        patch.voices[0].offset = 1
-        patch.voices[0].offsetFit = "down"
-        patch.shiftAmt = 1
-        patch.shiftFit = "up"
+      it("fits the voice's transpose and then Transpose, each its own way", () => {
+        patch.voices[0].transposeAmt = 1
+        patch.voices[0].transposeFit = "down"
+        patch.transposeAmt = 1
+        patch.transposeFit = "up"
         // C# down to C, then C# up to D; D# down to D, then D# up to E
         expect(played(1.9, true)).toEqual([62, 64])
       })

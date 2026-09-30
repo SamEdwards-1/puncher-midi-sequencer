@@ -87,10 +87,10 @@ describe("HistoryStore", () => {
   it("keeps separate gestures apart", () => {
     setTempo(121, "tempo")
     history.push("velocity")
-    store.patch = setSequencer(store.patch, { shiftAmt: 5 })
+    store.patch = setSequencer(store.patch, { transposeAmt: 5 })
 
     history.undo()
-    expect(store.patch.shiftAmt).toBe(12)
+    expect(store.patch.transposeAmt).toBe(12)
     history.undo()
     expect(store.patch.tempo).toBe(120)
   })

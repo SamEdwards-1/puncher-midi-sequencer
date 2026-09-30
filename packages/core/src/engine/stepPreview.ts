@@ -178,7 +178,7 @@ const landing = (
  * as its voices play it there: they run on through their patterns at their
  * own paces from step to step, so a step comes in partway through them —
  * or at their first dots, when Sync Voices resets them on every step. Their
- * paces, patterns, rules, ratchets, lengths and offsets all count, and so do
+ * paces, patterns, rules, ratchets, lengths and transposes all count, and so do
  * the direction, jumps, skips and loop that lead to the step. Chance, the
  * random rules and random directions are rolled with a fixed seed, so the
  * picture holds still while the step is edited. A step the sequence never

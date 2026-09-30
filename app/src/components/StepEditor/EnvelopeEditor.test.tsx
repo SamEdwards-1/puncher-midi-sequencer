@@ -495,10 +495,10 @@ describe("the envelope editor", () => {
       expect(keys()).toBe("66-76")
     })
 
-    it("reach every note a voice's offset takes past the grid's keys", () => {
+    it("reach every note a voice's transpose takes past the grid's keys", () => {
       setup([], (start) => {
         const next = setStepNotes(start, 0, [60, 64])
-        next.voices[1] = { ...next.voices[1], enabled: true, offset: 24 }
+        next.voices[1] = { ...next.voices[1], enabled: true, transposeAmt: 24 }
         return next
       })
       expect(svg().getAttribute("data-keys")).toBe("60-88")

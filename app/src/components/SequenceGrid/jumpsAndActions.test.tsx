@@ -276,7 +276,7 @@ describe("action buttons", () => {
     expect(rootStore.player.actions.flip).toBe(false)
   })
 
-  it("holds Sync with Y, as S is Shift's", () => {
+  it("holds Sync with Y", () => {
     setup()
     fireEvent.keyDown(window, { code: "KeyY" })
     expect(rootStore.player.actions.sync).toBe(true)
@@ -290,10 +290,10 @@ describe("action buttons", () => {
       "title",
       "Plays the selected voice at the sequencer's pace, a note each step (Y)",
     )
-    for (const action of ["Hold", "Flip", "Shift"]) {
+    for (const action of ["Hold", "Flip", "Transpose"]) {
       expect(
         grid().getByRole("button", { name: action }).getAttribute("title"),
-      ).toMatch(/\([HFS]\)$/)
+      ).toMatch(/\([HFT]\)$/)
     }
   })
 
@@ -326,11 +326,11 @@ describe("action buttons", () => {
     setup()
     setLatch(true)
 
-    fireEvent.pointerDown(grid().getByRole("button", { name: "Shift" }))
-    expect(rootStore.player.actions.shift).toBe(true)
+    fireEvent.pointerDown(grid().getByRole("button", { name: "Transpose" }))
+    expect(rootStore.player.actions.transpose).toBe(true)
 
     setLatch(false)
-    expect(rootStore.player.actions.shift).toBe(false)
+    expect(rootStore.player.actions.transpose).toBe(false)
   })
 })
 

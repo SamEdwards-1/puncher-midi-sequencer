@@ -9,15 +9,15 @@ export default {
     "sequencer-action-hold": "Hold",
     "sequencer-action-sync": "Sync",
     "sequencer-action-flip": "Flip",
-    "sequencer-action-shift": "Shift",
+    "sequencer-action-transpose": "Transpose",
     "sequencer-action-hold-hint":
       "Keeps the sequencer on its step while the voices play on (H)",
     "sequencer-action-sync-hint":
       "Plays the selected voice at the sequencer's pace, a note each step (Y)",
     "sequencer-action-flip-hint":
       "Swaps the grid's rows and columns, from the next step on (F)",
-    "sequencer-action-shift-hint":
-      "Transposes new notes by the Shift amount (S)",
+    "sequencer-action-transpose-hint":
+      "Transposes new notes by the sequencer's Transpose setting (T)",
     "sequencer-action-latch-hint":
       "A click turns an action on until it is clicked again, rather than only while it is held",
     "sequencer-actions": "Actions",
@@ -163,7 +163,7 @@ export default {
     "sequencer-modulation-hint":
       "A step with an envelope for this CC sets this as it plays; every other step keeps the field's own value. The envelope's values are the ones between From and To.",
     "sequencer-modulation-action-hint":
-      "A step with an envelope for this CC turns the action on or off, whatever its button says: Hold and Flip as the step ends, Sync as it lands, Shift at each note. Every other step leaves it to the button.",
+      "A step with an envelope for this CC turns the action on or off, whatever its button says: Hold and Flip as the step ends, Sync as it lands, Transpose at each note. Every other step leaves it to the button.",
     "sequencer-modulation-taken": "Already modulates",
     "sequencer-modulation-on-steps": "Already on",
     "sequencer-modulation-on": "On",
@@ -176,9 +176,10 @@ export default {
     "sequencer-modulation-remove-hint":
       "Stops the CC modulating this. Its envelopes stay, as CCs.",
     "sequencer-modulation-own-value": "own value",
-    "sequencer-modulation-tab-offset-fit": "Offset fit",
-    "sequencer-modulation-tab-shift-fit": "Shift fit",
+    "sequencer-modulation-tab-transpose-fit": "Transpose fit",
     "sequencer-modulation-tab-sequencer-pace": "Seq pace",
+    "sequencer-modulation-tab-sequencer-transpose": "Seq transpose",
+    "sequencer-modulation-tab-sequencer-transpose-fit": "Seq transpose fit",
     "sequencer-modulation-modulates": "Modulates",
     "sequencer-undo": "Undo",
     "sequencer-redo": "Redo",
@@ -188,15 +189,13 @@ export default {
     "sequencer-loop": "Loop",
     "sequencer-loop-end": "Loop end",
     "sequencer-sync-voices": "Sync voices",
-    "sequencer-shift-amt": "Shift amt",
-    "sequencer-shift-fit": "Shift scale fit",
+    "sequencer-transpose-amt": "Transpose",
+    "sequencer-transpose-fit": "Scale fit",
     "sequencer-max-notes": "Step notes",
     "sequencer-voice": "Voice",
     "sequencer-voice-enable": "Enable",
     "sequencer-voice-length": "Length",
     "sequencer-voice-rule": "Rule",
-    "sequencer-voice-offset": "Offset",
-    "sequencer-voice-offset-fit": "Offset scale fit",
     "sequencer-voice-velocity": "Velocity",
     "sequencer-voice-channel": "Channel",
     "sequencer-voice-instrument": "Instrument",

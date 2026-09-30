@@ -115,18 +115,18 @@ describe("envelope geometry", () => {
     let patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
     patch = setStepNotes(patch, 9, [48])
     patch = setStepNotes(patch, 40, [79])
-    // only voice 1 plays, at no offset
+    // only voice 1 plays, untransposed
     expect(patchNoteSpan(patch)).toEqual([48, 48, 79, 79])
   })
 
-  it("reaches as far as the playing voices' offsets take the keys", () => {
+  it("reaches as far as the playing voices' transposes take the keys", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
     patch.voices[0].enabled = true
     patch.voices[1].enabled = true
-    patch.voices[1].offset = -24
-    patch.voices[2].offset = 36
+    patch.voices[1].transposeAmt = -24
+    patch.voices[2].transposeAmt = 36
     patch.voices[3].enabled = true
-    patch.voices[3].offset = 12
+    patch.voices[3].transposeAmt = 12
     // voice 3 is off, so its three octaves up play nothing
     const span = patchNoteSpan(patch)
     expect([Math.min(...span), Math.max(...span)]).toEqual([36, 76])
@@ -136,7 +136,7 @@ describe("envelope geometry", () => {
     let patch = setStepNotes(createDefaultPatch(), 0, [60, 64])
     patch = setStepNotes(patch, 1, [67])
     patch.voices[1].enabled = true
-    patch.voices[1].offset = 12
+    patch.voices[1].transposeAmt = 12
     // voice 2 plays an octave up as well
     expect(patchNoteKeys(patch)).toEqual([60, 64, 67, 72, 76, 79])
     expect(pianoRows(patch, true)).toEqual([79, 76, 72, 67, 64, 60])
@@ -146,7 +146,7 @@ describe("envelope geometry", () => {
     expect([all[0], all[all.length - 1]]).toEqual([79, 60])
   })
 
-  it("reaches the offsets a step modulates a voice to, on that step alone", () => {
+  it("reaches the transposes a step modulates a voice to, on that step alone", () => {
     let patch = setStepNotes(createDefaultPatch(), 0, [60])
     patch = setStepNotes(patch, 1, [62])
     patch = addEnvelope(
@@ -154,7 +154,7 @@ describe("envelope geometry", () => {
         ...patch,
         modulations: [
           {
-            target: { kind: "voice", voice: 0, setting: "offset" },
+            target: { kind: "voice", voice: 0, setting: "transposeAmt" },
             cc: 3,
             from: 0,
             to: 12,
@@ -177,7 +177,7 @@ describe("envelope geometry", () => {
   it("never reaches past the MIDI keys", () => {
     const patch = setStepNotes(createDefaultPatch(), 0, [120])
     patch.voices[0].enabled = true
-    patch.voices[0].offset = 24
+    patch.voices[0].transposeAmt = 24
     expect(Math.max(...patchNoteSpan(patch))).toBe(127)
   })
 

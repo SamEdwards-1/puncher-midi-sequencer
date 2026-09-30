@@ -109,8 +109,8 @@ const VOICE = object(
       RULE_NAMES,
       "Which of the step's notes it plays: nth, voice N the Nth from the bottom; lowest; highest; random; up and down run through them; updown and downup bounce between the ends, updown+ and downup+ playing the ends twice; rise goes up 2 and down 1, fall down 2 and up 1",
     ),
-    offset: integer("Semitones its notes are moved by", -24, 24),
-    offset_fit: oneOf(FIT_NAMES, FIT_HINT),
+    transpose: integer("Semitones its notes are moved by", -24, 24),
+    transpose_fit: oneOf(FIT_NAMES, FIT_HINT),
     velocity: integer("How hard it plays", 1, 127),
     channel: integer(
       "The MIDI channel it plays on. No two voices share one: a channel another voice has moves it on to the next free one",
@@ -272,11 +272,19 @@ export const voicesTool = ({ stores, view, edit }: ToolContext) => {
     if (present(fields.rule)) {
       changes.rule = readRule(fields.rule, `${where}.rule`)
     }
-    if (present(fields.offset)) {
-      changes.offset = readNumber(fields.offset, `${where}.offset`, -24, 24)
+    if (present(fields.transpose)) {
+      changes.transposeAmt = readNumber(
+        fields.transpose,
+        `${where}.transpose`,
+        -24,
+        24,
+      )
     }
-    if (present(fields.offset_fit)) {
-      changes.offsetFit = readFit(fields.offset_fit, `${where}.offset_fit`)
+    if (present(fields.transpose_fit)) {
+      changes.transposeFit = readFit(
+        fields.transpose_fit,
+        `${where}.transpose_fit`,
+      )
     }
     if (present(fields.velocity)) {
       changes.velocity = readNumber(
@@ -352,7 +360,7 @@ export const voicesTool = ({ stores, view, edit }: ToolContext) => {
     name: "set_voices",
     title: "Change voices",
     description:
-      "Changes voices: their settings, rhythm patterns and dots. List each voice by number, 1 to 4, with only what should change; the whole call is one entry in the app's undo history, and nothing changes if any of it can't be done. A voice plays a dot of its pattern at every beat of its pace, looping the pattern, and each time picks a note by its rule from whatever step is current, moved by its offset. The first voice changed is shown in the Voices panel, which also makes it the voice Sync plays. Returns the voices as they now are.",
+      "Changes voices: their settings, rhythm patterns and dots. List each voice by number, 1 to 4, with only what should change; the whole call is one entry in the app's undo history, and nothing changes if any of it can't be done. A voice plays a dot of its pattern at every beat of its pace, looping the pattern, and each time picks a note by its rule from whatever step is current, moved by its transpose. The first voice changed is shown in the Voices panel, which also makes it the voice Sync plays. Returns the voices as they now are.",
     input: object({ voices: list(VOICE, "The voices to change") }, ["voices"]),
     run: (input) => {
       const warnings: string[] = []

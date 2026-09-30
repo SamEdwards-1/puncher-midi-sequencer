@@ -11,8 +11,8 @@ describe("PatchSchema", () => {
       "size",
       "direction",
       "loop",
-      "shiftAmt",
-      "shiftFit",
+      "transposeAmt",
+      "transposeFit",
       "maxNotesPerStep",
     ]
     patch.modulations = settings.map((setting, index) =>

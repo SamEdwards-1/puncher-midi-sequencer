@@ -50,21 +50,21 @@ const setup = (change: (patch: PatchJSON) => PatchJSON = (each) => each) => {
 }
 
 describe("the sequencer's scale tags", () => {
-  it("always offers chromatic first, lit while there is no scale", () => {
+  it("always offers chromatic last, lit while there is no scale", () => {
     setup()
-    expect(tags()[0].textContent).toBe("Chromatic")
+    expect(tags().at(-1)?.textContent).toBe("Chromatic")
     expect(tags().length).toBeGreaterThan(1)
     expect(lit()).toEqual(["Chromatic"])
   })
 
   it("sets the scale a tag names, and chromatic takes it away", () => {
     setup()
-    const guess = tags()[1]
+    const guess = tags()[0]
     fireEvent.click(guess)
     expect(patch().scale).not.toBeNull()
     expect(lit()).toEqual([guess.textContent])
 
-    fireEvent.click(tags()[0])
+    fireEvent.click(tags().at(-1) as HTMLElement)
     expect(patch().scale).toBeNull()
     expect(lit()).toEqual(["Chromatic"])
   })
@@ -79,7 +79,7 @@ describe("the sequencer's scale tags", () => {
         fit: "down",
       },
     }))
-    const best = tags()[1].textContent
+    const best = tags()[0].textContent
     fireEvent.click(detect())
     expect(lit()).toEqual([best])
     expect(patch().scale?.fit).toBe("down")

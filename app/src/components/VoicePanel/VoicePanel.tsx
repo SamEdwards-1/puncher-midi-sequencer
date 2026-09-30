@@ -47,7 +47,7 @@ import { FitSelect } from "../Scale/ScalePicker"
 import { ButtonGroup, IconButton } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
 import { cn } from "../ui/cn"
-import { Field, Fields } from "../ui/Field"
+import { Field, FieldGroup, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Slider } from "../ui/Slider"
 import { Stepper } from "../ui/Stepper"
@@ -284,34 +284,38 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           )}
         </ModulatedField>
 
-        <ModulatedField
-          label={localized["sequencer-voice-offset"]}
-          target={target("offset")}
-        >
-          {(shown) => (
-            <Stepper
-              label={localized["sequencer-voice-offset"]}
-              value={shown(voice.offset)}
-              min={-24}
-              max={24}
-              onChange={(offset) =>
-                editVoice(selected, { offset }, `offset-${selected}`)
-              }
-            />
-          )}
-        </ModulatedField>
+        <FieldGroup>
+          <ModulatedField
+            label={localized["sequencer-transpose-amt"]}
+            target={target("transposeAmt")}
+          >
+            {(shown) => (
+              <Stepper
+                label={localized["sequencer-transpose-amt"]}
+                value={shown(voice.transposeAmt)}
+                min={-24}
+                max={24}
+                onChange={(transposeAmt) =>
+                  editVoice(selected, { transposeAmt }, `transpose-${selected}`)
+                }
+              />
+            )}
+          </ModulatedField>
 
-        <ModulatedField
-          label={localized["sequencer-voice-offset-fit"]}
-          target={target("offsetFit")}
-        >
-          {(shown) => (
-            <FitSelect
-              value={shown(voice.offsetFit)}
-              onChange={(offsetFit) => editVoice(selected, { offsetFit })}
-            />
-          )}
-        </ModulatedField>
+          <ModulatedField
+            label={localized["sequencer-transpose-fit"]}
+            target={target("transposeFit")}
+          >
+            {(shown) => (
+              <FitSelect
+                value={shown(voice.transposeFit)}
+                onChange={(transposeFit) =>
+                  editVoice(selected, { transposeFit })
+                }
+              />
+            )}
+          </ModulatedField>
+        </FieldGroup>
 
         <Field label={localized["sequencer-voice-velocity"]}>
           <Stepper

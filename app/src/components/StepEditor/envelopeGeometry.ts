@@ -251,11 +251,11 @@ const playable = (patch: PatchJSON, step: StepJSON) =>
   [...step.notes].sort((a, b) => a - b).slice(0, patch.maxNotesPerStep)
 
 /**
- * The offsets a step's notes are played at: each playing voice's own, or
+ * The transposes a step's notes are played at: each playing voice's own, or
  * where the step modulates it, those its envelope moves it to — every one
  * between the envelope's points, where they ramp.
  */
-export const stepOffsets = (patch: PatchJSON, index: StepIndex): number[] =>
+export const stepTransposes = (patch: PatchJSON, index: StepIndex): number[] =>
   patch.voices.flatMap((voice, at) => {
     if (!voice.enabled) {
       return []
@@ -263,7 +263,7 @@ export const stepOffsets = (patch: PatchJSON, index: StepIndex): number[] =>
     const modulation = modulationOf(patch, {
       kind: "voice",
       voice: at as VoiceIndex,
-      setting: "offset",
+      setting: "transposeAmt",
     })
     const envelope =
       modulation === undefined
@@ -274,7 +274,7 @@ export const stepOffsets = (patch: PatchJSON, index: StepIndex): number[] =>
       envelope === undefined ||
       envelope.points.length === 0
     ) {
-      return [voice.offset]
+      return [voice.transposeAmt]
     }
     const reached = envelope.points.map(
       ({ value }) => modulationValueAt(modulation, value) as number,
@@ -285,16 +285,16 @@ export const stepOffsets = (patch: PatchJSON, index: StepIndex): number[] =>
     const low = Math.min(...reached)
     return Array.from(
       { length: Math.max(...reached) - low + 1 },
-      (_, offset) => low + offset,
+      (_, index) => low + index,
     )
   })
 
 /**
  * The lowest and highest keys the grid holds or its voices play: every
  * step's notes, as far as the note limit goes, and those notes moved by each
- * playing voice's offset, or the offsets a step modulates it to. Taken
+ * playing voice's transpose, or the transposes a step modulates it to. Taken
  * across all the steps rather than the one on show, so the piano roll holds
- * still from step to step, and moves only when a note or an offset takes it
+ * still from step to step, and moves only when a note or a transpose takes it
  * further.
  */
 export const patchNoteSpan = (patch: PatchJSON): number[] => {
@@ -305,25 +305,25 @@ export const patchNoteSpan = (patch: PatchJSON): number[] => {
   }
   const low = Math.min(...keys)
   const high = Math.max(...keys)
-  const offsets = new Set(
-    steps.flatMap((_, index) => stepOffsets(patch, index)),
+  const transposes = new Set(
+    steps.flatMap((_, index) => stepTransposes(patch, index)),
   )
   return [low, high].flatMap((key) =>
-    [0, ...offsets].map((offset) => clamp(key + offset, 0, 127)),
+    [0, ...transposes].map((semitones) => clamp(key + semitones, 0, 127)),
   )
 }
 
 /**
  * Every key the grid's notes sound on, with the scale collapsed: each
  * step's notes, as far as the note limit goes, as they are and moved by
- * each playing voice's offset on that step — the keys patchNoteSpan spans.
+ * each playing voice's transpose on that step — the keys patchNoteSpan spans.
  */
 export const patchNoteKeys = (patch: PatchJSON): number[] => {
   const keys = new Set(
     patch.steps.slice(0, stepCount(patch.size)).flatMap((step, index) => {
-      const offsets = [0, ...stepOffsets(patch, index)]
+      const transposes = [0, ...stepTransposes(patch, index)]
       return playable(patch, step).flatMap((note) =>
-        offsets.map((offset) => clamp(note + offset, 0, 127)),
+        transposes.map((semitones) => clamp(note + semitones, 0, 127)),
       )
     }),
   )
