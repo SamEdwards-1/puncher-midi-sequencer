@@ -406,9 +406,6 @@ export interface NoteCollision {
   dots: VoiceDot[]
 }
 
-const overlaps = (a: StepNote, b: StepNote) =>
-  a.start < b.end && b.start < a.end
-
 /**
  * Where a step's voices collide: the same key sounding from two or more of
  * them at the same time. Notes chain into one collision while each overlaps
@@ -418,40 +415,95 @@ const overlaps = (a: StepNote, b: StepNote) =>
 export const noteCollisions = (notes: StepNote[]): NoteCollision[] => {
   const byKey = new Map<number, StepNote[]>()
   for (const note of notes) {
-    byKey.set(note.note, [...(byKey.get(note.note) ?? []), note])
+    const sounding = byKey.get(note.note)
+    if (sounding === undefined) {
+      byKey.set(note.note, [note])
+    } else {
+      sounding.push(note)
+    }
   }
 
   const collisions: NoteCollision[] = []
   for (const [key, sounding] of byKey) {
     // joined wherever two voices overlap, so a collision is each group left
     const group = sounding.map((_, index) => index)
-    const root = (index: number): number =>
-      group[index] === index ? index : root(group[index])
-    sounding.forEach((a, i) => {
-      sounding.slice(i + 1).forEach((b, offset) => {
-        if (a.voice !== b.voice && overlaps(a, b)) {
-          group[root(i + 1 + offset)] = root(i)
+    const root = (index: number): number => {
+      let at = index
+      while (group[at] !== at) {
+        group[at] = group[group[at]]
+        at = group[at]
+      }
+      return at
+    }
+
+    // Swept in order of start, and of end among those starting together, so
+    // a note that ends as it starts comes before the rest starting with it,
+    // and meets only the notes sounding across it. Each voice holds those of
+    // its notes still sounding; once another voice's note joins them they
+    // are one group, and the one sounding longest stands for them all.
+    const order = sounding
+      .map((_, index) => index)
+      .sort(
+        (a, b) =>
+          sounding[a].start - sounding[b].start ||
+          sounding[a].end - sounding[b].end,
+      )
+    const held = new Map<VoiceIndex, number[]>()
+    for (const index of order) {
+      const { voice, start } = sounding[index]
+      let own: number[] = []
+      for (const [other, those] of held) {
+        const still = those.filter((each) => sounding[each].end > start)
+        if (other === voice) {
+          own = still
+          continue
         }
-      })
-    })
+        let longest = -1
+        for (const each of still) {
+          group[root(each)] = root(index)
+          if (longest === -1 || sounding[each].end > sounding[longest].end) {
+            longest = each
+          }
+        }
+        if (longest === -1) {
+          held.delete(other)
+        } else {
+          held.set(other, [longest])
+        }
+      }
+      own.push(index)
+      held.set(voice, own)
+    }
 
     const members = new Map<number, StepNote[]>()
     sounding.forEach((note, index) => {
       const at = root(index)
-      members.set(at, [...(members.get(at) ?? []), note])
+      const together = members.get(at)
+      if (together === undefined) {
+        members.set(at, [note])
+      } else {
+        together.push(note)
+      }
     })
     for (const together of members.values()) {
       if (together.length < 2) {
         continue
       }
+      let start = Number.POSITIVE_INFINITY
+      let end = Number.NEGATIVE_INFINITY
       const dots = new Map<string, VoiceDot>()
-      for (const { voice, dot } of together) {
-        dots.set(`${voice}:${dot}`, { voice, dot })
+      for (const note of together) {
+        start = Math.min(start, note.start)
+        end = Math.max(end, note.end)
+        dots.set(`${note.voice}:${note.dot}`, {
+          voice: note.voice,
+          dot: note.dot,
+        })
       }
       collisions.push({
         note: key,
-        start: Math.min(...together.map(({ start }) => start)),
-        end: Math.max(...together.map(({ end }) => end)),
+        start,
+        end,
         dots: [...dots.values()].sort(
           (a, b) => a.voice - b.voice || a.dot - b.dot,
         ),

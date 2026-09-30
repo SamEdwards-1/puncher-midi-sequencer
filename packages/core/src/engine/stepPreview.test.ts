@@ -3,7 +3,9 @@ import { createDefaultPatch } from "../entities/defaults"
 import { EnvelopeJSON, PatchJSON, StepJSON } from "../entities/types"
 import { DEFAULT_ACCENT_AMOUNT } from "../entities/velocity"
 import { Engine } from "./Engine"
+import { createRng } from "./rng"
 import {
+  NoteCollision,
   noteCollisions,
   oneStepPatch,
   playRound,
@@ -11,6 +13,7 @@ import {
   StepNote,
   StepPreviews,
   stepNotes,
+  VoiceDot,
 } from "./stepPreview"
 
 describe("a step's notes", () => {
@@ -494,6 +497,131 @@ describe("collisions between voices", () => {
         ],
       },
     ])
+  })
+
+  // Every pair of notes on a key compared, the collisions read straight
+  // from the definition, for the sweep to agree with.
+  const pairwise = (notes: StepNote[]): NoteCollision[] => {
+    const collisions: NoteCollision[] = []
+    for (const key of new Set(notes.map(({ note: each }) => each))) {
+      const sounding = notes.filter(({ note: each }) => each === key)
+      const group = sounding.map((_, index) => index)
+      const root = (index: number): number =>
+        group[index] === index ? index : root(group[index])
+      sounding.forEach((a, i) => {
+        sounding.forEach((b, j) => {
+          if (
+            j > i &&
+            a.voice !== b.voice &&
+            a.start < b.end &&
+            b.start < a.end
+          ) {
+            group[root(j)] = root(i)
+          }
+        })
+      })
+      const members = new Map<number, StepNote[]>()
+      sounding.forEach((each, index) => {
+        members.set(root(index), [...(members.get(root(index)) ?? []), each])
+      })
+      for (const together of members.values()) {
+        if (together.length < 2) {
+          continue
+        }
+        const dots = new Map<string, VoiceDot>()
+        for (const { voice, dot } of together) {
+          dots.set(`${voice}:${dot}`, { voice, dot })
+        }
+        collisions.push({
+          note: key,
+          start: Math.min(...together.map(({ start }) => start)),
+          end: Math.max(...together.map(({ end }) => end)),
+          dots: [...dots.values()].sort(
+            (a, b) => a.voice - b.voice || a.dot - b.dot,
+          ),
+        })
+      }
+    }
+    return collisions.sort((a, b) => a.start - b.start || a.note - b.note)
+  }
+
+  it("agrees with every pair compared, on notes at random", () => {
+    const rng = createRng(7)
+    const pick = (count: number) => Math.floor(rng.next() * count)
+    for (let trial = 0; trial < 500; trial++) {
+      // on a coarse grid, so notes often start together, touch, or end as
+      // they start
+      const grid = 2 + pick(15)
+      const notes = Array.from({ length: pick(40) }, () => {
+        const start = pick(grid) / grid
+        const end = Math.min(1, start + pick(4) / grid)
+        return note(pick(4) as 0 | 1 | 2 | 3, 60 + pick(3), start, end, pick(6))
+      })
+      expect(noteCollisions(notes)).toEqual(pairwise(notes))
+    }
+  })
+
+  it("agrees with every pair compared, on one key played densely", () => {
+    const rng = createRng(3)
+    // 32nd triplets with ratchets over a long step, each voice with its own
+    // length, and some hits held across the next
+    const notes: StepNote[] = []
+    for (const voice of [0, 1, 2, 3] as const) {
+      const hits = 96 * (voice + 1)
+      for (let hit = 0; hit < hits; hit++) {
+        const length = rng.next() < 0.1 ? 3 : 0.25 + 0.25 * voice
+        notes.push(
+          note(
+            voice,
+            60,
+            hit / hits,
+            Math.min(1, (hit + length) / hits),
+            hit >> 2,
+          ),
+        )
+      }
+    }
+    expect(noteCollisions(notes)).toEqual(pairwise(notes))
+  })
+
+  it("keeps notes that only touch apart when played densely", () => {
+    // every voice striking the key on the same grid, each note ending as
+    // the next starts: a collision a hit, of every voice
+    const hits = 3072
+    const notes = ([0, 1, 2, 3] as const).flatMap((voice) =>
+      Array.from({ length: hits }, (_, hit) =>
+        note(voice, 60, hit / hits, (hit + 1) / hits, hit >> 2),
+      ),
+    )
+    const found = noteCollisions(notes)
+    expect(found).toHaveLength(hits)
+    expect(found[hits - 1]).toEqual({
+      note: 60,
+      start: (hits - 1) / hits,
+      end: 1,
+      dots: ([0, 1, 2, 3] as const).map((voice) => ({ voice, dot: 767 })),
+    })
+  })
+
+  it("chains a dense collision through voices handing it on", () => {
+    // two voices a half-hit apart, each note overlapping the other voice's
+    // next: one collision from first to last
+    const hits = 3072
+    const notes = ([0, 1] as const).flatMap((voice) =>
+      Array.from({ length: hits }, (_, hit) =>
+        note(
+          voice,
+          60,
+          (hit + voice / 2) / (hits + 1 / 2),
+          (hit + 1 + voice / 2) / (hits + 1 / 2),
+          hit,
+        ),
+      ),
+    )
+    const found = noteCollisions(notes)
+    expect(found).toHaveLength(1)
+    expect(found[0].dots).toHaveLength(2 * hits)
+    expect([found[0].start, found[0].end]).toEqual([0, 1])
   })
 })
 
