@@ -1030,6 +1030,7 @@ describe("set_modulations", () => {
         { step: 6, envelopes: [{ cc: 102, points: [{ beat: 0, value: 60 }] }] },
       ],
     })
+    const envelope = structuredClone(patch().steps[5].envelopes[0])
 
     expect(
       await call("set_modulations", {
@@ -1037,11 +1038,8 @@ describe("set_modulations", () => {
       }),
     ).toEqual({ modulations: [], removed: ["Voice 1 · Rule"] })
     expect(patch().modulations).toEqual([])
-    // as drawn on the rule's values, now just a CC
-    expect(patch().steps[5].envelopes[0]).toMatchObject({
-      cc: 102,
-      points: [{ time: 0, value: 58 }],
-    })
+    // Its snapped value stays as a plain CC after the rule mapping is removed.
+    expect(patch().steps[5].envelopes[0]).toEqual(envelope)
   })
 
   it("warns that envelopes already on its CC start driving the setting", async () => {

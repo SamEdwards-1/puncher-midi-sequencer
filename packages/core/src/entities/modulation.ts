@@ -35,6 +35,12 @@ export const VOICE_RULES: VoiceRule[] = [
   "downup+",
   "rise",
   "fall",
+  "outsidein",
+  "insideout",
+  "ends",
+  "shuffle",
+  "walk",
+  "norepeat",
 ]
 
 /**

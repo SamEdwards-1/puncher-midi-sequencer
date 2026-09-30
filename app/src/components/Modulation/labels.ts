@@ -26,6 +26,12 @@ export const RULE_LABELS: Record<VoiceRule, string> = {
   "downup+": "Down / Up +",
   rise: "Rise",
   fall: "Fall",
+  outsidein: "Outside In",
+  insideout: "Inside Out",
+  ends: "Ends",
+  shuffle: "Shuffle",
+  walk: "Walk",
+  norepeat: "No Repeat",
 }
 
 /** One of a setting's values as its field shows it: "8th D", "35%", "+7". */

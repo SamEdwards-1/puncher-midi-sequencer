@@ -254,6 +254,27 @@ velocity, channel and rhythm pattern — and, played through the built-in synth,
 an instrument. Because voices run at their own pace, a single chord step can
 become an arpeggio, a bass line and a lead at once.
 
+**Voice rules.** Each time an active pattern dot plays, its rule picks one note
+from the current step's notes, ordered from lowest to highest. Rules that move
+through the notes keep their place as the voice plays. A step with no notes is
+silent; with one note, every rule plays that note.
+
+| Rule | Note choice |
+|---|---|
+| **Nth** | Voice 1 takes the lowest note, voice 2 the second lowest, and so on; if there are fewer notes, it takes the highest. |
+| **Lowest**, **Highest** | Always take the bottom or top note. |
+| **Random** | Pick any note independently each time, including the previous one. |
+| **Up**, **Down** | Cycle through the notes in ascending or descending order, wrapping at the end. |
+| **Up / Down**, **Down / Up** | Bounce between the ends, starting at the bottom or top, without repeating a note at the turn. |
+| **Up / Down +**, **Down / Up +** | Bounce as above, playing each end note twice at the turn. |
+| **Rise**, **Fall** | Alternate a move of two note positions up and one down, or two down and one up, wrapping around. |
+| **Outside In** | Alternate from the lowest and highest notes toward the middle, then repeat. |
+| **Inside Out** | Start at the middle (the lower middle note with an even number of notes), alternate above and below it toward the ends, then repeat. |
+| **Ends** | Alternate the lowest and highest notes. |
+| **Shuffle** | For an unchanged chord, play every note once in a random order, then reshuffle. Where possible, the first note of a new order differs from the last note of the previous one. |
+| **Walk** | Start on a random note, then move one note position up or down at random; at an end, move inward. |
+| **No Repeat** | Pick randomly from notes with a different pitch from the last one played; if none is available, repeat it. |
+
 Every voice's pattern shows at once, a row each, 1 to 16 dots long. Click a
 dot to turn it on or off, or right-click it for its step options:
 articulation, accent, velocity, ratchet, probability and condition. A
