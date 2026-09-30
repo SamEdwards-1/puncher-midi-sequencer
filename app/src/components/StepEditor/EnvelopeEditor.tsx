@@ -181,6 +181,13 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
       ? `${localized["sequencer-step-remove-cc-modulation"]} ${modulationTargetLabel(modulation.target, localized)}`
       : localized["sequencer-step-remove-cc"]
 
+  // a CC modulating one of a voice's settings has the voice's dot, as the
+  // voice's Velocity tab does
+  const ccDot = (cc: number) => {
+    const target = modulationForCC(patch, cc)?.target
+    return target !== undefined && "voice" in target ? target.voice : undefined
+  }
+
   // a Velocity tab for every voice, then the step's CCs
   const tabs: (LaneTab & { lane: EnvelopeLane })[] = [
     ...VOICES.map((voice) => ({
@@ -188,11 +195,13 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
       label: `${localized["sequencer-voice-velocity"]} ${voice + 1}`,
       lane: { kind: "velocity", voice } as const,
       voice,
+      dot: voice,
       off: !patch.voices[voice].enabled,
     })),
     ...step.envelopes.map((each) => ({
       key: `cc-${each.id}`,
       label: ccLabel(each.cc, each.channel),
+      dot: ccDot(each.cc),
       lane: { kind: "cc", cc: each.cc, channel: each.channel } as const,
     })),
     // the CC left open, which this step has no envelope for: dimmed
@@ -201,6 +210,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
           {
             key: `cc-${lane.cc}-${lane.channel}-empty`,
             label: ccLabel(lane.cc, lane.channel),
+            dot: ccDot(lane.cc),
             lane,
             off: true,
           },

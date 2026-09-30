@@ -18,10 +18,13 @@ export interface LaneTab {
   label: string
   // a velocity tab wears its voice's colour
   voice?: VoiceIndex
+  // a tab for one of a voice's settings has its voice's dot
+  dot?: VoiceIndex
   off?: boolean
 }
 
-const TAB = "h-7 flex-none whitespace-nowrap border-b-[0.15rem] px-2 text-small"
+const TAB =
+  "flex h-7 flex-none items-center gap-[0.35rem] whitespace-nowrap border-b-[0.15rem] px-2 text-small"
 // the row's gap, and the overflow and add buttons' widths
 const GAP = 4
 const MORE = 40
@@ -29,6 +32,16 @@ const ADD = 24
 
 const voiceColor = (voice: VoiceIndex): CSSProperties =>
   ({ "--midiseq-voice": `var(--midiseq-voice-${voice})` }) as CSSProperties
+
+const tabColor = (tab: LaneTab) => {
+  const voice = tab.voice ?? tab.dot
+  return voice !== undefined ? voiceColor(voice) : undefined
+}
+
+// the voice's colour, as the Voices panel's tab has it
+const Dot: FC = () => (
+  <span aria-hidden className="h-2 w-2 flex-none rounded-full bg-voice" />
+)
 
 /**
  * The lane tabs on one row. As many as fit are shown, the open one always
@@ -49,7 +62,7 @@ export const LaneTabs: FC<{
   const [fit, setFit] = useState({ widths: [] as number[], available: 0 })
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const labels = tabs.map((tab) => tab.label).join("\n")
+  const labels = tabs.map((tab) => `${tab.dot ?? ""} ${tab.label}`).join("\n")
   // biome-ignore lint/correctness/useExhaustiveDependencies: measured again whenever the labels change
   useLayoutEffect(() => {
     const measure = () => {
@@ -134,11 +147,10 @@ export const LaneTabs: FC<{
               role="tab"
               aria-selected={index === open}
               className={tabClass(tab, index === open)}
-              style={
-                tab.voice !== undefined ? voiceColor(tab.voice) : undefined
-              }
+              style={tabColor(tab)}
               onClick={() => onSelect(index)}
             >
+              {tab.dot !== undefined && <Dot />}
               {tab.label}
             </button>
           )
@@ -180,11 +192,7 @@ export const LaneTabs: FC<{
                       "flex items-center gap-2 px-3 py-[0.35rem] text-left text-small text-fg hover:bg-highlight",
                       tab.off && "opacity-55",
                     )}
-                    style={
-                      tab.voice !== undefined
-                        ? voiceColor(tab.voice)
-                        : undefined
-                    }
+                    style={tabColor(tab)}
                     onClick={() => {
                       setMenuOpen(false)
                       onSelect(index)
@@ -194,7 +202,9 @@ export const LaneTabs: FC<{
                       aria-hidden
                       className={cn(
                         "h-2 w-2 flex-none rounded-full",
-                        tab.voice !== undefined ? "bg-voice" : "bg-envelope",
+                        tab.voice !== undefined || tab.dot !== undefined
+                          ? "bg-voice"
+                          : "bg-envelope",
                       )}
                     />
                     {tab.label}
@@ -230,6 +240,7 @@ export const LaneTabs: FC<{
               tabIndex={-1}
               className={tabClass(tab, false)}
             >
+              {tab.dot !== undefined && <Dot />}
               {tab.label}
             </button>
           ))}
