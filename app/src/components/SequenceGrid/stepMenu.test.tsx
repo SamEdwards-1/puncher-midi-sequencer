@@ -85,6 +85,32 @@ describe("a step's menu", () => {
     expect(patch().steps[2].notes).toEqual([61])
   })
 
+  it("leaves Ctrl+C to selected text, until a step is clicked", () => {
+    setup()
+    const selectText = () => {
+      const range = document.createRange()
+      range.selectNodeContents(screen.getByText("Hold"))
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+    }
+    // with text selected and nothing focused, the browser copies the text
+    fireEvent.click(step(4))
+    selectText()
+    fireEvent.keyDown(window, { code: "KeyC", ctrlKey: true })
+    fireEvent.click(step(5))
+    fireEvent.keyDown(window, { code: "KeyV", ctrlKey: true })
+    expect(patch().steps[4].notes).not.toEqual([63])
+
+    // clicking a step leaves the text selected, but copies the step
+    step(3).focus()
+    fireEvent.click(step(3))
+    fireEvent.keyDown(step(3), { code: "KeyC", ctrlKey: true })
+    fireEvent.click(step(5))
+    fireEvent.keyDown(window, { code: "KeyV", ctrlKey: true })
+    expect(patch().steps[4].notes).toEqual([62])
+    window.getSelection()?.removeAllRanges()
+  })
+
   it("inserts an empty step before or after, and selects it", () => {
     setup()
     choose(2, "Insert before")

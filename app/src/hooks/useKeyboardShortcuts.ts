@@ -8,6 +8,22 @@ const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
 
+// Text selected on the page is the browser's to copy — unless a control,
+// a step say, has taken the focus since: clicking a step leaves the text
+// selected, but it is the step that is meant.
+const copyingText = () => {
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed) {
+    return false
+  }
+  const focused = document.activeElement
+  return (
+    focused === null ||
+    focused === document.body ||
+    focused.contains(selection.anchorNode)
+  )
+}
+
 // Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z or Ctrl+Y redoes, Ctrl/Cmd+C and V
 // copy and paste the selected step, as its menu's Copy and Paste do.
 export function useKeyboardShortcuts() {
@@ -23,8 +39,7 @@ export function useKeyboardShortcuts() {
       }
       const copy = event.code === "KeyC" && !event.shiftKey
       const pasting = event.code === "KeyV" && !event.shiftKey
-      // text selected on the page is the browser's to copy
-      if (copy && !window.getSelection()?.isCollapsed) {
+      if (copy && copyingText()) {
         return
       }
       if (copy) {
