@@ -19,7 +19,7 @@ describe("note order", () => {
     engine.start(0)
     const played = engine
       .render(2.9)
-      .filter((event) => event.type === "noteOn")
+      .events.filter((event) => event.type === "noteOn")
       .map((event) => event.note)
 
     expect(played).toEqual([60, 64, 67])
@@ -41,7 +41,7 @@ describe("note order", () => {
     engine.start(0)
     const played = engine
       .render(3.9)
-      .filter((event) => event.type === "noteOn")
+      .events.filter((event) => event.type === "noteOn")
       .map((event) => event.note)
 
     // the highest is never reached, however long the arpeggio runs

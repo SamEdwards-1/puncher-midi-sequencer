@@ -1,4 +1,4 @@
-import { Engine } from "../engine/Engine"
+import { Engine, renderThrough } from "../engine/Engine"
 import { EngineEvent } from "../engine/events"
 import { playableSteps, stepCount, viewIndex } from "../engine/loopRange"
 import { stepEvents } from "../engine/stepPreview"
@@ -138,10 +138,11 @@ const BEAT_EPSILON = 1e-9
 /**
  * Everything the sequence plays over `passes` passes from its start, worked
  * out in silence: the notes and CCs a performance would send, without
- * sending any, in the order they fall. A step at a time, since the engine
- * caps what one render returns, and each step only as it is asked for, so a
- * long sequence need never be held all at once. Whatever still sounds at the
- * end is released there. The same seed gives the same events every time.
+ * sending any, in the order they fall. A step at a time, each a render's
+ * budget at a time and only as it is asked for, so however long the
+ * sequence, or busy its steps, it is never all held at once, and nothing is
+ * cut short. Whatever still sounds at the end is released there. The same
+ * seed gives the same events every time.
  */
 export function* sequenceEvents(
   patch: PatchJSON,
@@ -152,8 +153,8 @@ export function* sequenceEvents(
   engine.start(0)
   for (let step = 0; step < steps; step++) {
     // the landing, which settles how long the step lasts, then the rest
-    yield* engine.render(engine.nextStepBeat)
-    yield* engine.render(engine.nextStepBeat - BEAT_EPSILON)
+    yield* renderThrough(engine, engine.nextStepBeat)
+    yield* renderThrough(engine, engine.nextStepBeat - BEAT_EPSILON)
   }
   yield* engine.stop(engine.nextStepBeat)
 }

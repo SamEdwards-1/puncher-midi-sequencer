@@ -14,6 +14,9 @@ export interface SchedulerReport {
   // stalls the sequence paused for, and the time they took, in ms
   stalls: number
   stalled: number
+  // ticks that ran out of rendering budget short of the lookahead, leaving
+  // the rest to the ticks after
+  behind: number
 }
 
 // about a minute of ticks
@@ -33,6 +36,7 @@ export class SchedulerStats {
   private maxLate = 0
   private stalls = 0
   private stalled = 0
+  private behind = 0
 
   tick(start: number, end: number) {
     this.durations[this.ticks % KEPT] = end - start
@@ -58,6 +62,10 @@ export class SchedulerStats {
     this.stalled += lasted
   }
 
+  fellBehind() {
+    this.behind++
+  }
+
   reset() {
     this.ticks = 0
     this.lastStart = null
@@ -66,6 +74,7 @@ export class SchedulerStats {
     this.maxLate = 0
     this.stalls = 0
     this.stalled = 0
+    this.behind = 0
   }
 
   report(): SchedulerReport {
@@ -87,6 +96,7 @@ export class SchedulerStats {
       maxLate: this.maxLate,
       stalls: this.stalls,
       stalled: this.stalled,
+      behind: this.behind,
     }
   }
 }

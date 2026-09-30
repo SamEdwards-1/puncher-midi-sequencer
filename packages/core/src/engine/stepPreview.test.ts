@@ -657,9 +657,9 @@ describe("the sequencer's next round", () => {
       // played live, a little at a time
       const played = []
       for (let to = beat; to < beat + round.length; to += 0.1) {
-        played.push(...engine.render(to))
+        played.push(...engine.render(to).events)
       }
-      played.push(...engine.render(beat + round.length - 1e-9))
+      played.push(...engine.render(beat + round.length - 1e-9).events)
       expect(round.beat).toBe(beat)
       expect(round.notes.map(({ note, start }) => ({ note, start }))).toEqual(
         played

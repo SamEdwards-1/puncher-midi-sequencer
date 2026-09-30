@@ -55,7 +55,7 @@ describe("Engine", () => {
   it("plays one note per step and loops over the recorded steps", () => {
     const engine = new Engine(patch)
     engine.start(0)
-    const events = withoutDots(engine.render(3.9))
+    const events = withoutDots(engine.render(3.9).events)
 
     expect(events).toEqual([
       step(0, 0, [0, 0, 0, 0]),
@@ -78,7 +78,7 @@ describe("Engine", () => {
       // voice 1 at 4ths plays a dot a step; the others, at 8ths, two
       const engine = new Engine(patch)
       engine.start(0)
-      expect(voiceDotsOf(engine.render(2.9))).toEqual([
+      expect(voiceDotsOf(engine.render(2.9).events)).toEqual([
         [0, 0, 0, 0],
         [1, 2, 2, 2],
         [2, 4, 4, 4],
@@ -90,16 +90,16 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       // 8ths through a three-dot pattern: 0, 2, 4 % 3, 6 % 3
-      expect(voiceDotsOf(engine.render(3.9)).map((dots) => dots[1])).toEqual([
-        0, 2, 1, 0,
-      ])
+      expect(
+        voiceDotsOf(engine.render(3.9).events).map((dots) => dots[1]),
+      ).toEqual([0, 2, 1, 0])
     })
 
     it("starts every voice at its first dot on every step with sync", () => {
       patch.syncVoices = true
       const engine = new Engine(patch)
       engine.start(0)
-      expect(voiceDotsOf(engine.render(2.9))).toEqual([
+      expect(voiceDotsOf(engine.render(2.9).events)).toEqual([
         [0, 0, 0, 0],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -111,7 +111,7 @@ describe("Engine", () => {
       patch.voices[0].patternLength = 3
       const engine = new Engine(patch)
       engine.start(0)
-      const events = engine.render(4.9)
+      const events = engine.render(4.9).events
 
       // quarter notes through a three-dot pattern, the silent dot included
       expect(dotsOf(events, 0)).toEqual([0, 1, 2, 0, 1])
@@ -125,7 +125,7 @@ describe("Engine", () => {
       engine.start(0)
       const types = engine
         .render(0.1)
-        .filter((e) => e.type === "dot" || e.type === "noteOn")
+        .events.filter((e) => e.type === "dot" || e.type === "noteOn")
         .map((e) => e.type)
       expect(types).toEqual(["dot", "noteOn"])
     })
@@ -135,7 +135,9 @@ describe("Engine", () => {
       engine.start(0)
       // only voice 1 is enabled in these tests
       const voices = new Set(
-        engine.render(3.9).flatMap((e) => (e.type === "dot" ? [e.voice] : [])),
+        engine
+          .render(3.9)
+          .events.flatMap((e) => (e.type === "dot" ? [e.voice] : [])),
       )
       expect([...voices]).toEqual([0])
     })
@@ -145,9 +147,9 @@ describe("Engine", () => {
       patch.voices[0].pace = "8thT"
       const engine = new Engine(patch)
       engine.start(0)
-      expect(voiceDotsOf(engine.render(4.9)).map((dots) => dots[0])).toEqual([
-        0, 3, 6, 9, 12,
-      ])
+      expect(
+        voiceDotsOf(engine.render(4.9).events).map((dots) => dots[0]),
+      ).toEqual([0, 3, 6, 9, 12])
     })
 
     it("names the dot a slow voice plays next, even steps away", () => {
@@ -155,9 +157,9 @@ describe("Engine", () => {
       patch.voices[0].pace = "2nd"
       const engine = new Engine(patch)
       engine.start(0)
-      expect(voiceDotsOf(engine.render(3.9)).map((dots) => dots[0])).toEqual([
-        0, 1, 1, 2,
-      ])
+      expect(
+        voiceDotsOf(engine.render(3.9).events).map((dots) => dots[0]),
+      ).toEqual([0, 1, 1, 2])
     })
   })
 
@@ -170,7 +172,7 @@ describe("Engine", () => {
     const engine = new Engine(patch)
     engine.start(0)
 
-    const onBeats = beatsOf(engine.render(2.9), "noteOn")
+    const onBeats = beatsOf(engine.render(2.9).events, "noteOn")
     expect(onBeats).toHaveLength(9)
     expect(new Set(onBeats).size).toBe(9)
     expect(onBeats.filter((beat) => Number.isInteger(beat))).toEqual([0, 1, 2])
@@ -180,14 +182,14 @@ describe("Engine", () => {
     const engine = new Engine(patch)
     engine.start(0)
     const windowed = [
-      ...engine.render(0.75),
-      ...engine.render(1.6),
-      ...engine.render(3.9),
+      ...engine.render(0.75).events,
+      ...engine.render(1.6).events,
+      ...engine.render(3.9).events,
     ]
 
     const whole = new Engine(patch)
     whole.start(0)
-    expect(windowed).toEqual(whole.render(3.9))
+    expect(windowed).toEqual(whole.render(3.9).events)
   })
 
   it("uses the lowest four notes, one for each voice", () => {
@@ -198,7 +200,7 @@ describe("Engine", () => {
 
     const engine = new Engine(patch)
     engine.start(0)
-    expect(notesOn(engine.render(3.9))).toEqual([48, 55, 60, 64])
+    expect(notesOn(engine.render(3.9).events)).toEqual([48, 55, 60, 64])
   })
 
   describe("step envelopes", () => {
@@ -218,7 +220,7 @@ describe("Engine", () => {
     it("sends a one-point envelope on landing, before that beat's notes", () => {
       const engine = new Engine(patch)
       engine.start(0)
-      const events = withoutDots(engine.render(0.1))
+      const events = withoutDots(engine.render(0.1).events)
 
       expect(events.slice(0, 3)).toEqual([
         step(0, 0, [0, 0, 0, 0]),
@@ -241,21 +243,23 @@ describe("Engine", () => {
         },
       ])
       // and, holding still, nothing more
-      expect(ccs(engine.render(0.9))).toEqual([])
+      expect(ccs(engine.render(0.9).events)).toEqual([])
     })
 
     it("sends on a rest but never on a skipped step", () => {
       patch.steps[0].state = "rest"
       const resting = new Engine(patch)
       resting.start(0)
-      const restEvents = resting.render(0.1)
+      const restEvents = resting.render(0.1).events
       expect(restEvents.some((e) => e.type === "cc")).toBe(true)
       expect(restEvents.some((e) => e.type === "noteOn")).toBe(false)
 
       patch.steps[0].state = "skip"
       const skipping = new Engine(patch)
       skipping.start(0)
-      expect(skipping.render(3.9).some((e) => e.type === "cc")).toBe(false)
+      expect(skipping.render(3.9).events.some((e) => e.type === "cc")).toBe(
+        false,
+      )
     })
 
     it("sends on its own channel, to every output", () => {
@@ -266,7 +270,7 @@ describe("Engine", () => {
 
       const engine = new Engine(patch)
       engine.start(0)
-      const cc = engine.render(0.1).find((e) => e.type === "cc")
+      const cc = engine.render(0.1).events.find((e) => e.type === "cc")
       // the voices' own channels have nothing to do with it
       expect(cc).toMatchObject({ channel: 9, output: "all" })
     })
@@ -281,7 +285,7 @@ describe("Engine", () => {
       ]
       const engine = new Engine(patch)
       engine.start(0)
-      const sent = ccs(engine.render(0.999))
+      const sent = ccs(engine.render(0.999).events)
 
       expect(sent).toHaveLength(48)
       expect(sent.map((cc) => cc.value)).toEqual(
@@ -301,7 +305,7 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       // a jump halfway sends once, when it comes
-      expect(ccs(engine.render(0.999))).toEqual([
+      expect(ccs(engine.render(0.999).events)).toEqual([
         { beat: 0, value: 20 },
         { beat: 0.5, value: 90 },
       ])
@@ -316,7 +320,7 @@ describe("Engine", () => {
       ]
       const engine = new Engine(patch)
       engine.start(0)
-      expect(ccs(engine.render(0.999))).toEqual([{ beat: 0, value: 30 }])
+      expect(ccs(engine.render(0.999).events)).toEqual([{ beat: 0, value: 30 }])
     })
 
     it("keeps its timing on a longer step, holding the last value", () => {
@@ -330,7 +334,7 @@ describe("Engine", () => {
       ]
       const engine = new Engine(patch)
       engine.start(0)
-      const sent = ccs(engine.render(1.999))
+      const sent = ccs(engine.render(1.999).events)
       // it reaches the top at beat one, as it did, and says nothing after
       expect(sent.find((cc) => cc.beat === 0.5)?.value).toBe(48)
       expect(sent.at(-1)).toEqual({ beat: 1, value: 96 })
@@ -349,7 +353,7 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       // nothing between: 0 on landing, 96 at the jump
-      expect(ccs(engine.render(0.999))).toEqual([
+      expect(ccs(engine.render(0.999).events)).toEqual([
         { beat: 0, value: 0 },
         { beat: 0.5, value: 96 },
       ])
@@ -365,7 +369,7 @@ describe("Engine", () => {
       ]
       const engine = new Engine(patch)
       engine.start(0)
-      const sent = ccs(engine.render(0.999))
+      const sent = ccs(engine.render(0.999).events)
       // half the line: up to about 48 by the step's end, and no further
       expect(sent.find((cc) => cc.beat === 0.5)?.value).toBe(24)
       expect(Math.max(...sent.map((cc) => cc.value))).toBeLessThan(48)
@@ -375,7 +379,7 @@ describe("Engine", () => {
       patch.loop = { mode: "custom", end: 0 }
       const engine = new Engine(patch)
       engine.start(0)
-      expect(ccs(engine.render(2.9))).toEqual([
+      expect(ccs(engine.render(2.9).events)).toEqual([
         { beat: 0, value: 100 },
         { beat: 1, value: 100 },
         { beat: 2, value: 100 },
@@ -386,12 +390,14 @@ describe("Engine", () => {
       patch.pace = "1bar"
       const engine = new Engine(patch)
       engine.start(0)
-      expect(ccs(engine.render(1))).toEqual([{ beat: 0, value: 100 }])
+      expect(ccs(engine.render(1).events)).toEqual([{ beat: 0, value: 100 }])
 
       const redrawn = structuredClone(patch)
       redrawn.steps[0].envelopes = [envelope([{ time: 0, value: 40 }])]
       engine.setPatch(redrawn)
-      expect(ccs(engine.render(1.1))).toEqual([{ beat: 1 + 1 / 48, value: 40 }])
+      expect(ccs(engine.render(1.1).events)).toEqual([
+        { beat: 1 + 1 / 48, value: 40 },
+      ])
     })
 
     it("starts over each time round while Hold keeps the step", () => {
@@ -405,7 +411,7 @@ describe("Engine", () => {
       engine.start(0)
       engine.render(0.5)
       engine.setActions({ hold: true })
-      const later = ccs(engine.render(2.99))
+      const later = ccs(engine.render(2.99).events)
       // the rest of the first step's line, then the whole of it twice more,
       // each round from its opening value
       expect(later.filter((cc) => cc.value === 0).map((cc) => cc.beat)).toEqual(
@@ -417,14 +423,14 @@ describe("Engine", () => {
 
       // let go, the next step lands, and it has no envelope to start
       engine.setActions({ hold: false })
-      expect(ccs(engine.render(3.9))).toEqual([])
+      expect(ccs(engine.render(3.9).events)).toEqual([])
     })
 
     it("sends nothing for an envelope without points", () => {
       patch.steps[0].envelopes = [envelope([])]
       const engine = new Engine(patch)
       engine.start(0)
-      expect(ccs(engine.render(3.9))).toEqual([])
+      expect(ccs(engine.render(3.9).events)).toEqual([])
     })
 
     it("sends several envelopes in list order", () => {
@@ -435,7 +441,9 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       expect(
-        engine.render(0.1).flatMap((e) => (e.type === "cc" ? [e.cc] : [])),
+        engine
+          .render(0.1)
+          .events.flatMap((e) => (e.type === "cc" ? [e.cc] : [])),
       ).toEqual([71, 10])
     })
   })
@@ -452,7 +460,7 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       // step 0 jumps to 2 on its first visit, then falls through to 1
-      expect(positions(engine.render(5.9))).toEqual([0, 2, 0, 1, 2, 0])
+      expect(positions(engine.render(5.9).events)).toEqual([0, 2, 0, 1, 2, 0])
     })
 
     it("walks back into the loop range from a destination outside it", () => {
@@ -461,7 +469,7 @@ describe("Engine", () => {
 
       const engine = new Engine(patch)
       engine.start(0)
-      expect(positions(engine.render(2.9))).toEqual([0, 0, 0])
+      expect(positions(engine.render(2.9).events)).toEqual([0, 0, 0])
     })
 
     it("honours an explicit normal step", () => {
@@ -474,7 +482,7 @@ describe("Engine", () => {
 
       const engine = new Engine(patch)
       engine.start(0)
-      expect(positions(engine.render(1.1))).toEqual([0, 1])
+      expect(positions(engine.render(1.1).events)).toEqual([0, 1])
     })
   })
 
@@ -484,14 +492,14 @@ describe("Engine", () => {
       engine.start(0)
       engine.render(0.1)
       engine.setActions({ hold: true })
-      const held = engine.render(2.9)
+      const held = engine.render(2.9).events
 
       expect(positions(held)).toEqual([])
       expect(notesOn(held)).toEqual([60, 60])
 
       // releasing hold resumes in phase rather than catching up
       engine.setActions({ hold: false })
-      expect(positions(engine.render(3.1))).toEqual([1])
+      expect(positions(engine.render(3.1).events)).toEqual([1])
     })
 
     it("flip swaps the grid axes", () => {
@@ -500,7 +508,7 @@ describe("Engine", () => {
       engine.setActions({ flip: true })
       engine.start(0)
       // position 1 reads stored step 8 when flipped
-      const events = engine.render(1.1)
+      const events = engine.render(1.1).events
       expect(events.filter((e) => e.type === "step")).toMatchObject([
         { position: 0, step: 0 },
         { position: 1, step: 8 },
@@ -511,13 +519,13 @@ describe("Engine", () => {
     it("Transpose transposes notes that start while it is held", () => {
       const engine = new Engine(patch)
       engine.start(0)
-      expect(notesOn(engine.render(0.1))).toEqual([60])
+      expect(notesOn(engine.render(0.1).events)).toEqual([60])
 
       engine.setActions({ transpose: true })
-      expect(notesOn(engine.render(1.1))).toEqual([62 + 12])
+      expect(notesOn(engine.render(1.1).events)).toEqual([62 + 12])
 
       engine.setActions({ transpose: false })
-      expect(notesOn(engine.render(2.1))).toEqual([60])
+      expect(notesOn(engine.render(2.1).events)).toEqual([60])
     })
 
     describe("with a scale", () => {
@@ -535,7 +543,7 @@ describe("Engine", () => {
         const engine = new Engine(patch)
         engine.setActions({ transpose })
         engine.start(0)
-        return notesOn(engine.render(seconds))
+        return notesOn(engine.render(seconds).events)
       }
 
       it("fits the notes a voice's transpose moves out of it as the voice says", () => {
@@ -588,7 +596,7 @@ describe("Engine", () => {
         const engine = new Engine(patch)
         engine.setActions({ sync: true })
         engine.start(0)
-        const events = engine.render(3.9)
+        const events = engine.render(3.9).events
         expect(notesOn(events)).toEqual([60, 64])
         expect(beatsOf(events, "noteOn")).toEqual([0, 2])
         // the gate is the voice's length of the sequencer's step
@@ -600,15 +608,15 @@ describe("Engine", () => {
         engine.setActions({ sync: true })
         engine.selectedVoice = 1
         engine.start(0)
-        expect(notesOn(engine.render(3.9))).toEqual([60, 64, 67, 60])
+        expect(notesOn(engine.render(3.9).events)).toEqual([60, 64, 67, 60])
       })
 
       it("waits for the next step when it goes on in the middle of one", () => {
         const engine = new Engine(patch)
         engine.start(0)
-        expect(notesOn(engine.render(0.9))).toEqual([60])
+        expect(notesOn(engine.render(0.9).events)).toEqual([60])
         engine.setActions({ sync: true })
-        expect(beatsOf(engine.render(3.9), "noteOn")).toEqual([2])
+        expect(beatsOf(engine.render(3.9).events, "noteOn")).toEqual([2])
       })
 
       it("picks the voice's own pace up again as soon as it lets go", () => {
@@ -617,7 +625,7 @@ describe("Engine", () => {
         engine.start(0)
         engine.render(2.1)
         engine.setActions({ sync: false })
-        expect(beatsOf(engine.render(3.9), "noteOn")).toEqual([3])
+        expect(beatsOf(engine.render(3.9).events, "noteOn")).toEqual([3])
       })
 
       it("keeps to the sequencer's pace while Hold keeps the step", () => {
@@ -626,7 +634,7 @@ describe("Engine", () => {
         engine.start(0)
         engine.render(0.1)
         engine.setActions({ hold: true })
-        const held = engine.render(5.9)
+        const held = engine.render(5.9).events
         expect(positions(held)).toEqual([])
         expect(beatsOf(held, "noteOn")).toEqual([2, 4])
       })
@@ -643,7 +651,7 @@ describe("Engine", () => {
     const engine = new Engine(patch)
     engine.start(0)
     // the sequencer advances every 2 beats, so the arpeggio restarts there
-    expect(notesOn(engine.render(3.9))).toEqual([60, 64, 60, 64])
+    expect(notesOn(engine.render(3.9).events)).toEqual([60, 64, 60, 64])
   })
 
   describe("pattern step options", () => {
@@ -651,7 +659,7 @@ describe("Engine", () => {
       patch.voices[0].pattern[0].ratchet = 3
       const engine = new Engine(patch)
       engine.start(0)
-      const events = engine.render(0.9)
+      const events = engine.render(0.9).events
 
       const round = (beats: number[]) =>
         beats.map((beat) => Math.round(beat * 1e6) / 1e6)
@@ -672,7 +680,7 @@ describe("Engine", () => {
       engine.start(0)
       const velocities = engine
         .render(1.1)
-        .filter((e): e is NoteOnEvent => e.type === "noteOn")
+        .events.filter((e): e is NoteOnEvent => e.type === "noteOn")
         .map((e) => e.velocity)
       expect(velocities).toEqual([84, 44])
     })
@@ -689,7 +697,7 @@ describe("Engine", () => {
       engine.start(0)
       const velocities = engine
         .render(3.1)
-        .filter((e): e is NoteOnEvent => e.type === "noteOn")
+        .events.filter((e): e is NoteOnEvent => e.type === "noteOn")
         .map((e) => e.velocity)
       expect(velocities).toEqual([74, 94, 127, 1])
     })
@@ -701,7 +709,7 @@ describe("Engine", () => {
 
       const engine = new Engine(patch)
       engine.start(0)
-      const events = engine.render(1.9)
+      const events = engine.render(1.9).events
 
       expect(beatsOf(events, "noteOn")).toEqual([0])
       // 1 beat of hold plus the 0.5 gate of the sounding dot
@@ -718,7 +726,7 @@ describe("Engine", () => {
 
       const engine = new Engine(patch)
       engine.start(0)
-      const events = engine.render(1.1)
+      const events = engine.render(1.1).events
 
       expect(
         events.filter((e) => e.type !== "step" && e.type !== "dot"),
@@ -751,7 +759,7 @@ describe("Engine", () => {
       const engine = new Engine(patch)
       engine.start(0)
       // dot 1 only plays on its second visit
-      expect(beatsOf(engine.render(3.9), "noteOn")).toEqual([0, 2, 3])
+      expect(beatsOf(engine.render(3.9).events, "noteOn")).toEqual([0, 2, 3])
     })
   })
 
@@ -759,7 +767,7 @@ describe("Engine", () => {
     patch.voices[0].pace = "4thD"
     const engine = new Engine(patch)
     engine.start(0)
-    const beats = beatsOf(engine.render(3.9), "noteOn")
+    const beats = beatsOf(engine.render(3.9).events, "noteOn")
 
     // every note and a half, so it lands off the beat every other time
     expect(beats).toEqual([0, 1.5, 3])
@@ -773,8 +781,8 @@ describe("Engine", () => {
     engine.start(0)
     engine.render(0.1)
     engine.queueStep(5)
-    expect(positions(engine.render(1.1))).toEqual([5])
-    expect(positions(engine.render(2.1))).toEqual([6])
+    expect(positions(engine.render(1.1).events)).toEqual([5])
+    expect(positions(engine.render(2.1).events)).toEqual([6])
   })
 
   it("repeats exactly for a given seed and differs for another", () => {
@@ -786,7 +794,7 @@ describe("Engine", () => {
     const run = (seed: number) => {
       const engine = new Engine(patch, { seed })
       engine.start(0)
-      return engine.render(15.9)
+      return engine.render(15.9).events
     }
 
     expect(run(7)).toEqual(run(7))
@@ -805,12 +813,12 @@ describe("Engine", () => {
     engine.render(5.3)
 
     const snapshot = engine.snapshot()
-    const copy = () => new Engine(patch, { from: snapshot }).render(15.9)
+    const copy = () => new Engine(patch, { from: snapshot }).render(15.9).events
     const played = copy()
     expect(played.length).toBeGreaterThan(0)
     // the snapshot is left as it was, for another copy to play on from
     expect(copy()).toEqual(played)
-    expect(engine.render(15.9)).toEqual(played)
+    expect(engine.render(15.9).events).toEqual(played)
   })
 
   it("releases sounding notes on stop", () => {
@@ -822,7 +830,7 @@ describe("Engine", () => {
     expect(engine.stop(0.5)).toEqual([
       { type: "noteOff", beat: 0.5, voice: 0, note: 60, channel: 1 },
     ])
-    expect(engine.render(4)).toEqual([])
+    expect(engine.render(4).events).toEqual([])
   })
 
   it("emits enabled mod outs as CCs on each step", () => {
@@ -837,7 +845,7 @@ describe("Engine", () => {
     engine.start(0)
     const mods = engine
       .render(1.1)
-      .filter((e) => e.type === "cc" && e.source === "mod")
+      .events.filter((e) => e.type === "cc" && e.source === "mod")
     expect(mods).toMatchObject([
       { cc: 21, value: 0, beat: 0 },
       { cc: 21, value: Math.round((1 / 19) * 127), beat: 1 },

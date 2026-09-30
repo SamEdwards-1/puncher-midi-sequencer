@@ -13,6 +13,7 @@ import {
   NoteOnEvent,
   PatchJSON,
   paceBeats,
+  RENDER_BUDGET,
   StepAdvanceEvent,
   StepIndex,
   StepNote,
@@ -41,6 +42,8 @@ export interface SequencerPlayerOptions {
   lookaheadMs?: number
   startDelayMs?: number
   seed?: number
+  // how much of the engine's work one tick does at most: see renderRounds
+  renderBudget?: number
 }
 
 /**
@@ -124,6 +127,20 @@ const START_DELAY_MS = 50
 const STALL_TOLERANCE_MS = 20
 // renders up to, but not including, a beat
 const BEAT_EPSILON = 1e-9
+// A tick's share of the engine's work: many times what the fastest steps
+// and voices at the fastest tempo ask of a tick's lookahead, but no more
+// than a small part of the tick.
+const TICK_RENDER_BUDGET = RENDER_BUDGET / 4
+
+/**
+ * How far a tick's render got: everything before `beat`, or when `done`,
+ * the whole lookahead up to and on it.
+ */
+interface TickRender {
+  events: EngineEvent[]
+  done: boolean
+  beat: number
+}
 
 /**
  * Drives the engine in real time: on every tick it renders the next lookahead
@@ -164,6 +181,7 @@ export class SequencerPlayer {
   private readonly previewer: RoundPreviewer
   private readonly lookaheadMs: number
   private readonly startDelayMs: number
+  private readonly renderBudget: number
   private patch: PatchJSON
   private tempo: number
   private anchorTime = 0
@@ -172,6 +190,9 @@ export class SequencerPlayer {
   private pending: EngineEvent[] = []
   // how far ahead the sequence has been scheduled
   private scheduledUntil = 0
+  // where the last tick's render got to, if it ran out of budget short of
+  // `scheduledUntil`
+  private behindAt: number | null = null
   private stepMarks: StepMark[] = []
   // the last step that has sounded, for recording onto it
   private landed: StepMark | null = null
@@ -219,6 +240,7 @@ export class SequencerPlayer {
     )
     this.lookaheadMs = options.lookaheadMs ?? LOOKAHEAD_MS
     this.startDelayMs = options.startDelayMs ?? START_DELAY_MS
+    this.renderBudget = options.renderBudget ?? TICK_RENDER_BUDGET
     this.engine = new Engine(patch, {
       seed: options.seed ?? Math.floor(Math.random() * 2 ** 32),
     })
@@ -507,6 +529,7 @@ export class SequencerPlayer {
     this.anchorBeat = 0
     this.pending = []
     this.scheduledUntil = now
+    this.behindAt = null
     this.stepMarks = []
     this.landed = null
     this.dotMarks = []
@@ -611,13 +634,23 @@ export class SequencerPlayer {
     }
 
     const toBeat = this.beatAt(now + this.lookaheadMs)
-    this.emitClock(toBeat, now)
     const queued = this.rounds.length
-    this.pending.push(...this.renderRounds(toBeat, now))
+    const rendered = this.renderRounds(toBeat, now)
+    this.pending.push(...rendered.events)
     this.pending.sort((a, b) => a.beat - b.beat)
+    // What the render got through goes out: the whole lookahead, or where
+    // the budget ran out, the rest waiting for the ticks after. Should they
+    // fall behind, the sequence pauses for them, as for a stall.
+    const settled = (beat: number) =>
+      rendered.done ? beat <= toBeat : beat < rendered.beat
+    this.behindAt = rendered.done ? null : rendered.beat
+    if (this.behindAt !== null) {
+      this.stats.fellBehind()
+    }
+    this.emitClock(rendered.beat, now)
 
     let due = 0
-    while (due < this.pending.length && this.pending[due].beat <= toBeat) {
+    while (due < this.pending.length && settled(this.pending[due].beat)) {
       const event = this.pending[due++]
       const at = this.timeAt(event.beat)
       const time = Math.max(at, now)
@@ -638,7 +671,9 @@ export class SequencerPlayer {
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
     }
     this.pending = this.pending.slice(due)
-    this.scheduledUntil = now + this.lookaheadMs
+    this.scheduledUntil = rendered.done
+      ? now + this.lookaheadMs
+      : this.timeAt(rendered.beat)
 
     if (this.rounds.length > queued) {
       this.previewer.wake()
@@ -707,30 +742,53 @@ export class SequencerPlayer {
    * picks up where it was, rather than rushing out all that was due at once.
    * The notes keep their rhythm and the clock its pulse, nothing is dropped,
    * and a note sounding across the stall holds on until the sequence comes
-   * to its end.
+   * to its end. Rendering that ran out of budget and fell behind pauses it
+   * the same, however little it fell behind by: it is sure to go on.
    */
   private recoverFromStall(now: number) {
     const overdue = now - this.scheduledUntil
-    if (overdue <= STALL_TOLERANCE_MS) {
+    if (overdue <= (this.behindAt === null ? STALL_TOLERANCE_MS : 0)) {
       return
     }
-    this.anchorBeat = this.beatAt(this.scheduledUntil)
+    this.anchorBeat = this.behindAt ?? this.beatAt(this.scheduledUntil)
     this.anchorTime = now
     this.stats.stall(overdue)
   }
 
-  // Renders on to `toBeat`, noting each round of the sequencer as it lands:
-  // the step it lands on, and the engine as it was just before, to play the
-  // round ahead from for its notes.
-  private renderRounds(toBeat: number, now: number): EngineEvent[] {
+  /**
+   * Renders on to `toBeat`, noting each round of the sequencer as it lands:
+   * the step it lands on, and the engine as it was just before, to play the
+   * round ahead from for its notes. As far as a tick's budget goes, so
+   * catching up on a lot at once — the longest steps with every voice at the
+   * fastest pace — never holds up a tick for long: what is left is picked up
+   * by the ticks after, from where this one got to.
+   */
+  private renderRounds(toBeat: number, now: number): TickRender {
     const events: EngineEvent[] = []
+    let budget = this.renderBudget
+    const render = (beat: number) => {
+      const rendered = this.engine.render(beat, budget)
+      budget -= rendered.spent
+      events.push(...rendered.events)
+      return rendered
+    }
+
     while (this.engine.isStarted && this.engine.nextStepBeat <= toBeat) {
       const beat = this.engine.nextStepBeat
-      events.push(...this.engine.render(beat - BEAT_EPSILON))
+      const before = render(beat - BEAT_EPSILON)
+      if (!before.done) {
+        return { events, done: false, beat: before.beat }
+      }
+      // a round is noted from just before it lands, so one there is no
+      // budget left to land waits for the next tick
+      if (budget <= 0) {
+        return { events, done: false, beat }
+      }
       const from = this.engine.snapshot()
-      const landing = this.engine.render(beat)
-      events.push(...landing)
-      const landed = landing.find(
+      // the sequencer goes first on its beat, so even a landing the budget
+      // cuts short has its step
+      const landing = render(beat)
+      const landed = landing.events.find(
         (event): event is StepAdvanceEvent => event.type === "step",
       )
       this.rounds.push({
@@ -742,9 +800,12 @@ export class SequencerPlayer {
         notesRevision: -1,
         askedRevision: -1,
       })
+      if (!landing.done) {
+        return { events, done: false, beat: landing.beat }
+      }
     }
-    events.push(...this.engine.render(toBeat))
-    return events
+    const rest = render(toBeat)
+    return { events, done: rest.done, beat: rest.beat }
   }
 
   // When an event due at `time` goes out: then, or at once if that has gone
