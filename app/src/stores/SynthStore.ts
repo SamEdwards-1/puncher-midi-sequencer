@@ -23,6 +23,7 @@ export class SynthStore {
   // made once; `synth` shows it to the router once it has a sound
   private sound: SoundFontSynth | null = null
   private request = 0
+  private disposed = false
 
   constructor(
     private readonly createContext: () => AudioContext = () =>
@@ -42,7 +43,7 @@ export class SynthStore {
    * one has finished, only the last is loaded.
    */
   use = async (id: number, bytes: (id: number) => Promise<ArrayBuffer>) => {
-    if (id === this.fontId && this.state === "ready") {
+    if (this.disposed || (id === this.fontId && this.state === "ready")) {
       return
     }
     const request = ++this.request
@@ -57,6 +58,9 @@ export class SynthStore {
         return
       }
       await synth.loadSoundFont(data)
+      if (this.disposed) {
+        return
+      }
       // it plays this one, whatever has been asked for since
       this.synth = synth
       this.fontId = id
@@ -88,6 +92,25 @@ export class SynthStore {
     }
     if (this.context !== null && this.context.state !== "running") {
       void this.context.resume().catch(() => undefined)
+    }
+  }
+
+  /**
+   * Closes the audio context it made, which ends the sound and frees the
+   * audio thread. A SoundFont still loading is dropped, and asking for one
+   * afterwards does nothing.
+   */
+  dispose = () => {
+    if (this.disposed) {
+      return
+    }
+    this.disposed = true
+    this.request++
+    const context = this.context
+    this.context = null
+    this.sound = null
+    if (context !== null && context.state !== "closed") {
+      void context.close().catch(() => undefined)
     }
   }
 

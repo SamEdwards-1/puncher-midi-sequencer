@@ -21,6 +21,9 @@ const fakeContext = (state: AudioContextState = "suspended") => {
     resume: vi.fn(async () => {
       context.state = "running"
     }),
+    close: vi.fn(async () => {
+      context.state = "closed"
+    }),
   }
   return context
 }
@@ -110,6 +113,28 @@ describe("SynthStore", () => {
     expect(store.fontId).toBe(2)
     expect(store.state).toBe("ready")
     expect(synth.soundBankManager.addSoundBank).toHaveBeenCalledTimes(1)
+  })
+
+  it("closes the audio it made when disposed, once", async () => {
+    const { store, context } = setup()
+    await store.use(-1, async () => new ArrayBuffer(8))
+    store.dispose()
+    store.dispose()
+    expect(context.close).toHaveBeenCalledTimes(1)
+  })
+
+  it("drops a font still loading when disposed, and loads none after", async () => {
+    const { store, context, synth } = setup()
+    const slow = deferred()
+    const loading = store.use(1, () => slow.promise)
+    store.dispose()
+    slow.resolve(new ArrayBuffer(8))
+    await loading
+    await store.use(2, async () => new ArrayBuffer(8))
+
+    expect(store.synth).toBeNull()
+    expect(synth.soundBankManager.addSoundBank).not.toHaveBeenCalled()
+    expect(context.close).toHaveBeenCalledTimes(1)
   })
 
   it("says why a font didn't load", async () => {

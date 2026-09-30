@@ -151,6 +151,48 @@ describe("MIDIDeviceStore", () => {
     expect(reopened.filter.transpose).toBe(12)
   })
 
+  it("stops listening to the browser when disposed", async () => {
+    const access = fakeAccess([fakeOutput("a", "midiseq out")])
+    const status = { state: "granted", onchange: null as (() => void) | null }
+    const storage = memoryStorage()
+    const store = new MIDIDeviceStore(
+      async () => access as unknown as MIDIAccess,
+      storage,
+      async () => status as unknown as PermissionStatus,
+    )
+    await store.requestMIDIAccess()
+    expect(access.onstatechange).not.toBeNull()
+    expect(status.onchange).not.toBeNull()
+
+    store.dispose()
+    store.dispose()
+    expect(access.onstatechange).toBeNull()
+    expect(status.onchange).toBeNull()
+    // and its settings are no longer saved
+    store.toggleOutput("midiseq out", true)
+    expect(storage.getItem("midiseq.midiOutputs")).toBeNull()
+  })
+
+  it("leaves access granted after it was disposed alone", async () => {
+    const access = fakeAccess([fakeOutput("a", "midiseq out")])
+    let grant: () => void = () => {}
+    const store = new MIDIDeviceStore(
+      () =>
+        new Promise<MIDIAccess>((resolve) => {
+          grant = () => resolve(access as unknown as MIDIAccess)
+        }),
+      memoryStorage(),
+      null,
+    )
+    const asking = store.requestMIDIAccess()
+    store.dispose()
+    grant()
+    await asking
+
+    expect(access.onstatechange).toBeNull()
+    expect(store.hasAccess).toBe(false)
+  })
+
   it("reads what older versions saved", () => {
     const storage = memoryStorage()
     // one input name beside a receive channel, and one output for everything

@@ -32,7 +32,7 @@ import {
   RoundPreviewer,
 } from "./RoundPreviewer"
 import { SchedulerStats } from "./SchedulerStats"
-import { createWorkerTicker, Ticker } from "./Ticker"
+import { createWorkerTicker, OwnedTicker, Ticker } from "./Ticker"
 
 export interface SequencerPlayerOptions {
   now?: () => number
@@ -158,6 +158,9 @@ export class SequencerPlayer {
   private readonly engine: Engine
   private readonly now: () => number
   private readonly ticker: Ticker
+  // the ticker it made itself, to end when it is disposed; one handed in
+  // belongs to whoever made it
+  private readonly ownTicker: OwnedTicker | null
   private readonly previewer: RoundPreviewer
   private readonly lookaheadMs: number
   private readonly startDelayMs: number
@@ -193,6 +196,7 @@ export class SequencerPlayer {
   private accentAmount = DEFAULT_ACCENT_AMOUNT
   // the last clock tick handed to the router, counted from the start
   private clockSent = -1
+  private disposed = false
 
   constructor(
     patch: PatchJSON,
@@ -202,7 +206,13 @@ export class SequencerPlayer {
     this.patch = patch
     this.tempo = patch.tempo
     this.now = options.now ?? (() => performance.now())
-    this.ticker = options.ticker ?? createWorkerTicker(TICK_MS)
+    if (options.ticker === undefined) {
+      this.ownTicker = createWorkerTicker(TICK_MS)
+      this.ticker = this.ownTicker
+    } else {
+      this.ownTicker = null
+      this.ticker = options.ticker
+    }
     this.previewer = (options.roundPreviewer ?? createWorkerRoundPreviewer)(
       this.nextRoundJob,
       this.roundPlayed,
@@ -266,7 +276,7 @@ export class SequencerPlayer {
    */
   previewStep = (step: number) => {
     const patch = this.patch
-    if (patch.steps[step] === undefined) {
+    if (patch.steps[step] === undefined || this.disposed) {
       return
     }
 
@@ -488,7 +498,7 @@ export class SequencerPlayer {
     this.isPlaying || (this.preview !== null && this.now() < this.preview.end)
 
   play = () => {
-    if (this.isPlaying) {
+    if (this.isPlaying || this.disposed) {
       return
     }
     const now = this.now()
@@ -554,6 +564,25 @@ export class SequencerPlayer {
     const now = this.now()
     this.router.panic(now, this.horizon(now))
     this.dropPreview()
+  }
+
+  /**
+   * Ends the player for good: whatever is sounding, the sequence or a
+   * clicked step, is silenced on the outputs, and the ticker and worker it
+   * made are ended. Playing or previewing afterwards does nothing; disposing
+   * again does nothing either.
+   */
+  dispose = () => {
+    if (this.disposed) {
+      return
+    }
+    // the ticker only runs while one of them is sounding; the panic stops it
+    if (this.isPlaying || this.preview !== null) {
+      this.panic()
+    }
+    this.ownTicker?.dispose()
+    this.previewer.dispose()
+    this.disposed = true
   }
 
   /**

@@ -106,6 +106,7 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: "Try again" }))
     })
     expect(attempts).toBe(2)
+    rootStore.dispose()
   })
 
   it("closes a menu on a click elsewhere, or on Escape", () => {

@@ -178,7 +178,7 @@ describe("autosave", () => {
     expect(reopened.sequencerStore.patch.tempo).toBe(132)
     // it comes back as work still to be saved
     expect(reopened.sequencerStore.isSaved).toBe(false)
-    reopened.autoSave.stop()
+    reopened.dispose()
   })
 
   it("writes nothing once the patch is saved", () => {

@@ -114,6 +114,23 @@ describe("createWorkerRoundPreviewer", () => {
     expect(played[0].notes.length).toBeGreaterThan(0)
   })
 
+  it("ends its worker when disposed, and plays nothing more", () => {
+    const patch = patchWithNotes(60)
+    queue = [job(0, 0, patch), job(1, 0, patch)]
+    const previewer = create()
+    previewer.wake()
+    const [worker] = FakeWorker.made
+
+    previewer.dispose()
+    previewer.dispose()
+    expect(worker.terminated).toBe(true)
+    // a reply already on its way is dropped, and waking starts no worker
+    worker.reply()
+    previewer.wake()
+    expect(played).toEqual([])
+    expect(FakeWorker.made).toHaveLength(1)
+  })
+
   it("plays on this thread where there are no workers", () => {
     vi.stubGlobal("Worker", undefined)
     const patch = patchWithNotes(60)

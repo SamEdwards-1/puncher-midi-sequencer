@@ -37,10 +37,11 @@ export const playJob = (job: RoundJob): PlayedRound => ({
  * Plays rounds ahead for their notes, one at a time. Woken when there is a
  * round to play, it takes each from `next` — which has the soonest, as the
  * patch is by then — and hands what it played to `played`, until `next` has
- * none left.
+ * none left. Once disposed it plays nothing more, and waking it does nothing.
  */
 export interface RoundPreviewer {
   wake(): void
+  dispose(): void
 }
 
 export type CreateRoundPreviewer = (
@@ -52,13 +53,19 @@ export type CreateRoundPreviewer = (
 export const createInThreadRoundPreviewer: CreateRoundPreviewer = (
   next,
   played,
-) => ({
-  wake() {
-    for (let job = next(); job !== null; job = next()) {
-      played(playJob(job))
-    }
-  },
-})
+) => {
+  let disposed = false
+  return {
+    wake() {
+      for (let job = next(); !disposed && job !== null; job = next()) {
+        played(playJob(job))
+      }
+    },
+    dispose() {
+      disposed = true
+    },
+  }
+}
 
 // What goes to the worker: the patch only when it has changed.
 export type WorkerJob = Omit<RoundJob, "patch" | "accentAmount"> &
@@ -83,6 +90,7 @@ export const createWorkerRoundPreviewer: CreateRoundPreviewer = (
   let sent: Pick<RoundJob, "patch" | "accentAmount"> | null = null
   // should the worker fail, the rounds are played here instead
   let inThread: RoundPreviewer | null = null
+  let disposed = false
 
   const start = () => {
     const started = new Worker(
@@ -90,6 +98,9 @@ export const createWorkerRoundPreviewer: CreateRoundPreviewer = (
       { type: "module" },
     )
     started.onmessage = ({ data }: MessageEvent<PlayedRound>) => {
+      if (disposed) {
+        return
+      }
       underWay = null
       played(data)
       wake()
@@ -97,6 +108,9 @@ export const createWorkerRoundPreviewer: CreateRoundPreviewer = (
     started.onerror = (event) => {
       event.preventDefault()
       started.terminate()
+      if (disposed) {
+        return
+      }
       inThread = createInThreadRoundPreviewer(next, played)
       const lost = underWay
       underWay = null
@@ -109,6 +123,9 @@ export const createWorkerRoundPreviewer: CreateRoundPreviewer = (
   }
 
   const wake = () => {
+    if (disposed) {
+      return
+    }
     if (inThread !== null) {
       inThread.wake()
       return
@@ -131,5 +148,13 @@ export const createWorkerRoundPreviewer: CreateRoundPreviewer = (
     underWay = job
   }
 
-  return { wake }
+  const dispose = () => {
+    disposed = true
+    inThread?.dispose()
+    worker?.terminate()
+    worker = null
+    underWay = null
+  }
+
+  return { wake, dispose }
 }
