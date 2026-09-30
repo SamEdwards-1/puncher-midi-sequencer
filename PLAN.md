@@ -130,7 +130,7 @@ to another when a condition is met.
     undo entry.
   - *Playback:* on landing each envelope sends its opening value, in list
     order and before that beat's notes — including on rests, never on skips,
-    and not again while Hold keeps the step. It then follows its line, read
+    and again each time round while Hold keeps the step. It then follows its line, read
     live every 1/48 beat and sent only when the whole value changes, so an
     envelope redrawn mid-step is heard at once. A one-point envelope is
     exactly the CC event it replaced; older files open that way.

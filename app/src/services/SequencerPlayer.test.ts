@@ -291,6 +291,31 @@ describe("SequencerPlayer", () => {
       expect(player.playhead(1)).toBeNull()
     })
 
+    it("crosses a held step again each time round", () => {
+      player.play()
+      runFor(300)
+      player.setAction("hold", true)
+
+      // step 1 lands at 1050 ms; Hold keeps it at 1550 and again at 2050
+      runFor(500)
+      expect(player.step).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.5)
+      runFor(500)
+      expect(player.step).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.5)
+      // recording still reads the held step as played out
+      expect(player.stepProgress()?.time).toBe(1)
+
+      // let go, the round in progress plays out and step 2 lands at 2550
+      player.setAction("hold", false)
+      runFor(200)
+      expect(player.step).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.9)
+      runFor(300)
+      expect(player.step).toBe(1)
+      expect(player.playhead(1)).toBeCloseTo(0.5)
+    })
+
     it("crosses a clicked step as it sounds, and is gone once it has", () => {
       player.previewStep(1)
       expect(player.playhead(1)).toBe(0)

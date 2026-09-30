@@ -237,13 +237,15 @@ changing over whenever the drag clearly turns. The pointer hides while you
 drag, and a line through the roll marks where you pressed.
 
 An envelope sends its first value as the sequencer lands on the step, then
-follows its line until the next. The open tab stays open as you click from
+follows its line until the next — starting over each time round while **Hold**
+keeps the step. The open tab stays open as you click from
 step to step: on a step without that CC it shows an empty, dimmed lane, and
 drawing into it adds the CC there. It stays open, too, as the editor follows
 the sequence.
 
 While the step on show sounds — played in the sequence, or clicked with
-**Audition step** on — a yellow playhead crosses the roll in time with it.
+**Audition step** on — a yellow playhead crosses the roll in time with it,
+and again each time round while Hold keeps it.
 
 ### Voices
 

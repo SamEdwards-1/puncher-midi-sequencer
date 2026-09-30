@@ -261,6 +261,20 @@ export class SequencerPlayer {
    * right at a step's edge. Null when stopped, or before the first step.
    */
   stepProgress = (): StepProgress | null => {
+    const sounded = this.stepSounded()
+    if (sounded === null) {
+      return null
+    }
+    return {
+      step: sounded.mark.step,
+      time: Math.min(1, Math.max(0, sounded.along)),
+      lengthBeats: sounded.mark.lengthBeats,
+    }
+  }
+
+  // The step sounding now and how many times through it, which goes past 1
+  // while Hold keeps it round after round.
+  private stepSounded = (): { mark: StepMark; along: number } | null => {
     if (!this.isPlaying) {
       return null
     }
@@ -275,22 +289,21 @@ export class SequencerPlayer {
     if (current === null) {
       return null
     }
-    const along = (this.beatAt(now) - current.beat) / current.lengthBeats
     return {
-      step: current.step,
-      time: Math.min(1, Math.max(0, along)),
-      lengthBeats: current.lengthBeats,
+      mark: current,
+      along: (this.beatAt(now) - current.beat) / current.lengthBeats,
     }
   }
 
   /**
    * How far through `step` the playhead is, 0 to 1: as the sequence plays
-   * it, or else as a click on it sounds it. Null while it isn't sounding.
+   * it — starting over each time round while Hold keeps it — or else as a
+   * click on it sounds it. Null while it isn't sounding.
    */
   playhead = (step: StepIndex): number | null => {
-    const progress = this.stepProgress()
-    if (progress !== null && progress.step === step) {
-      return progress.time
+    const sounded = this.stepSounded()
+    if (sounded !== null && sounded.mark.step === step) {
+      return Math.max(0, sounded.along) % 1
     }
     const preview = this.preview
     if (preview === null || preview.step !== step) {
