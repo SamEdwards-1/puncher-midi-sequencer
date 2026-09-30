@@ -1,21 +1,16 @@
-import {
-  controlChangeBytes,
-  exportBeats,
-  PatchJSON,
-  renderSequence,
-} from "@midiseq/core"
+import { controlChangeBytes, PatchJSON, sequenceEvents } from "@midiseq/core"
 import {
   MIDIController,
   SoundBankLoader,
   SpessaSynthProcessor,
 } from "spessasynth_core"
-import WavEncoder from "wav-encoder"
 import { AllOutDedupe } from "../services/AllOutDedupe"
-import type {
-  AudioRenderProgress,
-  AudioRenderRequest,
-  WavBitDepth,
+import {
+  type AudioRenderProgress,
+  type AudioRenderRequest,
+  renderSeconds,
 } from "./audioExport"
+import { WavWriter } from "./encodeWav"
 
 /** A MIDI message and when it plays, in seconds from the start. */
 export interface TimedMessage {
@@ -24,12 +19,14 @@ export interface TimedMessage {
 }
 
 /**
- * What the synth hears over a render and how long the sequence lasts, in
- * seconds: each voice's instrument set first, as the built-in sound sets
- * them, then the notes and CCs a performance sends. Notes pass through the
- * same tidying the All output does, so two voices on one note sound once.
+ * What the synth hears over a render, in seconds, in the order it plays:
+ * each voice's instrument set first, as the built-in sound sets them, then
+ * the notes and CCs a performance sends. Notes pass through the same
+ * tidying the All output does, so two voices on one note sound once. It is
+ * worked out as it is read, a step at a time, so however long the render,
+ * it is never all held at once; read again, it is the same.
  */
-export const audioTimeline = (
+export function* audioTimeline(
   patch: PatchJSON,
   {
     passes,
@@ -42,14 +39,16 @@ export const audioTimeline = (
     accentAmount: number
     modulationCCs: boolean
   },
-): { messages: TimedMessage[]; length: number } => {
+): Generator<TimedMessage, void, undefined> {
   const seconds = (beat: number) => (beat * 60) / patch.tempo
-  const messages: TimedMessage[] = patch.voices.map((voice) => ({
-    time: 0,
-    data: [0xc0 | ((voice.channel - 1) & 0x0f), voice.program],
-  }))
+  for (const voice of patch.voices) {
+    yield {
+      time: 0,
+      data: [0xc0 | ((voice.channel - 1) & 0x0f), voice.program],
+    }
+  }
   const dedupe = new AllOutDedupe()
-  const events = renderSequence(patch, {
+  const events = sequenceEvents(patch, {
     voices: [],
     ccs: [],
     layout: "combined",
@@ -75,16 +74,19 @@ export const audioTimeline = (
             ? [controlChangeBytes(event.channel, event.cc, event.value)]
             : []
     for (const data of sent) {
-      messages.push({ time, data })
+      yield { time, data }
     }
   }
-  return { messages, length: seconds(exportBeats(patch, passes)) }
 }
 
 // The synth reads its controls between blocks this long, as it does live.
 const BLOCK = 128
 
-// how often, at most, progress is told: a hundred times over a render
+// The sound is handed on in chunks of at least this many samples, about a
+// second and a half: all of it that is ever held at once.
+export const CHUNK = 65536
+
+// how often, at most, progress is told: a hundred times over a pass
 const PROGRESS_STEPS = 100
 
 // Plays one MIDI message on the synth, its channels counted from 0.
@@ -113,97 +115,132 @@ const play = (
   }
 }
 
+// Both sides as one, at the level each had, folded into the left.
+const mono = ([left, right]: Float32Array[]) => {
+  for (let index = 0; index < left.length; index++) {
+    left[index] = (left[index] + right[index]) / 2
+  }
+  return left
+}
+
+/** How a render's sound is made: its rate, its length, and its sides. */
+export interface SoundShape {
+  sampleRate: number
+  // samples long
+  frames: number
+  // 2 for stereo, 1 for both sides folded into one
+  channels: number
+}
+
 /**
- * The messages played through a SoundFont, as stereo samples `length`
- * seconds long. Each message lands on its own sample; between them the
- * synth runs a block at a time.
+ * The messages, in the order they play, played through a SoundFont
+ * `frames` samples long, and handed to `take` a chunk at a time: an array
+ * for each channel. Each message lands on its own sample; between them the
+ * synth runs a block at a time, exactly as it would into one long buffer,
+ * so how the sound is cut into chunks doesn't change it — and the same
+ * messages through the same SoundFont sound the same every time. A chunk
+ * holds good only until `take` is done with it: the next one is made in
+ * the same memory.
  */
-export const renderSamples = async (
-  messages: readonly TimedMessage[],
+export const playThrough = async (
+  messages: Iterable<TimedMessage>,
   soundFont: ArrayBuffer,
-  sampleRate: number,
-  length: number,
+  { sampleRate, frames, channels }: SoundShape,
+  take: (chunk: Float32Array[]) => void | Promise<void>,
   onProgress: (done: number) => void = () => {},
-): Promise<[Float32Array, Float32Array]> => {
+): Promise<void> => {
   const synth = new SpessaSynthProcessor(sampleRate, {
     eventsEnabled: false,
     maxBufferSize: BLOCK,
   })
-  synth.soundBankManager.addSoundBank(
-    SoundBankLoader.fromArrayBuffer(soundFont),
-    "main",
-  )
-  await synth.processorInitialized
-  // a busy passage is heard in full, not cut down to the live voice cap
-  synth.setSystemParameter("autoAllocateVoices", true)
+  try {
+    synth.soundBankManager.addSoundBank(
+      SoundBankLoader.fromArrayBuffer(soundFont),
+      "main",
+    )
+    await synth.processorInitialized
+    // a busy passage is heard in full, not cut down to the live voice cap
+    synth.setSystemParameter("autoAllocateVoices", true)
 
-  const total = Math.max(1, Math.ceil(length * sampleRate))
-  const left = new Float32Array(total)
-  const right = new Float32Array(total)
-  const due = [...messages].sort((a, b) => a.time - b.time)
-  let next = 0
-  let told = -1
-  for (let at = 0; at < total; ) {
-    while (next < due.length && Math.round(due[next].time * sampleRate) <= at) {
-      play(synth, due[next].data)
-      next++
+    // room for a block past a chunk, so a block is never cut short at one
+    const left = new Float32Array(CHUNK + BLOCK)
+    const right = new Float32Array(CHUNK + BLOCK)
+    const due = ({ time }: TimedMessage) => Math.round(time * sampleRate)
+    const pending = messages[Symbol.iterator]()
+    let next = pending.next()
+    let filled = 0
+    let told = -1
+    for (let at = 0; at < frames; ) {
+      while (!next.done && due(next.value) <= at) {
+        play(synth, next.value.data)
+        next = pending.next()
+      }
+      const until = next.done ? frames : due(next.value)
+      const count = Math.min(BLOCK, frames - at, Math.max(1, until - at))
+      synth.process(left, right, filled, count)
+      at += count
+      filled += count
+      if (filled >= CHUNK || at === frames) {
+        const sides = [left.subarray(0, filled), right.subarray(0, filled)]
+        await take(channels === 1 ? [mono(sides)] : sides)
+        // the synth adds its voices to what is there
+        left.fill(0, 0, filled)
+        right.fill(0, 0, filled)
+        filled = 0
+      }
+      const step = Math.floor((at / frames) * PROGRESS_STEPS)
+      if (step !== told) {
+        told = step
+        onProgress(at / frames)
+      }
     }
-    const until =
-      next < due.length ? Math.round(due[next].time * sampleRate) : total
-    const count = Math.min(BLOCK, total - at, Math.max(1, until - at))
-    synth.process(left, right, at, count)
-    at += count
-    const step = Math.floor((at / total) * PROGRESS_STEPS)
-    if (step !== told) {
-      told = step
-      onProgress(at / total)
-    }
+  } finally {
+    synth.destroySynthProcessor()
   }
-  synth.destroySynthProcessor()
-  return [left, right]
 }
 
 // Scales every channel alike so the loudest sample sits at this, -1 dBFS.
 const NORMAL_PEAK = 10 ** (-1 / 20)
 
-export const normalize = (channels: Float32Array[]) => {
+// The loudest sample in a chunk, on any channel.
+const peakOf = (chunk: readonly Float32Array[]) => {
   let peak = 0
-  for (const samples of channels) {
+  for (const samples of chunk) {
     for (const sample of samples) {
       peak = Math.max(peak, Math.abs(sample))
     }
   }
-  if (peak === 0) {
-    return
-  }
-  const gain = NORMAL_PEAK / peak
-  for (const samples of channels) {
+  return peak
+}
+
+/** What brings a sound peaking at `peak` to the normal peak. */
+export const normalGain = (peak: number) =>
+  peak === 0 ? 1 : NORMAL_PEAK / peak
+
+const scale = (chunk: readonly Float32Array[], gain: number) => {
+  for (const samples of chunk) {
     for (let index = 0; index < samples.length; index++) {
       samples[index] *= gain
     }
   }
 }
 
-// Both sides as one, at the level each had.
-const mono = ([left, right]: Float32Array[]) =>
-  left.map((sample, index) => (sample + right[index]) / 2)
-
-export const encodeWav = (
-  channels: Float32Array[],
-  sampleRate: number,
-  bitDepth: WavBitDepth,
-): Uint8Array<ArrayBuffer> =>
-  new Uint8Array(
-    WavEncoder.encode.sync(
-      { sampleRate, channelData: channels },
-      { bitDepth, float: bitDepth === 32, symmetric: false },
-    ),
-  )
+// A file written a piece at a time: a header, the sound, then what is left.
+interface AudioFileWriter {
+  start(): Uint8Array<ArrayBuffer>
+  encode(chunk: readonly Float32Array[]): Uint8Array<ArrayBuffer>
+  finish(): Uint8Array<ArrayBuffer>
+}
 
 /**
  * The sequence as an audio file, played through the built-in sound's
  * SoundFont, from its start for as many passes as asked, then left to ring
- * out. It takes a while, so it tells how far along it is as it goes.
+ * out. The file is handed to `write` a piece at a time as it is made, each
+ * piece written before the next is asked for, so a render of any length
+ * holds only a chunk of its sound at a time. To be normalized it is played
+ * twice: once to find its loudest moment, then again, brought to level, into
+ * the file — the same both times, being worked out from the same seed. It
+ * takes a while, so it tells how far along it is as it goes.
  */
 export const renderAudio = async (
   {
@@ -214,38 +251,72 @@ export const renderAudio = async (
     accentAmount,
     modulationCCs,
   }: AudioRenderRequest,
+  write: (bytes: Uint8Array<ArrayBuffer>) => Promise<void>,
   onProgress: (progress: AudioRenderProgress) => void = () => {},
-): Promise<Uint8Array<ArrayBuffer>> => {
-  const { messages, length } = audioTimeline(patch, {
-    passes: settings.passes,
-    seed,
-    accentAmount,
-    modulationCCs,
-  })
-  const stereo = await renderSamples(
-    messages,
+): Promise<void> => {
+  const timeline = () =>
+    audioTimeline(patch, {
+      passes: settings.passes,
+      seed,
+      accentAmount,
+      modulationCCs,
+    })
+  const shape: SoundShape = {
+    sampleRate: settings.sampleRate,
+    channels: settings.channels,
+    frames: Math.max(
+      1,
+      Math.ceil(renderSeconds(patch, settings) * settings.sampleRate),
+    ),
+  }
+  // made first, so a file too long for its format says so before any of it
+  // is played
+  const file: AudioFileWriter =
+    settings.format === "mp3"
+      ? new (await import("./encodeMp3")).Mp3Writer(
+          shape.channels,
+          shape.sampleRate,
+          settings.mp3Bitrate,
+        )
+      : new WavWriter(
+          shape.channels,
+          shape.sampleRate,
+          settings.wavBitDepth,
+          shape.frames,
+        )
+  const send = async (bytes: Uint8Array<ArrayBuffer>) => {
+    if (bytes.length > 0) {
+      await write(bytes)
+    }
+  }
+
+  let gain = 1
+  if (settings.normalize) {
+    let peak = 0
+    await playThrough(
+      timeline(),
+      soundFont,
+      shape,
+      (chunk) => {
+        peak = Math.max(peak, peakOf(chunk))
+      },
+      (done) => onProgress({ phase: "measure", done }),
+    )
+    gain = normalGain(peak)
+  }
+
+  await send(file.start())
+  await playThrough(
+    timeline(),
     soundFont,
-    settings.sampleRate,
-    length + settings.tail,
+    shape,
+    async (chunk) => {
+      if (gain !== 1) {
+        scale(chunk, gain)
+      }
+      await send(file.encode(chunk))
+    },
     (done) => onProgress({ phase: "render", done }),
   )
-  const channels = settings.channels === 1 ? [mono(stereo)] : stereo
-  if (settings.normalize) {
-    normalize(channels)
-  }
-  onProgress({ phase: "encode", done: 0 })
-  let bytes: Uint8Array<ArrayBuffer>
-  if (settings.format === "mp3") {
-    const { encodeMp3 } = await import("./encodeMp3")
-    bytes = encodeMp3(
-      channels,
-      settings.sampleRate,
-      settings.mp3Bitrate,
-      (done) => onProgress({ phase: "encode", done }),
-    )
-  } else {
-    bytes = encodeWav(channels, settings.sampleRate, settings.wavBitDepth)
-  }
-  onProgress({ phase: "encode", done: 1 })
-  return bytes
+  await send(file.finish())
 }

@@ -405,18 +405,25 @@ export function useMidiExport() {
   }
 }
 
-/** Where a render is: fetching its SoundFont, then playing and encoding. */
-export type AudioRenderStatus = { phase: "loading" } | AudioRenderProgress
+/**
+ * Where a render is: fetching its SoundFont, then finding its level and
+ * playing it into its file, then keeping the file.
+ */
+export type AudioRenderStatus =
+  | { phase: "loading" }
+  | AudioRenderProgress
+  | { phase: "saving" }
 
 /**
  * The sequence rendered to an audio file through the built-in sound's
  * SoundFont, with the audio export settings, on a thread of its own. Where
  * it goes is asked first, while the click that started it still lets a
- * picker open; the file named `name` is then written once it is made.
- * Chance is rolled afresh and accents move velocities as they do when
- * playing, and the CCs driving settings reach the synth if they reach the
- * outputs. `done` is the name written, or null if nothing was — the picker
- * dismissed, the render cancelled, or a failure, which says why.
+ * picker open; the file named `name` is then written a piece at a time as
+ * it is made, and kept once it is all written. Chance is rolled afresh and
+ * accents move velocities as they do when playing, and the CCs driving
+ * settings reach the synth if they reach the outputs. `done` is the name
+ * written, or null if nothing was — the picker dismissed, the render
+ * cancelled, or a failure, which says why — leaving the file as it was.
  */
 export function useAudioRender() {
   const {
@@ -437,44 +444,53 @@ export function useAudioRender() {
         const patch = sequencerStore.patch
         const { settings } = audioExportSettings
         const kind = settings.format === "mp3" ? MP3_FILE : WAV_FILE
-        const save = await attempt("save the audio", () =>
-          fileService.saveCopyLater(`${name}${kind.extension}`, kind),
+        const file = await attempt("save the audio", () =>
+          fileService.streamCopyLater(`${name}${kind.extension}`, kind),
         )
-        if (save === null || cancelled) {
+        if (file === null || cancelled) {
           return null
         }
-        onStatus({ phase: "loading" })
-        const soundFont = await attempt("load the SoundFont", () =>
-          soundFonts.bytes(soundFonts.selectedId),
-        )
-        if (soundFont === null || cancelled) {
-          return null
-        }
-        job = audioRenderer(
-          {
-            patch,
-            soundFont,
-            settings,
-            seed: freshSeed(),
-            accentAmount: playbackSettings.accentAmount,
-            modulationCCs: midiDeviceStore.sendModulationCCs,
-          },
-          onStatus,
-        )
-        const { result } = job
-        const bytes = await attempt("render the audio", async () => {
-          try {
-            return await result
-          } catch (error) {
-            if (error instanceof AudioRenderCancelled) {
-              return null
-            }
-            throw error
+        const written = await (async () => {
+          onStatus({ phase: "loading" })
+          // a copy of its own, since the render takes it
+          const soundFont = await attempt("load the SoundFont", () =>
+            soundFonts.bytes(soundFonts.selectedId),
+          )
+          if (soundFont === null || cancelled) {
+            return null
           }
-        })
-        return bytes === null
-          ? null
-          : attempt("save the audio", () => save(bytes))
+          job = audioRenderer(
+            {
+              patch,
+              soundFont,
+              settings,
+              seed: freshSeed(),
+              accentAmount: playbackSettings.accentAmount,
+              modulationCCs: midiDeviceStore.sendModulationCCs,
+            },
+            onStatus,
+            (bytes) => file.write(bytes),
+          )
+          const { result } = job
+          return attempt("render the audio", async () => {
+            try {
+              await result
+              return true
+            } catch (error) {
+              if (error instanceof AudioRenderCancelled) {
+                return null
+              }
+              throw error
+            }
+          })
+        })()
+        if (written === null) {
+          // what was written of it goes, leaving the file as it was
+          await file.abort().catch(() => {})
+          return null
+        }
+        onStatus({ phase: "saving" })
+        return attempt("save the audio", () => file.close())
       })()
       return {
         done,
