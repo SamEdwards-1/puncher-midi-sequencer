@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "./defaults"
 import { defaultModulation } from "./modulation"
-import { SequencerSetting } from "./types"
 import { PatchSchema } from "./schema"
+import { SequencerSetting } from "./types"
 
 describe("PatchSchema", () => {
   it("preserves all sequencer modulation settings through JSON", () => {
