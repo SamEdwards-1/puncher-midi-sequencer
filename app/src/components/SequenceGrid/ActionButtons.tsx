@@ -29,7 +29,7 @@ const ACTIONS: {
   { action: "hold", key: "KeyH", icon: PauseIcon },
   { action: "sync", key: "KeyY", icon: SyncIcon },
   { action: "flip", key: "KeyF", icon: FlipHorizontalIcon },
-  { action: "shift", key: "KeyS", icon: SwapVerticalIcon },
+  { action: "transpose", key: "KeyT", icon: SwapVerticalIcon },
 ]
 
 const isTyping = (target: EventTarget | null) =>

@@ -61,8 +61,12 @@ const SEQUENCER = object({
   sync_voices: boolean(
     "Whether every voice starts its pattern afresh on each step, rather than running on through it from step to step",
   ),
-  shift: integer("Semitones the Shift action transposes new notes by", -24, 24),
-  shift_fit: oneOf(FIT_NAMES, FIT_HINT),
+  transpose: integer(
+    "Semitones the Transpose action transposes new notes by",
+    -24,
+    24,
+  ),
+  transpose_fit: oneOf(FIT_NAMES, FIT_HINT),
   step_notes: integer(
     "How many of each step's notes play, lowest first",
     1,
@@ -115,11 +119,11 @@ const readChanges = (
   if (present(input.sync_voices)) {
     changes.syncVoices = readBoolean(input.sync_voices, "sync_voices")
   }
-  if (present(input.shift)) {
-    changes.shiftAmt = readNumber(input.shift, "shift", -24, 24)
+  if (present(input.transpose)) {
+    changes.transposeAmt = readNumber(input.transpose, "transpose", -24, 24)
   }
-  if (present(input.shift_fit)) {
-    changes.shiftFit = readFit(input.shift_fit, "shift_fit")
+  if (present(input.transpose_fit)) {
+    changes.transposeFit = readFit(input.transpose_fit, "transpose_fit")
   }
   if (present(input.step_notes)) {
     changes.maxNotesPerStep = readNumber(

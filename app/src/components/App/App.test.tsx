@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -18,7 +18,7 @@ describe("App", () => {
     ).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Grid" })).toBeInTheDocument()
     expect(screen.getByText("Voices")).toBeInTheDocument()
-    for (const action of ["Hold", "Sync", "Flip", "Shift"]) {
+    for (const action of ["Hold", "Sync", "Flip", "Transpose"]) {
       expect(screen.getByRole("button", { name: action })).toBeInTheDocument()
     }
     // the large grid draws 64 steps
@@ -183,20 +183,22 @@ describe("App", () => {
   it("types a plain number in, as a whole number", () => {
     const rootStore = createStore()
     render(<App rootStore={rootStore} />)
-    const shift = screen.getByRole("textbox", { name: "Shift amt" })
+    const transpose = within(
+      screen.getByRole("region", { name: "Sequencer" }),
+    ).getByRole("textbox", { name: "Transpose" })
 
     const type = (text: string) => {
-      fireEvent.focus(shift)
-      fireEvent.change(shift, { target: { value: text } })
-      fireEvent.keyDown(shift, { key: "Enter" })
+      fireEvent.focus(transpose)
+      fireEvent.change(transpose, { target: { value: text } })
+      fireEvent.keyDown(transpose, { key: "Enter" })
     }
     type("-7")
-    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(-7)
+    expect(rootStore.sequencerStore.patch.transposeAmt).toBe(-7)
     type("6.6")
-    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(7)
+    expect(rootStore.sequencerStore.patch.transposeAmt).toBe(7)
     // within its limits
     type("30")
-    expect(rootStore.sequencerStore.patch.shiftAmt).toBe(24)
+    expect(rootStore.sequencerStore.patch.transposeAmt).toBe(24)
   })
 
   it("focuses a typed-in number on a press that doesn't move", () => {

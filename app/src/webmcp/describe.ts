@@ -176,8 +176,8 @@ export const describeVoice = (
     pace: voice.pace,
     length: Math.round(voice.length * 100),
     rule: voice.rule,
-    offset: voice.offset,
-    offset_fit: voice.offsetFit,
+    transpose: voice.transposeAmt,
+    transpose_fit: voice.transposeFit,
     velocity: voice.velocity,
     channel: voice.channel,
     instrument: gmProgramName(voice.program),
@@ -201,8 +201,8 @@ export const describeSequencer = (patch: PatchJSON) => ({
   // the last step the loop plays, however its mode finds it
   loop_end: loopEndIndex(patch) + 1,
   sync_voices: patch.syncVoices,
-  shift: patch.shiftAmt,
-  shift_fit: patch.shiftFit,
+  transpose: patch.transposeAmt,
+  transpose_fit: patch.transposeFit,
   step_notes: patch.maxNotesPerStep,
   scale: patch.scale === null ? null : scaleLabel(patch.scale),
 })

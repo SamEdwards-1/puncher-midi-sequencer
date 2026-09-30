@@ -141,10 +141,10 @@ describe("modulation as the sequence plays", () => {
     expect(patch.loop).toEqual({ mode: "all", end: 1 })
   })
 
-  it("changes the shift amount across a step only while Shift is active", () => {
+  it("changes the transpose amount across a step only while Transpose is active", () => {
     modulate(
       {
-        target: { kind: "sequencer", setting: "shiftAmt" },
+        target: { kind: "sequencer", setting: "transposeAmt" },
         cc: 3,
         from: 0,
         to: 12,
@@ -162,7 +162,7 @@ describe("modulation as the sequence plays", () => {
       60, 60, 60, 60,
     ])
     const engine = new Engine(patch)
-    engine.setActions({ shift: true })
+    engine.setActions({ transpose: true })
     engine.start()
     expect(noteOns(engine.render(3.9)).map((event) => event.note)).toEqual([
       60, 60, 72, 72,
@@ -214,7 +214,7 @@ describe("modulation as the sequence plays", () => {
   it("follows the envelope as it changes across the step", () => {
     modulate(
       {
-        target: { kind: "voice", voice: 0, setting: "offset" },
+        target: { kind: "voice", voice: 0, setting: "transposeAmt" },
         cc: 3,
         from: 0,
         to: 12,
@@ -235,7 +235,7 @@ describe("modulation as the sequence plays", () => {
   it("sends the envelope out as its CC, as any step's is, marked as a modulation's", () => {
     modulate(
       {
-        target: { kind: "voice", voice: 0, setting: "offset" },
+        target: { kind: "voice", voice: 0, setting: "transposeAmt" },
         cc: 3,
         from: 0,
         to: 12,
@@ -310,7 +310,11 @@ describe("modulation as the sequence plays", () => {
   })
 
   it("fits a moved note to the scale the step moves the sequencer to", () => {
-    patch.voices[0] = { ...patch.voices[0], offset: 1, offsetFit: "up" }
+    patch.voices[0] = {
+      ...patch.voices[0],
+      transposeAmt: 1,
+      transposeFit: "up",
+    }
     modulate(
       {
         target: { kind: "sequencer", setting: "scale" },
@@ -327,17 +331,17 @@ describe("modulation as the sequence plays", () => {
     expect(notes[4].note).toBe(65)
   })
 
-  it("fits the shift by the modulated fit", () => {
+  it("fits what Transpose moves by the modulated fit", () => {
     patch.scale = {
       tonic: 0,
       name: "major",
       steps: [0, 2, 4, 5, 7, 9, 11],
       fit: "up",
     }
-    patch.shiftAmt = 1
+    patch.transposeAmt = 1
     modulate(
       {
-        target: { kind: "sequencer", setting: "shiftFit" },
+        target: { kind: "sequencer", setting: "transposeFit" },
         cc: 3,
         from: "up",
         to: "down",
@@ -345,9 +349,9 @@ describe("modulation as the sequence plays", () => {
       [0, at(127)],
     )
     const engine = new Engine(patch)
-    engine.setActions({ shift: true })
+    engine.setActions({ transpose: true })
     engine.start(0)
-    // C shifted to C# fits down, back to C
+    // C transposed to C# fits down, back to C
     expect(noteOns(engine.render(0))[0].note).toBe(60)
   })
 })
@@ -475,10 +479,10 @@ describe("actions a step's envelope drives", () => {
     expect(noteOns(events).map(({ note }) => note)).toEqual([60, 67, 64])
   })
 
-  it("shifts the notes a step's envelope has Shift on for, as they start", () => {
-    patch.shiftAmt = 12
+  it("transposes the notes a step's envelope has Transpose on for, as they start", () => {
+    patch.transposeAmt = 12
     patch.voices[0].pace = "8th"
-    modulate({ kind: "action", setting: "shift" }, [
+    modulate({ kind: "action", setting: "transpose" }, [
       1,
       [
         { time: 0, value: 0 },

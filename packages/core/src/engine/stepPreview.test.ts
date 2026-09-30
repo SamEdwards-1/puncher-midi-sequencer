@@ -56,8 +56,8 @@ describe("a step's notes", () => {
     expect(stepNotes(patch, 5, { accentAmount: 30 })[0].velocity).toBe(94)
   })
 
-  it("follows the voice's rule, offset and dots", () => {
-    patch.voices[0] = { ...patch.voices[0], rule: "up", offset: 12 }
+  it("follows the voice's rule, transpose and dots", () => {
+    patch.voices[0] = { ...patch.voices[0], rule: "up", transposeAmt: 12 }
     patch.voices[0].pattern[1] = { ...patch.voices[0].pattern[1], on: false }
     patch.voices[0].pattern[0] = { ...patch.voices[0].pattern[0], ratchet: 2 }
 

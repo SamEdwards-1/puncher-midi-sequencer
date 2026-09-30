@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
+import { VoiceJSON } from "../entities/types"
 import { createFile, FILE_EXTENSION, serializeFile } from "./file"
 import {
   createPatternsFile,
   PATTERNS_EXTENSION,
   PATTERNS_FORMAT,
+  PATTERNS_VERSION,
   parsePatternsFile,
   serializePatterns,
   setPatterns,
@@ -58,13 +60,13 @@ describe("pattern files", () => {
       "channel",
       "enabled",
       "length",
-      "offset",
-      "offsetFit",
       "pace",
       "pattern",
       "patternLength",
       "program",
       "rule",
+      "transposeAmt",
+      "transposeFit",
       "velocity",
     ])
     expect(file).not.toHaveProperty("patch")
@@ -156,10 +158,51 @@ describe("pattern files", () => {
     }
   })
 
+  it("reads a voice's Offset, in a file from before it was Transpose, as its transpose", () => {
+    const file = JSON.parse(serializePatterns(createPatternsFile(patterned())))
+    file.version = 1
+    file.voices = file.voices.map(
+      ({ transposeAmt, transposeFit, ...voice }: VoiceJSON, index: number) => ({
+        ...voice,
+        offset: index - 2,
+        offsetFit: "down",
+      }),
+    )
+    const result = parsePatternsFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(
+        result.voices.map(({ transposeAmt, transposeFit }) => [
+          transposeAmt,
+          transposeFit,
+        ]),
+      ).toEqual([
+        [-2, "down"],
+        [-1, "down"],
+        [0, "down"],
+        [1, "down"],
+      ])
+    }
+  })
+
+  it("keeps Offset's old name free in a file from since", () => {
+    const file = JSON.parse(serializePatterns(createPatternsFile(patterned())))
+    file.voices[0].offset = 5
+    const result = parsePatternsFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.voices[0].transposeAmt).toBe(
+        patterned().voices[0].transposeAmt,
+      )
+    }
+  })
+
   it("refuses patterns from a newer version", () => {
     const newer = {
       ...createPatternsFile(createDefaultPatch()),
-      version: 2,
+      version: PATTERNS_VERSION + 1,
     }
     const result = parsePatternsFile(JSON.stringify(newer))
     expect(result.ok).toBe(false)

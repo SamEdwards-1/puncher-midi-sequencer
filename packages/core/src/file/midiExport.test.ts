@@ -285,7 +285,11 @@ describe("exporting the sequence", () => {
     })
 
     it("marks the controllers driving settings, and can leave them out, but not a mod output on the same one", () => {
-      const target = { kind: "voice", voice: 0, setting: "offset" } as const
+      const target = {
+        kind: "voice",
+        voice: 0,
+        setting: "transposeAmt",
+      } as const
       const patch = {
         ...withCCs(),
         modulations: [{ target, cc: 1, from: 0, to: 12 }],

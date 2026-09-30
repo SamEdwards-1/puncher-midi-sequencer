@@ -132,7 +132,7 @@ describe("collisions on the pattern dots", () => {
   it("clears when the voices part", () => {
     // an octave apart, voice 2 no longer doubles voice 1
     setPatch((patch) => {
-      patch.voices[1].offset = 12
+      patch.voices[1].transposeAmt = 12
     })
     expect(marks(1, 1)).toEqual([])
     expect(marks(2, 1)).toEqual([])

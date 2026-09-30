@@ -39,10 +39,10 @@ const MODULATION = object(
   {
     setting: oneOf(
       MODULATION_SETTING_NAMES,
-      "The setting the CC drives: a voice's pace, length, rule, offset, offset_fit or pattern_length, or its sync; the sequencer's pace, scale, shift_fit, size, direction, loop, shift_amt or max_notes_per_step; or the hold, flip or shift action",
+      "The setting the CC drives: a voice's pace, length, rule, transpose_amt, transpose_fit or pattern_length, or its sync; the sequencer's pace, scale, transpose_amt, transpose_fit, size, direction, loop or max_notes_per_step; or the hold, flip or transpose action",
     ),
     voice: integer(
-      "The voice whose setting it is, 1 to 4: needed for a voice's settings and sync. Without one, pace is the sequencer's",
+      "The voice whose setting it is, 1 to 4: needed for a voice's settings and sync. Without one, pace, transpose_amt and transpose_fit are the sequencer's",
       1,
       4,
     ),
@@ -64,8 +64,8 @@ const MODULATION = object(
   ["setting"],
 )
 
-// Which setting an entry names. A voice's needs the voice, and pace without
-// one is the sequencer's.
+// Which setting an entry names. A voice's needs the voice, and pace,
+// transpose_amt and transpose_fit without one are the sequencer's.
 const readTarget = (
   fields: Record<string, unknown>,
   where: string,
@@ -78,7 +78,7 @@ const readTarget = (
   switch (setting) {
     case "hold":
     case "flip":
-    case "shift":
+    case "transpose":
       if (voice !== null) {
         throw new InputError(
           `${where}: ${name} is an action for the whole sequence, so give no voice`,
@@ -93,11 +93,9 @@ const readTarget = (
       }
       return { kind: "action", setting, voice }
     case "scale":
-    case "shiftFit":
     case "size":
     case "direction":
     case "loop":
-    case "shiftAmt":
     case "maxNotesPerStep":
       if (voice !== null) {
         throw new InputError(
@@ -106,6 +104,8 @@ const readTarget = (
       }
       return { kind: "sequencer", setting }
     case "pace":
+    case "transposeAmt":
+    case "transposeFit":
       return voice === null
         ? { kind: "sequencer", setting }
         : { kind: "voice", voice, setting }
@@ -129,7 +129,7 @@ export const modulationsTool = ({ stores, view, edit }: ToolContext) =>
     name: "set_modulations",
     title: "Bind settings to CCs",
     description:
-      "Makes, changes or removes modulations, as a setting's gear does. A modulation lets a CC drive a setting — a voice's pace, rule or offset, the scale, an action — so a step with an envelope for that CC sets the setting as the envelope goes, across that step, and a step without one leaves the setting as it is. The CC's values 0 to 127 spread evenly over the setting's values from `from` to `to`. A setting has at most one modulation, and a CC drives one setting. Changing a modulation takes the envelopes on its CC along, so each step plays as it did wherever it can. List each by its setting, and a voice's by its voice, with only what should change; the whole call is one entry in the app's undo history. The first voice whose setting is modulated is shown in the Voices panel, which also makes it the voice Sync plays. Then draw envelopes for the CC with set_steps: each modulation returned lists the CC value that stands for each of its setting's values.",
+      "Makes, changes or removes modulations, as a setting's gear does. A modulation lets a CC drive a setting — a voice's pace, rule or transpose, the scale, an action — so a step with an envelope for that CC sets the setting as the envelope goes, across that step, and a step without one leaves the setting as it is. The CC's values 0 to 127 spread evenly over the setting's values from `from` to `to`. A setting has at most one modulation, and a CC drives one setting. Changing a modulation takes the envelopes on its CC along, so each step plays as it did wherever it can. List each by its setting, and a voice's by its voice, with only what should change; the whole call is one entry in the app's undo history. The first voice whose setting is modulated is shown in the Voices panel, which also makes it the voice Sync plays. Then draw envelopes for the CC with set_steps: each modulation returned lists the CC value that stands for each of its setting's values.",
     input: object(
       {
         modulations: list(

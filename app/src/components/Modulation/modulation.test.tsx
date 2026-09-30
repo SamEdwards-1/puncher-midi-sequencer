@@ -102,7 +102,7 @@ describe("modulating a setting", () => {
     ["Size", "size", "1", "64"],
     ["Direction", "direction", "Forwards", "Random+"],
     ["Loop", "loop", "Recorded", "Custom"],
-    ["Shift amt", "shiftAmt", "-24", "+24"],
+    ["Transpose", "transposeAmt", "-24", "+24"],
     ["Step notes", "maxNotesPerStep", "1", "4"],
   ])("creates a modulation for %s with its full range", (label, setting, from, to) => {
     setup()
@@ -124,8 +124,8 @@ describe("modulating a setting", () => {
       "Pace",
       "Length",
       "Rule",
-      "Offset",
-      "Offset scale fit",
+      "Transpose",
+      "Transpose fit",
       "Pattern",
     ]) {
       expect(
@@ -137,11 +137,11 @@ describe("modulating a setting", () => {
     for (const setting of [
       "Pace",
       "Scale",
-      "Shift scale fit",
+      "Transpose fit",
       "Size",
       "Direction",
       "Loop",
-      "Shift amt",
+      "Transpose",
       "Step notes",
     ]) {
       expect(
@@ -468,7 +468,7 @@ describe("modulating an action", () => {
       "Actions · Hold",
       "Voice 1 · Sync",
       "Actions · Flip",
-      "Actions · Shift",
+      "Actions · Transpose",
     ]) {
       expect(
         grid().getByRole("button", { name: `Modulation settings: ${name}` }),

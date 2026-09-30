@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest"
 import { setStepNotes } from "../commands/patchCommands"
 import { createDefaultPatch } from "../entities/defaults"
 import { createDemoPatch } from "../entities/demoPatch"
-import { PatchJSON } from "../entities/types"
-import { createFile, parseFile, serializeFile } from "./file"
+import { PatchJSON, VoiceJSON } from "../entities/types"
+import { createFile, FILE_VERSION, parseFile, serializeFile } from "./file"
 
 // Every sequencer and voice setting moved off its default, each voice
 // differently, with every dot option in use somewhere.
@@ -20,8 +20,8 @@ const everySettingChanged = (): PatchJSON => {
     syncVoices: !patch.syncVoices,
     pace: "16thT",
     direction: "random+",
-    shiftAmt: -7,
-    shiftFit: "down",
+    transposeAmt: -7,
+    transposeFit: "down",
     tempo: 93.5,
     scale: {
       tonic: 9,
@@ -56,8 +56,11 @@ const everySettingChanged = (): PatchJSON => {
       pace: pick(["32ndT", "2ndD", "8thD", "16bar"] as const, index),
       length: 0.35,
       rule: pick(["fall", "updown+", "random", "highest"] as const, index),
-      offset: index * 5 - 12,
-      offsetFit: pick(["exclude", "ignore", "down", "exclude"] as const, index),
+      transposeAmt: index * 5 - 12,
+      transposeFit: pick(
+        ["exclude", "ignore", "down", "exclude"] as const,
+        index,
+      ),
       patternLength: 3 + index * 4,
       pattern: voice.pattern.map((_, dot) => ({
         on: (dot + index) % 3 !== 0,
@@ -196,23 +199,122 @@ describe("the file format", () => {
     expect(saved(65)).toBe("refused")
   })
 
-  it("fits the offset and shift up in a file from before they had fits", () => {
+  // A file as version 2 saved it, when Transpose was Shift and a voice's
+  // transpose its Offset, with the settings under the names they had.
+  const beforeTranspose = () => {
     const file = JSON.parse(serializeFile(createFile(createDemoPatch())))
+    const { transposeAmt, transposeFit, ...patch } = file.patch
+    return {
+      ...file,
+      version: 2,
+      patch: {
+        ...patch,
+        shiftAmt: -5,
+        shiftFit: "down",
+        voices: patch.voices.map(
+          (
+            { transposeAmt, transposeFit, ...voice }: VoiceJSON,
+            index: number,
+          ) => ({ ...voice, offset: index * 5 - 7, offsetFit: "exclude" }),
+        ),
+        modulations: [
+          {
+            target: { kind: "sequencer", setting: "shiftAmt" },
+            cc: 20,
+            from: -12,
+            to: 12,
+          },
+          {
+            target: { kind: "sequencer", setting: "shiftFit" },
+            cc: 21,
+            from: "up",
+            to: "down",
+          },
+          {
+            target: { kind: "action", setting: "shift" },
+            cc: 22,
+            from: false,
+            to: true,
+          },
+          {
+            target: { kind: "voice", voice: 1, setting: "offset" },
+            cc: 23,
+            from: -12,
+            to: 12,
+          },
+          {
+            target: { kind: "voice", voice: 2, setting: "offsetFit" },
+            cc: 24,
+            from: "up",
+            to: "down",
+          },
+        ],
+      },
+    }
+  }
+
+  it("reads Shift's settings and the voices' Offsets, in a file from before they were Transpose, as Transpose's", () => {
+    const result = parseFile(JSON.stringify(beforeTranspose()))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.file.version).toBe(FILE_VERSION)
+      expect(result.patch).toMatchObject({
+        transposeAmt: -5,
+        transposeFit: "down",
+      })
+      expect(
+        result.patch.voices.map(({ transposeAmt, transposeFit }) => [
+          transposeAmt,
+          transposeFit,
+        ]),
+      ).toEqual([
+        [-7, "exclude"],
+        [-2, "exclude"],
+        [3, "exclude"],
+        [8, "exclude"],
+      ])
+      expect(result.patch.modulations.map(({ target }) => target)).toEqual([
+        { kind: "sequencer", setting: "transposeAmt" },
+        { kind: "sequencer", setting: "transposeFit" },
+        { kind: "action", setting: "transpose" },
+        { kind: "voice", voice: 1, setting: "transposeAmt" },
+        { kind: "voice", voice: 2, setting: "transposeFit" },
+      ])
+    }
+  })
+
+  it("fits every transpose up in a file from before they had fits", () => {
+    const file = beforeTranspose()
     delete file.patch.shiftFit
     for (const voice of file.patch.voices) {
       delete voice.offsetFit
     }
+    file.patch.modulations = []
     const result = parseFile(JSON.stringify(file))
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.patch.shiftFit).toBe("up")
-      expect(result.patch.voices.map((voice) => voice.offsetFit)).toEqual([
+      expect(result.patch.transposeFit).toBe("up")
+      expect(result.patch.voices.map((voice) => voice.transposeFit)).toEqual([
         "up",
         "up",
         "up",
         "up",
       ])
+    }
+  })
+
+  it("keeps Shift's and Offset's old names free in a file from since, for settings of their own", () => {
+    const file = JSON.parse(serializeFile(createFile(createDemoPatch())))
+    file.patch.shiftAmt = 3
+    file.patch.voices[1].offset = 3
+    const result = parseFile(JSON.stringify(file))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.patch.transposeAmt).toBe(createDemoPatch().transposeAmt)
+      expect(result.patch.voices[1].transposeAmt).toBe(-12)
     }
   })
 
@@ -344,7 +446,7 @@ describe("the file format", () => {
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.file.version).toBe(2)
+      expect(result.file.version).toBe(FILE_VERSION)
       // two beats a step: the same points, at the same moments
       expect(result.patch.steps[0].envelopes[0].points).toEqual([
         { time: 0, value: 0 },

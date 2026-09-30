@@ -177,7 +177,7 @@ export class SequencerPlayer {
     this.engine.selectedVoice = voice
   }
 
-  // Hold, Sync, Flip and Shift, held or latched from the UI.
+  // Hold, Sync, Flip and Transpose, held or latched from the UI.
   setAction = (action: keyof EngineActions, held: boolean) => {
     this.setActions({ [action]: held })
   }

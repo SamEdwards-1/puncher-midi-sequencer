@@ -2,18 +2,20 @@ import { z } from "zod"
 import { VoiceSchema } from "../entities/schema"
 import { PatchJSON, VOICE_COUNT, VoiceJSON } from "../entities/types"
 import { describeIssue } from "./file"
+import { renamedVoice, savedBefore } from "./renames"
 
 export const PATTERNS_FORMAT = "midiseq-patterns"
-export const PATTERNS_VERSION = 1
+export const PATTERNS_VERSION = 2
 // Chrome's file pickers take an extension only if it is at most 16
 // characters of letters, digits, "+" and "." — no hyphen.
 export const PATTERNS_EXTENSION = ".midiseqpat.json"
 
 // A voice whole: its dots and every setting that shapes how it plays them —
-// pace, length, rule, offset and its fit, velocity, channel, instrument. The sequencer
-// and its steps stay with the patch, so a set of voices can be tried against
-// another sequence. Files from before the settings came along hold only the
-// dots and their length; those still open, and change only that.
+// pace, length, rule, transpose and its fit, velocity, channel, instrument.
+// The sequencer and its steps stay with the patch, so a set of voices can be
+// tried against another sequence. Files from before the settings came along
+// hold only the dots and their length; those still open, and change only
+// that. Version 2 renamed a voice's Offset to its Transpose; see renames.ts.
 export const VoicePatternSchema = VoiceSchema.partial().required({
   patternLength: true,
   pattern: true,
@@ -58,7 +60,11 @@ export const parsePatternsFile = (text: string): PatternsParseResult => {
     return { ok: false, error: "That file isn't JSON." }
   }
 
-  const parsed = PatternsFileSchema.safeParse(json)
+  const parsed = PatternsFileSchema.safeParse(
+    savedBefore(json, 2) && Array.isArray(json.voices)
+      ? { ...json, voices: json.voices.map(renamedVoice) }
+      : json,
+  )
   if (!parsed.success) {
     return { ok: false, error: describeIssue(parsed.error) }
   }
