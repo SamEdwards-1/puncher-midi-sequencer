@@ -110,7 +110,7 @@ describe("files", () => {
     await waitFor(() => expect(files.written).toHaveLength(1))
     expect(JSON.parse(files.written[0])).toMatchObject({
       format: "midiseq",
-      version: 2,
+      version: 3,
       patch: { tempo: 121 },
     })
     expect(rootStore.sequencerStore.isSaved).toBe(true)

@@ -177,8 +177,8 @@ describe("get_sequence", () => {
       pace: "8th",
       length: 80,
       rule: "lowest",
-      offset: -12,
-      offset_fit: "up",
+      transpose: -12,
+      transpose_fit: "up",
       velocity: 100,
       channel: 2,
       instrument: "Acoustic Grand Piano",
@@ -196,7 +196,7 @@ describe("get_sequence", () => {
       playing: false,
       step: null,
       recording: false,
-      actions: { hold: false, sync: false, flip: false, shift: false },
+      actions: { hold: false, sync: false, flip: false, transpose: false },
       outputs: [],
       sound: expect.stringMatching(/^Nothing is routed/),
     })
@@ -503,8 +503,8 @@ describe("set_voices", () => {
           pace: "16th T",
           length: 42,
           rule: "Up / Down +",
-          offset: 7,
-          offset_fit: "exclude",
+          transpose: 7,
+          transpose_fit: "exclude",
           velocity: 90,
           instrument: "vibraphone",
         },
@@ -517,8 +517,8 @@ describe("set_voices", () => {
       // on the slider's 5% steps
       length: 0.4,
       rule: "updown+",
-      offset: 7,
-      offsetFit: "exclude",
+      transposeAmt: 7,
+      transposeFit: "exclude",
       velocity: 90,
       program: 11,
     })
@@ -682,8 +682,8 @@ describe("set_sequencer", () => {
       direction: "Fwd / Bwd",
       loop_end: 3,
       sync_voices: true,
-      shift: -5,
-      shift_fit: "down",
+      transpose: -5,
+      transpose_fit: "down",
       step_notes: 3,
       scale: "a harmonic minor",
       name: "Night drive",
@@ -695,8 +695,8 @@ describe("set_sequencer", () => {
       direction: "fwdbwd",
       loop: { mode: "custom", end: 2 },
       syncVoices: true,
-      shiftAmt: -5,
-      shiftFit: "down",
+      transposeAmt: -5,
+      transposeFit: "down",
       maxNotesPerStep: 3,
       scale: { tonic: 9, name: "harmonicMinor", fit: "up" },
       name: "Night drive",
@@ -793,11 +793,11 @@ describe("the transport and the actions", () => {
       hold: true,
       sync: true,
       flip: false,
-      shift: false,
+      transpose: false,
     })
     expect(view.voice).toBe(2)
     expect(result).toEqual({
-      actions: { hold: true, sync: true, flip: false, shift: false },
+      actions: { hold: true, sync: true, flip: false, transpose: false },
       sync_voice: 3,
       note: "The sequence is stopped; the actions change it as it plays",
     })
@@ -851,8 +851,8 @@ describe("set_modulations", () => {
         { setting: "size", from: 2, to: 16 },
         { setting: "direction", from: "Forwards", to: "Backwards" },
         { setting: "loop", from: "recorded", to: "custom" },
-        { setting: "shift_amt", from: -12, to: 12 },
-        { setting: "shift_fit", from: "up", to: "down" },
+        { setting: "transpose_amt", from: -12, to: 12 },
+        { setting: "transpose_fit", from: "up", to: "down" },
         { setting: "step_notes", from: 1, to: 4 },
       ],
     })
@@ -862,8 +862,8 @@ describe("set_modulations", () => {
         "size",
         "direction",
         "loop",
-        "shiftAmt",
-        "shiftFit",
+        "transposeAmt",
+        "transposeFit",
         "maxNotesPerStep",
       ].map((setting) => ({ kind: "sequencer", setting })),
     )
@@ -913,7 +913,7 @@ describe("set_modulations", () => {
   it("takes a range as the setting's field has it, and moves envelopes with a change", async () => {
     await call("set_modulations", {
       modulations: [
-        { setting: "offset", voice: 1, cc: 20, from: -12, to: "+12" },
+        { setting: "transpose_amt", voice: 1, cc: 20, from: -12, to: "+12" },
       ],
     })
     // +7 is 19 places on from -12, of 25 values across 0 to 127
@@ -927,7 +927,7 @@ describe("set_modulations", () => {
       ],
     })
     const changed = await call("set_modulations", {
-      modulations: [{ setting: "offset", voice: 1, from: 0 }],
+      modulations: [{ setting: "transpose_amt", voice: 1, from: 0 }],
     })
     expect(changed.modulations[0]).toMatchObject({
       from: 0,
@@ -1049,13 +1049,13 @@ describe("set_modulations", () => {
       ],
     })
     const made = await call("set_modulations", {
-      modulations: [{ setting: "offset_fit", voice: 1, cc: 25 }],
+      modulations: [{ setting: "transpose_fit", voice: 1, cc: 25 }],
     })
     expect(made.warnings).toEqual([
-      "Voice 1 · Offset scale fit now follows the envelopes for CC 25 that step 7 already had",
+      "Voice 1 · Transpose fit now follows the envelopes for CC 25 that step 7 already had",
     ])
     expect(made.modulations[0]).toMatchObject({
-      setting: "offset_fit",
+      setting: "transpose_fit",
       from: "up",
       to: "ignore",
       steps: [7],

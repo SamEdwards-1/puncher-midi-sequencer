@@ -147,9 +147,9 @@ export interface VoiceJSON {
   // gate length as a fraction of the pace, 0.1..1
   length: number
   rule: VoiceRule
-  offset: number
-  // how a note the offset moves out of the patch's scale is fitted to it
-  offsetFit: ScaleFit
+  transposeAmt: number
+  // how a note its transpose moves out of the patch's scale is fitted to it
+  transposeFit: ScaleFit
   patternLength: number
   pattern: PatternStepJSON[]
   velocity: number
@@ -182,27 +182,27 @@ export type VoiceSetting =
   | "pace"
   | "length"
   | "rule"
-  | "offset"
-  | "offsetFit"
+  | "transposeAmt"
+  | "transposeFit"
   | "patternLength"
 
 /** The sequencer's settings that a CC can modulate. */
 export type SequencerSetting =
   | "pace"
   | "scale"
-  | "shiftFit"
+  | "transposeFit"
   | "size"
   | "direction"
   | "loop"
-  | "shiftAmt"
+  | "transposeAmt"
   | "maxNotesPerStep"
 
 /**
- * An action a CC can drive: Hold, Flip and Shift for the whole sequence,
+ * An action a CC can drive: Hold, Flip and Transpose for the whole sequence,
  * Sync for one voice, so each voice can be synced on steps of its own.
  */
 export type ActionTarget =
-  | { kind: "action"; setting: "hold" | "flip" | "shift" }
+  | { kind: "action"; setting: "hold" | "flip" | "transpose" }
   | { kind: "action"; setting: "sync"; voice: VoiceIndex }
 
 export type ModulationTarget =
@@ -218,7 +218,7 @@ export interface ScaleChoiceJSON {
 
 /**
  * One of a setting's values, as the setting holds it: a pace's id, a
- * length, a rule, an offset, a fit, a pattern length, a scale — null for
+ * length, a rule, a transpose, a fit, a pattern length, a scale — null for
  * none — or whether an action is on.
  */
 export type ModulationValue = number | string | boolean | ScaleChoiceJSON | null
@@ -247,9 +247,9 @@ export interface PatchJSON {
   syncVoices: boolean
   pace: PaceId
   direction: Direction
-  shiftAmt: number
-  // how a note the shift moves out of the scale is fitted to it
-  shiftFit: ScaleFit
+  transposeAmt: number
+  // how a note Transpose moves out of the scale is fitted to it
+  transposeFit: ScaleFit
   tempo: number
   // the scale the patch is in, if any: notes outside it are marked, and
   // those imported or recorded are fitted to it as its fit says
@@ -261,4 +261,4 @@ export interface PatchJSON {
   modulations: ModulationJSON[]
 }
 
-export type ActionButton = "hold" | "sync" | "flip" | "shift"
+export type ActionButton = "hold" | "sync" | "flip" | "transpose"

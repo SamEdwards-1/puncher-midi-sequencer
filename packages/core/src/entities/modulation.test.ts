@@ -79,15 +79,15 @@ describe("a modulation", () => {
   })
 
   it("runs backwards when it starts from the later value", () => {
-    const offsets: ModulationJSON = {
-      target: { kind: "voice", voice: 1, setting: "offset" },
+    const transposes: ModulationJSON = {
+      target: { kind: "voice", voice: 1, setting: "transposeAmt" },
       cc: 3,
       from: 12,
       to: -12,
     }
-    expect(modulationValueAt(offsets, 0)).toBe(12)
-    expect(modulationValueAt(offsets, 127)).toBe(-12)
-    expect(modulationValueAt(offsets, 64)).toBe(0)
+    expect(modulationValueAt(transposes, 0)).toBe(12)
+    expect(modulationValueAt(transposes, 127)).toBe(-12)
+    expect(modulationValueAt(transposes, 64)).toBe(0)
   })
 
   it("snaps a CC value to the nearest that stands for a value", () => {
@@ -110,8 +110,8 @@ describe("a modulation", () => {
       "pace",
       "length",
       "rule",
-      "offset",
-      "offsetFit",
+      "transposeAmt",
+      "transposeFit",
       "patternLength",
     ]
       .map(
@@ -121,11 +121,11 @@ describe("a modulation", () => {
         [
           "pace",
           "scale",
-          "shiftFit",
+          "transposeFit",
           "size",
           "direction",
           "loop",
-          "shiftAmt",
+          "transposeAmt",
           "maxNotesPerStep",
         ].map(
           (setting) => ({ kind: "sequencer", setting }) as ModulationTarget,

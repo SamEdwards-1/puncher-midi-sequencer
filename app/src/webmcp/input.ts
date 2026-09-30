@@ -410,26 +410,24 @@ export const readInstrument = (value: unknown, what = "instrument"): number => {
 
 /**
  * The settings a CC can drive, as the tools name the fields: a voice's —
- * pace is the sequencer's too — a voice's Sync, the sequencer's, and the
- * actions.
+ * pace, transpose_amt and transpose_fit are the sequencer's too — a voice's
+ * Sync, the sequencer's, and the actions.
  */
 const MODULATION_SETTING_CHOICES: Choice<ModulationTarget["setting"]>[] = [
   { value: "pace", names: ["pace"] },
   { value: "length", names: ["length"] },
   { value: "rule", names: ["rule"] },
-  { value: "offset", names: ["offset"] },
-  { value: "offsetFit", names: ["offset_fit"] },
+  { value: "transposeAmt", names: ["transpose_amt"] },
+  { value: "transposeFit", names: ["transpose_fit"] },
   { value: "patternLength", names: ["pattern_length"] },
   { value: "sync", names: ["sync"] },
   { value: "scale", names: ["scale"] },
-  { value: "shiftFit", names: ["shift_fit"] },
   { value: "hold", names: ["hold"] },
   { value: "flip", names: ["flip"] },
-  { value: "shift", names: ["shift"] },
+  { value: "transpose", names: ["transpose"] },
   { value: "size", names: ["size"] },
   { value: "direction", names: ["direction"] },
   { value: "loop", names: ["loop"] },
-  { value: "shiftAmt", names: ["shift_amt"] },
   { value: "maxNotesPerStep", names: ["max_notes_per_step", "step_notes"] },
 ]
 
@@ -438,7 +436,7 @@ export const MODULATION_SETTING_NAMES = namesOf(MODULATION_SETTING_CHOICES)
 export const readModulationSetting = (value: unknown, what = "setting") =>
   readChoice(value, what, MODULATION_SETTING_CHOICES)
 
-// the name a setting goes by in the tools: offset_fit for offsetFit
+// the name a setting goes by in the tools: transpose_fit for transposeFit
 export const modulationSettingName = (setting: ModulationTarget["setting"]) =>
   MODULATION_SETTING_CHOICES.find((choice) => choice.value === setting)
     ?.names[0] ?? setting
@@ -475,8 +473,7 @@ export const readModulationValue = (
     }
     case "rule":
       return readRule(value, what)
-    case "offset":
-    case "shiftAmt":
+    case "transposeAmt":
       return readNumber(value, what, -24, 24)
     case "size":
       return readNumber(value, what, 1, MAX_STEPS)
@@ -486,8 +483,7 @@ export const readModulationValue = (
       return readDirection(value, what)
     case "loop":
       return readLoopMode(value, what)
-    case "offsetFit":
-    case "shiftFit":
+    case "transposeFit":
       return readFit(value, what)
     case "patternLength":
       return readNumber(value, what, 1, MAX_PATTERN_LENGTH)
@@ -499,7 +495,7 @@ export const readModulationValue = (
     case "hold":
     case "sync":
     case "flip":
-    case "shift":
+    case "transpose":
       return readSwitch(value, what)
   }
 }

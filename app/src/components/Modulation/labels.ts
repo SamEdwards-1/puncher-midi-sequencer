@@ -5,6 +5,7 @@ import {
   PaceId,
   ScaleChoiceJSON,
   ScaleFit,
+  SequencerSetting,
   VoiceRule,
 } from "@midiseq/core"
 import { LocalizationKey } from "../../localize/useLocalization"
@@ -46,8 +47,7 @@ export const modulationValueLabel = (
       return `${Math.round((value as number) * 100)}%`
     case "rule":
       return RULE_LABELS[value as VoiceRule]
-    case "offset":
-    case "shiftAmt":
+    case "transposeAmt":
       return (value as number) > 0 ? `+${value}` : String(value)
     case "direction":
       return (
@@ -67,8 +67,7 @@ export const modulationValueLabel = (
           string
         >
       )[String(value)]
-    case "offsetFit":
-    case "shiftFit":
+    case "transposeFit":
       return localized[`sequencer-scale-fit-${value as ScaleFit}`]
     case "patternLength":
     case "size":
@@ -81,32 +80,31 @@ export const modulationValueLabel = (
     case "hold":
     case "sync":
     case "flip":
-    case "shift":
+    case "transpose":
       return value
         ? localized["sequencer-action-on"]
         : localized["sequencer-action-off"]
   }
 }
 
-// each setting's field, as it is labelled
+// each setting's field, as it is labelled — but for the fits, which are
+// all "Scale fit" beside the Transpose they go with, named for it here
 const FIELDS: Record<ModulationTarget["setting"], LocalizationKey> = {
   size: "sequencer-size",
   direction: "sequencer-direction",
   loop: "sequencer-loop",
-  shiftAmt: "sequencer-shift-amt",
+  transposeAmt: "sequencer-transpose-amt",
   maxNotesPerStep: "sequencer-max-notes",
   pace: "sequencer-pace",
   length: "sequencer-voice-length",
   rule: "sequencer-voice-rule",
-  offset: "sequencer-voice-offset",
-  offsetFit: "sequencer-voice-offset-fit",
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
-  shiftFit: "sequencer-shift-fit",
+  transposeFit: "sequencer-modulation-tab-transpose-fit",
   hold: "sequencer-action-hold",
   sync: "sequencer-action-sync",
   flip: "sequencer-action-flip",
-  shift: "sequencer-action-shift",
+  transpose: "sequencer-action-transpose",
 }
 
 /**
@@ -130,26 +128,31 @@ const TABS: Record<ModulationTarget["setting"], LocalizationKey> = {
   size: "sequencer-size",
   direction: "sequencer-direction",
   loop: "sequencer-loop",
-  shiftAmt: "sequencer-shift-amt",
+  transposeAmt: "sequencer-transpose-amt",
   maxNotesPerStep: "sequencer-max-notes",
   pace: "sequencer-pace",
   length: "sequencer-voice-length",
   rule: "sequencer-voice-rule",
-  offset: "sequencer-voice-offset",
-  offsetFit: "sequencer-modulation-tab-offset-fit",
   patternLength: "sequencer-voice-pattern-length",
   scale: "sequencer-scale",
-  shiftFit: "sequencer-modulation-tab-shift-fit",
+  transposeFit: "sequencer-modulation-tab-transpose-fit",
   hold: "sequencer-action-hold",
   sync: "sequencer-action-sync",
   flip: "sequencer-action-flip",
-  shift: "sequencer-action-shift",
+  transpose: "sequencer-action-transpose",
+}
+
+// the sequencer's tabs for the settings a voice has too
+const SEQUENCER_TABS: Partial<Record<SequencerSetting, LocalizationKey>> = {
+  pace: "sequencer-modulation-tab-sequencer-pace",
+  transposeAmt: "sequencer-modulation-tab-sequencer-transpose",
+  transposeFit: "sequencer-modulation-tab-sequencer-transpose-fit",
 }
 
 /**
  * A modulation's lane, named for the setting it drives: a voice's with the
  * voice's number, as its Velocity tab is — "Pace 2", "Sync 2" — and the
- * sequencer's pace told apart from the voices'.
+ * sequencer's pace and transpose told apart from the voices'.
  */
 export const modulationTabLabel = (
   target: ModulationTarget,
@@ -157,6 +160,7 @@ export const modulationTabLabel = (
 ): string =>
   "voice" in target
     ? `${localized[TABS[target.setting]]} ${target.voice + 1}`
-    : target.setting === "pace"
-      ? localized["sequencer-modulation-tab-sequencer-pace"]
-      : localized[TABS[target.setting]]
+    : localized[
+        (target.kind === "sequencer" && SEQUENCER_TABS[target.setting]) ||
+          TABS[target.setting]
+      ]

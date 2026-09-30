@@ -139,9 +139,9 @@ export const FitSelect: FC<{
 }
 
 /**
- * The scales that best fit the notes, as tags to pick with a click, after
- * chromatic — no scale at all — which is always there; the one in use is
- * lit.
+ * The scales that best fit the notes, as tags to pick with a click, and
+ * last chromatic — no scale at all — which is always there; the one in use
+ * is lit.
  */
 export const ScaleGuesses: FC<{
   guesses: ScaleGuess[]
@@ -153,15 +153,6 @@ export const ScaleGuesses: FC<{
     className={cn("flex min-w-0 flex-wrap gap-1", className)}
     data-scale-guesses
   >
-    <Button
-      type="button"
-      size="pill"
-      active={scale === null}
-      aria-pressed={scale === null}
-      onClick={() => onScale(null)}
-    >
-      <Localized name="sequencer-scale-chromatic" />
-    </Button>
     {guesses.map((guess) => {
       const label = scaleLabel(guess)
       const on = sameScale(guess, scale)
@@ -183,5 +174,14 @@ export const ScaleGuesses: FC<{
         </Button>
       )
     })}
+    <Button
+      type="button"
+      size="pill"
+      active={scale === null}
+      aria-pressed={scale === null}
+      onClick={() => onScale(null)}
+    >
+      <Localized name="sequencer-scale-chromatic" />
+    </Button>
   </div>
 )

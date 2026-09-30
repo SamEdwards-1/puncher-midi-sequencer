@@ -28,7 +28,7 @@ import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { Button, IconButton } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
-import { ButtonField, Field, Fields } from "../ui/Field"
+import { ButtonField, Field, FieldGroup, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
@@ -180,33 +180,6 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         </Field>
 
         <ModulatedField
-          label={localized["sequencer-shift-amt"]}
-          target={target("shiftAmt")}
-        >
-          {(shown) => (
-            <Stepper
-              label={localized["sequencer-shift-amt"]}
-              value={shown(patch.shiftAmt)}
-              min={-24}
-              max={24}
-              onChange={(shiftAmt) => editSequencer({ shiftAmt }, "shift-amt")}
-            />
-          )}
-        </ModulatedField>
-
-        <ModulatedField
-          label={localized["sequencer-shift-fit"]}
-          target={target("shiftFit")}
-        >
-          {(shown) => (
-            <FitSelect
-              value={shown(patch.shiftFit)}
-              onChange={(shiftFit) => editSequencer({ shiftFit })}
-            />
-          )}
-        </ModulatedField>
-
-        <ModulatedField
           label={localized["sequencer-max-notes"]}
           target={target("maxNotesPerStep")}
         >
@@ -223,58 +196,89 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           )}
         </ModulatedField>
 
-        {/* two selects, each with a name of its own, offering the scales a
-            modulation can reach */}
-        <ModulatedField
-          label={localized["sequencer-scale"]}
-          target={target("scale")}
-          buttons
-        >
-          {(shown) => {
-            // the patch's own scale as it is, fit and all, unless a step
-            // has moved it to another
-            const own = settingValue(patch, target("scale"))
-            const choice = shown(own)
-            return (
-              <div className="flex min-w-0 items-center gap-1">
-                <ScaleSelects
-                  className="flex-1"
-                  scale={
-                    choice === own
-                      ? patch.scale
-                      : choice === null
-                        ? null
-                        : sequencerScale(
-                            choice as ScaleChoiceJSON,
-                            patch.scale?.fit ?? "up",
-                          )
-                  }
-                  onScale={editScale}
-                  choices={SEQUENCER_SCALE_CHOICES}
-                />
-                <IconButton
-                  aria-label={localized["sequencer-scale-detect"]}
-                  title={
-                    best
-                      ? localized["sequencer-scale-detect"]
-                      : localized["sequencer-scale-no-notes"]
-                  }
-                  disabled={!best}
-                  onClick={detect}
-                >
-                  <AutoFixIcon size={16} />
-                </IconButton>
-              </div>
-            )
-          }}
-        </ModulatedField>
-        {/* the scales found in the notes, across the whole column */}
-        <ScaleGuesses
-          className="pt-[0.1rem] pb-[0.4rem]"
-          guesses={guesses}
-          scale={patch.scale}
-          onScale={editScale}
-        />
+        <FieldGroup>
+          {/* two selects, each with a name of its own, offering the scales a
+              modulation can reach */}
+          <ModulatedField
+            label={localized["sequencer-scale"]}
+            target={target("scale")}
+            buttons
+          >
+            {(shown) => {
+              // the patch's own scale as it is, fit and all, unless a step
+              // has moved it to another
+              const own = settingValue(patch, target("scale"))
+              const choice = shown(own)
+              return (
+                <div className="flex min-w-0 items-center gap-1">
+                  <ScaleSelects
+                    className="flex-1"
+                    scale={
+                      choice === own
+                        ? patch.scale
+                        : choice === null
+                          ? null
+                          : sequencerScale(
+                              choice as ScaleChoiceJSON,
+                              patch.scale?.fit ?? "up",
+                            )
+                    }
+                    onScale={editScale}
+                    choices={SEQUENCER_SCALE_CHOICES}
+                  />
+                  <IconButton
+                    aria-label={localized["sequencer-scale-detect"]}
+                    title={
+                      best
+                        ? localized["sequencer-scale-detect"]
+                        : localized["sequencer-scale-no-notes"]
+                    }
+                    disabled={!best}
+                    onClick={detect}
+                  >
+                    <AutoFixIcon size={16} />
+                  </IconButton>
+                </div>
+              )
+            }}
+          </ModulatedField>
+          {/* the scales found in the notes, across the whole column */}
+          <ScaleGuesses
+            className="pt-[0.1rem] pb-[0.4rem]"
+            guesses={guesses}
+            scale={patch.scale}
+            onScale={editScale}
+          />
+
+          <ModulatedField
+            label={localized["sequencer-transpose-amt"]}
+            target={target("transposeAmt")}
+          >
+            {(shown) => (
+              <Stepper
+                label={localized["sequencer-transpose-amt"]}
+                value={shown(patch.transposeAmt)}
+                min={-24}
+                max={24}
+                onChange={(transposeAmt) =>
+                  editSequencer({ transposeAmt }, "transpose-amt")
+                }
+              />
+            )}
+          </ModulatedField>
+
+          <ModulatedField
+            label={localized["sequencer-transpose-fit"]}
+            target={target("transposeFit")}
+          >
+            {(shown) => (
+              <FitSelect
+                value={shown(patch.transposeFit)}
+                onChange={(transposeFit) => editSequencer({ transposeFit })}
+              />
+            )}
+          </ModulatedField>
+        </FieldGroup>
 
         <ButtonField label={localized["sequencer-mark"]}>
           {/* these turn grid clicks into marking rests or skips until
