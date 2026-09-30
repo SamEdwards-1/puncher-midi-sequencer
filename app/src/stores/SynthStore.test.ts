@@ -71,6 +71,21 @@ describe("SynthStore", () => {
     stop()
   })
 
+  it("leaves the audio waiting when asked to start outside a gesture", async () => {
+    const { store, context } = setup()
+    await store.use(-1, async () => new ArrayBuffer(8))
+    const userActivation = { isActive: false }
+    vi.stubGlobal("navigator", { userActivation })
+
+    store.resume()
+    expect(context.resume).not.toHaveBeenCalled()
+
+    userActivation.isActive = true
+    store.resume()
+    expect(context.resume).toHaveBeenCalledTimes(1)
+    vi.unstubAllGlobals()
+  })
+
   it("swaps fonts in the one synth", async () => {
     const { store, synth, createSynth } = setup()
     await store.use(-1, async () => new ArrayBuffer(8))

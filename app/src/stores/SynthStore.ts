@@ -77,8 +77,15 @@ export class SynthStore {
     return this.context?.state === "suspended"
   }
 
-  /** Starts the audio; it only takes, as browsers see it, during a gesture. */
+  /**
+   * Starts the audio; it only takes, as browsers see it, during a gesture.
+   * Out of one, as at startup, it waits, since asking then only draws the
+   * browser's warning.
+   */
   resume = () => {
+    if (globalThis.navigator?.userActivation?.isActive === false) {
+      return
+    }
     if (this.context !== null && this.context.state !== "running") {
       void this.context.resume().catch(() => undefined)
     }

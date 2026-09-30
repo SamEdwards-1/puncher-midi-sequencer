@@ -48,8 +48,8 @@ export const registerReactions = (rootStore: RootStore) => {
   /**
    * The built-in sound loads its SoundFont as soon as it is wanted, at
    * startup when it was chosen last time, and again whenever another font is
-   * picked. Choosing it is a click, which lets its audio start; at startup
-   * the first click anywhere does.
+   * picked. Choosing it is a click, which lets its audio start; at startup,
+   * with no click yet, the first click anywhere does.
    */
   reaction(
     () => {
