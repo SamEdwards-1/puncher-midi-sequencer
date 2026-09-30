@@ -95,6 +95,7 @@ let rendering: ReturnType<typeof fakeRenderer>
 const dialog = () =>
   within(screen.getByRole("dialog", { name: "Render Audio" }))
 const button = (name: string) => dialog().getByRole("button", { name })
+const radio = (name: string) => dialog().getByRole("radio", { name })
 
 beforeEach(() => {
   vi.spyOn(window, "alert").mockImplementation(() => {})
@@ -127,19 +128,19 @@ describe("rendering audio", () => {
     expect(dialog().getByRole("textbox", { name: "File name" })).toHaveValue(
       "Bassline",
     )
-    expect(button("WAV")).toHaveAttribute("aria-pressed", "true")
-    expect(button("44.1 kHz")).toHaveAttribute("aria-pressed", "true")
-    expect(button("16-bit")).toHaveAttribute("aria-pressed", "true")
-    expect(button("Stereo")).toHaveAttribute("aria-pressed", "true")
+    expect(radio("WAV")).toBeChecked()
+    expect(radio("44.1 kHz")).toBeChecked()
+    expect(radio("16-bit")).toBeChecked()
+    expect(radio("Stereo")).toBeChecked()
     // names the SoundFont it plays through
     expect(dialog().getByText(/A320U\.sf2/)).toBeTruthy()
   })
 
   it("offers bitrates for MP3 in place of bit depths", () => {
-    fireEvent.click(button("MP3"))
-    expect(dialog().queryByRole("button", { name: "16-bit" })).toBeNull()
-    expect(button("192 kbps")).toHaveAttribute("aria-pressed", "true")
-    fireEvent.click(button("320 kbps"))
+    fireEvent.click(radio("MP3"))
+    expect(dialog().queryByRole("radio", { name: "16-bit" })).toBeNull()
+    expect(radio("192 kbps")).toBeChecked()
+    fireEvent.click(radio("320 kbps"))
     expect(rootStore.audioExportSettings.settings).toMatchObject({
       format: "mp3",
       mp3Bitrate: 320,
@@ -159,7 +160,7 @@ describe("rendering audio", () => {
     fireEvent.change(dialog().getByRole("textbox", { name: "File name" }), {
       target: { value: "Take 2.wav" },
     })
-    fireEvent.click(button("24-bit"))
+    fireEvent.click(radio("24-bit"))
     fireEvent.click(button("Render"))
 
     await waitFor(() => expect(rendering.requests).toHaveLength(1))
@@ -188,7 +189,7 @@ describe("rendering audio", () => {
   })
 
   it("names an MP3 as one", async () => {
-    fireEvent.click(button("MP3"))
+    fireEvent.click(radio("MP3"))
     fireEvent.click(button("Render"))
     await waitFor(() => expect(rendering.requests).toHaveLength(1))
     expect(saving.asked[0].suggestedName).toBe("Bassline.mp3")

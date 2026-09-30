@@ -1,5 +1,5 @@
 import { exportBeats } from "@midiseq/core"
-import { FC, ReactNode, useEffect, useRef, useState } from "react"
+import { FC, ReactNode, useEffect, useId, useRef, useState } from "react"
 import {
   AudioRenderStatus,
   exportBaseNameFor,
@@ -22,6 +22,7 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { MAX_EXPORT_PASSES } from "../../stores/ExportSettingsStore"
 import { Button, ButtonGroup } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
+import { cn } from "../ui/cn"
 import { Dialog } from "../ui/Dialog"
 import { Stepper } from "../ui/Stepper"
 
@@ -44,7 +45,8 @@ const Row: FC<{ label: ReactNode; children: ReactNode }> = ({
   </div>
 )
 
-// One of a few choices, as a bar of buttons, the chosen one lit.
+// One of a few choices, as a bar of radio buttons, the chosen one lit. The
+// inputs are hidden but stay focusable, so the arrow keys move between them.
 const Choice = <T extends string | number>({
   label,
   choices,
@@ -57,22 +59,36 @@ const Choice = <T extends string | number>({
   value: T
   name: (choice: T) => string
   onChange: (choice: T) => void
-}) => (
-  <ButtonGroup aria-label={label}>
-    {choices.map((choice) => (
-      <Button
-        key={choice}
-        type="button"
-        size="sm"
-        active={choice === value}
-        aria-pressed={choice === value}
-        onClick={() => onChange(choice)}
-      >
-        {name(choice)}
-      </Button>
-    ))}
-  </ButtonGroup>
-)
+}) => {
+  const group = useId()
+  return (
+    <ButtonGroup role="radiogroup" aria-label={label}>
+      {choices.map((choice) => {
+        const chosen = choice === value
+        return (
+          <label
+            key={choice}
+            className={cn(
+              "flex cursor-pointer items-center whitespace-nowrap px-[0.6rem] text-small has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-theme",
+              chosen
+                ? "bg-theme text-on-surface hover:brightness-110"
+                : "bg-background-secondary text-fg hover:bg-highlight",
+            )}
+          >
+            <input
+              type="radio"
+              name={group}
+              checked={chosen}
+              onChange={() => onChange(choice)}
+              className="sr-only"
+            />
+            {name(choice)}
+          </label>
+        )
+      })}
+    </ButtonGroup>
+  )
+}
 
 // A name typed with the extension on the end already doesn't get another.
 const withoutExtension = (name: string) =>
@@ -134,7 +150,7 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
       title={localized["sequencer-render-audio"]}
       closeLabel={localized["sequencer-export-cancel"]}
       onClose={rendering ? stop : onClose}
-      narrow
+      medium
       footer={
         <>
           <Button type="button" onClick={rendering ? stop : onClose}>
