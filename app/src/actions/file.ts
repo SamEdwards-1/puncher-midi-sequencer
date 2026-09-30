@@ -22,7 +22,7 @@ import {
   withPatchName,
 } from "@midiseq/core"
 import { useCallback } from "react"
-import { AudioRenderProgress } from "../audio/renderAudio"
+import type { AudioRenderProgress } from "../audio/audioExport"
 import { useAccentAmount } from "../hooks/useAccentAmount"
 import { useStores } from "../hooks/useStores"
 import { AudioRenderCancelled, AudioRenderJob } from "../services/AudioRenderer"

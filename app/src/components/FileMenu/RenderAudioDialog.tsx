@@ -13,7 +13,7 @@ import {
   MP3_BITRATES,
   SAMPLE_RATES,
   WAV_BIT_DEPTHS,
-} from "../../audio/renderAudio"
+} from "../../audio/audioExport"
 import { useAudioExportSettings } from "../../hooks/useAudioExportSettings"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"

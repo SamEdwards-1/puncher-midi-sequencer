@@ -8,10 +8,10 @@ import {
   within,
 } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import {
+import type {
   AudioRenderProgress,
   AudioRenderRequest,
-} from "../../audio/renderAudio"
+} from "../../audio/audioExport"
 import {
   AudioRenderCancelled,
   AudioRenderer,

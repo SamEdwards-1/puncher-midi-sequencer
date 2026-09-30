@@ -1,7 +1,7 @@
 import type {
   AudioRenderProgress,
   AudioRenderRequest,
-} from "../audio/renderAudio"
+} from "../audio/audioExport"
 
 /** A render under way: the file it comes to, and a way to stop it. */
 export interface AudioRenderJob {
