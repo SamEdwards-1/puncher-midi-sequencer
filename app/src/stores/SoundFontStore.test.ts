@@ -9,6 +9,7 @@ import {
   FACTORY_SOUNDFONT_URL,
   isSoundBank,
   SoundFontStore,
+  withoutCreationDate,
 } from "./SoundFontStore"
 
 const memoryStorage = (): Storage => {
@@ -53,6 +54,43 @@ describe("isSoundBank", () => {
     expect(isSoundBank(soundBank("DLS "))).toBe(true)
     expect(isSoundBank(soundBank("WAVE"))).toBe(false)
     expect(isSoundBank(new ArrayBuffer(4))).toBe(false)
+  })
+})
+
+// a RIFF chunk: an id, a little-endian size, then data padded to even
+const chunk = (id: string, data: string) => {
+  const size = String.fromCharCode(
+    ...new Uint8Array(new Uint32Array([data.length]).buffer),
+  )
+  return `${id}${size}${data}${data.length % 2 ? "\0" : ""}`
+}
+
+// the header and INFO list the factory set has, date and all
+const withInfo = () => {
+  const info = chunk(
+    "LIST",
+    `INFO${chunk("INAM", "Airfont")}${chunk("ICRD", "17-7-05\0")}`,
+  )
+  const riff = chunk("RIFF", `sfbk${info}${chunk("LIST", "sdta")}`)
+  return Uint8Array.from(riff, (c) => c.charCodeAt(0)).buffer as ArrayBuffer
+}
+
+const latin1 = (data: ArrayBuffer) =>
+  String.fromCharCode(...new Uint8Array(data))
+
+describe("withoutCreationDate", () => {
+  it("blanks the date, and nothing else", () => {
+    const before = latin1(withInfo())
+    expect(before).toContain("17-7-05")
+    expect(latin1(withoutCreationDate(withInfo()))).toBe(
+      before.replace("17-7-05", "\0".repeat(7)),
+    )
+  })
+
+  it("leaves what isn't a sound bank alone", () => {
+    expect(latin1(withoutCreationDate(soundBank("WAVE")))).toBe(
+      latin1(soundBank("WAVE")),
+    )
   })
 })
 
@@ -124,6 +162,18 @@ describe("SoundFontStore", () => {
 
     await store.bytes(FACTORY_SOUNDFONT.id)
     expect(fetchFont).toHaveBeenCalledTimes(1)
+  })
+
+  // spessasynth warns over a date it can't read, as the factory set's
+  it("hands fonts over without their creation date", async () => {
+    const { store, fetchFont } = setup()
+    fetchFont.mockResolvedValue(withInfo())
+    expect(latin1(await store.bytes(FACTORY_SOUNDFONT.id))).not.toContain(
+      "17-7-05",
+    )
+
+    const id = await store.add("Airfont.sf2", withInfo())
+    expect(latin1(await store.bytes(id))).not.toContain("17-7-05")
   })
 
   it("still plays where the browser can't keep anything", async () => {

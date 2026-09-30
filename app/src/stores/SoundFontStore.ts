@@ -49,6 +49,38 @@ export const isSoundBank = (data: ArrayBuffer) => {
   return text(0) === "RIFF" && ["sfbk", "DLS "].includes(text(8))
 }
 
+/**
+ * Blanks a sound bank's creation date, in place. Nothing here shows it, and
+ * spessasynth warns in the console over one it can't read, as the factory
+ * set's "17-7-05"; a blank one it quietly takes as today.
+ */
+export const withoutCreationDate = (data: ArrayBuffer): ArrayBuffer => {
+  if (!isSoundBank(data)) {
+    return data
+  }
+  const view = new DataView(data)
+  const text = (from: number) =>
+    String.fromCharCode(...new Uint8Array(data, from, 4))
+  // RIFF chunks: an id, a little-endian size, then data padded to even
+  const chunks = function* (from: number, to: number) {
+    for (let at = from; at + 8 <= to; ) {
+      const size = Math.min(view.getUint32(at + 4, true), to - at - 8)
+      yield { at, size }
+      at += 8 + size + (size % 2)
+    }
+  }
+  for (const { at, size } of chunks(12, data.byteLength)) {
+    if (size >= 4 && text(at) === "LIST" && text(at + 8) === "INFO") {
+      for (const info of chunks(at + 12, at + 8 + size)) {
+        if (text(info.at) === "ICRD") {
+          new Uint8Array(data, info.at + 8, info.size).fill(0)
+        }
+      }
+    }
+  }
+  return data
+}
+
 const defaultFetch = async (url: string) => {
   const response = await fetch(url)
   if (!response.ok) {
@@ -130,7 +162,10 @@ export class SoundFontStore {
   }
 
   /** A font's bytes: from the browser where it has them, else the web. */
-  bytes = async (id: number): Promise<ArrayBuffer> => {
+  bytes = async (id: number): Promise<ArrayBuffer> =>
+    withoutCreationDate(await this.read(id))
+
+  private async read(id: number): Promise<ArrayBuffer> {
     if (id !== FACTORY_SOUNDFONT.id) {
       const data = await this.fonts.load(id)
       if (data === null) {
