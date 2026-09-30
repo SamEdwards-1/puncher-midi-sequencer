@@ -14,7 +14,7 @@ describe("createDemoPatch", () => {
     const channels = new Set(
       engine
         .render(16)
-        .filter((event) => event.type === "noteOn")
+        .events.filter((event) => event.type === "noteOn")
         .map((event) => event.channel),
     )
     expect([...channels].sort()).toEqual([1, 2, 3])

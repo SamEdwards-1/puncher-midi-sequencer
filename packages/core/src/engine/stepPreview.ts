@@ -8,7 +8,7 @@ import {
   VoiceIndex,
 } from "../entities/types"
 import { DEFAULT_ACCENT_AMOUNT } from "../entities/velocity"
-import { Engine } from "./Engine"
+import { Engine, renderThrough } from "./Engine"
 import { EngineEvent, StepAdvanceEvent } from "./events"
 import { hasContent, playableSteps, stepCount, viewIndex } from "./loopRange"
 
@@ -133,7 +133,10 @@ const alone = (
   const engine = new Engine(oneStepPatch(patch, step), options)
   engine.start(0)
   return {
-    events: [...engine.render(length - BEAT_EPSILON), ...engine.stop(length)],
+    events: [
+      ...renderThrough(engine, length - BEAT_EPSILON),
+      ...engine.stop(length),
+    ],
     beat: 0,
     length,
     voiceDots: patch.voices.map(() => 0),
@@ -184,11 +187,13 @@ const nextWindow = (
   engine: Engine,
 ): Omit<StepWindow, "voiceDots"> & { landed: StepAdvanceEvent | null } => {
   const beat = engine.nextStepBeat
-  engine.render(beat - BEAT_EPSILON)
+  for (const _ of renderThrough(engine, beat - BEAT_EPSILON)) {
+    // played out, and left out
+  }
   // the landing, which settles how long the round lasts, then the rest
-  const events = engine.render(beat)
+  const events = [...renderThrough(engine, beat)]
   const length = engine.nextStepBeat - beat
-  events.push(...engine.render(beat + length - BEAT_EPSILON))
+  events.push(...renderThrough(engine, beat + length - BEAT_EPSILON))
   const landed = events.find(
     (event): event is StepAdvanceEvent => event.type === "step",
   )

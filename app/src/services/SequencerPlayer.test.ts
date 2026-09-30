@@ -1,10 +1,11 @@
 import {
   addEnvelope,
   createDefaultPatch,
+  Engine,
   ModulationTarget,
   PatchJSON,
 } from "@midiseq/core"
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   FakeClock,
   FakeSink,
@@ -287,6 +288,114 @@ describe("SequencerPlayer", () => {
       const uneven = gaps.filter((gap) => Math.abs(gap - 500 / 24) > 1e-6)
       expect(uneven).toHaveLength(1)
       expect(uneven[0]).toBeGreaterThan(1900)
+    })
+  })
+
+  describe("a tick's render budget", () => {
+    // As busy as it gets at the fastest tempo: every voice at the fastest
+    // pace, every dot ratcheted four times, on steps a bar long.
+    const busyPatch = (): PatchJSON => {
+      const patch = makePatch()
+      patch.tempo = 400
+      patch.pace = "1bar"
+      patch.steps[0].notes = [60, 64, 67]
+      patch.steps[1].notes = [62, 65, 69]
+      patch.voices = patch.voices.map((voice) => ({
+        ...voice,
+        enabled: true,
+        pace: "32ndT",
+        length: 0.1,
+        pattern: voice.pattern.map((dot) => ({ ...dot, ratchet: 4 as const })),
+      }))
+      return patch
+    }
+
+    // Plays `patch` from 1000 ms for `ms`, each tick's rendering counted:
+    // the player's own, with no rounds played ahead alongside it.
+    const playFor = (patch: PatchJSON, ms: number, renderBudget?: number) => {
+      const sink = new FakeSink()
+      const router = new OutputRouter()
+      const played = new SequencerPlayer(patch, router, {
+        now: clock.now,
+        ticker,
+        seed: 1,
+        roundPreviewer: new ManualRoundPreviewer().create,
+        renderBudget,
+      })
+      played.setOutputs({ all: [sink], voices: [null, null, null, null] })
+      const render = vi.spyOn(Engine.prototype, "render")
+      const spent: number[] = []
+      const counted = () => {
+        spent.push(
+          render.mock.results.reduce(
+            (sum, result) =>
+              sum + (result.type === "return" ? result.value.spent : 0),
+            0,
+          ),
+        )
+        render.mockClear()
+      }
+      clock.time = 1000
+      played.play()
+      counted()
+      const end = clock.time + ms
+      while (clock.time < end) {
+        clock.time += 25
+        ticker.tick()
+        counted()
+      }
+      render.mockRestore()
+      played.stop()
+      return { sink, spent, stats: played.stats.report() }
+    }
+
+    const noteOns = (sink: FakeSink) =>
+      sink.ofType(0x90).map(({ data, time }) => ({ data, time: time ?? 0 }))
+
+    // a tick at 400 BPM needs a couple of dozen of the engine's ticks
+    it("keeps each tick to its budget", () => {
+      const { spent, stats } = playFor(busyPatch(), 2000, 16)
+      expect(Math.max(...spent)).toBe(16)
+      expect(stats.behind).toBeGreaterThan(0)
+    })
+
+    it("sends just the same when a small budget keeps up, a tick later", () => {
+      // at 120 BPM a tick needs a few, but the first lookahead more
+      const whole = playFor(makePatch(), 3000)
+      const small = playFor(makePatch(), 3000, 4)
+      expect(small.stats.behind).toBeGreaterThan(0)
+      expect(small.stats).toMatchObject({ late: 0, stalls: 0 })
+      expect(small.sink.sent).toEqual(whole.sink.sent)
+    })
+
+    it("pauses for what it cannot keep up with, rather than rushing or dropping it", () => {
+      const whole = playFor(busyPatch(), 3000)
+      const starved = playFor(busyPatch(), 3000, 16)
+      expect(whole.stats).toMatchObject({ behind: 0, stalls: 0, late: 0 })
+      expect(starved.stats.stalls).toBeGreaterThan(0)
+      expect(starved.stats.late).toBe(0)
+
+      // the same notes in the same order, only fewer of them in the time
+      const played = noteOns(starved.sink)
+      const due = noteOns(whole.sink)
+      expect(played.length).toBeGreaterThan(0)
+      expect(played.length).toBeLessThan(due.length)
+      expect(played.map(({ data }) => data)).toEqual(
+        due.slice(0, played.length).map(({ data }) => data),
+      )
+      // and never closer together than they are due, on any channel
+      for (const channel of [0, 1, 2, 3]) {
+        const gaps = (notes: typeof played) => {
+          const times = notes
+            .filter(({ data }) => (data[0] & 0x0f) === channel)
+            .map(({ time }) => time)
+          return times.slice(1).map((time, index) => time - times[index])
+        }
+        const dueGaps = gaps(due)
+        gaps(played).forEach((gap, index) => {
+          expect(gap).toBeGreaterThanOrEqual(dueGaps[index] - 1e-6)
+        })
+      }
     })
   })
 

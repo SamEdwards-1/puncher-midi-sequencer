@@ -65,8 +65,29 @@ export interface EngineOptions {
   from?: EngineSnapshot
 }
 
-// guards against a pathological patch spinning the render loop forever
-const MAX_EVENTS_PER_RENDER = 10000
+/**
+ * How much one render does at most, by default: how many of the engine's
+ * pending ticks — the sequencer landing, an envelope read, a voice's dot, a
+ * note ending — it plays before handing back what it has. The longest step,
+ * with every voice at the fastest pace, takes a few of these.
+ */
+export const RENDER_BUDGET = 4096
+
+/**
+ * What a render got through. It stops short of the beat it was asked for
+ * only when its budget runs out, and says so: a render on from there picks
+ * up where it left off.
+ */
+export interface EngineRender {
+  events: EngineEvent[]
+  // whether it got all the way, to the beat asked for and everything on it
+  done: boolean
+  // everything before this beat has been rendered; once done, the beat
+  // asked for, and everything on it too
+  beat: number
+  // how much of its budget it used
+  spent: number
+}
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
@@ -191,16 +212,24 @@ export class Engine {
     return events
   }
 
-  render(toBeat: number): EngineEvent[] {
+  /**
+   * Plays on to `toBeat`, and everything on it, as far as `budget` goes:
+   * see EngineRender. A budget of 0 plays nothing, but still says whether
+   * anything is left to.
+   */
+  render(toBeat: number, budget = RENDER_BUDGET): EngineRender {
     const events: EngineEvent[] = []
     if (!this.runtime.started) {
-      return events
+      return { events, done: true, beat: toBeat, spent: 0 }
     }
 
-    for (let guard = 0; guard < MAX_EVENTS_PER_RENDER; guard++) {
+    for (let spent = 0; ; spent++) {
       const candidate = this.nextCandidate(toBeat)
       if (candidate === null) {
-        return events
+        return { events, done: true, beat: toBeat, spent }
+      }
+      if (spent >= budget) {
+        return { events, done: false, beat: candidate.beat, spent }
       }
       switch (candidate.kind) {
         case "seq":
@@ -217,7 +246,6 @@ export class Engine {
           break
       }
     }
-    return events
   }
 
   // Earliest pending item at or before `toBeat`. At equal beats the sequencer
@@ -792,5 +820,30 @@ export class Engine {
       held++
     }
     return held * pace
+  }
+}
+
+/**
+ * Everything `engine` plays on to `toBeat`, and on it: rendered a budget at
+ * a time and handed over as it comes, so however much there is, no one
+ * render does more than a budget's work and nothing is left out. For work
+ * that has to be whole — an export, a preview; playing live renders a
+ * budget a tick instead.
+ */
+export function* renderThrough(
+  engine: Engine,
+  toBeat: number,
+  budget = RENDER_BUDGET,
+): Generator<EngineEvent, void, undefined> {
+  for (;;) {
+    const render = engine.render(toBeat, budget)
+    yield* render.events
+    if (render.done) {
+      return
+    }
+    // every tick moves the engine on, so only a budget of nothing stalls
+    if (render.spent === 0) {
+      throw new RangeError(`A render needs a budget, not ${budget}`)
+    }
   }
 }

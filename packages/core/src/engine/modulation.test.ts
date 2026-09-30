@@ -24,7 +24,7 @@ const stepBeats = (events: EngineEvent[]) =>
 const play = (patch: PatchJSON, toBeat: number) => {
   const engine = new Engine(patch)
   engine.start(0)
-  return engine.render(toBeat)
+  return engine.render(toBeat).events
 }
 
 describe("modulation as the sequence plays", () => {
@@ -83,7 +83,7 @@ describe("modulation as the sequence plays", () => {
     expect(
       engine
         .render(4)
-        .filter((event) => event.type === "step")
+        .events.filter((event) => event.type === "step")
         .map((event) => event.step),
     ).toEqual([0, 3])
     expect(patch.size).toBe(4)
@@ -164,9 +164,9 @@ describe("modulation as the sequence plays", () => {
     const engine = new Engine(patch)
     engine.setActions({ transpose: true })
     engine.start()
-    expect(noteOns(engine.render(3.9)).map((event) => event.note)).toEqual([
-      60, 60, 72, 72,
-    ])
+    expect(
+      noteOns(engine.render(3.9).events).map((event) => event.note),
+    ).toEqual([60, 60, 72, 72])
   })
 
   it("changes the number of available step notes without deleting any", () => {
@@ -352,7 +352,7 @@ describe("modulation as the sequence plays", () => {
     engine.setActions({ transpose: true })
     engine.start(0)
     // C transposed to C# fits down, back to C
-    expect(noteOns(engine.render(0))[0].note).toBe(60)
+    expect(noteOns(engine.render(0).events)[0].note).toBe(60)
   })
 })
 
@@ -463,7 +463,7 @@ describe("actions a step's envelope drives", () => {
     engine.render(0.1)
     engine.setActions({ hold: true })
     // the first step's envelope lets it go; the button keeps the second
-    expect(stepBeats(engine.render(3.9))).toEqual([1])
+    expect(stepBeats(engine.render(3.9).events)).toEqual([1])
   })
 
   it("moves on flipped from a step whose envelope has Flip on, and plays the step it lands on", () => {
