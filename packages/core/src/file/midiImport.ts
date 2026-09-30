@@ -6,6 +6,8 @@ import { MAX_PACE_BEATS } from "../entities/paces"
 import { fitToScale, ScaleJSON } from "../entities/scale"
 import {
   EnvelopeJSON,
+  GridSize,
+  MAX_STEPS,
   NOTES_PER_STEP,
   PatchJSON,
   StepIndex,
@@ -244,6 +246,9 @@ export interface MidiImportOptions {
   notesPerStep: number
   // the step the first of them go into
   fromStep: StepIndex
+  // how many steps the grid has after, the patch's size from here on;
+  // leaving it out keeps the patch's
+  size?: GridSize
   // go round them again until the grid is full
   loop: boolean
   // the tempo to take, or null to keep the patch's
@@ -443,7 +448,8 @@ export interface ImportPlan extends Dealt {
 /**
  * How an import would land, before it does: the notes dealt into steps,
  * and how many of those steps the grid has room for from `fromStep`, going
- * round them again to its end if looping. The grid can be any size.
+ * round them again to its end if looping. The grid can be any size, and
+ * is the one the import sets, if it sets one.
  */
 export const importPlan = (
   patch: PatchJSON,
@@ -451,7 +457,10 @@ export const importPlan = (
   options: MidiImportOptions,
 ): ImportPlan => {
   const dealt = dealNotes(prepared, options)
-  const room = Math.max(0, stepCount(patch.size) - options.fromStep)
+  const room = Math.max(
+    0,
+    stepCount(options.size ?? patch.size) - options.fromStep,
+  )
   const count = dealt.chunks.length
   return {
     ...dealt,
@@ -469,7 +478,8 @@ export const importPlan = (
  * envelopes over the stretch each step's notes came from, starting from
  * the value in force as it opens and timed in beats from there, as
  * envelopes are. A filled step's notes and envelopes are replaced and it
- * plays normally; its jump is kept. Step Notes becomes the count dealt, and
+ * plays normally; its jump is kept. Step Notes becomes the count dealt, the
+ * size the one asked for if any, and
  * the tempo the file's if asked; the pace is left alone. A scale the notes
  * were fitted to is kept by the patch; the steps the import doesn't fill
  * keep their notes as they are.
@@ -532,6 +542,10 @@ export const importMidi = (
 
   return {
     ...patch,
+    size:
+      options.size === undefined
+        ? patch.size
+        : Math.min(MAX_STEPS, Math.max(1, Math.round(options.size))),
     maxNotesPerStep: Math.min(
       NOTES_PER_STEP,
       Math.max(1, options.notesPerStep),

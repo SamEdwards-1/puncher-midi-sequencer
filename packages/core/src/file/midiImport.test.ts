@@ -528,6 +528,30 @@ describe("importing a MIDI file", () => {
     expect(patch.steps[16].notes).toEqual([])
   })
 
+  it("sizes the grid as asked, and fills it to that size", () => {
+    const small = { ...plain(), size: 16 }
+    // grown to 18, from step 15: room for all four
+    const grown = options({ notesPerStep: 2, fromStep: 14, size: 18 })
+    expect(planFile(small, scale(), grown)).toMatchObject({
+      filled: 4,
+      cut: false,
+    })
+    const patch = importFile(small, scale(), grown)
+    expect(patch.size).toBe(18)
+    expect(patch.steps[17].notes).toEqual([71, 72])
+    // shrunk to 3, looping: the notes go round within it
+    const shrunk = importFile(
+      plain(),
+      scale(),
+      options({ notesPerStep: 4, size: 3, loop: true }),
+    )
+    expect(shrunk.size).toBe(3)
+    expect(shrunk.steps[2].notes).toEqual([60, 62, 64, 65])
+    expect(shrunk.steps[3].notes).toEqual([])
+    // left out, the patch's size is kept
+    expect(importFile(small, scale(), options()).size).toBe(16)
+  })
+
   it("reads and deals a file of 150,000 notes", () => {
     const events = Array.from({ length: 150_000 }, (_, index) =>
       note(1 + (index % 4), 36 + (index % 48), index / 8, 0.1),

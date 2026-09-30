@@ -79,6 +79,9 @@ export default {
     "sequencer-import-no-ccs": "This file sends no CCs.",
     "sequencer-import-changes": "changes",
     "sequencer-import-steps": "Steps",
+    "sequencer-import-size-fit": "Fit",
+    "sequencer-import-size-fit-hint":
+      "Size the sequence to end at the last step the import fills",
     "sequencer-import-from-step": "From step",
     "sequencer-import-loop": "Loop until the grid is full",
     "sequencer-import-tempo": "Take the file's tempo",
