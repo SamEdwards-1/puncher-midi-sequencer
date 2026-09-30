@@ -2,8 +2,9 @@ export interface Rng {
   // returns a float in [0, 1)
   next(): number
   setSeed(seed: number): void
-  // a copy that goes on from here, rolling what this one would
-  fork(): Rng
+  // where it has got to: a seed that goes on from here, rolling what this
+  // one would
+  state(): number
 }
 
 // mulberry32: small, fast, and deterministic so the engine can be tested.
@@ -21,8 +22,8 @@ export const createRng = (seed = 1): Rng => {
     setSeed(nextSeed: number) {
       state = nextSeed >>> 0
     },
-    fork() {
-      return createRng(state)
+    state() {
+      return state
     },
   }
 }

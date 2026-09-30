@@ -23,6 +23,13 @@ describe("createRng", () => {
     }
   })
 
+  it("goes on from where another has got to", () => {
+    const rng = createRng(5)
+    rng.next()
+    const copy = createRng(rng.state())
+    expect(copy.next()).toBe(rng.next())
+  })
+
   it("restarts from a new seed", () => {
     const rng = createRng(3)
     const first = rng.next()
