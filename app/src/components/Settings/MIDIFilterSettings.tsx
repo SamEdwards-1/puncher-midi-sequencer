@@ -9,11 +9,10 @@ import {
   MIN_TRANSPOSE,
   noteNumberToName,
 } from "@midiseq/core"
-import ChevronDownIcon from "mdi-react/ChevronDownIcon"
-import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import { FC, ReactNode, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { Accordion } from "../ui/Accordion"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
 import { cn } from "../ui/cn"
@@ -175,24 +174,12 @@ export const MIDIFilterFields: FC<{
         </div>
       </Field>
 
-      <button
-        type="button"
-        aria-expanded={ccsOpen}
-        onClick={() => setCCsOpen(!ccsOpen)}
-        className="flex items-center gap-1 py-1 text-body text-fg"
+      <Accordion
+        label={<Localized name="sequencer-filter-ccs" />}
+        summary={`${filter.ccs.length} / ${ALL_CCS.length}`}
+        open={ccsOpen}
+        onOpen={setCCsOpen}
       >
-        {ccsOpen ? (
-          <ChevronDownIcon size={16} />
-        ) : (
-          <ChevronRightIcon size={16} />
-        )}
-        <Localized name="sequencer-filter-ccs" />
-        <span className="text-tiny text-fg-tertiary">
-          {filter.ccs.length} / {ALL_CCS.length}
-        </span>
-      </button>
-
-      {ccsOpen && (
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
             <Button
@@ -221,7 +208,7 @@ export const MIDIFilterFields: FC<{
             ))}
           </div>
         </div>
-      )}
+      </Accordion>
     </div>
   )
 }

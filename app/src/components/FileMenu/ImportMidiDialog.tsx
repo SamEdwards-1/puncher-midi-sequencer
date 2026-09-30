@@ -7,6 +7,7 @@ import {
   importPitchWeights,
   importPlan,
   MAX_NOTE_NUMBER,
+  MAX_STEPS,
   MIDIFilterJSON,
   MIN_NOTE_NUMBER,
   MidiFileCC,
@@ -21,8 +22,6 @@ import {
   sourceKey,
   stepCount,
 } from "@midiseq/core"
-import ChevronDownIcon from "mdi-react/ChevronDownIcon"
-import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import {
   CSSProperties,
   FC,
@@ -42,6 +41,7 @@ import { IMPORT_SNAPS, ImportSnap } from "../../stores/ImportSettingsStore"
 import { guessScales } from "../../theory/scales"
 import { FitButtons, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
 import { MIDIFilterFields } from "../Settings/MIDIFilterSettings"
+import { Accordion } from "../ui/Accordion"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
 import { Dialog } from "../ui/Dialog"
@@ -241,34 +241,6 @@ const Controllers: FC<{
   )
 })
 
-/**
- * A part of the options that folds away, with what it holds said beside its
- * name, open or folded, so a folded one still shows what it will do.
- */
-const Fold: FC<{
-  label: string
-  summary: string
-  open: boolean
-  onOpen: (open: boolean) => void
-  children: ReactNode
-}> = ({ label, summary, open, onOpen, children }) => (
-  <section className="flex min-w-0 flex-col gap-2">
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={() => onOpen(!open)}
-      className="flex min-w-0 items-center gap-1 text-small text-fg-secondary"
-    >
-      {open ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
-      <span className="flex-none">{label}</span>
-      <span className="truncate text-fg-tertiary" data-fold-summary>
-        {summary}
-      </span>
-    </button>
-    {open && <div className="flex flex-col gap-1 pl-5">{children}</div>}
-  </section>
-)
-
 // The filter the notes and controllers pass through, folded away until
 // wanted, with what it does said beside its name.
 const Filter: FC<{
@@ -296,7 +268,7 @@ const Filter: FC<{
       : [`${filter.transpose > 0 ? "+" : ""}${filter.transpose}`]),
   ].join(" · ")
   return (
-    <Fold
+    <Accordion
       label={localized["sequencer-import-filter"]}
       summary={summary}
       open={open}
@@ -306,7 +278,7 @@ const Filter: FC<{
         <Localized name="sequencer-import-filter-hint" />
       </p>
       <MIDIFilterFields filter={filter} onChange={onChange} />
-    </Fold>
+    </Accordion>
   )
 })
 
@@ -314,7 +286,8 @@ const Filter: FC<{
  * The choices a MIDI import makes, over a preview of the file. Which parts —
  * a track's notes on one channel — go in, merged, and which CCs, through a
  * filter like the MIDI input's; the stretch of the file, set on the
- * preview's ruler; how many notes a step takes and the step they start at;
+ * preview's ruler; how many notes a step takes, the step they start at and
+ * how many steps the sequence has after;
  * whether they go round until the grid is full; and whether the file's
  * tempo comes too. It starts from the import settings and the input's
  * filter, and what it fills is shown as the choices change.
@@ -358,6 +331,8 @@ export const ImportMidiDialog: FC<{
   const rollHeight = useRollHeight()
   const [notesPerStep, setNotesPerStep] = useState(patch.maxNotesPerStep)
   const [fromStep, setFromStep] = useState(0)
+  // the grid's size after the import, the sequencer's own to start
+  const [size, setSize] = useState(patch.size)
   const [loop, setLoop] = useState(settings.loop)
   const [fileTempo, setFileTempo] = useState(
     settings.fileTempo && midi.bpm !== null,
@@ -394,6 +369,7 @@ export const ImportMidiDialog: FC<{
       start: range.start,
       end: range.end,
       fromStep,
+      size,
       loop,
       notesPerStep,
       bpm: fileTempo ? midi.bpm : null,
@@ -411,6 +387,7 @@ export const ImportMidiDialog: FC<{
       filter,
       range,
       fromStep,
+      size,
       loop,
       notesPerStep,
       fileTempo,
@@ -454,7 +431,7 @@ export const ImportMidiDialog: FC<{
     [prepared, chosenSources, start, end, filter, minVelocity],
   )
   const dealt = plan.chunks.length
-  const steps = stepCount(patch.size)
+  const steps = stepCount(size)
   const canImport =
     plan.filled > 0 && (options.sources.length > 0 || options.ccs.length > 0)
 
@@ -517,6 +494,9 @@ export const ImportMidiDialog: FC<{
         ]),
     `${notesPerStep} ${localized[notesPerStep === 1 ? "sequencer-import-note-a-step" : "sequencer-import-notes-a-step"]}`,
     `${localized["sequencer-import-from"]} ${fromStep + 1}`,
+    ...(size === patch.size
+      ? []
+      : [`${size} ${localized["sequencer-export-steps"]}`]),
     ...(loop ? [localized["sequencer-import-looping"]] : []),
     ...(minVelocity > 1
       ? [`${localized["sequencer-import-min-velocity"]} ${minVelocity}`]
@@ -634,9 +614,9 @@ export const ImportMidiDialog: FC<{
 
         <div
           data-import-options
-          className="-mr-2 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-2 pb-1"
+          className="-mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2 pb-1"
         >
-          <Fold
+          <Accordion
             label={localized["sequencer-import-options"]}
             summary={optionsSummary}
             open={optionsOpen}
@@ -674,6 +654,37 @@ export const ImportMidiDialog: FC<{
                       max={NOTES_PER_STEP}
                       onChange={setNotesPerStep}
                     />
+                  </div>
+                  <div className="grid grid-cols-[6rem_1fr] items-center gap-3 text-small">
+                    <span>
+                      <Localized name="sequencer-size" />
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Stepper
+                        label={localized["sequencer-size"]}
+                        value={size}
+                        min={1}
+                        max={MAX_STEPS}
+                        onChange={(value) => {
+                          setSize(value)
+                          setFromStep((from) => Math.min(from, value - 1))
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        title={localized["sequencer-import-size-fit-hint"]}
+                        disabled={
+                          dealt === 0 ||
+                          size === Math.min(MAX_STEPS, fromStep + dealt)
+                        }
+                        onClick={() =>
+                          setSize(Math.min(MAX_STEPS, fromStep + dealt))
+                        }
+                      >
+                        <Localized name="sequencer-import-size-fit" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-[6rem_1fr] items-center gap-3 text-small">
                     <span>
@@ -729,7 +740,7 @@ export const ImportMidiDialog: FC<{
                 </p>
               </div>
             </div>
-          </Fold>
+          </Accordion>
 
           <Filter
             filter={filter}
