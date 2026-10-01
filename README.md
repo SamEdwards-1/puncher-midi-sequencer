@@ -36,6 +36,10 @@ chevrons above two of them mark voices sounding the same note at once.
 
 ## Running it
 
+The support website lives in `site/` alongside `app/`. Run it separately with
+`npm run dev --workspace site` and open http://localhost:3001. See
+[the site README](site/README.md) for its build, app-link configuration, and theme tokens.
+
 ```bash
 npm install
 npm start
