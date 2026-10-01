@@ -5,7 +5,7 @@ import {
   setStepNotes,
 } from "@midiseq/core"
 import { act, fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   centreX,
   click,
@@ -35,6 +35,7 @@ const setup = (
 }
 
 describe("recording into the editor", () => {
+  afterEach(() => vi.useRealTimers())
   const openTab = () =>
     screen
       .getAllByRole("tab")
@@ -44,6 +45,7 @@ describe("recording into the editor", () => {
 
   it("opens a knob's tab and shows its values as they arrive", () => {
     setup(null)
+    vi.useFakeTimers()
     // the voice's velocity is what is on show to begin with
     expect(openTab()).toBe("Velocity 1")
 
@@ -56,6 +58,7 @@ describe("recording into the editor", () => {
     act(() => {
       rootStore.midiInput.handleMessage([0xb0, 30, 90])
       rootStore.midiInput.handleMessage([0xb0, 30, 40])
+      vi.advanceTimersByTime(33)
     })
     // the three values it was turned to, each holding a third of the step
     expect(points().map(({ value }) => value)).toEqual([10, 90, 40])

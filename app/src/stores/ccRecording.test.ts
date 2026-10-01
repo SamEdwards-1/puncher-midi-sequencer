@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ManualTicker } from "../test/fakes"
 import RootStore from "./RootStore"
 
@@ -9,6 +9,8 @@ const START_DELAY_MS = 50
 const TICK_MS = 25
 
 describe("recording controllers while the sequence plays", () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
   const setup = () => {
     let now = 1000
     const ticker = new ManualTicker()
@@ -42,6 +44,7 @@ describe("recording controllers while the sequence plays", () => {
     // half way through the first step
     at(STEP_MS / 2)
     rootStore.midiInput.handleMessage([0xb0, 20, 99])
+    vi.advanceTimersByTime(33)
 
     // two beats into a four-beat step
     expect(envelope(0, 20)?.points).toEqual([{ time: 2, value: 99 }])
@@ -57,6 +60,7 @@ describe("recording controllers while the sequence plays", () => {
     // a quarter of the way into whichever step comes next
     at(STEP_MS + STEP_MS / 4)
     rootStore.midiInput.handleMessage([0xb0, 20, 90])
+    vi.advanceTimersByTime(33)
 
     const second = rootStore.player.position
     expect(second).not.toBe(0)

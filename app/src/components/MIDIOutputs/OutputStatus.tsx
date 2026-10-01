@@ -12,9 +12,10 @@ import { Localized } from "../../localize/useLocalization"
  * the outside.
  */
 export const OutputStatus: FC = () => {
-  const { synthStore } = useStores()
+  const { synthStore, recorder } = useStores()
   const state = useMobxGetter(synthStore, "state")
   const error = useMobxGetter(synthStore, "error")
+  const recordingError = useMobxGetter(recorder, "recordingError")
   const { outputNames, inputNames } = useMIDIDevice()
   const { isRecording } = useRecorder()
 
@@ -23,7 +24,9 @@ export const OutputStatus: FC = () => {
     outputNames.voices.some((name) => name !== null)
 
   const message =
-    isRecording && inputNames.length === 0 ? (
+    recordingError !== null ? (
+      recordingError
+    ) : isRecording && inputNames.length === 0 ? (
       <Localized name="sequencer-no-input" />
     ) : state === "loading" ? (
       <Localized name="sequencer-synth-loading" />
@@ -43,7 +46,10 @@ export const OutputStatus: FC = () => {
     // an output element is a status region already. Contained, so its text
     // never widens the bar's right side: it fills what room there is and
     // truncates.
-    <output className="block max-w-[20rem] grow truncate text-right [contain:inline-size] px-1 text-small text-fg-secondary">
+    <output
+      className="block max-w-[20rem] grow truncate text-right [contain:inline-size] px-1 text-small text-fg-secondary"
+      title={recordingError ?? undefined}
+    >
       {message}
     </output>
   )
