@@ -91,6 +91,49 @@ describe("SoundFontSynth", () => {
     expect(synth.noteOn).toHaveBeenLastCalledWith(0, 62, 100, { time: 10 })
   })
 
+  it("uses the output clock so buffered audio reaches the playhead on time", async () => {
+    const synth = fakeSynth()
+    const context = {
+      currentTime: 10,
+      destination: {} as AudioNode,
+      getOutputTimestamp: () => ({
+        contextTime: 9.9,
+        performanceTime: 1000,
+      }),
+    } as unknown as AudioContext
+    const sound = new SoundFontSynth(context, {
+      createSynth: async () => synth,
+      now: () => 1000,
+    })
+    await sound.loadSoundFont(new ArrayBuffer(8))
+
+    // The next renderable sample reaches the output in 100 ms. Leave another
+    // 25 ms for the worklet message and map 1250 ms onto its audio clock.
+    expect(sound.minimumLeadMs(1000)).toBeCloseTo(125)
+    sound.send([0x90, 60, 100], 1250)
+    expect(synth.noteOn).toHaveBeenCalledWith(0, 60, 100, { time: 10.15 })
+  })
+
+  it("uses reported latency until the output clock has a sample", async () => {
+    const synth = fakeSynth()
+    const context = {
+      currentTime: 10,
+      baseLatency: 0.02,
+      outputLatency: 0.08,
+      destination: {} as AudioNode,
+      getOutputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }),
+    } as unknown as AudioContext
+    const sound = new SoundFontSynth(context, {
+      createSynth: async () => synth,
+      now: () => 1000,
+    })
+    await sound.loadSoundFont(new ArrayBuffer(8))
+
+    expect(sound.minimumLeadMs(1000)).toBeCloseTo(125)
+    sound.send([0x90, 60, 100], 1250)
+    expect(synth.noteOn).toHaveBeenCalledWith(0, 60, 100, { time: 10.15 })
+  })
+
   it("sets a voice's instrument by channel", async () => {
     const { sound, synth } = await setup()
     sound.setProgram(3, 42)

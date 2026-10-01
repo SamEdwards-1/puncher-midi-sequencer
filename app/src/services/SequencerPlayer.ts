@@ -308,22 +308,26 @@ export class SequencerPlayer {
       return
     }
 
-    const now = this.now()
-    this.endPreview(now)
+    this.endPreview(this.now())
     const msPerBeat = 60000 / patch.tempo
     const lengthBeats = paceBeats(stepPace(patch, step))
+    // Finding the first pass over a step may take time on a dense patch.
+    // Start both the sound and the playhead after that work, from one clock
+    // reading, so the picture does not run ahead of the notes.
+    const events = stepEvents(patch, step, {
+      accentAmount: this.accentAmount,
+    }).filter((event) => this.sends(event))
+    const now = this.now()
+    const start = now + this.router.minimumLeadMs(now)
     this.preview = {
       step,
-      time: now,
+      time: start,
       msPerBeat,
       lengthBeats,
-      end: now + lengthBeats * msPerBeat,
+      end: start + lengthBeats * msPerBeat,
     }
-    this.previewPending = stepEvents(patch, step, {
-      accentAmount: this.accentAmount,
-    })
-      .filter((event) => this.sends(event))
-      .map((event) => ({ time: now + event.beat * msPerBeat, event }))
+    this.previewPending = events
+      .map((event) => ({ time: start + event.beat * msPerBeat, event }))
       .sort((a, b) => a.time - b.time)
     this.previewUntil = now
     this.sendPreview(now)
@@ -353,7 +357,7 @@ export class SequencerPlayer {
       this.stats.stall(overdue)
     }
 
-    const until = now + this.lookaheadMs
+    const until = now + this.lookahead(now)
     let due = 0
     while (
       due < this.previewPending.length &&
@@ -525,13 +529,20 @@ export class SequencerPlayer {
   sounding = (): boolean =>
     this.isPlaying || (this.preview !== null && this.now() < this.preview.end)
 
+  // Allow enough lookahead for the slowest assigned output, including the
+  // built-in audio device's buffering, and one worker ticker interval.
+  private lookahead(now: number): number {
+    return Math.max(this.lookaheadMs, this.router.minimumLeadMs(now) + TICK_MS)
+  }
+
   play = () => {
     if (this.isPlaying || this.disposed) {
       return
     }
     const now = this.now()
     this.tempo = this.patch.tempo
-    this.anchorTime = now + this.startDelayMs
+    this.anchorTime =
+      now + Math.max(this.startDelayMs, this.router.minimumLeadMs(now))
     this.anchorBeat = 0
     this.pending = []
     this.scheduledUntil = now
@@ -639,7 +650,8 @@ export class SequencerPlayer {
       this.tempo = this.patch.tempo
     }
 
-    const toBeat = this.beatAt(now + this.lookaheadMs)
+    const lookahead = this.lookahead(now)
+    const toBeat = this.beatAt(now + lookahead)
     const queued = this.rounds.length
     const rendered = this.renderRounds(toBeat, now)
     this.pending.push(...rendered.events)
@@ -678,7 +690,7 @@ export class SequencerPlayer {
     }
     this.pending = this.pending.slice(due)
     this.scheduledUntil = rendered.done
-      ? now + this.lookaheadMs
+      ? now + lookahead
       : this.timeAt(rendered.beat)
 
     if (this.rounds.length > queued) {

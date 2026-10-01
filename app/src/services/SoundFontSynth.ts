@@ -32,6 +32,10 @@ export interface SoundFontSynthOptions {
   now?: () => number
 }
 
+// Leave the worklet time to receive a scheduled MIDI message before its
+// audio block is rendered.
+const WORKLET_LEAD_MS = 25
+
 const defaultCreateSynth = async (
   context: AudioContext,
 ): Promise<SynthLike> => {
@@ -126,11 +130,49 @@ export class SoundFontSynth implements MIDISink {
     this.synth?.programChange(channel - 1, program)
   }
 
-  // The router schedules against performance.now(); Web Audio counts seconds
-  // from the context's own clock.
+  minimumLeadMs(now: number): number {
+    const output = this.outputTimestamp()
+    if (output !== null) {
+      const earliestOutput =
+        output.performanceTime +
+        (this.context.currentTime - output.contextTime) * 1000
+      return Math.max(0, earliestOutput - now) + WORKLET_LEAD_MS
+    }
+    return this.estimatedLatency() * 1000 + WORKLET_LEAD_MS
+  }
+
+  private outputTimestamp(): {
+    contextTime: number
+    performanceTime: number
+  } | null {
+    const stamp = this.context.getOutputTimestamp?.()
+    return stamp !== undefined &&
+      typeof stamp.contextTime === "number" &&
+      stamp.contextTime > 0 &&
+      typeof stamp.performanceTime === "number" &&
+      Number.isFinite(stamp.performanceTime)
+      ? {
+          contextTime: stamp.contextTime,
+          performanceTime: stamp.performanceTime,
+        }
+      : null
+  }
+
+  private estimatedLatency(): number {
+    return (this.context.baseLatency ?? 0) + (this.context.outputLatency ?? 0)
+  }
+
+  // The router uses performance.now() timestamps. Correlate that clock with
+  // the sample reaching the output device, including its buffered latency.
   private timeOf(timestamp?: number): number {
     const now = this.options.now?.() ?? performance.now()
-    const ahead = timestamp === undefined ? 0 : (timestamp - now) / 1000
-    return this.context.currentTime + Math.max(0, ahead)
+    const at = timestamp ?? now
+    const output = this.outputTimestamp()
+    return Math.max(
+      this.context.currentTime,
+      output === null
+        ? this.context.currentTime + (at - now) / 1000 - this.estimatedLatency()
+        : output.contextTime + (at - output.performanceTime) / 1000,
+    )
   }
 }
