@@ -14,6 +14,7 @@ import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { usePatchSelector } from "../../hooks/usePatch"
+import { useCopiedDot } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
@@ -57,10 +58,15 @@ export const StepOptions: FC<StepOptionsProps> = ({
   at: requestedAt,
   onClose,
 }) => {
-  const { editPatternStep } = usePatchEditor()
+  const { editPatternStep, rearrangePattern } = usePatchEditor()
+  const [copiedDot, setCopiedDot] = useCopiedDot()
   const { accentAmount } = useAccentAmount()
   const voiceVelocity = usePatchSelector(
     (patch) => patch.voices[voiceIndex].velocity,
+    [voiceIndex],
+  )
+  const patternLength = usePatchSelector(
+    (patch) => patch.voices[voiceIndex].patternLength,
     [voiceIndex],
   )
   const localized = useLocalization()
@@ -117,12 +123,94 @@ export const StepOptions: FC<StepOptionsProps> = ({
       role="dialog"
       aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
       // over the panel, not beside its scrollbar, so its gutters are whole
-      className="fixed z-20 w-60 rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)] [--scrollbar-gutter:0px]"
+      className="fixed z-20 max-h-[calc(100vh-1rem)] w-60 overflow-y-auto rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)] [--scrollbar-gutter:0px]"
       style={{ left: at.x, top: at.y }}
     >
       <div className="pt-2 pb-1 text-small font-semibold text-fg">
         <Localized name="sequencer-voice" /> {voiceIndex + 1} ·{" "}
         <Localized name="sequencer-voice-dot" /> {dotIndex + 1}
+      </div>
+      <div className="grid grid-cols-2 gap-1 border-b border-divider pb-2">
+        <Button
+          type="button"
+          onClick={() => {
+            setCopiedDot({ ...dot })
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-copy" />
+        </Button>
+        <Button
+          type="button"
+          disabled={copiedDot === null}
+          onClick={() => {
+            if (copiedDot !== null)
+              editPatternStep(voiceIndex, dotIndex, copiedDot)
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-paste" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex >= patternLength}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "shift-left")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-shift-left" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex >= patternLength}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "shift-right")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-shift-right" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex <= 0 || dotIndex >= patternLength}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "swap-left")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-swap-left" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex >= patternLength - 1}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "swap-right")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-swap-right" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex >= patternLength}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "insert-before")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-insert-before" />
+        </Button>
+        <Button
+          type="button"
+          disabled={dotIndex >= patternLength || dotIndex === 15}
+          onClick={() => {
+            rearrangePattern(voiceIndex, dotIndex, "insert-after")
+            onClose()
+          }}
+        >
+          <Localized name="sequencer-dot-insert-after" />
+        </Button>
       </div>
       <Fields>
         <Field label={localized["sequencer-dot-articulation"]}>

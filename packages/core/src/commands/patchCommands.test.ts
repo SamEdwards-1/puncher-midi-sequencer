@@ -10,6 +10,7 @@ import {
   clearPatch,
   clearStep,
   deleteStep,
+  editPattern,
   freeVoiceChannel,
   insertStep,
   nextFreeCC,
@@ -64,6 +65,57 @@ describe("patch commands", () => {
     const toggled = togglePatternStep(accented, 0, 3)
     expect(toggled.voices[0].pattern[3].on).toBe(false)
     expect(togglePatternStep(toggled, 0, 3).voices[0].pattern[3].on).toBe(true)
+  })
+
+  it("shifts short patterns around and drops an edge dot at length 16", () => {
+    const patch = createDefaultPatch()
+    const marked = setVoice(patch, 0, {
+      patternLength: 3,
+      pattern: patch.voices[0].pattern.map((dot, index) => ({
+        ...dot,
+        velocityOffset: index + 1,
+      })),
+    })
+    const right = editPattern(marked, 0, 1, "shift-right")
+    expect(
+      right.voices[0].pattern.slice(0, 3).map((dot) => dot.velocityOffset),
+    ).toEqual([3, 1, 2])
+    expect(
+      editPattern(right, 0, 1, "shift-left").voices[0].pattern.slice(0, 3),
+    ).toEqual(marked.voices[0].pattern.slice(0, 3))
+    expect(right.voices[0].pattern[3]).toBe(marked.voices[0].pattern[3])
+    expect(marked.voices[0].pattern[0].velocityOffset).toBe(1)
+
+    const full = setVoice(marked, 0, { patternLength: 16 })
+    const shifted = editPattern(full, 0, 0, "shift-right")
+    expect(shifted.voices[0].pattern[0].velocityOffset).toBe(0)
+    expect(shifted.voices[0].pattern[15].velocityOffset).toBe(15)
+  })
+
+  it("swaps neighbors and inserts silent dots as one voice edit", () => {
+    const patch = createDefaultPatch()
+    const marked = setVoice(patch, 1, {
+      patternLength: 3,
+      pattern: patch.voices[1].pattern.map((dot, index) => ({
+        ...dot,
+        velocityOffset: index + 1,
+      })),
+    })
+    const swapped = editPattern(marked, 1, 1, "swap-left")
+    expect(
+      swapped.voices[1].pattern.slice(0, 3).map((dot) => dot.velocityOffset),
+    ).toEqual([2, 1, 3])
+    expect(editPattern(marked, 1, 0, "swap-left")).toBe(marked)
+    const inserted = editPattern(marked, 1, 1, "insert-before")
+    expect(inserted.voices[1].patternLength).toBe(4)
+    expect(
+      inserted.voices[1].pattern.slice(0, 4).map((dot) => dot.velocityOffset),
+    ).toEqual([1, 0, 2, 3])
+    expect(inserted.voices[1].pattern[1].on).toBe(false)
+    expect(inserted.voices[0]).toBe(marked.voices[0])
+    expect(
+      editPattern(marked, 1, 2, "insert-after").voices[1].pattern[3].on,
+    ).toBe(false)
   })
 
   it("de-duplicate a step's notes and keep the order they were entered", () => {
