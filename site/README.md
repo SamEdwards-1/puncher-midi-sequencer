@@ -11,7 +11,7 @@ npm install
 npm run dev --workspace site
 ```
 
-Open http://localhost:3001. `npm start` at the repository root starts both workspaces; the sequencer defaults to port 3000 and the support site uses 3001. To start only the sequencer, use `npm run dev --workspace app`.
+The support site starts at http://localhost:3001. If that port is occupied, the terminal prints the next available port, starting with 3002. `npm start` at the repository root starts both workspaces; the sequencer prefers port 3000. To start only the sequencer, use `npm run dev --workspace app`. Set `PORT` to request an exact site port.
 
 ## Build and check
 
