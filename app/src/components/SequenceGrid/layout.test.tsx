@@ -9,9 +9,9 @@ const scroller = () =>
   document.querySelector("[data-grid-scroller]") as HTMLElement
 
 // jsdom lays nothing out, so the column is given a height: 800, from 100 to
-// 900 down the window, which leaves 568 under the grid at its smallest
+// 900 down the window, which leaves 488 under the grid at its smallest
 const COLUMN = { top: 100, height: 800 }
-const VIEW = 568
+const VIEW = 488
 
 beforeEach(() => {
   vi.spyOn(Element.prototype, "clientHeight", "get").mockImplementation(
@@ -110,35 +110,35 @@ describe("the envelope editor, at the column's end", () => {
 
   it("grows as the column scrolls on, its bottom staying at the window's", () => {
     layOut()
-    for (const at of [400, 380, 350]) {
+    for (const at of [440, 425, 415]) {
       scrollTo(at)
       expect(bottom()).toBe(BOTTOM)
     }
-    expect(graph()).toBe(BOTTOM - 350 - REST)
+    expect(graph()).toBe(BOTTOM - 415 - REST)
   })
 
   it("fills the view once the step editor is under the grid, and stops", () => {
     layOut()
-    // the grid at its smallest is 232 tall
-    scrollTo(COLUMN.top + 232)
+    // the grid at its smallest is 312 tall
+    scrollTo(COLUMN.top + 312)
     expect(bottom()).toBe(BOTTOM)
     expect(REST + graph()).toBe(VIEW)
-    scrollTo(COLUMN.top + 200)
+    scrollTo(COLUMN.top + 280)
     expect(REST + graph()).toBe(VIEW)
   })
 
   it("shrinks back as the column scrolls back", () => {
     layOut()
-    scrollTo(350)
+    scrollTo(430)
     scrollTo(700)
     expect(graph()).toBe(240)
   })
 
   it("keeps its bottom at the window's as the step editor above it changes", () => {
     layOut()
-    scrollTo(350)
+    scrollTo(430)
     // a note added above pushes the editor down, with no scroll
-    top = 380
+    top = 440
     fireEvent.click(screen.getByRole("button", { name: "Add note" }))
     expect(bottom()).toBe(BOTTOM)
   })

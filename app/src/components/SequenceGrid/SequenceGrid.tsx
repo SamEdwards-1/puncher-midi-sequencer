@@ -235,8 +235,8 @@ const useArrivals = (count: number): ReadonlyMap<number, Arrival> => {
 }
 
 // The smallest the grid shrinks to as the column scrolls: eight steps of
-// about 26px, still big enough to hit and read.
-const MIN_GRID = 208
+// about 30px, comfortably big enough to hit and read.
+const MIN_GRID = 288
 // room above and below the grid
 const GRID_PAD = 12
 // the share of the column's height the grid starts at, so the editors below
