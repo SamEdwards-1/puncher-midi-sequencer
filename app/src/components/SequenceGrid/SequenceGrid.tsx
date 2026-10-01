@@ -320,6 +320,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
+  // Audition step is off while the sequence plays: a click then picks the
+  // step to play next rather than sounding it over the sequence
+  const isPlaying = useMobxGetter(player, "isPlaying")
   const [selected, setSelected] = useSelectedStep()
   const landing = useLanding(stepCount(size))
   const arrivals = useArrivals(stepCount(size))
@@ -339,8 +342,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
     }
 
     // otherwise a click selects the step, and sounds it when preview is on
+    // and the sequence is stopped
     setSelected(index)
-    if (preview) {
+    if (preview && !player.isPlaying) {
       player.previewStep(index)
     }
     // while playing, it also queues the step; otherwise it moves the record
@@ -420,6 +424,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
             label={localized["sequencer-preview"]}
             checked={preview}
             onChange={setPreview}
+            disabled={isPlaying}
           />
         </span>
       </PanelHeader>

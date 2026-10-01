@@ -1,5 +1,5 @@
 import { createDefaultPatch } from "@midiseq/core"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -208,6 +208,27 @@ describe("preview on click", () => {
     click("Step 4")
     expect(preview).not.toHaveBeenCalled()
     expect(screen.getByText(/Step Editor 4/)).toBeInTheDocument()
+  })
+
+  it("is off while the sequence plays, a click queueing the step instead", () => {
+    setup()
+    const preview = vi.spyOn(rootStore.player, "previewStep")
+    const queue = vi.spyOn(rootStore.player, "queueStep")
+    setPreview(true)
+    const toggle = screen.getByRole("switch", { name: "Audition step" })
+
+    act(() => rootStore.player.play())
+    expect(toggle).toBeDisabled()
+    click("Step 4")
+    expect(preview).not.toHaveBeenCalled()
+    expect(queue).toHaveBeenCalledWith(3)
+
+    // stopped, it is back as it was
+    act(() => rootStore.player.stop())
+    expect(toggle).toBeEnabled()
+    expect(toggle).toBeChecked()
+    click("Step 5")
+    expect(preview).toHaveBeenCalledWith(4)
   })
 })
 

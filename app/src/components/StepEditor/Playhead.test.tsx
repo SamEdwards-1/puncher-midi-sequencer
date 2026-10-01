@@ -1,6 +1,6 @@
 import { addEnvelope, createDefaultPatch, PatchJSON } from "@midiseq/core"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { FakeClock, ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
@@ -98,7 +98,7 @@ describe("the envelope editor's playhead", () => {
     await waitFor(() => expect(shownAt()).toBeNull())
   })
 
-  it("follows the sequence from step to step while Audition step is on, keeping the tab open", () => {
+  it("follows the sequence from step to step, keeping the tab open", () => {
     setup({ audition: true })
     act(() => rootStore.player.play())
 
@@ -127,28 +127,32 @@ describe("the envelope editor's playhead", () => {
     expect(step(3)).toHaveAttribute("data-selected", "true")
   })
 
-  it("stays on the step clicked while Audition step is off, crossing it as it plays", async () => {
+  it("follows the sequence whether or not Audition step is on", () => {
     setup({ audition: false })
     act(() => rootStore.player.play())
 
-    // nothing re-renders the graph, so the next frame moves the playhead
-    runFor(300)
-    expect(step(1)).toHaveAttribute("data-selected", "true")
-    await waitFor(() => expect(shownAt()).toBeCloseTo(0.5))
+    // step 2 lands at 1550 ms; at 1600 it is a tenth through
+    runFor(600)
+    expect(step(2)).toHaveAttribute("data-selected", "true")
+    expect(shownAt()).toBeCloseTo(0.1)
 
-    // step 2 plays, and the playhead is not on step 1's graph
-    runFor(300)
-    expect(step(1)).toHaveAttribute("data-selected", "true")
-    await waitFor(() => expect(shownAt()).toBeNull())
+    runFor(500)
+    expect(step(3)).toHaveAttribute("data-selected", "true")
+    expect(document.querySelector("[data-envelope-line]")).not.toBeNull()
+    act(() => rootStore.player.stop())
   })
 
-  it("goes straight to the step playing when Audition step is turned on", () => {
-    setup({ audition: false })
+  it("shows the step clicked while playing once it plays", () => {
+    setup({ audition: true })
     act(() => rootStore.player.play())
-    runFor(600)
-    expect(step(1)).toHaveAttribute("data-selected", "true")
+    runFor(100)
 
-    setAudition(true)
-    expect(step(2)).toHaveAttribute("data-selected", "true")
+    // step 4 is queued, not sounded over the sequence
+    const preview = vi.spyOn(rootStore.player, "previewStep")
+    fireEvent.click(step(4))
+    expect(preview).not.toHaveBeenCalled()
+    runFor(500)
+    expect(step(4)).toHaveAttribute("data-selected", "true")
+    act(() => rootStore.player.stop())
   })
 })
