@@ -41,6 +41,13 @@ export class OutputRouter {
   private assignment = emptyAssignment()
   private readonly dedupe = new AllOutDedupe()
 
+  minimumLeadMs(now: number): number {
+    return Math.max(
+      0,
+      ...sinksOf(this.assignment).map((sink) => sink.minimumLeadMs?.(now) ?? 0),
+    )
+  }
+
   setAssignment(next: OutputAssignment, now: number) {
     const previous = this.assignment
     const nextSinks = sinksOf(next)
