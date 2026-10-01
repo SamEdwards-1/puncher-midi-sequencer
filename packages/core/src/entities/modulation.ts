@@ -1,10 +1,6 @@
 import { UNDEFINED_CCS } from "../midi/ccNames"
 import { envelopeShape, valueAt } from "./envelope"
-import {
-  envelopeLookup,
-  modulationLookup,
-  modulationTargetKey,
-} from "./lookup"
+import { envelopeLookup, modulationLookup, modulationTargetKey } from "./lookup"
 import { PACES, PaceId } from "./paces"
 import { SCALE_FITS, ScaleFit, ScaleJSON } from "./scale"
 import {

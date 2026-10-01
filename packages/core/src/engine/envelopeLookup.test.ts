@@ -323,9 +323,7 @@ describe("dormant envelope sampling", () => {
     expect(first.done).toBe(false)
     expect(first.beat).toBe(0.5)
     engine.setPatch(withEnvelopes(patch, [ramp]))
-    expect(ccs(engine.render(0.5).events)).toEqual([
-      { beat: 0.5, value: 24 },
-    ])
+    expect(ccs(engine.render(0.5).events)).toEqual([{ beat: 0.5, value: 24 }])
   })
 
   it("keeps zero-budget calls from skipping an unprocessed landing", () => {

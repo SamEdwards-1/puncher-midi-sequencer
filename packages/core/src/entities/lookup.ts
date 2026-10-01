@@ -52,7 +52,10 @@ export const modulationLookup = (items: ModulationJSON[]): ModulationLookup => {
   }
   const firstByCC = new Map<number, ModulationJSON>()
   const firstByTarget = new Map<string, ModulationJSON>()
-  const voices: ModulationJSON[][] = Array.from({ length: VOICE_COUNT }, () => [])
+  const voices: ModulationJSON[][] = Array.from(
+    { length: VOICE_COUNT },
+    () => [],
+  )
   const sequencer: ModulationJSON[] = []
   for (const item of items) {
     if (!firstByCC.has(item.cc)) {
