@@ -35,18 +35,27 @@ export const valueAt = (
   if (time < points[0].time) {
     return points[0].value
   }
-  for (let index = points.length - 1; index >= 0; index--) {
-    const point = points[index]
-    if (point.time <= time) {
-      const next = points[index + 1]
-      if (shape === "steps" || next === undefined || next.time === point.time) {
-        return point.value
-      }
-      const along = (time - point.time) / (next.time - point.time)
-      return point.value + (next.value - point.value) * along
+  // Upper bound: the last point at a duplicate timestamp wins.
+  let low = 0
+  let high = points.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (points[middle].time <= time) {
+      low = middle + 1
+    } else {
+      high = middle
     }
   }
-  return points[0].value
+  if (low === 0) {
+    return points[0].value
+  }
+  const point = points[low - 1]
+  const next = points[low]
+  if (shape === "steps" || next === undefined || next.time === point.time) {
+    return point.value
+  }
+  const along = (time - point.time) / (next.time - point.time)
+  return point.value + (next.value - point.value) * along
 }
 
 /**

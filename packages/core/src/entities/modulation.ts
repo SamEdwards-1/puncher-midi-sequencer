@@ -1,5 +1,10 @@
 import { UNDEFINED_CCS } from "../midi/ccNames"
 import { envelopeShape, valueAt } from "./envelope"
+import {
+  envelopeLookup,
+  modulationLookup,
+  modulationTargetKey,
+} from "./lookup"
 import { PACES, PaceId } from "./paces"
 import { SCALE_FITS, ScaleFit, ScaleJSON } from "./scale"
 import {
@@ -294,14 +299,16 @@ export const modulationOf = (
   patch: PatchJSON,
   target: ModulationTarget,
 ): ModulationJSON | undefined =>
-  patch.modulations.find((modulation) => sameTarget(modulation.target, target))
+  modulationLookup(patch.modulations).firstByTarget.get(
+    modulationTargetKey(target),
+  )
 
 /** The modulation a CC drives, if any. */
 export const modulationForCC = (
   patch: Pick<PatchJSON, "modulations">,
   cc: number,
 ): ModulationJSON | undefined =>
-  patch.modulations.find((modulation) => modulation.cc === cc)
+  modulationLookup(patch.modulations).firstByCC.get(cc)
 
 /**
  * The value a setting has of its own, which a step without its CC plays.
@@ -398,7 +405,7 @@ const envelopeCC = (
   cc: number,
   time: number,
 ): number | null => {
-  const envelope = step.envelopes.find((each) => each.cc === cc)
+  const envelope = envelopeLookup(step.envelopes).firstByCC.get(cc)
   const exact =
     envelope === undefined
       ? null
@@ -418,9 +425,9 @@ export const modulatedVoice = (
   time: number,
 ): VoiceJSON => {
   let settings = patch.voices[voice]
-  for (const modulation of patch.modulations) {
+  for (const modulation of modulationLookup(patch.modulations).voices[voice]) {
     const { target } = modulation
-    if (target.kind !== "voice" || target.voice !== voice) {
+    if (target.kind !== "voice") {
       continue
     }
     const cc = envelopeCC(patch.steps[step], modulation.cc, time)
@@ -466,7 +473,7 @@ export const modulatedSequencer = (
     scale: patch.scale,
     transposeFit: patch.transposeFit,
   }
-  for (const modulation of patch.modulations) {
+  for (const modulation of modulationLookup(patch.modulations).sequencer) {
     const { target } = modulation
     if (target.kind !== "sequencer") {
       continue

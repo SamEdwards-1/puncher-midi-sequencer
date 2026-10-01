@@ -1,4 +1,5 @@
 import { envelopeShape, valueAt } from "../entities/envelope"
+import { envelopeLookup } from "../entities/lookup"
 import {
   modulatedAction,
   modulatedSequencer,
@@ -226,9 +227,11 @@ export class Engine {
     for (let spent = 0; ; spent++) {
       const candidate = this.nextCandidate(toBeat)
       if (candidate === null) {
+        this.skipEmptyEnvelopeSamples(toBeat)
         return { events, done: true, beat: toBeat, spent }
       }
       if (spent >= budget) {
+        this.skipEmptyEnvelopeSamples(candidate.beat, false)
         return { events, done: false, beat: candidate.beat, spent }
       }
       switch (candidate.kind) {
@@ -245,6 +248,7 @@ export class Engine {
           this.releaseNote(candidate.voice as VoiceIndex, events)
           break
       }
+      this.skipEmptyEnvelopeSamples(candidate.beat)
     }
   }
 
@@ -264,8 +268,12 @@ export class Engine {
     }
 
     consider({ kind: "seq", beat: this.runtime.nextSeqBeat, voice: -1 })
-    if (this.runtime.envelope !== null) {
-      consider({ kind: "env", beat: this.runtime.envelope.nextBeat, voice: -1 })
+    const envelope = this.runtime.envelope
+    if (
+      envelope !== null &&
+      envelopeLookup(this.patch.steps[envelope.step].envelopes).hasPoints
+    ) {
+      consider({ kind: "env", beat: envelope.nextBeat, voice: -1 })
     }
     for (const index of voiceIndexes) {
       consider({
@@ -539,6 +547,35 @@ export class Engine {
       envelope.startBeat,
       envelope.lengthBeats,
     )
+  }
+
+  // An empty step keeps its landing context for Hold/Sync and modulation,
+  // but consumes no sampling candidates. Advance the dormant grid only
+  // through work actually rendered, including between budget resumptions.
+  // A live edit can then resume at the first unrendered sample, and snapshots
+  // carry that boundary without any new runtime fields.
+  private skipEmptyEnvelopeSamples(beat: number, inclusive = true) {
+    const envelope = this.runtime.envelope
+    if (
+      envelope === null ||
+      envelope.nextBeat > beat ||
+      (!inclusive && envelope.nextBeat === beat) ||
+      envelopeLookup(this.patch.steps[envelope.step].envelopes).hasPoints
+    ) {
+      return
+    }
+    // Render windows and note-offs need not fall on the sampling grid.
+    // A complete window includes beat; an exhausted budget leaves that
+    // boundary unrendered. Neither case may skip the next eligible line.
+    const gridBeat = onPaceGrid(beat)
+    const next =
+      gridBeat > beat || (!inclusive && gridBeat === beat)
+        ? gridBeat
+        : onPaceGrid(gridBeat + ENVELOPE_RESOLUTION)
+    envelope.nextBeat =
+      next < onPaceGrid(envelope.startBeat + envelope.lengthBeats)
+        ? next
+        : Infinity
   }
 
   private nextEnvelopeSample(
