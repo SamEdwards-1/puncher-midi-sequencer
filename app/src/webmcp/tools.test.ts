@@ -834,12 +834,16 @@ describe("the transport and the actions", () => {
     expect(preview).toHaveBeenCalledTimes(1)
   })
 
-  it("plays a step selected while playing next", async () => {
+  it("plays a step selected while playing next, without sounding it", async () => {
     const queue = vi.spyOn(rootStore.player, "queueStep")
+    const preview = vi.spyOn(rootStore.player, "previewStep")
+    view.audition = true
     await call("play")
-    const result = await call("select_step", { step: 4 })
+    const result = await call("select_step", { step: 4, audition: true })
     expect(queue).toHaveBeenCalledWith(3)
     expect(result.plays_next).toBe(true)
+    expect(result.sounded).toBe(false)
+    expect(preview).not.toHaveBeenCalled()
     await call("stop")
   })
 })

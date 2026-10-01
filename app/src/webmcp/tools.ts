@@ -47,7 +47,7 @@ const SELECT = object(
   {
     step: integer("The step's number in the grid, from 1", 1, MAX_STEPS),
     audition: boolean(
-      "Whether to sound the step as the voices would play it; unless given, as Audition step, above the grid, is set",
+      "Whether to sound the step as the voices would play it; unless given, as Audition step, above the grid, is set. Never while the sequence plays",
     ),
   },
   ["step"],
@@ -217,14 +217,16 @@ export const createTools = (
       name: "select_step",
       title: "Select a step",
       description:
-        "Selects a step, as clicking it in the grid does: shows it in the step editor, and sounds it as the voices would play it if Audition step is on. While the sequence plays, the sequencer goes to that step next. Returns the step.",
+        "Selects a step, as clicking it in the grid does: shows it in the step editor, and sounds it as the voices would play it if Audition step is on. While the sequence plays, nothing is sounded: the sequencer goes to that step next. Returns the step.",
       input: SELECT,
       run: (input) => {
         const patch = sequencerStore.patch
         const index = readStep(input.step, patch)
-        const audition = present(input.audition)
+        const asked = present(input.audition)
           ? readBoolean(input.audition, "audition")
           : view.auditions()
+        // Audition step is off while the sequence plays
+        const audition = asked && !player.isPlaying
         view.selectStep(index)
         if (audition) {
           player.previewStep(index)
