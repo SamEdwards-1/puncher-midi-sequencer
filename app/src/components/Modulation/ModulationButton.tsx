@@ -22,7 +22,7 @@ import {
 } from "react"
 import { useShowModulation } from "../../actions/modulation"
 import { usePatchEditor } from "../../actions/patch"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatch, usePatchSelector } from "../../hooks/usePatch"
 import { useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { TONICS } from "../../theory/scales"
@@ -55,9 +55,13 @@ export const ModulationButton: FC<{
   target: ModulationTarget
   className?: string
 }> = ({ target, className }) => {
-  const patch = usePatch()
   const localized = useLocalization()
-  const modulation = modulationOf(patch, target)
+  // the setting's own modulation, which most edits leave as it was; a
+  // target comes new with each render, so it goes by what it says
+  const modulation = usePatchSelector(
+    (patch) => modulationOf(patch, target),
+    [JSON.stringify(target)],
+  )
   const button = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const name = `${localized["sequencer-modulation-settings"]}: ${modulationTargetLabel(target, localized)}`

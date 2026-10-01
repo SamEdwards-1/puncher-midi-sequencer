@@ -250,7 +250,9 @@ describe("editing the sequencer", () => {
         [1, 2, 3, 4].map((voice) =>
           within(row(voice))
             .getAllByRole("button", { name: /Dot/ })
-            .findIndex((button) => button.dataset.playing === "true"),
+            .findIndex(
+              (button) => button.querySelector("[data-playhead]") !== null,
+            ),
         )
       expect(playing()).toEqual([-1, -1, -1, -1])
       expect(document.querySelector("[data-playhead]")).toBeNull()

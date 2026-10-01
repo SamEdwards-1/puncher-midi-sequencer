@@ -5,6 +5,7 @@ import {
   RefObject,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -380,7 +381,10 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   )
   const fullLayer = fullGrid + 2 * GRID_PAD
   const smallestLayer = MIN_GRID + 2 * GRID_PAD
-  const column = { scroller, view: Math.max(0, height - smallestLayer) }
+  // the same while the view is, so the step editor below sits out the grid
+  // drawing again
+  const view = Math.max(0, height - smallestLayer)
+  const column = useMemo(() => ({ scroller, view }), [view])
   // Once the action buttons are mostly under the grid, their icons drop
   // into the title bar instead.
   const frame = useRef<HTMLDivElement>(null)

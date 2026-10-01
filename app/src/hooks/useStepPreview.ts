@@ -1,7 +1,7 @@
-import { StepIndex, StepPreview } from "@midiseq/core"
+import { previewsAlike, StepIndex, StepPreview } from "@midiseq/core"
 import { useAccentAmount } from "./useAccentAmount"
 import { useMobxSelector } from "./useMobxSelector"
-import { usePatch } from "./usePatch"
+import { usePatchSelector } from "./usePatch"
 import { useStores } from "./useStores"
 
 const sameLive = (a: StepPreview | null, b: StepPreview | null) =>
@@ -21,7 +21,9 @@ const sameLive = (a: StepPreview | null, b: StepPreview | null) =>
  * not sounding.
  */
 export function useStepPreview(step: StepIndex): StepPreview {
-  const patch = usePatch()
+  // the patch as far as a preview hears it, so an edit none would hear —
+  // the tempo, say — passes this by
+  const patch = usePatchSelector((patch) => patch, [], previewsAlike)
   const { player, stepPreviews } = useStores()
   const { accentAmount } = useAccentAmount()
   // woken by the rounds on this step, and not by those on the others

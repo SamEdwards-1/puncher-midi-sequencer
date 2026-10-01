@@ -298,7 +298,7 @@ export const modulationOf = (
 
 /** The modulation a CC drives, if any. */
 export const modulationForCC = (
-  patch: PatchJSON,
+  patch: Pick<PatchJSON, "modulations">,
   cc: number,
 ): ModulationJSON | undefined =>
   patch.modulations.find((modulation) => modulation.cc === cc)

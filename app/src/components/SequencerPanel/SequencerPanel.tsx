@@ -13,9 +13,10 @@ import {
   stepCount,
 } from "@midiseq/core"
 import AutoFixIcon from "mdi-react/AutoFixIcon"
+import { comparer } from "mobx"
 import { FC, useMemo } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import {
@@ -53,37 +54,60 @@ const LOOP_MODES: { value: LoopMode; label: string }[] = [
   { value: "custom", label: "Custom" },
 ]
 
+// a setting of the sequencer's that a CC can drive
+const target = (setting: SequencerSetting) =>
+  ({ kind: "sequencer", setting }) as const
+
 // `header` is left off when the panel sits under a tab that names it.
 export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
   header = true,
   className = "border-r border-divider",
 }) => {
-  const patch = usePatch()
+  // the settings shown here, which edits to the steps and voices leave be
+  const settings = usePatchSelector(
+    (patch) => ({
+      size: patch.size,
+      pace: patch.pace,
+      direction: patch.direction,
+      loop: patch.loop,
+      syncVoices: patch.syncVoices,
+      maxNotesPerStep: patch.maxNotesPerStep,
+      scale: patch.scale,
+      transposeAmt: patch.transposeAmt,
+      transposeFit: patch.transposeFit,
+    }),
+    [],
+    comparer.shallow,
+  )
+  // the patch's own scale as a modulation of it has it: tonic and name
+  const ownScale = usePatchSelector(
+    (patch) => settingValue(patch, target("scale")),
+    [],
+    comparer.structural,
+  )
+  // every step's notes, which an edit to anything else on a step keeps
+  const notes = usePatchSelector(
+    (patch) => patch.steps.map((step) => step.notes),
+    [],
+    comparer.shallow,
+  )
   const { editSequencer, editScale } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const localized = useLocalization()
   // found from every note the steps hold, among the scales offered here
   const guesses = useMemo(
-    () =>
-      guessScales(
-        weightsOfNotes(patch.steps.flatMap((step) => step.notes)),
-        SEQUENCER_SCALE_CHOICES,
-      ),
-    [patch.steps],
+    () => guessScales(weightsOfNotes(notes.flat()), SEQUENCER_SCALE_CHOICES),
+    [notes],
   )
   // the scale that best fits the notes, taken in one click
   const best = guesses[0]
   const detect = () => {
     const next =
-      best && makeScale(best.tonic, best.name, patch.scale?.fit ?? "up")
+      best && makeScale(best.tonic, best.name, settings.scale?.fit ?? "up")
     if (next) {
       editScale(next)
     }
   }
-  // a setting of the sequencer's that a CC can drive
-  const target = (setting: SequencerSetting) =>
-    ({ kind: "sequencer", setting }) as const
-
   return (
     <Panel
       aria-label={localized["sequencer-panel"]}
@@ -104,7 +128,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <Stepper
               label={localized["sequencer-size"]}
-              value={shown(patch.size)}
+              value={shown(settings.size)}
               min={1}
               max={MAX_STEPS}
               onChange={(size) => editSequencer({ size }, "size")}
@@ -118,7 +142,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         >
           {(shown) => (
             <ComboBox
-              value={shown(patch.pace)}
+              value={shown(settings.pace)}
               options={PACE_OPTIONS}
               onChange={(pace) => editSequencer({ pace })}
             />
@@ -131,7 +155,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         >
           {(shown) => (
             <ComboBox
-              value={shown(patch.direction)}
+              value={shown(settings.direction)}
               options={DIRECTIONS}
               onChange={(direction) => editSequencer({ direction })}
             />
@@ -144,26 +168,28 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         >
           {(shown) => (
             <ComboBox
-              value={shown(patch.loop.mode)}
+              value={shown(settings.loop.mode)}
               options={LOOP_MODES}
               onChange={(mode) =>
-                editSequencer({ loop: { ...patch.loop, mode } })
+                editSequencer({ loop: { ...settings.loop, mode } })
               }
             />
           )}
         </ModulatedField>
 
-        {patch.loop.mode === "custom" && (
+        {settings.loop.mode === "custom" && (
           <Field label={localized["sequencer-loop-end"]}>
             <Stepper
               label={localized["sequencer-loop-end"]}
               // an end kept past a smaller grid shows as its last step
-              value={Math.min(patch.loop.end, maxStepIndex(patch.size)) + 1}
+              value={
+                Math.min(settings.loop.end, maxStepIndex(settings.size)) + 1
+              }
               min={1}
-              max={stepCount(patch.size)}
+              max={stepCount(settings.size)}
               onChange={(value) =>
                 editSequencer(
-                  { loop: { ...patch.loop, end: value - 1 } },
+                  { loop: { ...settings.loop, end: value - 1 } },
                   "loop-end",
                 )
               }
@@ -174,7 +200,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
         <Field label={localized["sequencer-sync-voices"]}>
           <Toggle
             label={localized["sequencer-sync-voices"]}
-            checked={patch.syncVoices}
+            checked={settings.syncVoices}
             onChange={(syncVoices) => editSequencer({ syncVoices })}
           />
         </Field>
@@ -186,7 +212,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <Stepper
               label={localized["sequencer-max-notes"]}
-              value={shown(patch.maxNotesPerStep)}
+              value={shown(settings.maxNotesPerStep)}
               min={1}
               max={NOTES_PER_STEP}
               onChange={(maxNotesPerStep) =>
@@ -207,20 +233,19 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
             {(shown) => {
               // the patch's own scale as it is, fit and all, unless a step
               // has moved it to another
-              const own = settingValue(patch, target("scale"))
-              const choice = shown(own)
+              const choice = shown(ownScale)
               return (
                 <div className="flex min-w-0 items-center gap-1">
                   <ScaleSelects
                     className="flex-1"
                     scale={
-                      choice === own
-                        ? patch.scale
+                      choice === ownScale
+                        ? settings.scale
                         : choice === null
                           ? null
                           : sequencerScale(
                               choice as ScaleChoiceJSON,
-                              patch.scale?.fit ?? "up",
+                              settings.scale?.fit ?? "up",
                             )
                     }
                     onScale={editScale}
@@ -246,7 +271,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           <ScaleGuesses
             className="pt-[0.1rem] pb-[0.4rem]"
             guesses={guesses}
-            scale={patch.scale}
+            scale={settings.scale}
             onScale={editScale}
           />
 
@@ -257,7 +282,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
             {(shown) => (
               <Stepper
                 label={localized["sequencer-transpose-amt"]}
-                value={shown(patch.transposeAmt)}
+                value={shown(settings.transposeAmt)}
                 min={-24}
                 max={24}
                 onChange={(transposeAmt) =>
@@ -273,7 +298,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           >
             {(shown) => (
               <FitSelect
-                value={shown(patch.transposeFit)}
+                value={shown(settings.transposeFit)}
                 onChange={(transposeFit) => editSequencer({ transposeFit })}
               />
             )}

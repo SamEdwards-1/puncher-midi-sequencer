@@ -34,6 +34,7 @@ import {
 } from "@midiseq/core"
 import UnfoldLessHorizontalIcon from "mdi-react/UnfoldLessHorizontalIcon"
 import UnfoldMoreHorizontalIcon from "mdi-react/UnfoldMoreHorizontalIcon"
+import { comparer } from "mobx"
 import {
   FC,
   KeyboardEvent,
@@ -46,7 +47,7 @@ import {
 } from "react"
 import { usePatchGesture } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
 import { useStepPreview } from "../../hooks/useStepPreview"
 import { useStores } from "../../hooks/useStores"
@@ -246,8 +247,11 @@ export const EnvelopeGraph: FC<{
   lane: GraphLane
   height?: number
 }> = ({ step, lane, height = GRAPH_HEIGHT }) => {
-  const patch = usePatch()
   const { sequencerStore } = useStores()
+  // what the graph reads of the patch, each part on its own, so an edit
+  // that changes none of them passes it by
+  const voices = usePatchSelector((patch) => patch.voices)
+  const scale = usePatchSelector((patch) => patch.scale)
   const beginGesture = usePatchGesture()
   const [tool, setTool] = useEnvelopeTool()
   const [gridBeats] = useEnvelopeGrid()
@@ -281,10 +285,16 @@ export const EnvelopeGraph: FC<{
         : envelopeShape(envelope)
 
   // as long as the step lasts, which its own envelopes may modulate
-  const stepBeats = paceBeats(stepPace(patch, step))
+  const stepBeats = usePatchSelector(
+    (patch) => paceBeats(stepPace(patch, step)),
+    [step],
+  )
   // the setting the CC drives, if it drives one
-  const modulation: ModulationJSON | undefined =
-    lane.kind === "cc" ? modulationForCC(patch, lane.cc) : undefined
+  const cc = lane.kind === "cc" ? lane.cc : null
+  const modulation: ModulationJSON | undefined = usePatchSelector(
+    (patch) => (cc === null ? undefined : modulationForCC(patch, cc)),
+    [cc],
+  )
   const snapValue = (value: number) =>
     modulation === undefined ? value : snapToModulation(modulation, value)
   const stops = useMemo(
@@ -299,15 +309,18 @@ export const EnvelopeGraph: FC<{
   )
   // the setting's own value, which a step without the envelope plays: where
   // the range reaches it
-  const ownValue = (() => {
-    if (modulation === undefined) {
-      return null
-    }
-    const own = settingValue(patch, modulation.target)
-    return inModulationRange(modulation, own)
-      ? modulationCC(modulation, own)
-      : null
-  })()
+  const ownValue = usePatchSelector(
+    (patch) => {
+      if (modulation === undefined) {
+        return null
+      }
+      const own = settingValue(patch, modulation.target)
+      return inModulationRange(modulation, own)
+        ? modulationCC(modulation, own)
+        : null
+    },
+    [modulation],
+  )
   // Stored in beats, drawn and edited as fractions of the step as it is now:
   // an envelope keeps its timing when the pace changes, and whatever lies
   // past a shortened step's end is kept, off to the right, rather than lost.
@@ -329,7 +342,11 @@ export const EnvelopeGraph: FC<{
       : []
   // the roll's keys top to bottom: all of them in range, or only those played
   const [collapsed, setCollapsed] = useState(false)
-  const rows = useMemo(() => pianoRows(patch, collapsed), [patch, collapsed])
+  const rows = usePatchSelector(
+    (patch) => pianoRows(patch, collapsed),
+    [collapsed],
+    comparer.shallow,
+  )
   const rowOf = useMemo(
     () => new Map(rows.map((note, index) => [note, index])),
     [rows],
@@ -633,7 +650,7 @@ export const EnvelopeGraph: FC<{
       onClick: () => {
         if (onHead && !second) {
           // back to the voice's own velocity
-          raise([point], patch.voices[point.voice].velocity - point.value)
+          raise([point], voices[point.voice].velocity - point.value)
         }
       },
     })
@@ -783,7 +800,7 @@ export const EnvelopeGraph: FC<{
         <PianoKeys
           rows={rows}
           collapsed={collapsed}
-          scale={patch.scale}
+          scale={scale}
           height={height}
           pad={PAD}
         />
@@ -897,7 +914,7 @@ export const EnvelopeGraph: FC<{
             {lane.kind === "velocity" &&
               [lane.voice].map((voice) => {
                 // where a note counts as plain, or as either accent
-                const base = patch.voices[voice].velocity
+                const base = voices[voice].velocity
                 return [base - accentAmount, base, base + accentAmount]
                   .filter((level) => level >= 1 && level <= 127)
                   .map((level) => (
