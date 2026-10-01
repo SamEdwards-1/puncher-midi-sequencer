@@ -40,6 +40,7 @@ import {
   KeyboardEvent,
   MouseEvent as ReactMouseEvent,
   RefObject,
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -54,6 +55,7 @@ import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
 import { modulationValueLabel } from "../Modulation/labels"
 import { IconButton } from "../ui/Button"
+import { EnvelopePointOptions } from "./EnvelopePointOptions"
 import { EnvelopeRuler, RULER_HEIGHT } from "./EnvelopeRuler"
 import {
   areaPath,
@@ -223,7 +225,8 @@ const axisStops = (
  * An envelope is edited as in Live, drawn as in Signal's control pane. Edit:
  * click the line to add a point on it, double-click anywhere to place one,
  * drag a point to move it, drag the line to raise or lower it, click a point
- * to delete it. Draw: drag to paint values across the grid. Points snap to
+ * to delete it, right-click a point to type, step or drag its value or
+ * delete it. Draw: drag to paint values across the grid. Points snap to
  * the grid unless Alt is held, and B switches between the two.
  *
  * Velocity is drawn as in Signal's velocity pane: a lollipop for each note,
@@ -274,6 +277,14 @@ export const EnvelopeGraph: FC<{
   // where the mouse is over the graph, for the value readout
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [dragging, setDragging] = useState(false)
+  // the point right-clicked for its value, in the envelope and step it was
+  // clicked in
+  const [pointMenu, setPointMenu] = useState<{
+    step: number
+    id: number
+    index: number
+    at: { x: number; y: number }
+  } | null>(null)
   const envelope = lane.kind === "cc" ? lane.envelope : null
   // A velocity line runs from note to note; an envelope has its own shape,
   // and one about to be drawn onto the step will step, as new ones do.
@@ -674,6 +685,33 @@ export const EnvelopeGraph: FC<{
     })
   }
 
+  // A point right-clicked opens for its value to be set exactly.
+  const onContextMenu = (event: ReactMouseEvent<SVGSVGElement>) => {
+    if (envelope === null) {
+      return
+    }
+    const { x, y } = local(event.nativeEvent)
+    const index = hitPoint(points, plot, x, y)
+    if (index === null) {
+      return
+    }
+    event.preventDefault()
+    setPointMenu({
+      step,
+      id: envelope.id,
+      index,
+      at: { x: event.clientX, y: event.clientY },
+    })
+  }
+  // shown only while its point is still there to edit
+  const menuOpen =
+    pointMenu !== null &&
+    envelope !== null &&
+    pointMenu.step === step &&
+    pointMenu.id === envelope.id &&
+    pointMenu.index < envelope.points.length
+  const closePointMenu = useCallback(() => setPointMenu(null), [])
+
   // On the graph B is Live's Draw key, and goes no further.
   const onKeyDown = (event: KeyboardEvent) => {
     if (
@@ -833,6 +871,7 @@ export const EnvelopeGraph: FC<{
             style={{ cursor }}
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
+            onContextMenu={onContextMenu}
             onMouseLeave={() => {
               setHover({ point: null, segment: null })
               setPointer(null)
@@ -1016,30 +1055,36 @@ export const EnvelopeGraph: FC<{
                       pointerEvents="none"
                     />
                   ))}
-                {points.map((point, index) => (
-                  <rect
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
-                    key={index}
-                    data-point={index}
-                    data-velocity={
-                      lane.kind === "velocity"
-                        ? Math.round(point.value)
-                        : undefined
-                    }
-                    {...square(
-                      toX(plot, point.time),
-                      toY(plot, point.value),
-                      hover.point === index ? HANDLE + 2 : HANDLE,
-                    )}
-                    fill={
-                      hover.point === index
-                        ? "var(--midiseq-envelope)"
-                        : "var(--midiseq-editor-background)"
-                    }
-                    stroke="var(--midiseq-envelope)"
-                    strokeWidth={1.25}
-                  />
-                ))}
+                {points.map((point, index) => {
+                  // lit while hovered, or open for its value
+                  const lit =
+                    hover.point === index ||
+                    (menuOpen && pointMenu.index === index)
+                  return (
+                    <rect
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a point is its place in time order
+                      key={index}
+                      data-point={index}
+                      data-velocity={
+                        lane.kind === "velocity"
+                          ? Math.round(point.value)
+                          : undefined
+                      }
+                      {...square(
+                        toX(plot, point.time),
+                        toY(plot, point.value),
+                        lit ? HANDLE + 2 : HANDLE,
+                      )}
+                      fill={
+                        lit
+                          ? "var(--midiseq-envelope)"
+                          : "var(--midiseq-editor-background)"
+                      }
+                      stroke="var(--midiseq-envelope)"
+                      strokeWidth={1.25}
+                    />
+                  )
+                })}
               </>
             )}
 
@@ -1127,6 +1172,17 @@ export const EnvelopeGraph: FC<{
               </span>
             ))}
       </div>
+      {/* outside the graph, whose B key would take what is typed */}
+      {menuOpen && (
+        <EnvelopePointOptions
+          step={step}
+          envelope={envelope}
+          index={pointMenu.index}
+          modulation={modulation}
+          at={pointMenu.at}
+          onClose={closePointMenu}
+        />
+      )}
     </div>
   )
 }

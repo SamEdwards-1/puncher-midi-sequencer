@@ -234,6 +234,9 @@ export default {
     "sequencer-envelope-edit-tool": "Edit points",
     "sequencer-envelope-draw": "Draw",
     "sequencer-envelope-grid": "Grid",
+    "sequencer-envelope-point": "Point",
+    "sequencer-envelope-point-value": "Value",
+    "sequencer-envelope-point-delete": "Delete point",
     "sequencer-envelope-steps": "Steps",
     "sequencer-envelope-steps-hint":
       "Steps: each value holds until the next point, then jumps",

@@ -15,7 +15,7 @@ In **Draw** mode, drag across several notes to paint velocities. Notes come from
 
 ## Draw a CC envelope {#cc-envelope}
 
-Press **+** beside the lane tabs to add a controller. Set its **CC number** and **channel**. In Edit mode, click the line to add a point, or double-click an empty area. Drag points to move them, drag the line to raise it, and click a point to delete it.
+Press **+** beside the lane tabs to add a controller. Set its **CC number** and **channel**. In Edit mode, click the line to add a point, or double-click an empty area. Drag points to move them, drag the line to raise it, and click a point to delete it. Right-click a point to set its exact value — a number, or one of the setting's values when the CC modulates a setting — or to delete it with the **×** button.
 
 Switch to **Draw**, or press **B** while the graph has focus, to paint values. Points snap to the chosen grid. Hold **Alt** to work off-grid.
 
