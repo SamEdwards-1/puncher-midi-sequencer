@@ -203,6 +203,46 @@ describe("editing the sequencer", () => {
       )
     })
 
+    it("copies complete dot settings between voices and inserts a silent dot", () => {
+      const source = dot(1, 2)
+      fireEvent.contextMenu(source)
+      fireEvent.change(
+        within(
+          screen.getByRole("dialog", { name: "Voice 1 Dot 2" }),
+        ).getByLabelText("Ratchet"),
+        {
+          target: { value: "3" },
+        },
+      )
+      fireEvent.click(
+        within(screen.getByRole("dialog", { name: "Voice 1 Dot 2" })).getByRole(
+          "button",
+          { name: "Copy" },
+        ),
+      )
+
+      fireEvent.contextMenu(dot(2, 4))
+      fireEvent.click(
+        within(screen.getByRole("dialog", { name: "Voice 2 Dot 4" })).getByRole(
+          "button",
+          { name: "Paste" },
+        ),
+      )
+      expect(patch().voices[1].pattern[3].ratchet).toBe(3)
+      expect(patch().voices[0].pattern[3].ratchet).toBe(1)
+
+      fireEvent.contextMenu(dot(2, 4))
+      fireEvent.click(
+        within(screen.getByRole("dialog", { name: "Voice 2 Dot 4" })).getByRole(
+          "button",
+          { name: "Insert before" },
+        ),
+      )
+      expect(patch().voices[1].patternLength).toBe(16)
+      expect(patch().voices[1].pattern[3].on).toBe(false)
+      expect(patch().voices[1].pattern[4].ratchet).toBe(3)
+    })
+
     it("highlights the dots a voice reaches in one sequencer step", () => {
       // the default patch: sequencer and voices both at 8ths, a dot a step
       expect(reached(1)).toEqual([1])

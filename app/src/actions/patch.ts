@@ -4,6 +4,7 @@ import {
   clearStep,
   deleteStep,
   EnvelopeJSON,
+  editPattern,
   freeVoiceChannel,
   importMidi,
   insertStep,
@@ -12,6 +13,7 @@ import {
   ModulationJSON,
   ModulationTarget,
   PatchJSON,
+  PatternEdit,
   PatternStepJSON,
   PreparedMidi,
   pasteStep,
@@ -125,6 +127,14 @@ export function usePatchEditor() {
     togglePatternDot: useCallback(
       (voiceIndex: number, dotIndex: number) =>
         apply(togglePatternStep(sequencerStore.patch, voiceIndex, dotIndex)),
+      [apply, sequencerStore],
+    ),
+    rearrangePattern: useCallback(
+      (voiceIndex: number, dotIndex: number, action: PatternEdit) => {
+        const patch = sequencerStore.patch
+        const next = editPattern(patch, voiceIndex, dotIndex, action)
+        if (next !== patch) apply(next)
+      },
       [apply, sequencerStore],
     ),
     editStepState: useCallback(

@@ -1,4 +1,8 @@
-import { createDefaultStep, createDefaultVoice } from "../entities/defaults"
+import {
+  createDefaultPatternStep,
+  createDefaultStep,
+  createDefaultVoice,
+} from "../entities/defaults"
 import {
   modulationCC,
   modulationForCC,
@@ -120,6 +124,61 @@ export const togglePatternStep = (
   setPatternStep(patch, voiceIndex, dotIndex, {
     on: !patch.voices[voiceIndex].pattern[dotIndex].on,
   })
+
+export type PatternEdit =
+  | "shift-left"
+  | "shift-right"
+  | "swap-left"
+  | "swap-right"
+  | "insert-before"
+  | "insert-after"
+
+/** Rearrange complete dots, including their playback options, within a voice. */
+export const editPattern = (
+  patch: PatchJSON,
+  voiceIndex: number,
+  dotIndex: number,
+  action: PatternEdit,
+): PatchJSON => {
+  const voice = patch.voices[voiceIndex]
+  const length = voice.patternLength
+  if (dotIndex < 0 || dotIndex >= length) return patch
+
+  const pattern = [...voice.pattern]
+  if (action === "shift-right") {
+    const last = pattern[length - 1]
+    for (let index = length - 1; index > 0; index--) {
+      pattern[index] = pattern[index - 1]
+    }
+    pattern[0] =
+      length < pattern.length
+        ? last
+        : { ...createDefaultPatternStep(), on: false }
+  } else if (action === "shift-left") {
+    const first = pattern[0]
+    for (let index = 0; index < length - 1; index++) {
+      pattern[index] = pattern[index + 1]
+    }
+    pattern[length - 1] =
+      length < pattern.length
+        ? first
+        : { ...createDefaultPatternStep(), on: false }
+  } else if (action === "swap-left" || action === "swap-right") {
+    const other = dotIndex + (action === "swap-left" ? -1 : 1)
+    if (other < 0 || other >= length) return patch
+    ;[pattern[dotIndex], pattern[other]] = [pattern[other], pattern[dotIndex]]
+  } else {
+    const at = dotIndex + (action === "insert-after" ? 1 : 0)
+    if (at >= pattern.length) return patch
+    pattern.splice(at, 0, { ...createDefaultPatternStep(), on: false })
+    pattern.length = voice.pattern.length
+    return setVoice(patch, voiceIndex, {
+      pattern,
+      patternLength: Math.min(length + 1, pattern.length),
+    })
+  }
+  return setVoice(patch, voiceIndex, { pattern })
+}
 
 export const setStep = (
   patch: PatchJSON,

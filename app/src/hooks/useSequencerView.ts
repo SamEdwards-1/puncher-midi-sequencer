@@ -1,4 +1,4 @@
-import { StepJSON, StepState, VoiceIndex } from "@midiseq/core"
+import { PatternStepJSON, StepJSON, StepState, VoiceIndex } from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { useCallback, useMemo } from "react"
@@ -8,6 +8,11 @@ const selectedVoiceAtom = atom<VoiceIndex>(0)
 const selectedStepAtom = atom(0)
 // an in-app clipboard, so copying a step needs no clipboard permission
 const copiedStepAtom = atom<StepJSON | null>(null)
+const copiedDotAtom = atom<PatternStepJSON | null>(null)
+
+export function useCopiedDot() {
+  return useAtom(copiedDotAtom)
+}
 
 // Counts imports, so the grid can greet each with its steps bouncing in.
 const gridLandingAtom = atom(0)
