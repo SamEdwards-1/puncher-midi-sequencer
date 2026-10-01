@@ -76,6 +76,29 @@ describe("SequencerPlayer", () => {
     ])
   })
 
+  it("waits for a buffered output before moving the sequence playhead", () => {
+    const sink = Object.assign(new FakeSink(), { minimumLeadMs: () => 150 })
+    const router = new OutputRouter()
+    router.setAssignment(
+      { all: [sink], voices: [null, null, null, null] },
+      clock.time,
+    )
+    const delayed = new SequencerPlayer(makePatch(), router, {
+      now: clock.now,
+      ticker: new ManualTicker(),
+      seed: 1,
+    })
+
+    delayed.play()
+    // Even though the output needs more than the usual 100 ms lookahead,
+    // its first note is sent now for the same time the playhead reaches it.
+    expect(sink.ofType(0x90)[0].time).toBe(1150)
+    expect(delayed.playhead(0)).toBeNull()
+    clock.time = 1150
+    expect(delayed.playhead(0)).toBe(0)
+    delayed.dispose()
+  })
+
   it("sends each note once, in time order, across overlapping windows", () => {
     player.play()
     runFor(5000)
@@ -427,6 +450,49 @@ describe("SequencerPlayer", () => {
       expect(all.ofType(0x80).map((message) => message.time)).toEqual([
         1125, 1375,
       ])
+    })
+
+    it("starts the playhead and sound together after preparing a step", () => {
+      const sink = new FakeSink()
+      const router = new OutputRouter()
+      router.setAssignment(
+        { all: [sink], voices: [null, null, null, null] },
+        1000,
+      )
+      // Simulate a step taking 200 ms to prepare between the two clock reads.
+      let reads = 0
+      const delayed = new SequencerPlayer(previewPatch(), router, {
+        now: () => (++reads === 1 ? 1000 : 1200),
+        ticker: new ManualTicker(),
+        seed: 1,
+      })
+
+      delayed.previewStep(0)
+
+      expect(sink.ofType(0x90)[0].time).toBe(1200)
+      expect(delayed.playhead(0)).toBe(0)
+      delayed.dispose()
+    })
+
+    it("waits for a buffered output before auditioning a step", () => {
+      const sink = Object.assign(new FakeSink(), { minimumLeadMs: () => 150 })
+      const router = new OutputRouter()
+      router.setAssignment(
+        { all: [sink], voices: [null, null, null, null] },
+        clock.time,
+      )
+      const delayed = new SequencerPlayer(previewPatch(), router, {
+        now: clock.now,
+        ticker: new ManualTicker(),
+        seed: 1,
+      })
+
+      delayed.previewStep(0)
+      expect(sink.ofType(0x90)[0].time).toBe(1150)
+      expect(delayed.playhead(0)).toBeNull()
+      clock.time = 1150
+      expect(delayed.playhead(0)).toBe(0)
+      delayed.dispose()
     })
 
     it("follows a voice's own rhythm pattern", () => {
