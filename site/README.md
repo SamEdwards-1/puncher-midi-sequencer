@@ -50,9 +50,9 @@ Typography uses **DM Sans** for body text, **Space Grotesk** for headings, and *
 
 ## Update the documentation
 
-Edit `lib/docs.ts`. Each guide has a slug, group, description, and sections containing Markdown. The same content supplies navigation, search, page metadata, section links, and previous/next guides. Keep existing slugs and section IDs stable for incoming links.
+Edit the guide files in `content/docs`. Each `.md` filename is its URL slug (for example, `getting-started.md` becomes `/docs/getting-started`). The frontmatter sets the title, group, description, and navigation order. Use `## Section title {#section-id}` for sections so their links remain stable. The site reads these files for navigation, search, page metadata, section links, and previous/next guides. Keep existing filenames and section IDs stable for incoming links.
 
-Screenshots in `public/screenshots` are copies of the application's documented screenshots in `../screenshots`, including the existing feature slices. Register a new image in `lib/screenshots.ts`, then reference its filename and caption in a section. Static imports provide image dimensions. The screenshot component opens the original image in a keyboard-accessible dialog.
+Screenshots in `public/screenshots` are copies of the application's documented screenshots in `../screenshots`, including the existing feature slices. Register a new image in `lib/screenshots.ts`, then add `![Caption](/screenshots/filename.png)` at the end of a section in its Markdown file. Static imports provide image dimensions. The screenshot component opens the original image in a keyboard-accessible dialog.
 
 The support site's UI follows its skin; screenshots deliberately retain the app's appearance at capture time. Refresh the source screenshots when app controls change, then copy the revised files here.
 

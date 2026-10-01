@@ -63,9 +63,9 @@ export default function Home() {
                 <ArrowUpRight size={13} />
               </div>
               <Screenshot
-                src="midiseq.png"
+                src="homepage.png"
                 hero
-                caption="PUNCHER with sequencer settings, a 64-step grid, and four independent voices."
+                caption="PUNCHER with a 64-step grid, sequencer settings, the step editor, and four voice patterns."
               />
             </div>
             <div className="visual-bottom">
@@ -179,19 +179,19 @@ export default function Home() {
             <article className="feature-card">
               <div className="feature-image envelope-crop">
                 <Image
-                  src={screenshots["cc-envelope.png"]}
-                  alt="A controller envelope drawn over the step's colored notes"
+                  src={screenshots["control-movement.png"]}
+                  alt="A MIDI CC envelope modulating Voice 1's note length"
                   loading="lazy"
                   sizes="(max-width: 767px) 80vw, 550px"
                 />
               </div>
               <div className="feature-copy">
                 <span className="eyebrow">CONTROL / MOVEMENT</span>
-                <h3>Give a step a little motion.</h3>
+                <h3>Supports full MIDI CC automation.</h3>
                 <p>
-                  A drawn line can change an instrument's tone, a voice's pace,
-                  or the sequence's direction. Keep it subtle, or change the
-                  rules halfway through.
+                  Draw and edit envelopes to modulate the sequencer&apos;s settings.
+                  Or you can create arbitrary CC envelopes to send along in your
+                  MIDI routing.
                 </p>
                 <Link href="/docs/modulation" className="text-link">
                   Work with modulation <ArrowRight size={16} />

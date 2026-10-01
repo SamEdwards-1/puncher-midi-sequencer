@@ -1,6 +1,8 @@
 import envelope from "../public/screenshots/cc-envelope.png"
+import controlMovement from "../public/screenshots/control-movement.png"
 import exportMidi from "../public/screenshots/export-midi.png"
 import grid from "../public/screenshots/grid.png"
+import homepage from "../public/screenshots/homepage.png"
 import importMidi from "../public/screenshots/import-midi.png"
 import workspace from "../public/screenshots/midiseq.png"
 import modulation from "../public/screenshots/modulation.png"
@@ -15,8 +17,10 @@ import voices from "../public/screenshots/voices.png"
 
 export const screenshots = {
   "cc-envelope.png": envelope,
+  "control-movement.png": controlMovement,
   "export-midi.png": exportMidi,
   "grid.png": grid,
+  "homepage.png": homepage,
   "import-midi.png": importMidi,
   "midiseq.png": workspace,
   "modulation.png": modulation,

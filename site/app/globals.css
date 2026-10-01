@@ -140,7 +140,7 @@
   .feature-image { height: 238px; overflow: hidden; background: var(--screen); display: flex; justify-content: center; position: relative; }
   .pattern-window { position: relative; width: min(340px, 100%); height: 238px; overflow: hidden; }
   .pattern-crop img { position: absolute; width: 1088px; height: 680px; max-width: none; bottom: -14px; right: 0; }
-  .envelope-crop img { position: absolute; width: 100%; height: auto; top: 0; transform: translateY(-25%); }
+  .envelope-crop img { width: 100%; height: 100%; object-fit: contain; }
   .feature-copy { @apply p-7; }
   .feature-copy h3 { @apply mb-3 mt-3 text-[23px] font-medium tracking-[-0.035em]; }
   .feature-copy p { @apply mb-5 max-w-[410px] text-[13px] leading-6 text-muted; }
