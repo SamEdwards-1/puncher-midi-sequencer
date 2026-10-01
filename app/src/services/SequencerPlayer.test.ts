@@ -393,7 +393,9 @@ describe("SequencerPlayer", () => {
 
     it("pauses for what it cannot keep up with, rather than rushing or dropping it", () => {
       const whole = playFor(busyPatch(), 3000)
-      const starved = playFor(busyPatch(), 3000, 16)
+      // Empty steps no longer spend budget sampling envelopes, so use a
+      // budget below what the notes themselves need to force a stall.
+      const starved = playFor(busyPatch(), 3000, 8)
       expect(whole.stats).toMatchObject({ behind: 0, stalls: 0, late: 0 })
       expect(starved.stats.stalls).toBeGreaterThan(0)
       expect(starved.stats.late).toBe(0)
