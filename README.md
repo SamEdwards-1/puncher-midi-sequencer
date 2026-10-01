@@ -388,6 +388,13 @@ take too, and a take is one undo. Knob messages that aren't a control's
 position — All Sound Off, All Notes Off and the other channel-mode messages,
 bank select, and RPN/NRPN data entry — are left out, so a DAW's start/stop
 burst can't fill a step with tabs.
+Controller curves update at most about 30 times per second while you record;
+the final values are written when you stop or change steps. A stopped take
+over 2,048 samples shows a summarized live curve; its complete curve is
+restored when the take ends. Stopped takes support up to 32,768 controller
+samples per lane and 65,536 in total. At the
+limit, recording stops, keeps the captured samples, and shows why beside the
+transport.
 
 ### Files
 

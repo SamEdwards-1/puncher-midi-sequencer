@@ -1,5 +1,5 @@
 import { createDefaultMIDIFilter, createDefaultPatch } from "@midiseq/core"
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SequencerStore } from "../stores/SequencerStore"
 import { MIDIInput } from "./MIDIInput"
 import { MIDIRecorder } from "./MIDIRecorder"
@@ -148,7 +148,10 @@ describe("MIDIRecorder", () => {
     const playingAt = (step: number, time: number, lengthBeats = 4) => {
       at = { step, time, lengthBeats }
     }
-    const envelopes = (step: number) => store.patch.steps[step].envelopes
+    const envelopes = (step: number) => {
+      vi.advanceTimersByTime(33)
+      return store.patch.steps[step].envelopes
+    }
     // New envelopes step; these steps get one that ramps, empty, for CC 74
     // on channel 1 to be recorded into.
     const ramping = (...steps: number[]) => {
@@ -160,6 +163,7 @@ describe("MIDIRecorder", () => {
     }
 
     beforeEach(() => {
+      vi.useFakeTimers()
       at = null
       // a four-beat step, so a stored time is a fraction of it times four
       store.patch = { ...store.patch, pace: "1bar" }
@@ -171,6 +175,11 @@ describe("MIDIRecorder", () => {
         () => at,
       )
       recorder.setRecording(true)
+    })
+
+    afterEach(() => {
+      recorder.dispose()
+      vi.useRealTimers()
     })
 
     describe("while stopped", () => {
@@ -402,6 +411,99 @@ describe("MIDIRecorder", () => {
           { time: 2, value: 90 },
         ])
       })
+
+      it("skips a repeated value in the same playback slot", () => {
+        playingAt(0, 0.5)
+        play(cc(74, 30))
+        vi.advanceTimersByTime(33)
+        const published = store.patch
+
+        play(cc(74, 30), cc(74, 30))
+        vi.advanceTimersByTime(100)
+        expect(store.patch).toBe(published)
+      })
+    })
+
+    it("batches dirty lanes into one patch publication", () => {
+      store.patch.steps[0].envelopes = [
+        { id: 100, cc: 74, channel: 1, shape: "steps", points: [] },
+        { id: 101, cc: 75, channel: 1, shape: "steps", points: [] },
+      ]
+      const before = store.patch
+      play(cc(74, 10), cc(75, 20), cc(74, 30))
+      expect(store.patch).toBe(before)
+
+      vi.advanceTimersByTime(32)
+      expect(store.patch).toBe(before)
+      vi.advanceTimersByTime(1)
+      expect(store.patch).not.toBe(before)
+      expect(
+        store.patch.steps[0].envelopes.map(({ points }) => points),
+      ).toEqual([
+        [
+          { time: 0, value: 10 },
+          { time: 2, value: 30 },
+        ],
+        [{ time: 0, value: 20 }],
+      ])
+    })
+
+    it("captures a long stopped take without rebuilding the patch per message", () => {
+      play(cc(74, 0)) // creation of the envelope is a separate patch change
+      const before = store.patch
+      for (let index = 1; index < 4_000; index++) {
+        play(cc(74, index % 128))
+      }
+      expect(store.patch).toBe(before)
+
+      vi.advanceTimersByTime(33)
+      const live = store.patch.steps[0].envelopes[0].points
+      expect(live.length).toBeLessThanOrEqual(4 * Math.ceil(4_000 / 64))
+
+      recorder.setRecording(false)
+      expect(store.patch.steps[0].envelopes[0].points).toHaveLength(4_000)
+      expect(store.patch.steps[0].envelopes[0].points.at(-1)?.value).toBe(
+        3_999 % 128,
+      )
+    })
+
+    it("flushes the old target and the final sample before clearing a take", () => {
+      play(cc(74, 10), cc(74, 20))
+      recorder.setTarget(1)
+      expect(store.patch.steps[0].envelopes[0].points).toEqual([
+        { time: 0, value: 10 },
+        { time: 2, value: 20 },
+      ])
+      play(cc(74, 90))
+      recorder.setRecording(false)
+      expect(store.patch.steps[1].envelopes[0].points).toEqual([
+        { time: 0, value: 90 },
+      ])
+      const published = store.patch
+      vi.advanceTimersByTime(100)
+      expect(store.patch).toBe(published)
+    })
+
+    it("bounds stopped take samples and reports the limit without losing the captured values", () => {
+      recorder.dispose()
+      recorder = new MIDIRecorder(
+        store,
+        input,
+        () => {},
+        () => at,
+        globalThis,
+        { laneSamples: 3, takeSamples: 5 },
+      )
+      recorder.setRecording(true)
+      play(cc(74, 10), cc(74, 10), cc(74, 20), cc(74, 30))
+      expect(recorder.isRecording).toBe(false)
+      expect(recorder.recordingError).toContain("supported limit")
+      expect(store.patch.steps[0].envelopes[0].points).toEqual([
+        { time: 0, value: 10 },
+        { time: Math.round((8 / 3) * 1e9) / 1e9, value: 20 },
+      ])
+      recorder.setRecording(true)
+      expect(recorder.recordingError).toBeNull()
     })
 
     it("says which envelope it is writing, once per envelope", () => {

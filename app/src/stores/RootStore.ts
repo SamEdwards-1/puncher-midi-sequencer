@@ -140,6 +140,7 @@ export default class RootStore {
       return
     }
     this.disposed = true
+    this.recorder.dispose()
     this.unregisterReactions()
     this.player.dispose()
     this.midiInput.dispose()
