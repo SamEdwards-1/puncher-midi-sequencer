@@ -3,7 +3,7 @@ import CloseIcon from "mdi-react/CloseIcon"
 import CrosshairsGpsIcon from "mdi-react/CrosshairsGpsIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { IconButton } from "../ui/Button"
@@ -73,13 +73,15 @@ export const hasJump = (jump: JumpJSON) =>
  * leaves from is the one the editor is on. Its X takes the whole jump away.
  */
 export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
-  const patch = usePatch()
   const [selected] = useSelectedStep()
+  const jump = usePatchSelector(
+    (patch) => patch.steps[selected].jump,
+    [selected],
+  )
   const [mode, setMode] = useGridMode()
   const { editJump } = usePatchEditor()
   const localized = useLocalization()
 
-  const jump = patch.steps[selected].jump
   const picking = mode === "dest" || mode === "normal"
 
   const target = (

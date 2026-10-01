@@ -2,9 +2,10 @@ import { inScale, noteNumberToName, StepState } from "@midiseq/core"
 import AlertIcon from "mdi-react/AlertIcon"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
-import { FC, HTMLAttributes, useState } from "react"
+import { comparer } from "mobx"
+import { FC, HTMLAttributes, memo, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { scaleLabel } from "../../theory/scales"
@@ -28,10 +29,21 @@ const Row: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
 
 const STATES: StepState[] = ["normal", "rest", "skip"]
 
-// `column` is the one the editor scrolls in, for the envelope editor to fill
-export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
-  const patch = usePatch()
+// `column` is the one the editor scrolls in, for the envelope editor to fill.
+// It sits under the grid, apart from it: the grid draws again each time the
+// sequence moves on.
+export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
   const [selected] = useSelectedStep()
+  // the step and what it is held to, so edits elsewhere pass it by
+  const { step, scale, maxNotesPerStep } = usePatchSelector(
+    (patch) => ({
+      step: patch.steps[selected],
+      scale: patch.scale,
+      maxNotesPerStep: patch.maxNotesPerStep,
+    }),
+    [selected],
+    comparer.shallow,
+  )
   const { copiedStep, setCopiedStep } = useCopiedStep()
   const localized = useLocalization()
   const {
@@ -49,10 +61,8 @@ export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
   // it is set to anything
   const [openedJump, setOpenedJump] = useState<number | null>(null)
 
-  const step = patch.steps[selected]
-  const scale = patch.scale
   const jumpShown = hasJump(step.jump) || openedJump === selected
-  const beyondLimit = step.notes.length > patch.maxNotesPerStep
+  const beyondLimit = step.notes.length > maxNotesPerStep
 
   return (
     <>
@@ -138,7 +148,7 @@ export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
             )}
 
             {step.notes.map((note, position) => {
-              const beyond = position >= patch.maxNotesPerStep
+              const beyond = position >= maxNotesPerStep
               const outside = scale !== null && !inScale(scale, note)
               return (
                 <Row
@@ -234,4 +244,4 @@ export const StepEditor: FC<{ column?: Column }> = ({ column }) => {
       </div>
     </>
   )
-}
+})

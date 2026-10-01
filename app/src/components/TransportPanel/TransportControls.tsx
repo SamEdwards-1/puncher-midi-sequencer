@@ -3,7 +3,7 @@ import RecordIcon from "mdi-react/RecordIcon"
 import StopIcon from "mdi-react/StopIcon"
 import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
 import { Localized, useLocalization } from "../../localize/useLocalization"
@@ -15,7 +15,7 @@ export const TransportControls: FC = () => {
   const { isRecording, toggleRecording } = useRecorder()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
-  const patch = usePatch()
+  const tempo = usePatchSelector((patch) => patch.tempo)
 
   return (
     <div className="flex items-center gap-2">
@@ -48,7 +48,7 @@ export const TransportControls: FC = () => {
       <div className="w-32">
         <Stepper
           label={localized["sequencer-tempo"]}
-          value={patch.tempo}
+          value={tempo}
           min={20}
           max={400}
           format={(value) => `${value} ${localized["sequencer-bpm"]}`}

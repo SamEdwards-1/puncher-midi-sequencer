@@ -13,7 +13,7 @@ import {
 import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
@@ -59,7 +59,10 @@ export const StepOptions: FC<StepOptionsProps> = ({
 }) => {
   const { editPatternStep } = usePatchEditor()
   const { accentAmount } = useAccentAmount()
-  const voiceVelocity = usePatch().voices[voiceIndex].velocity
+  const voiceVelocity = usePatchSelector(
+    (patch) => patch.voices[voiceIndex].velocity,
+    [voiceIndex],
+  )
   const localized = useLocalization()
   const popup = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState(requestedAt)

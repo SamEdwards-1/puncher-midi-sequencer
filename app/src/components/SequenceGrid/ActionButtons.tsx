@@ -4,7 +4,7 @@ import FlipHorizontalIcon from "mdi-react/FlipHorizontalIcon"
 import PauseIcon from "mdi-react/PauseIcon"
 import SwapVerticalIcon from "mdi-react/SwapVerticalIcon"
 import SyncIcon from "mdi-react/SyncIcon"
-import { FC, PointerEvent, useEffect } from "react"
+import { FC, memo, PointerEvent, useEffect } from "react"
 import { useActions, useLatchActions } from "../../hooks/useActions"
 import { useSelectedVoice } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
@@ -124,7 +124,8 @@ const ActionButton: FC<{ action: Action }> = ({ action }) => {
   )
 }
 
-export const ActionButtons: FC = () => {
+// apart from the grid, which draws again each time the sequence moves on
+export const ActionButtons: FC = memo(() => {
   const { setAction, toggleAction } = useActions()
   const [latch] = useLatchActions()
 
@@ -178,7 +179,7 @@ export const ActionButtons: FC = () => {
       <Latch />
     </div>
   )
-}
+})
 
 const Latch: FC = () => {
   const { setAction } = useActions()

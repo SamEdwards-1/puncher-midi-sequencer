@@ -10,11 +10,12 @@ import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
 import PencilIcon from "mdi-react/PencilIcon"
 import SlopeUphillIcon from "mdi-react/SlopeUphillIcon"
 import SquareWaveIcon from "mdi-react/SquareWaveIcon"
+import { comparer } from "mobx"
 import { CSSProperties, FC, ReactNode, useEffect, useRef } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
-import { usePatch } from "../../hooks/usePatch"
+import { usePatchSelector } from "../../hooks/usePatch"
 import {
   EnvelopeLane,
   useEnvelopeGrid,
@@ -79,8 +80,17 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
   step: stepIndex,
   column,
 }) => {
-  const patch = usePatch()
-  const step = patch.steps[stepIndex]
+  // the step, and of the rest only what its tabs and fields name: the
+  // voices, and the modulations a CC may drive
+  const { step, voices, modulations } = usePatchSelector(
+    (patch) => ({
+      step: patch.steps[stepIndex],
+      voices: patch.voices,
+      modulations: patch.modulations,
+    }),
+    [stepIndex],
+    comparer.shallow,
+  )
   const [selected, setSelected] = useSelectedLane()
   const [selectedVoice] = useSelectedVoice()
   const [tool, setTool] = useEnvelopeTool()
@@ -133,7 +143,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
         ) ?? null)
       : null
   const laneChannel =
-    lane.kind === "velocity" ? patch.voices[lane.voice].channel : lane.channel
+    lane.kind === "velocity" ? voices[lane.voice].channel : lane.channel
 
   // a new CC goes out on the channel of the lane it is added from
   const add = () => {
@@ -160,7 +170,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
   // A CC's tab is named for the setting it modulates, if it does. The same
   // CC can be on several channels, so those tabs say which.
   const ccLabel = (cc: number, channel: number) => {
-    const modulation = modulationForCC(patch, cc)
+    const modulation = modulationForCC({ modulations }, cc)
     const name =
       modulation === undefined
         ? `${localized["sequencer-step-cc"]} ${cc}`
@@ -170,21 +180,26 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
       : name
   }
   const modulation =
-    lane.kind === "cc" ? modulationForCC(patch, lane.cc) : undefined
+    lane.kind === "cc" ? modulationForCC({ modulations }, lane.cc) : undefined
   // Removing the last envelope for a modulation's CC removes the
   // modulation too, so the button says so.
+  const modulatedCC = modulation?.cc
+  const envelopesOnCC = usePatchSelector(
+    (patch) =>
+      patch.steps
+        .flatMap((each) => each.envelopes)
+        .filter(({ cc }) => cc === modulatedCC).length,
+    [modulatedCC],
+  )
   const removes =
-    modulation !== undefined &&
-    patch.steps
-      .flatMap((each) => each.envelopes)
-      .filter(({ cc }) => cc === modulation.cc).length === 1
+    modulation !== undefined && envelopesOnCC === 1
       ? `${localized["sequencer-step-remove-cc-modulation"]} ${modulationTargetLabel(modulation.target, localized)}`
       : localized["sequencer-step-remove-cc"]
 
   // a CC modulating one of a voice's settings has the voice's dot, as the
   // voice's Velocity tab does
   const ccDot = (cc: number) => {
-    const target = modulationForCC(patch, cc)?.target
+    const target = modulationForCC({ modulations }, cc)?.target
     return target !== undefined && "voice" in target ? target.voice : undefined
   }
 
@@ -196,7 +211,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
       lane: { kind: "velocity", voice } as const,
       voice,
       dot: voice,
-      off: !patch.voices[voice].enabled,
+      off: !voices[voice].enabled,
     })),
     ...step.envelopes.map((each) => ({
       key: `cc-${each.id}`,
@@ -257,7 +272,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
               <Labelled label={localized["sequencer-voice-velocity"]}>
                 <Stepper
                   label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${localized["sequencer-voice-velocity"].toLowerCase()}`}
-                  value={patch.voices[lane.voice].velocity}
+                  value={voices[lane.voice].velocity}
                   min={1}
                   max={127}
                   parse={parseNumber}
@@ -281,7 +296,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
               />
               {localized["sequencer-voice"]} {lane.voice + 1} ·{" "}
               {localized["sequencer-dot-accent"]} ±{accentAmount}
-              {!patch.voices[lane.voice].enabled && (
+              {!voices[lane.voice].enabled && (
                 <span className="text-fg-tertiary">
                   (<Localized name="sequencer-velocity-voice-off" />)
                 </span>

@@ -24,13 +24,14 @@ import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import HeadphonesIcon from "mdi-react/HeadphonesIcon"
 import VolumeOffIcon from "mdi-react/VolumeOffIcon"
-import { CSSProperties, FC, ReactNode, useMemo, useState } from "react"
+import { comparer } from "mobx"
+import { CSSProperties, FC, memo, ReactNode, useMemo, useState } from "react"
 import { usePatternFileActions } from "../../actions/file"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useActions } from "../../hooks/useActions"
-import { useMobxGetter } from "../../hooks/useMobxSelector"
-import { usePatch } from "../../hooks/usePatch"
+import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
+import { usePatchSelector } from "../../hooks/usePatch"
 import {
   useSelectedLane,
   useSelectedStep,
@@ -172,11 +173,11 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   header = true,
   className = "border-l border-divider",
 }) => {
-  const patch = usePatch()
+  const voices = usePatchSelector((patch) => patch.voices)
   const [selected, setSelected] = useSelectedVoice()
   const { editVoice } = usePatchEditor()
   const localized = useLocalization()
-  const voice = patch.voices[selected]
+  const voice = voices[selected]
   // An instrument only means something to the built-in synth: the voice
   // reaches it when it is one of the outputs, or the voice's own.
   const { midiDeviceStore } = useStores()
@@ -206,13 +207,13 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
             key={index}
             type="button"
             data-active={index === selected}
-            data-enabled={patch.voices[index].enabled}
+            data-enabled={voices[index].enabled}
             className={cn(
               TAB,
               index === selected
                 ? "border-voice text-fg"
                 : "border-transparent text-fg-secondary",
-              !patch.voices[index].enabled && "opacity-55",
+              !voices[index].enabled && "opacity-55",
             )}
             style={voiceColor(index)}
             onClick={() => setSelected(index)}
@@ -404,10 +405,10 @@ const Patterns: FC<{
   selected: VoiceIndex
   onSelect: (index: VoiceIndex) => void
 }> = ({ selected, onSelect }) => {
-  const patch = usePatch()
+  const voices = usePatchSelector((patch) => patch.voices)
+  const size = usePatchSelector((patch) => patch.size)
   const { player } = useStores()
   const voiceDots = useMobxGetter(player, "voiceDots")
-  const playingDots = useMobxGetter(player, "playingDots")
   const position = useMobxGetter(player, "position")
   const { actions } = useActions()
   const { togglePatternDot, editVoice, editVoicesEnabled } = usePatchEditor()
@@ -417,8 +418,27 @@ const Patterns: FC<{
   // the step the bands are for: the one playing, or the one in the editor
   const bandStep =
     voiceDots !== null && position !== null
-      ? viewIndex(position, patch.size, actions.flip)
+      ? viewIndex(position, size, actions.flip)
       : step
+  // The dots each voice reaches while the sequencer sits on that step, and
+  // how many dots its pattern runs to there: the step may modulate its own
+  // length, and the voice's pace and pattern, as it lands.
+  const landings = usePatchSelector(
+    (patch) =>
+      VOICES.map((voice) => {
+        const landed = modulatedVoice(patch, voice, bandStep, 0)
+        return {
+          reach: dotsPerStep(
+            stepPace(patch, bandStep),
+            landed.pace,
+            landed.patternLength,
+          ),
+          patternLength: landed.patternLength,
+        }
+      }),
+    [bandStep],
+    comparer.structural,
+  )
 
   // The step in the editor as the sequence reaches it — which dots each
   // voice has come round to by then, and what they play, this time round
@@ -462,7 +482,7 @@ const Patterns: FC<{
   } | null>(null)
   // Mute and solo are the voices' own Enable settings: a muted voice is one
   // switched off, and a soloed voice the only one on.
-  const enabled = patch.voices.map((voice) => voice.enabled)
+  const enabled = voices.map((voice) => voice.enabled)
   const soloed = (voice: VoiceIndex) =>
     enabled.every((on, index) => on === (index === voice))
   const [soloRestore, setSoloRestore] = useSoloRestore()
@@ -501,22 +521,15 @@ const Patterns: FC<{
       className="flex flex-col gap-[1.1rem] border-t border-divider pr-[max(0.25rem,calc(0.75rem-var(--scrollbar-gutter,0px)))] pt-3 pl-3"
     >
       {VOICES.map((voiceIndex) => {
-        const voice = patch.voices[voiceIndex]
+        const voice = voices[voiceIndex]
         // The dots the voice reaches while the sequencer sits on one step:
         // from the dot it is on when the step playing sounds, or stopped,
         // from the one it will have come round to by the step in the editor.
-        // The step may modulate its own length, and the voice's pace and
-        // pattern, as it lands.
-        const landed = modulatedVoice(patch, voiceIndex, bandStep, 0)
-        const reach = dotsPerStep(
-          stepPace(patch, bandStep),
-          landed.pace,
-          landed.patternLength,
-        )
+        const { reach, patternLength } = landings[voiceIndex]
         const runs = bands(
           (voiceDots ?? preview.voiceDots)[voiceIndex] ?? 0,
           reach,
-          landed.patternLength,
+          patternLength,
         )
         const reached = (dotIndex: number) =>
           runs.some(
@@ -600,7 +613,6 @@ const Patterns: FC<{
                       data-beyond={dotIndex >= voice.patternLength}
                       data-reached={reached(dotIndex)}
                       data-editing={editing}
-                      data-playing={playingDots?.[voiceIndex] === dotIndex}
                       data-articulation={dot.articulation}
                       data-accent={accent}
                       data-velocity={playedVelocity(
@@ -695,15 +707,7 @@ const Patterns: FC<{
                           ))}
                         </span>
                       )}
-                      {playingDots?.[voiceIndex] === dotIndex && (
-                        // under the dot rather than on it, so it reads the same
-                        // on a dot that is on, off or hollow
-                        <span
-                          aria-hidden
-                          data-playhead
-                          className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
-                        />
-                      )}
+                      <DotPlayhead voice={voiceIndex} dot={dotIndex} />
                     </button>
                   )
                 })}
@@ -742,7 +746,7 @@ const Patterns: FC<{
         <StepOptions
           voiceIndex={options.voiceIndex}
           dotIndex={options.dotIndex}
-          dot={patch.voices[options.voiceIndex].pattern[options.dotIndex]}
+          dot={voices[options.voiceIndex].pattern[options.dotIndex]}
           at={options.at}
           onClose={() => setOptions(null)}
         />
@@ -750,6 +754,31 @@ const Patterns: FC<{
     </section>
   )
 }
+
+/**
+ * The mark under the dot a voice is playing. It moves on several times a
+ * step, so each dot watches for it on its own rather than the whole pattern
+ * drawing again every time it does; and the pattern drawing again leaves
+ * the marks be.
+ */
+const DotPlayhead: FC<{ voice: VoiceIndex; dot: number }> = memo(
+  ({ voice, dot }) => {
+    const { player } = useStores()
+    const playing = useMobxSelector(
+      () => player.playingDots?.[voice] === dot,
+      [player, voice, dot],
+    )
+    return playing ? (
+      // under the dot rather than on it, so it reads the same on a dot that is
+      // on, off or hollow
+      <span
+        aria-hidden
+        data-playhead
+        className="absolute -bottom-[0.3rem] left-1/2 h-[0.13rem] w-3/4 -translate-x-1/2 rounded-full bg-white"
+      />
+    ) : null
+  },
+)
 
 const VoiceButtons: FC<{
   voice: VoiceIndex

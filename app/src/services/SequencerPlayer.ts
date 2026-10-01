@@ -23,7 +23,7 @@ import {
   stepPace,
   VoiceIndex,
 } from "@midiseq/core"
-import { makeObservable, observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { OutputAssignment, OutputRouter } from "./OutputRouter"
 import {
   CreateRoundPreviewer,
@@ -255,6 +255,12 @@ export class SequencerPlayer {
       modulated: observable.ref,
       roundNotes: observable.ref,
       actions: observable.ref,
+      // each publishes what it changes at once, so whatever reads several
+      // of them hears of them together
+      play: action,
+      stop: action,
+      panic: action,
+      tick: action,
     })
   }
 
