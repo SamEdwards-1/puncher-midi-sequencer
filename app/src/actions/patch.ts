@@ -190,6 +190,17 @@ export function usePatchEditor() {
         ),
       [apply, sequencerStore],
     ),
+    // an envelope's points, as stored, in beats
+    editEnvelopePoints: useCallback(
+      (
+        step: number,
+        id: number,
+        points: EnvelopeJSON["points"],
+        key?: string,
+      ) =>
+        apply(updateEnvelope(sequencerStore.patch, step, id, { points }), key),
+      [apply, sequencerStore],
+    ),
     removeEnvelope: useCallback(
       (step: number, id: number) =>
         apply(removeEnvelope(sequencerStore.patch, step, id)),

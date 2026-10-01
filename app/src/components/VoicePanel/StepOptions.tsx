@@ -10,7 +10,7 @@ import {
   shownAccent,
   typedVelocityToDot,
 } from "@midiseq/core"
-import { FC, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { usePatchSelector } from "../../hooks/usePatch"
@@ -20,6 +20,7 @@ import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
+import { usePopup } from "../ui/usePopup"
 
 // digits are all a typed velocity means; the stepper clamps it to 1-127
 const parseNumber = (text: string) => {
@@ -70,49 +71,9 @@ export const StepOptions: FC<StepOptionsProps> = ({
     [voiceIndex],
   )
   const localized = useLocalization()
-  const popup = useRef<HTMLDivElement>(null)
-  const [at, setAt] = useState(requestedAt)
-
-  // Opened from a right-click, so it can be asked for at the very edge of the
-  // window; it is nudged back inside once its size is known.
-  useLayoutEffect(() => {
-    const element = popup.current
-    if (element === null) {
-      return
-    }
-    const { width, height } = element.getBoundingClientRect()
-    const margin = 8
-    setAt({
-      x: Math.min(
-        Math.max(margin, requestedAt.x),
-        window.innerWidth - width - margin,
-      ),
-      y: Math.min(
-        Math.max(margin, requestedAt.y),
-        window.innerHeight - height - margin,
-      ),
-    })
-  }, [requestedAt])
-
-  // closes on a click elsewhere or on Escape
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (!popup.current?.contains(event.target as Node)) {
-        onClose()
-      }
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose()
-      }
-    }
-    window.addEventListener("pointerdown", onPointerDown)
-    window.addEventListener("keydown", onKeyDown)
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown)
-      window.removeEventListener("keydown", onKeyDown)
-    }
-  }, [onClose])
+  // opened from a right-click, nudged inside the window, and closed on a
+  // click elsewhere or on Escape
+  const { popup, at } = usePopup(requestedAt, onClose)
 
   const change = (changes: Partial<PatternStepJSON>) =>
     editPatternStep(voiceIndex, dotIndex, changes)
