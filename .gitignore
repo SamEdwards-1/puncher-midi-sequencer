@@ -1,8 +1,12 @@
 node_modules
 dist
 .vscode
-docs
+/docs/
 .turbo
 coverage
 *.log
 .DS_Store
+.next
+out
+*.tsbuildinfo
+site/.env.local

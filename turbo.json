@@ -4,7 +4,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "out/**"],
+      "env": ["NEXT_PUBLIC_APP_URL"]
     },
     "test": {
       "inputs": ["src/**/*.tsx", "src/**/*.ts", "vitest.config.ts"]
