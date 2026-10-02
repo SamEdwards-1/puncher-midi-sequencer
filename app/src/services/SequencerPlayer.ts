@@ -13,6 +13,7 @@ import {
   NoteOnEvent,
   PatchJSON,
   paceBeats,
+  previewsAlike,
   RENDER_BUDGET,
   StepAdvanceEvent,
   StepIndex,
@@ -32,6 +33,7 @@ import {
   RoundJob,
   RoundPreviewer,
 } from "./RoundPreviewer"
+import { RoundStats } from "./RoundStats"
 import { SchedulerStats } from "./SchedulerStats"
 import { createWorkerTicker, OwnedTicker, Ticker } from "./Ticker"
 
@@ -169,8 +171,10 @@ export class SequencerPlayer {
   // patterns; null when stopped
   roundNotes: RoundNotes | null = null
   actions: EngineActions = createActions()
-  // how the scheduling keeps up, for reading from the console
+  // how the scheduling keeps up, and playing the rounds ahead, for reading
+  // from the console
   readonly stats = new SchedulerStats()
+  readonly roundStats = new RoundStats()
 
   private readonly engine: Engine
   private readonly now: () => number
@@ -183,6 +187,9 @@ export class SequencerPlayer {
   private readonly startDelayMs: number
   private readonly renderBudget: number
   private patch: PatchJSON
+  // the patch the rounds are played ahead with: the latest edit they hear,
+  // which plays them just as `patch` does (see previewsAlike)
+  private roundPatch: PatchJSON
   private tempo: number
   private anchorTime = 0
   private anchorBeat = 0
@@ -201,7 +208,7 @@ export class SequencerPlayer {
   private rounds: Round[] = []
   private round: Round | null = null
   private roundCount = 0
-  // counts the edits to the patch and accent amount the rounds play with
+  // counts the edits the rounds hear: to the patch, and the accent amount
   private revision = 0
   // the clicked step's events not yet handed to the router, in time order;
   // the notes it has started and not yet ended; its latest sent; and how
@@ -225,6 +232,7 @@ export class SequencerPlayer {
     options: SequencerPlayerOptions = {},
   ) {
     this.patch = patch
+    this.roundPatch = patch
     this.tempo = patch.tempo
     this.now = options.now ?? (() => performance.now())
     if (options.ticker === undefined) {
@@ -235,8 +243,12 @@ export class SequencerPlayer {
       this.ticker = options.ticker
     }
     this.previewer = (options.roundPreviewer ?? createWorkerRoundPreviewer)(
-      this.nextRoundJob,
-      this.roundPlayed,
+      {
+        next: this.nextRoundJob,
+        played: this.roundPlayed,
+        lost: this.roundLost,
+      },
+      this.roundStats,
     )
     this.lookaheadMs = options.lookaheadMs ?? LOOKAHEAD_MS
     this.startDelayMs = options.startDelayMs ?? START_DELAY_MS
@@ -264,10 +276,20 @@ export class SequencerPlayer {
     })
   }
 
+  /**
+   * The sequence plays every edit, but the rounds are played again only for
+   * one they hear. The name, the tempo — a round's notes are measured in
+   * beats — or a CC that drives nothing leave what they play as it was.
+   */
   setPatch(patch: PatchJSON) {
     this.patch = patch
     this.engine.setPatch(patch)
-    this.replayRounds()
+    const heard = !previewsAlike(this.roundPatch, patch)
+    this.roundStats.edited(heard)
+    if (heard) {
+      this.roundPatch = patch
+      this.replayRounds()
+    }
   }
 
   setActions(actions: Partial<EngineActions>) {
@@ -413,27 +435,54 @@ export class SequencerPlayer {
       return null
     }
     round.askedRevision = this.revision
+    this.roundStats.requested()
     return {
       id: round.id,
       revision: this.revision,
       from: round.from,
-      patch: this.patch,
+      patch: this.roundPatch,
       accentAmount: this.accentAmount,
     }
   }
 
-  // A round's notes, played ahead: kept unless the round has gone by, or
-  // already has some played after a later edit.
+  /**
+   * A round's notes, played ahead. A round shows the latest played for it,
+   * even ones played before an edit since, while its replay after that edit
+   * is on its way: they are nearer the mark than what it showed before. Were
+   * only the latest edit's shown, a run of edits coming quicker than a round
+   * can be played would hold it at what it showed before the run for as
+   * long as the run lasted. Notes for a round gone by are dropped, as are
+   * any older than those a round already shows, so it never goes back.
+   */
   private roundPlayed = ({ id, revision, notes }: PlayedRound) => {
-    const round = [this.round, ...this.rounds].find((each) => each?.id === id)
-    if (round == null || revision <= round.notesRevision) {
+    const round = this.roundWithId(id)
+    if (round === undefined || revision <= round.notesRevision) {
+      this.roundStats.dropped()
       return
     }
+    this.roundStats.shown(revision < this.revision)
     round.notes = notes
     round.notesRevision = revision
     if (round === this.round) {
       this.roundNotes = this.notesOf(round)
     }
+  }
+
+  // A round handed out to be played that never was, its worker lost: it is
+  // handed out again, as wanting the notes it has yet to have.
+  private roundLost = ({ id, revision }: RoundJob) => {
+    this.roundStats.lost()
+    const round = this.roundWithId(id)
+    if (round !== undefined && round.askedRevision === revision) {
+      round.askedRevision = round.notesRevision
+    }
+  }
+
+  // the round sounding or on its way with this id, or none once gone by
+  private roundWithId(id: number): Round | undefined {
+    return [this.round, ...this.rounds].find(
+      (each): each is Round => each?.id === id,
+    )
   }
 
   // What a round plays, once played ahead; a round Hold keeps goes on with
@@ -457,6 +506,9 @@ export class SequencerPlayer {
 
   // How far an accent moves a velocity; the next note played hears it.
   setAccentAmount = (amount: number) => {
+    if (amount === this.accentAmount) {
+      return
+    }
     this.accentAmount = amount
     this.engine.accentAmount = amount
     this.replayRounds()
