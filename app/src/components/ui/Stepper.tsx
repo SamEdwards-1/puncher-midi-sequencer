@@ -1,6 +1,12 @@
 import MinusIcon from "mdi-react/MinusIcon"
 import PlusIcon from "mdi-react/PlusIcon"
-import { FC, MouseEvent as ReactMouseEvent, useRef, useState } from "react"
+import {
+  FC,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  useRef,
+  useState,
+} from "react"
 import { useStores } from "../../hooks/useStores"
 import { observeDrag } from "../StepEditor/observeDrag"
 import { cn } from "./cn"
@@ -18,6 +24,11 @@ const STEP =
 // doesn't light the value too.
 const VALUE =
   "order-2 box-border flex min-w-0 grow items-center justify-center border-y border-transparent text-center font-mono text-body [:not(:has(>button:hover))>&:not(:focus):hover]:bg-fg/5"
+
+// A marker drawn over the value's left end, just past the down button. It
+// lets the mouse through to the value.
+const MARKER =
+  "pointer-events-none absolute top-1/2 left-[2.1rem] flex -translate-y-1/2 items-center"
 
 // A plain number is typed as one: "3", "+3" and "3.2" all read as 3.
 const parseWhole = (text: string) => {
@@ -39,6 +50,8 @@ export interface StepperProps {
   sanitize?: (text: string) => string
   // the value is shown in the error colour, as one that is wrong
   invalid?: boolean
+  // shown over the value's left end
+  marker?: ReactNode
   onChange: (value: number) => void
 }
 
@@ -52,6 +65,7 @@ export const Stepper: FC<StepperProps> = ({
   parse: given,
   sanitize,
   invalid = false,
+  marker,
   onChange,
 }) => {
   const parse = given ?? (format === undefined ? parseWhole : undefined)
@@ -155,7 +169,7 @@ export const Stepper: FC<StepperProps> = ({
     // The value comes first, the buttons placed either side of it: a label
     // around the stepper names its first control, which would otherwise be
     // the down button, pressed by a click on the label.
-    <div className="flex h-[1.6rem] items-stretch">
+    <div className="relative flex h-[1.6rem] items-stretch">
       {parse === undefined ? (
         <span
           className={cn(VALUE, tone, "cursor-ns-resize select-none")}
@@ -223,6 +237,7 @@ export const Stepper: FC<StepperProps> = ({
       >
         <PlusIcon size={14} />
       </button>
+      {marker !== undefined && <span className={MARKER}>{marker}</span>}
     </div>
   )
 }
