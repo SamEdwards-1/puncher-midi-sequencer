@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   dropRepeats,
   envelopeShape,
+  erasePoint,
   gridTimes,
   insertPoint,
   insertPointOnLine,
@@ -342,6 +343,22 @@ describe("a stepped envelope", () => {
       { time: 0.5, value: 90 },
       { time: 0.75, value: 20 },
     ])
+  })
+
+  it("erases a step, with a point left repeating the value before it", () => {
+    // 100 goes, so 0 holds to 0.75 and the jump to 40 is all that's left
+    expect(erasePoint(stairs, 1, "steps")).toEqual([stairs[0], stairs[2]])
+    const peak = [
+      { time: 0.25, value: 0 },
+      { time: 0.5, value: 100 },
+      { time: 0.75, value: 0 },
+    ]
+    // the 0 after the peak would be a handle on a flat line
+    expect(erasePoint(peak, 1, "steps")).toEqual([peak[0]])
+    // the first point leaves the next to start the line, whatever it holds
+    expect(erasePoint(peak, 0, "steps")).toEqual([peak[1], peak[2]])
+    // a ramp runs through its points, so none of them is ever spare
+    expect(erasePoint(peak, 1, "ramps")).toEqual([peak[0], peak[2]])
   })
 
   it("thins a run to where its value changes", () => {

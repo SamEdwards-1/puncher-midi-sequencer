@@ -5,6 +5,7 @@ import {
   cellAt,
   hitPoint,
   hitSegment,
+  hitVertex,
   isBlackKey,
   keyRange,
   linePath,
@@ -51,8 +52,8 @@ describe("envelope geometry", () => {
     expect(linePath(ramp, plot, "steps")).toBe(
       "M10,110 L30,110 L90,110 L90,10 L110,10",
     )
-    // the jump's lower end gets a handle of its own
-    expect(stepCorners(ramp)).toEqual([{ time: 0.8, value: 27 }])
+    // the jump's lower end gets a handle of its own, the 27's
+    expect(stepCorners(ramp)).toEqual([{ time: 0.8, value: 27, index: 0 }])
   })
 
   it("finds a stepped line's flat stretches, each belonging to its point", () => {
@@ -81,6 +82,24 @@ describe("envelope geometry", () => {
       { time: 0.5, value: 60 },
     ]
     expect(hitPoint(stacked, plot, toX(plot, 0.5), toY(plot, 60))).toBe(1)
+  })
+
+  it("finds a vertex of the line as drawn, a stepped jump's corner too", () => {
+    expect(hitVertex(ramp, plot, toX(plot, 0.8), toY(plot, 127))).toBe(1)
+    // the jump's foot belongs to the 27 held up to it
+    expect(hitVertex(ramp, plot, toX(plot, 0.8), toY(plot, 27), "steps")).toBe(
+      0,
+    )
+    // a ramp has no corner there
+    expect(hitVertex(ramp, plot, toX(plot, 0.8), toY(plot, 27))).toBeNull()
+    // nor has a step that holds its value through a point
+    const level = [
+      { time: 0.2, value: 27 },
+      { time: 0.8, value: 27 },
+    ]
+    expect(
+      hitVertex(level, plot, toX(plot, 0.8) - 3, toY(plot, 27), "steps"),
+    ).toBe(1)
   })
 
   it("finds the segment under the mouse, numbered as moveSegment counts", () => {

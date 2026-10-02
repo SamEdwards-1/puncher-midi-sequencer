@@ -237,6 +237,8 @@ export default {
     "sequencer-envelope-edit": "Edit",
     "sequencer-envelope-edit-tool": "Edit points",
     "sequencer-envelope-draw": "Draw",
+    "sequencer-envelope-erase": "Erase",
+    "sequencer-envelope-erase-hint": "Erase points: click or drag over them",
     "sequencer-envelope-grid": "Grid",
     "sequencer-envelope-point": "Point",
     "sequencer-envelope-point-value": "Value",

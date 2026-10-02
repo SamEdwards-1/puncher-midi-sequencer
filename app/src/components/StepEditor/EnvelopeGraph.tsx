@@ -5,6 +5,7 @@ import {
   EnvelopePointJSON,
   EnvelopeShape,
   envelopeShape,
+  erasePoint,
   gridTimes,
   inModulationRange,
   insertPoint,
@@ -62,6 +63,7 @@ import {
   cellAt,
   hitPoint,
   hitSegment,
+  hitVertex,
   isBlackKey,
   linePath,
   Plot,
@@ -113,6 +115,8 @@ const REACH = 4
 // a drag has to go this far sideways before a point leaves its time, so a
 // straight drag up or down never nudges a point off the grid
 const SIDEWAYS = 4
+// how far apart an Erase stroke is checked for points, so none is stepped over
+const ERASE_SAMPLE = 3
 // grid lines closer than this are left out, though points still snap to them
 const MIN_LINE_GAP = 4
 const AXIS = [127, 96, 64, 32, 0]
@@ -127,6 +131,14 @@ const MIN_GUIDE_GAP = 5
 const AXIS_WIDTH = 28
 const AXIS_CHARACTER = 5.4
 const MAX_AXIS_WIDTH = 116
+
+// The Erase tool's mouse pointer: the eraser icon, 24 pixels square, drawn
+// on the graph where the mouse is in place of the system's pointer, which
+// not every browser will draw from an image. Its hot spot is the rubbing
+// edge, bottom left.
+const ERASER_PATH =
+  "M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z"
+const ERASER_HOT_SPOT = { x: 6, y: 18 }
 
 // a square of `size` centred on (x, y)
 const square = (x: number, y: number, size: number) => ({
@@ -256,7 +268,10 @@ export const EnvelopeGraph: FC<{
   const voices = usePatchSelector((patch) => patch.voices)
   const scale = usePatchSelector((patch) => patch.scale)
   const beginGesture = usePatchGesture()
-  const [tool, setTool] = useEnvelopeTool()
+  const [chosenTool, setTool] = useEnvelopeTool()
+  // the eraser is for envelope points, which a velocity lane has none of
+  const tool =
+    lane.kind === "velocity" && chosenTool === "erase" ? "edit" : chosenTool
   const [gridBeats] = useEnvelopeGrid()
   const { accentAmount } = useAccentAmount()
   const localized = useLocalization()
@@ -446,6 +461,11 @@ export const EnvelopeGraph: FC<{
       return
     }
 
+    if (tool === "erase") {
+      erase(original, start, setPoints, down)
+      return
+    }
+
     const pointIndex = hitPoint(original, plot, start.x, start.y)
     if (pointIndex !== null) {
       const point = original[pointIndex]
@@ -503,6 +523,49 @@ export const EnvelopeGraph: FC<{
         }),
       )
     }
+  }
+
+  /**
+   * Rubs out the line's vertices the mouse passes over, from the press on, so
+   * a click takes one and a drag sweeps up as many as it crosses. Stepped,
+   * either end of a flat stretch — its point, or the corner where it jumps
+   * on — takes the step, and the line steps again without it. The whole
+   * stroke is one undo entry.
+   */
+  const erase = (
+    original: EnvelopePointJSON[],
+    start: { x: number; y: number },
+    setPoints: (next: EnvelopePointJSON[]) => void,
+    down: MouseEvent,
+  ) => {
+    let remaining = original
+    const eraseAt = (x: number, y: number) => {
+      const index = hitVertex(remaining, plot, x, y, shape)
+      if (index !== null) {
+        // what was under the eraser is about to be gone
+        setHover({ point: null, segment: null })
+        remaining = erasePoint(remaining, index, shape)
+        setPoints(remaining)
+      }
+    }
+    // a quick stroke skips between events, so each is followed from the last
+    let last = start
+    eraseAt(start.x, start.y)
+    observeDrag(down, {
+      onMove: (_, delta) => {
+        const now = { x: start.x + delta.x, y: start.y + delta.y }
+        const steps = Math.ceil(
+          Math.hypot(now.x - last.x, now.y - last.y) / ERASE_SAMPLE,
+        )
+        for (let along = 1; along <= steps; along++) {
+          eraseAt(
+            last.x + ((now.x - last.x) * along) / steps,
+            last.y + ((now.y - last.y) * along) / steps,
+          )
+        }
+        last = now
+      },
+    })
   }
 
   /**
@@ -678,6 +741,11 @@ export const EnvelopeGraph: FC<{
       setHover({ point: hitLollipop(velocities, plot, x, y), segment: null })
       return
     }
+    // what the eraser would take: a corner lights its step's point
+    if (tool === "erase") {
+      setHover({ point: hitVertex(points, plot, x, y, shape), segment: null })
+      return
+    }
     const point = hitPoint(points, plot, x, y)
     setHover({
       point,
@@ -738,13 +806,16 @@ export const EnvelopeGraph: FC<{
   const cursor =
     tool === "draw"
       ? "crosshair"
-      : hover.point !== null
-        ? lane.kind === "velocity"
-          ? "ns-resize"
-          : "pointer"
-        : hover.segment !== null
-          ? "ns-resize"
-          : "default"
+      : tool === "erase"
+        ? // drawn on the graph instead
+          "none"
+        : hover.point !== null
+          ? lane.kind === "velocity"
+            ? "ns-resize"
+            : "pointer"
+          : hover.segment !== null
+            ? "ns-resize"
+            : "default"
 
   // The envelope's value where the mouse is, shown beside it while it is over
   // the line or a point, or dragging; on a velocity lane, the note's under it
@@ -767,8 +838,10 @@ export const EnvelopeGraph: FC<{
     ) {
       return null
     }
-    return hover.point !== null && !dragging
-      ? points[hover.point].value
+    // a point hovered may have just been deleted from under the mouse
+    const hovered = hover.point === null ? undefined : points[hover.point]
+    return hovered !== undefined && !dragging
+      ? hovered.value
       : valueAt(points, timeAtX(plot, pointer.x), shape)
   })()
   const readout = (() => {
@@ -786,11 +859,13 @@ export const EnvelopeGraph: FC<{
             localized,
           )
     const labelWidth = 8 + 7 * text.length
+    // clear of the eraser, where it is drawn
+    const offset = tool === "erase" ? 22 : 10
     return {
       value,
       text,
       width: labelWidth,
-      x: Math.min(Math.max(0, pointer.x + 10), width - labelWidth - 2),
+      x: Math.min(Math.max(0, pointer.x + offset), width - labelWidth - 2),
       y: Math.max(2, pointer.y - 24),
     }
   })()
@@ -1040,21 +1115,30 @@ export const EnvelopeGraph: FC<{
                   strokeWidth={hover.segment !== null ? 2 : 1.25}
                 />
                 {shape === "steps" &&
-                  stepCorners(points).map((corner) => (
-                    <rect
-                      key={`corner-${corner.time}-${corner.value}`}
-                      data-corner
-                      {...square(
-                        toX(plot, corner.time),
-                        toY(plot, corner.value),
-                        HANDLE,
-                      )}
-                      fill="var(--midiseq-editor-background)"
-                      stroke="var(--midiseq-envelope)"
-                      strokeWidth={1.25}
-                      pointerEvents="none"
-                    />
-                  ))}
+                  stepCorners(points).map((corner) => {
+                    // lit with its step's point under the eraser, the two
+                    // ends going together
+                    const lit = tool === "erase" && hover.point === corner.index
+                    return (
+                      <rect
+                        key={`corner-${corner.time}-${corner.value}`}
+                        data-corner={corner.index}
+                        {...square(
+                          toX(plot, corner.time),
+                          toY(plot, corner.value),
+                          lit ? HANDLE + 2 : HANDLE,
+                        )}
+                        fill={
+                          lit
+                            ? "var(--midiseq-envelope)"
+                            : "var(--midiseq-editor-background)"
+                        }
+                        stroke="var(--midiseq-envelope)"
+                        strokeWidth={1.25}
+                        pointerEvents="none"
+                      />
+                    )
+                  })}
                 {points.map((point, index) => {
                   // lit while hovered, or open for its value
                   const lit =
@@ -1130,6 +1214,21 @@ export const EnvelopeGraph: FC<{
                   {readout.text}
                 </text>
               </g>
+            )}
+
+            {/* the Erase tool's pointer, over everything else */}
+            {tool === "erase" && pointer !== null && (
+              <path
+                data-eraser-cursor
+                d={ERASER_PATH}
+                transform={`translate(${pointer.x - ERASER_HOT_SPOT.x} ${pointer.y - ERASER_HOT_SPOT.y})`}
+                fill="var(--midiseq-fg)"
+                fillRule="evenodd"
+                stroke="var(--midiseq-background-dark)"
+                strokeWidth={1.2}
+                strokeLinejoin="round"
+                pointerEvents="none"
+              />
             )}
           </svg>
         </div>
