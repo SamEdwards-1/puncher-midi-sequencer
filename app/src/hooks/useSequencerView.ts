@@ -1,4 +1,10 @@
-import { PatternStepJSON, StepJSON, StepState, VoiceIndex } from "@midiseq/core"
+import {
+  EnvelopeValues,
+  PatternStepJSON,
+  StepJSON,
+  StepState,
+  VoiceIndex,
+} from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { useCallback, useMemo } from "react"
@@ -12,6 +18,13 @@ const copiedDotAtom = atom<PatternStepJSON | null>(null)
 
 export function useCopiedDot() {
   return useAtom(copiedDotAtom)
+}
+
+// a CC lane's values, which paste into any CC on any step
+const copiedEnvelopeAtom = atom<EnvelopeValues | null>(null)
+
+export function useCopiedEnvelope() {
+  return useAtom(copiedEnvelopeAtom)
 }
 
 // Counts imports, so the grid can greet each with its steps bouncing in.

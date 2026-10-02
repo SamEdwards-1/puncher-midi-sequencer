@@ -4,6 +4,7 @@ import {
   clearStep,
   deleteStep,
   EnvelopeJSON,
+  EnvelopeValues,
   editPattern,
   freeVoiceChannel,
   importMidi,
@@ -16,6 +17,7 @@ import {
   PatternEdit,
   PatternStepJSON,
   PreparedMidi,
+  pasteEnvelopeValues,
   pasteStep,
   removeEnvelope,
   removeModulation,
@@ -193,6 +195,20 @@ export function usePatchEditor() {
     removeEnvelope: useCallback(
       (step: number, id: number) =>
         apply(removeEnvelope(sequencerStore.patch, step, id)),
+      [apply, sequencerStore],
+    ),
+    // a CC's values gone from the step, its envelope left to draw into
+    clearEnvelope: useCallback(
+      (step: number, id: number) =>
+        apply(updateEnvelope(sequencerStore.patch, step, id, { points: [] })),
+      [apply, sequencerStore],
+    ),
+    // values copied from any CC, onto this one
+    pasteEnvelope: useCallback(
+      (step: number, cc: number, channel: number, values: EnvelopeValues) =>
+        apply(
+          pasteEnvelopeValues(sequencerStore.patch, step, cc, channel, values),
+        ),
       [apply, sequencerStore],
     ),
     // Clearing ends a take first, so what was recorded and the clear are

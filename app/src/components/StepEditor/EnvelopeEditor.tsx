@@ -1,23 +1,33 @@
 import {
   CC_NAMES,
   envelopeShape,
+  envelopeValues,
   modulationForCC,
   nextFreeCC,
   VoiceIndex,
 } from "@midiseq/core"
 import CloseIcon from "mdi-react/CloseIcon"
 import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
+import DotsVerticalIcon from "mdi-react/DotsVerticalIcon"
 import PencilIcon from "mdi-react/PencilIcon"
 import SlopeUphillIcon from "mdi-react/SlopeUphillIcon"
 import SquareWaveIcon from "mdi-react/SquareWaveIcon"
 import { comparer } from "mobx"
-import { CSSProperties, FC, ReactNode, useEffect, useRef } from "react"
+import {
+  CSSProperties,
+  FC,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatchSelector } from "../../hooks/usePatch"
 import {
   EnvelopeLane,
+  useCopiedEnvelope,
   useEnvelopeGrid,
   useEnvelopeTool,
   useRevealEnvelope,
@@ -29,6 +39,7 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { modulationTabLabel, modulationTargetLabel } from "../Modulation/labels"
 import { Button, ButtonGroup, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
+import { ContextMenu, MenuDivider, MenuItem, Point } from "../ui/Menu"
 import { BLEED_RIGHT, PanelHeader } from "../ui/Panel"
 import { Select } from "../ui/Select"
 import { Stepper } from "../ui/Stepper"
@@ -96,8 +107,17 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
   const [tool, setTool] = useEnvelopeTool()
   const [grid, setGrid] = useEnvelopeGrid()
   const { accentAmount } = useAccentAmount()
-  const { addEnvelope, editEnvelope, removeEnvelope, editVoice } =
-    usePatchEditor()
+  const {
+    addEnvelope,
+    editEnvelope,
+    removeEnvelope,
+    clearEnvelope,
+    pasteEnvelope,
+    editVoice,
+  } = usePatchEditor()
+  const [copiedEnvelope, setCopiedEnvelope] = useCopiedEnvelope()
+  // where the CC's values menu is open, under its button
+  const [valuesMenu, setValuesMenu] = useState<Point | null>(null)
   const localized = useLocalization()
   const { recorder } = useStores()
   const recorded = useMobxGetter(recorder, "recordedLane")
@@ -347,6 +367,86 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
                 onChange={(channel) => setLane(lane.cc, channel)}
               />
             </Labelled>
+            {/* the CC's values copied, pasted from any CC on any step, or
+                cleared from this one, leaving the CC to draw into */}
+            <IconButton
+              aria-label={localized["sequencer-step-cc-values"]}
+              title={localized["sequencer-step-cc-values"]}
+              aria-haspopup="menu"
+              aria-expanded={valuesMenu !== null}
+              active={valuesMenu !== null}
+              // the open menu would close on this press, and the click
+              // open it again
+              onPointerDown={(event) => {
+                if (valuesMenu !== null) {
+                  event.stopPropagation()
+                }
+              }}
+              onClick={(event) => {
+                if (valuesMenu !== null) {
+                  setValuesMenu(null)
+                  return
+                }
+                const { left, bottom } =
+                  event.currentTarget.getBoundingClientRect()
+                setValuesMenu({ x: left, y: bottom + 4 })
+              }}
+            >
+              <DotsVerticalIcon size={16} />
+            </IconButton>
+            {valuesMenu !== null && (
+              <ContextMenu
+                label={localized["sequencer-step-cc-values"]}
+                at={valuesMenu}
+                onClose={() => setValuesMenu(null)}
+              >
+                {(close) => (
+                  <>
+                    <MenuItem
+                      close={close}
+                      disabled={envelope === null}
+                      onSelect={() => {
+                        if (envelope !== null) {
+                          setCopiedEnvelope(envelopeValues(envelope))
+                        }
+                      }}
+                    >
+                      <Localized name="sequencer-step-cc-copy" />
+                    </MenuItem>
+                    <MenuItem
+                      close={close}
+                      disabled={copiedEnvelope === null}
+                      onSelect={() => {
+                        if (copiedEnvelope !== null) {
+                          pasteEnvelope(
+                            stepIndex,
+                            lane.cc,
+                            lane.channel,
+                            copiedEnvelope,
+                          )
+                        }
+                      }}
+                    >
+                      <Localized name="sequencer-step-cc-paste" />
+                    </MenuItem>
+                    <MenuDivider />
+                    <MenuItem
+                      close={close}
+                      disabled={
+                        envelope === null || envelope.points.length === 0
+                      }
+                      onSelect={() => {
+                        if (envelope !== null) {
+                          clearEnvelope(stepIndex, envelope.id)
+                        }
+                      }}
+                    >
+                      <Localized name="sequencer-step-cc-clear" />
+                    </MenuItem>
+                  </>
+                )}
+              </ContextMenu>
+            )}
             {envelope !== null && (
               <IconButton
                 aria-label={localized["sequencer-step-remove-cc"]}
