@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
 
@@ -82,14 +83,14 @@ describe("OutputStatus", () => {
     expect(status()).toHaveTextContent(/SoundFont \(503\)/)
   })
 
-  it("opens the MIDI settings from the nothing-routed warning", () => {
+  it("opens the MIDI settings from the nothing-routed warning", async () => {
     // the routing the tests above chose is saved
     localStorage.clear()
     const rootStore = createStore()
     render(<App rootStore={rootStore} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Open settings" }))
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeVisible()
+    expect(await opened("Settings")).toBeVisible()
     expect(rootStore.settingsTab.tab).toBe("midi")
   })
 

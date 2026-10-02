@@ -1,4 +1,4 @@
-import { FC } from "react"
+import { FC, lazy, Suspense } from "react"
 import logo from "../../assets/puncher-logo.svg?raw"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
@@ -6,10 +6,16 @@ import { Localized } from "../../localize/useLocalization"
 import { EditMenu } from "../EditMenu/EditMenu"
 import { FileMenu } from "../FileMenu/FileMenu"
 import { Columns, THREE_COLUMN_TRACKS } from "../SequencerEditor/layout"
-import { SettingsDialog } from "../Settings/SettingsDialog"
 import { TransportControls } from "../TransportPanel/TransportControls"
 import { cn } from "../ui/cn"
 import { MenuBarButton } from "../ui/Menu"
+
+// loaded the first time it opens rather than with the page
+const SettingsDialog = lazy(() =>
+  import("../Settings/SettingsDialog").then(({ SettingsDialog }) => ({
+    default: SettingsDialog,
+  })),
+)
 
 export const TopBar: FC<{ columns: Columns }> = ({ columns }) => {
   const { settingsTab } = useStores()
@@ -59,7 +65,9 @@ export const TopBar: FC<{ columns: Columns }> = ({ columns }) => {
           <TransportControls />
         </>
       )}
-      {settingsOpen && <SettingsDialog onClose={settingsTab.close} />}
+      <Suspense fallback={null}>
+        {settingsOpen && <SettingsDialog onClose={settingsTab.close} />}
+      </Suspense>
     </header>
   )
 }

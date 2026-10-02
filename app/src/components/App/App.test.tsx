@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker } from "../../test/fakes"
 import { App } from "./App"
 
@@ -99,6 +100,7 @@ describe("App", () => {
 
     render(<App rootStore={rootStore} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    await opened("Settings")
     fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(screen.getByText(/Permission denied/)).toBeInTheDocument()
 
@@ -211,9 +213,10 @@ describe("App", () => {
     expect(document.activeElement).toBe(tempo)
   })
 
-  it("explains when Web MIDI is unavailable", () => {
+  it("explains when Web MIDI is unavailable", async () => {
     render(<App rootStore={createStore()} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    await opened("Settings")
     fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
     expect(
       screen.getByText(/This browser doesn't support Web MIDI/),

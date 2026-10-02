@@ -6,6 +6,7 @@ import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import RootStore from "../../stores/RootStore"
 import { FACTORY_SOUNDFONT, SoundFontStore } from "../../stores/SoundFontStore"
 import { SynthStore } from "../../stores/SynthStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker, soundBank } from "../../test/fakes"
 import { App } from "../App/App"
 
@@ -69,7 +70,7 @@ describe("the SoundFont settings", () => {
     await act(() => soundFonts.init())
     render(<App rootStore={rootStore} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-    const dialog = within(screen.getByRole("dialog", { name: "Settings" }))
+    const dialog = within(await opened("Settings"))
     fireEvent.click(dialog.getByRole("button", { name: "SoundFont" }))
     return { dialog, rootStore, storage }
   }
