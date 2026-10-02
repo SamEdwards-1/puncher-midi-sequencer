@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
+import { VOICE_RULES } from "../entities/modulation"
 import { VoiceIndex, VoiceRule } from "../entities/types"
 import { createRng } from "./rng"
-import { initialCursor, pickNote, RuleCursor } from "./voiceRules"
+import {
+  initialCursor,
+  pickNote,
+  RuleCursor,
+  rulePositions,
+} from "./voiceRules"
 
 const NOTES = [60, 64, 67, 72]
 
@@ -134,6 +140,27 @@ describe("pickNote", () => {
     ] as const) {
       expect(play(rule, 3, [60])).toEqual([60, 60, 60])
       expect(play(rule, 2, [])).toEqual([null, null])
+    }
+  })
+})
+
+describe("rulePositions", () => {
+  it("names exactly the positions pickNote comes to", () => {
+    for (const rule of VOICE_RULES) {
+      for (let count = 0; count <= 4; count++) {
+        for (const voice of [0, 1, 2, 3] as const) {
+          const notes = NOTES.slice(0, count)
+          const played = new Set(
+            play(rule, 200, notes, voice).map((note) =>
+              notes.indexOf(note as number),
+            ),
+          )
+          played.delete(-1)
+          expect(rulePositions(rule, count, voice), `${rule} ${count}`).toEqual(
+            [...played].sort(),
+          )
+        }
+      }
     }
   })
 })

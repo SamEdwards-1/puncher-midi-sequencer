@@ -1,5 +1,10 @@
-import { createDefaultPatch, ScaleJSON, setStepNotes } from "@midiseq/core"
-import { fireEvent, render, screen } from "@testing-library/react"
+import {
+  createDefaultPatch,
+  ScaleJSON,
+  setStepNotes,
+  VoiceRule,
+} from "@midiseq/core"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { ManualTicker } from "../../test/fakes"
@@ -143,6 +148,48 @@ describe("step editor", () => {
     click("Trim to limit")
     expect(patch().steps[0].notes).toEqual([48, 52, 55, 60])
     expect(screen.queryByText(/past the limit/)).toBeNull()
+  })
+
+  it("marks the notes too high to be played, whatever order they came in", () => {
+    setup([64, 48, 52, 55, 60])
+    const row = (name: string) =>
+      screen.getByLabelText(name).closest("[data-beyond]")
+    expect(row("Note 1")).toHaveAttribute("data-beyond", "true")
+    expect(row("Note 5")).toHaveAttribute("data-beyond", "false")
+  })
+
+  it("dots each note with the voices whose rules can play it", () => {
+    setup([64, 60, 67])
+    const voicesOf = (name: string) =>
+      within(screen.getByLabelText(name).parentElement as HTMLElement)
+        .queryByRole("img")
+        ?.getAttribute("aria-label") ?? null
+
+    // only the first voice is on, and it plays the lowest note
+    expect(voicesOf("Note 1")).toBeNull()
+    expect(voicesOf("Note 2")).toBe("Voices 1")
+    expect(voicesOf("Note 3")).toBeNull()
+
+    const rule = (index: number, voiceRule: VoiceRule, enabled = true) =>
+      act(() => {
+        const voices = [...patch().voices]
+        voices[index] = { ...voices[index], rule: voiceRule, enabled }
+        rootStore.sequencerStore.patch = { ...patch(), voices }
+      })
+    rule(1, "highest")
+    rule(2, "ends")
+    expect(voicesOf("Note 1")).toBeNull()
+    expect(voicesOf("Note 2")).toBe("Voices 1, 3")
+    expect(voicesOf("Note 3")).toBe("Voices 2, 3")
+
+    // a rule that moves about can come to any of them
+    rule(3, "random")
+    expect(voicesOf("Note 1")).toBe("Voices 4")
+    expect(voicesOf("Note 2")).toBe("Voices 1, 3, 4")
+
+    // and a voice that is off plays none
+    rule(3, "random", false)
+    expect(voicesOf("Note 1")).toBeNull()
   })
 
   it("copies a step onto another and clears one", () => {

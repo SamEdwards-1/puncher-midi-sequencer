@@ -1,9 +1,16 @@
-import { inScale, noteNumberToName, StepState } from "@midiseq/core"
+import {
+  inScale,
+  modulatedVoice,
+  noteNumberToName,
+  rulePositions,
+  StepState,
+  VoiceIndex,
+} from "@midiseq/core"
 import AlertIcon from "mdi-react/AlertIcon"
 import CloseIcon from "mdi-react/CloseIcon"
 import PlusIcon from "mdi-react/PlusIcon"
 import { comparer } from "mobx"
-import { FC, HTMLAttributes, memo, useState } from "react"
+import { CSSProperties, FC, HTMLAttributes, memo, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
@@ -29,6 +36,30 @@ const Row: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
 
 const STATES: StepState[] = ["normal", "rest", "skip"]
 
+const voiceColor = (voice: VoiceIndex): CSSProperties =>
+  ({ "--midiseq-voice": `var(--midiseq-voice-${voice})` }) as CSSProperties
+
+// a dot in each voice's colour, as the Voices panel's tabs have it, for the
+// voices that can play a note
+const VoiceDots: FC<{ voices: VoiceIndex[] }> = ({ voices }) => {
+  const localized = useLocalization()
+  return (
+    <span
+      role="img"
+      aria-label={`${localized["sequencer-voices"]} ${voices.map((voice) => voice + 1).join(", ")}`}
+      className="flex gap-[0.2rem]"
+    >
+      {voices.map((voice) => (
+        <span
+          key={voice}
+          className="h-2 w-2 rounded-full bg-voice"
+          style={voiceColor(voice)}
+        />
+      ))}
+    </span>
+  )
+}
+
 // `column` is the one the editor scrolls in, for the envelope editor to fill.
 // It sits under the grid, apart from it: the grid draws again each time the
 // sequence moves on.
@@ -43,6 +74,18 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
     }),
     [selected],
     comparer.shallow,
+  )
+  // each voice's rule as the step lands, where its envelopes may set it;
+  // null for a voice that is off
+  const rules = usePatchSelector(
+    (patch) =>
+      patch.voices.map((voice, index) =>
+        voice.enabled
+          ? modulatedVoice(patch, index as VoiceIndex, selected, 0).rule
+          : null,
+      ),
+    [selected],
+    comparer.structural,
   )
   const { copiedStep, setCopiedStep } = useCopiedStep()
   const localized = useLocalization()
@@ -63,6 +106,16 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
 
   const jumpShown = hasJump(step.jump) || openedJump === selected
   const beyondLimit = step.notes.length > maxNotesPerStep
+  // the notes the voices play, lowest first, as the engine reads them
+  const played = [...step.notes].sort((a, b) => a - b).slice(0, maxNotesPerStep)
+  // the voices whose rules can come to the note at `rank` among them
+  const voicesAt = (rank: number) =>
+    rules.flatMap((rule, voice) =>
+      rule !== null &&
+      rulePositions(rule, played.length, voice as VoiceIndex).includes(rank)
+        ? [voice as VoiceIndex]
+        : [],
+    )
 
   return (
     <>
@@ -148,7 +201,10 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
             )}
 
             {step.notes.map((note, position) => {
-              const beyond = position >= maxNotesPerStep
+              // past the limit, a note is among those too high to be played
+              const rank = played.indexOf(note)
+              const beyond = rank === -1
+              const voices = beyond ? [] : voicesAt(rank)
               const outside = scale !== null && !inScale(scale, note)
               return (
                 <Row
@@ -167,6 +223,11 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
                       parse={(text) => parseNoteText(text, note)}
                       sanitize={sanitizeNoteText}
                       invalid={outside}
+                      marker={
+                        voices.length > 0 ? (
+                          <VoiceDots voices={voices} />
+                        ) : undefined
+                      }
                       onChange={(next) => editNote(selected, position, next)}
                     />
                   </div>

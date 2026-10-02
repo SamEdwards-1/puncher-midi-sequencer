@@ -34,6 +34,33 @@ export const initialCursor = (
   }
 }
 
+/**
+ * The positions among `count` notes, lowest first, that a voice playing by
+ * `rule` can ever pick. The rules that move about reach every one.
+ */
+export const rulePositions = (
+  rule: VoiceRule,
+  count: number,
+  voiceIndex: VoiceIndex,
+): number[] => {
+  if (count === 0) {
+    return []
+  }
+  const top = count - 1
+  switch (rule) {
+    case "nth":
+      return [Math.min(voiceIndex, top)]
+    case "lowest":
+      return [0]
+    case "highest":
+      return [top]
+    case "ends":
+      return top === 0 ? [0] : [0, top]
+    default:
+      return Array.from({ length: count }, (_, index) => index)
+  }
+}
+
 const wrap = (index: number, count: number) => ((index % count) + count) % count
 
 // Returns the note to play and the cursor to use next time. `notes` must be
