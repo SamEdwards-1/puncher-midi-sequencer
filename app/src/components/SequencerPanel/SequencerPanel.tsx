@@ -14,7 +14,7 @@ import {
 } from "@midiseq/core"
 import AutoFixIcon from "mdi-react/AutoFixIcon"
 import { comparer } from "mobx"
-import { FC, useMemo } from "react"
+import { FC, useEffect, useMemo, useRef } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { useGridMode } from "../../hooks/useSequencerView"
@@ -108,6 +108,18 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
       editScale(next)
     }
   }
+  // on first load, a patch with no scale takes the best of those found
+  const defaulted = useRef(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on mount
+  useEffect(() => {
+    if (defaulted.current) {
+      return
+    }
+    defaulted.current = true
+    if (settings.scale === null && best) {
+      detect()
+    }
+  }, [])
   return (
     <Panel
       aria-label={localized["sequencer-panel"]}

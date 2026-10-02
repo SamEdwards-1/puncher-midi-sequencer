@@ -592,7 +592,7 @@ describe("the sequencer's scale", () => {
     setup()
     const names = comboOptions(sequencer().getByLabelText("Scale"))
     expect(names.map((option) => option.textContent)).toEqual([
-      "None",
+      "Chromatic",
       "major",
       "minor",
       "dorian",
@@ -609,7 +609,7 @@ describe("the sequencer's scale", () => {
     const from = screen.getByLabelText("Sequencer · Scale From")
     expect((from as HTMLSelectElement).options).toHaveLength(121)
     // with no scale, from none to C's last
-    expect(from).toHaveDisplayValue("None")
+    expect(from).toHaveDisplayValue("Chromatic")
     expect(screen.getByLabelText("Sequencer · Scale To")).toHaveDisplayValue(
       "C minor blues",
     )

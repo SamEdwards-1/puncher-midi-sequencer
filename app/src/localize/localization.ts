@@ -303,7 +303,7 @@ export default {
     "sequencer-step-delete": "Delete",
     "sequencer-scale": "Scale",
     "sequencer-scale-tonic": "Scale tonic",
-    "sequencer-scale-none": "None",
+    "sequencer-scale-none": "Chromatic",
     "sequencer-scale-common": "Common",
     "sequencer-scale-more": "More",
     "sequencer-scale-fit": "Outside notes",

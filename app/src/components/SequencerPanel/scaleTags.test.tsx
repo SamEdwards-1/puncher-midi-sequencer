@@ -54,7 +54,18 @@ describe("the sequencer's scale tags", () => {
     setup()
     expect(tags().at(-1)?.textContent).toBe("Chromatic")
     expect(tags().length).toBeGreaterThan(1)
+    fireEvent.click(tags().at(-1) as HTMLElement)
     expect(lit()).toEqual(["Chromatic"])
+  })
+
+  it("starts on the first scale found, when the patch has none", () => {
+    setup()
+    const first = tags()[0]
+    expect(lit()).toEqual([first.textContent])
+    expect(patch().scale).not.toBeNull()
+    expect(sequencer().getByLabelText("Scale")).not.toHaveDisplayValue(
+      "Chromatic",
+    )
   })
 
   it("sets the scale a tag names, and chromatic takes it away", () => {

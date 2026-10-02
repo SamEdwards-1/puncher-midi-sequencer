@@ -12,6 +12,7 @@ import { App } from "../components/App/App"
 import RootStore from "../stores/RootStore"
 import { dragFrom, ramp, X, Y } from "../test/envelopeEditor"
 import { FakeClock, ManualTicker } from "../test/fakes"
+import { makeScale } from "../theory/scales"
 
 let rootStore: RootStore
 let clock: FakeClock
@@ -76,7 +77,8 @@ beforeEach(() => {
     shape: "ramps",
     points: ramp,
   })
-  rootStore.sequencerStore.patch = start
+  // a scale of its own, so none is found from the notes at first
+  rootStore.sequencerStore.patch = { ...start, scale: makeScale(0, "major") }
   render(<App rootStore={rootStore} />)
   const audition = screen.getByRole("switch", {
     name: "Audition step",
