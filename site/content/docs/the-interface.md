@@ -13,7 +13,7 @@ The **Sequencer** panel is on the left, the **grid and step editor** are in the 
 
 ## Transport and tempo {#transport}
 
-**Play** starts playback. **Stop** takes its place while playing and silences sounding notes. **Record** arms MIDI input recording. Set the tempo from **20 to 400 BPM** by typing, dragging vertically, or using the minus and plus buttons.
+**Play** starts playback. While playing, **Pause** takes its place and holds the steps and the playhead where they are; **Play** then carries on from there. **Stop** appears to its left while playing or paused, and silences sounding notes. **Audition step** stays off until the sequence is stopped. **Record** arms MIDI input recording. Set the tempo from **20 to 400 BPM** by typing, dragging vertically, or using the minus and plus buttons.
 
 If you cannot hear or record anything, read the status at the right of the top bar. It reports missing routes, missing inputs, and synth loading.
 

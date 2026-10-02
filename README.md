@@ -82,8 +82,10 @@ Until an output is ticked, the top bar says nothing is routed.
 
 ### The window
 
-**Transport.** **Play** starts the sequencer and **Record** arms recording;
-**Stop**, in Play's place, also silences anything still sounding. The tempo,
+**Transport.** **Play** starts the sequencer and **Record** arms recording.
+While it plays, **Pause** takes Play's place and holds the steps and the
+playhead where they are until Play plays on from there, and **Stop** comes in
+to its left, which also silences anything still sounding. The tempo,
 20 to 400 BPM, can be stepped, dragged or typed straight into. On the left,
 the **File** menu starts a new patch, opens and saves, imports MIDI, exports
 it — the sequence or one step — and renders it to audio, the **Edit** menu
@@ -497,8 +499,9 @@ synth and **Render Audio** play.
 
 ### Clock
 
-midiseq sends MIDI clock — start, stop and 24 ticks a beat — to every ticked
-output, so anything listening follows its tempo. In **Settings → MIDI** you
+midiseq sends MIDI clock — start, stop and 24 ticks a beat, with stop and
+continue for a pause — to every ticked output, so anything listening follows
+its tempo. In **Settings → MIDI** you
 can turn that off, and you can have midiseq take its *tempo* from a clock
 arriving at a ticked input instead. Only the tempo: start and stop are
 ignored, so playing and stopping stay yours.
@@ -555,7 +558,7 @@ deployed. Where the browser has no WebMCP, nothing is offered.
 | `set_sequencer` | tempo, size, pace, direction, loop, scale and the rest of the Sequencer panel |
 | `set_modulations` | binds a setting to a CC, as its gear does, so the steps' envelopes drive it |
 | `step_menu` | what right-clicking a step offers: copy, paste, insert before or after, clear, delete |
-| `play`, `stop` | the transport |
+| `play`, `pause`, `stop` | the transport |
 | `set_recording` | the **Record** button, and the step recording goes into |
 | `set_actions` | Hold, Sync, Flip and Transpose, on until turned off |
 | `select_step` | what a click on the grid does: shows the step, sounds it, or plays it next |

@@ -40,7 +40,7 @@ afterEach(() => {
   delete (document as { modelContext?: ModelContext }).modelContext
 })
 
-const TOOLS = 14
+const TOOLS = 15
 
 const show = async () => {
   const rootStore = new RootStore({

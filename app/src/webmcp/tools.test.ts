@@ -82,6 +82,7 @@ describe("the tools", () => {
       "set_modulations",
       "step_menu",
       "play",
+      "pause",
       "stop",
       "set_recording",
       "set_actions",
@@ -781,6 +782,22 @@ describe("the transport and the actions", () => {
 
     expect(await call("stop")).toEqual({ playing: false })
     expect(rootStore.player.isPlaying).toBe(false)
+  })
+
+  it("pauses, and plays on from there", async () => {
+    expect((await call("pause")).note).toBe("It wasn't playing")
+
+    await call("play")
+    expect(await call("pause")).toEqual({ playing: true, paused: true })
+    expect(rootStore.player.isPaused).toBe(true)
+    const { transport } = await call("get_sequence")
+    expect(transport).toMatchObject({ playing: true, paused: true })
+
+    expect((await call("play")).note).toBe(
+      "It plays on from where it was paused",
+    )
+    expect(rootStore.player.isPaused).toBe(false)
+    expect(rootStore.player.isPlaying).toBe(true)
   })
 
   it("holds actions on and picks the voice Sync plays", async () => {

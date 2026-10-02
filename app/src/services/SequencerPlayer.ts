@@ -155,7 +155,10 @@ interface TickRender {
  * events to the router so the browser can send them precisely on time.
  */
 export class SequencerPlayer {
+  // true from Play until Stop, paused or not
   isPlaying = false
+  // held where it was by Pause, until Play picks it up again
+  isPaused = false
   position: StepIndex | null = null
   // the stored step sounding, which differs from `position` while Flip is
   // held; null when stopped
@@ -200,6 +203,17 @@ export class SequencerPlayer {
   private anchorBeat = 0
   // rendered events not yet due for scheduling, in beat order
   private pending: EngineEvent[] = []
+  // events handed to the router and not yet due, in beat order, to send
+  // again should a pause cut them off
+  private sent: EngineEvent[] = []
+  // when Pause was pressed and the beat it held the sequence at, and when
+  // the silencing it sent is over, which playing on waits for
+  private pausedAt: number | null = null
+  private pausedBeat = 0
+  private silencedUntil = 0
+  // when a paused sequence starts moving again, Play having been pressed;
+  // it shows where it was held until then
+  private heldUntil = 0
   // how far ahead the sequence has been scheduled
   private scheduledUntil = 0
   // where the last tick's render got to, if it ran out of budget short of
@@ -267,6 +281,7 @@ export class SequencerPlayer {
 
     makeObservable(this, {
       isPlaying: observable,
+      isPaused: observable,
       position: observable,
       step: observable,
       preview: observable.ref,
@@ -278,6 +293,7 @@ export class SequencerPlayer {
       // each publishes what it changes at once, so whatever reads several
       // of them hears of them together
       play: action,
+      pause: action,
       stop: action,
       panic: action,
       tick: action,
@@ -554,9 +570,14 @@ export class SequencerPlayer {
    * engine reads that step's envelopes — so a point recorded here plays
    * back at the moment it was played. A step whose mark is due but not yet
    * taken off by a tick counts as sounding, which keeps a recording exact
-   * right at a step's edge. Null when stopped, or before the first step.
+   * right at a step's edge. Null when stopped or paused, or before the
+   * first step.
    */
   stepProgress = (): StepProgress | null => {
+    // a paused sequence isn't moving through a step to record onto
+    if (this.isPaused) {
+      return null
+    }
     const sounded = this.stepSounded()
     if (sounded === null) {
       return null
@@ -569,12 +590,12 @@ export class SequencerPlayer {
   }
 
   // The step sounding now and how many times through it, which goes past 1
-  // while Hold keeps it round after round.
+  // while Hold keeps it round after round; while paused, where it was held.
   private stepSounded = (): { mark: StepMark; along: number } | null => {
     if (!this.isPlaying) {
       return null
     }
-    const now = this.now()
+    const now = this.pausedAt ?? Math.max(this.now(), this.heldUntil)
     let current = this.landed
     for (const mark of this.stepMarks) {
       if (mark.time > now) {
@@ -612,7 +633,8 @@ export class SequencerPlayer {
     return (now - preview.time) / preview.msPerBeat / preview.lengthBeats
   }
 
-  // Whether anything is sounding for a playhead to follow.
+  // Whether anything is sounding for a playhead to follow, which includes a
+  // paused sequence: its playhead stays where it was held.
   sounding = (): boolean =>
     this.isPlaying || (this.preview !== null && this.now() < this.preview.end)
 
@@ -622,17 +644,29 @@ export class SequencerPlayer {
     return Math.max(this.lookaheadMs, this.router.minimumLeadMs(now) + TICK_MS)
   }
 
+  // How long after Play the first beat lands: time for the first events to
+  // be scheduled, and for the slowest output.
+  private startDelay(now: number): number {
+    return Math.max(this.startDelayMs, this.router.minimumLeadMs(now))
+  }
+
+  // Starts the sequence from its start, or plays a paused one on.
   play = () => {
+    if (this.isPaused) {
+      this.resume()
+      return
+    }
     if (this.isPlaying || this.disposed) {
       return
     }
     this.previewRequest++
     const now = this.now()
     this.tempo = this.patch.tempo
-    this.anchorTime =
-      now + Math.max(this.startDelayMs, this.router.minimumLeadMs(now))
+    this.anchorTime = now + this.startDelay(now)
     this.anchorBeat = 0
+    this.heldUntil = 0
     this.pending = []
+    this.sent = []
     this.scheduledUntil = now
     this.behindAt = null
     this.stepMarks = []
@@ -646,6 +680,76 @@ export class SequencerPlayer {
     this.isPlaying = true
     if (this.sendClock) {
       this.router.clock(clockBytes("start"), now)
+    }
+    this.ticker.start(this.tick)
+    this.tick()
+  }
+
+  /**
+   * Holds the sequence where it is: its step and playhead stay put and what
+   * is sounding is silenced. What was sent ahead of the pause goes back to
+   * be sent again, so Play plays on from that very beat.
+   */
+  pause = () => {
+    if (!this.isPlaying || this.isPaused) {
+      return
+    }
+    // the steps brought up to now, so they show where the sequence is held
+    this.tick()
+    this.ticker.stop()
+    this.stats.idle()
+    const now = this.now()
+    this.pausedAt = now
+    this.pausedBeat = this.beatAt(now)
+    const ahead = this.sent.findIndex((event) => event.beat > this.pausedBeat)
+    this.pending = [
+      ...(ahead === -1 ? [] : this.sent.slice(ahead)),
+      ...this.pending,
+    ]
+    this.sent = []
+    // and the clock's ticks after it
+    this.clockSent = Math.max(
+      -1,
+      Math.min(this.clockSent, Math.floor(this.pausedBeat * CLOCKS_PER_BEAT)),
+    )
+    this.silencedUntil = this.horizon(now)
+    // the notes yet to end, which include those sounding
+    const ending = this.pending.filter(
+      (event): event is NoteOffEvent => event.type === "noteOff",
+    )
+    this.router.panic(now, this.silencedUntil, ending)
+    if (this.sendClock) {
+      this.router.clock(clockBytes("stop"), now)
+    }
+    this.isPaused = true
+  }
+
+  /**
+   * Plays on from the beat the pause held the sequence at, once the
+   * silencing it sent is over: all that was to come lands as much later as
+   * the pause lasted.
+   */
+  private resume() {
+    const now = this.now()
+    const pausedAt = this.pausedAt ?? now
+    const resumeAt = Math.max(now + this.startDelay(now), this.silencedUntil)
+    const later = resumeAt - pausedAt
+    for (const mark of [...this.stepMarks, ...this.dotMarks, ...this.rounds]) {
+      if (mark.time > pausedAt) {
+        mark.time += later
+      }
+    }
+    this.tempo = this.patch.tempo
+    this.anchorTime = resumeAt
+    this.anchorBeat = this.pausedBeat
+    this.heldUntil = resumeAt
+    this.scheduledUntil = now
+    this.behindAt = null
+    this.lastScheduledTime = Math.max(this.lastScheduledTime, now)
+    this.pausedAt = null
+    this.isPaused = false
+    if (this.sendClock) {
+      this.router.clock(clockBytes("continue"), now)
     }
     this.ticker.start(this.tick)
     this.tick()
@@ -666,10 +770,14 @@ export class SequencerPlayer {
       .stop(Math.max(0, this.beatAt(now)))
       .filter((event): event is NoteOffEvent => event.type === "noteOff")
     this.router.panic(now, this.horizon(now), sounding)
-    if (this.sendClock) {
+    // a paused sequence sent its stop when it paused
+    if (this.sendClock && !this.isPaused) {
       this.router.clock(clockBytes("stop"), now)
     }
     this.pending = []
+    this.sent = []
+    this.pausedAt = null
+    this.isPaused = false
     this.stepMarks = []
     this.landed = null
     this.dotMarks = []
@@ -727,6 +835,9 @@ export class SequencerPlayer {
   tick = () => {
     const now = this.now()
     this.sendPreview(now)
+    if (this.isPaused) {
+      return
+    }
     if (!this.isPlaying) {
       this.stats.tick(now, this.now())
       if (this.previewPending.length === 0) {
@@ -735,6 +846,10 @@ export class SequencerPlayer {
       }
       return
     }
+
+    // what was sent and has come due is out of a pause's reach
+    const ahead = this.sent.findIndex((event) => this.timeAt(event.beat) > now)
+    this.sent = ahead === -1 ? [] : this.sent.slice(ahead)
 
     this.recoverFromStall(now)
     // a tempo change keeps the current beat and bends time from here on
@@ -779,6 +894,7 @@ export class SequencerPlayer {
         this.dotMarks.push({ time, voice: event.voice, dot: event.dot })
       } else if (this.sends(event)) {
         this.router.route(event, this.sendTime(at, now))
+        this.sent.push(event)
       }
       this.lastScheduledTime = Math.max(this.lastScheduledTime, time)
     }
@@ -840,7 +956,7 @@ export class SequencerPlayer {
         : modulatedSettings(
             this.patch,
             this.landed.step,
-            this.beatAt(now) - this.landed.beat,
+            this.beatAt(Math.max(now, this.heldUntil)) - this.landed.beat,
           )
     if (!sameSettings(modulated, this.modulated)) {
       this.modulated = modulated

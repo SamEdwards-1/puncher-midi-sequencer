@@ -26,6 +26,7 @@ export default {
     "sequencer-action-off": "Off",
     "sequencer-action-on": "On",
     "sequencer-play": "Play",
+    "sequencer-pause": "Pause",
     "sequencer-stop": "Stop",
     "sequencer-bpm": "BPM",
     "sequencer-step": "Step",

@@ -62,7 +62,7 @@ offers nothing and nothing changes.
 2. Install **Model Context Tool Inspector**
    ([Chrome Web Store](https://chromewebstore.google.com/detail/gbpdfapgefenggkahomfgkhfehlcenpd),
    [source](https://github.com/beaufortfrancois/model-context-tool-inspector)).
-   Click its icon to open the side panel. It lists Puncher's fourteen tools
+   Click its icon to open the side panel. It lists Puncher's fifteen tools
    with their schemas, and runs any of them with JSON you type. Its README
    says it can also hand them to Gemini to call.
 3. Run `get_sequence` with `{}`. Then try the edits under
@@ -98,7 +98,7 @@ await call("set_sequencer", { tempo: 96 })
 | `set_sequencer` | tempo, size, pace, direction, loop, scale and the rest of the Sequencer panel | one entry a call |
 | `set_modulations` | binds settings to CCs, as a setting's gear does, so the steps' envelopes drive them | one entry a call |
 | `step_menu` | what right-clicking a step offers: copy, paste, insert before or after, clear, delete | one entry a change |
-| `play`, `stop` | the transport | — |
+| `play`, `pause`, `stop` | the transport | — |
 | `set_recording` | the Record button, and where recording goes | a take is one entry |
 | `set_actions` | Hold, Sync, Flip and Transpose, each on until turned off, and the voice Sync plays | not saved or undone, like the buttons |
 | `select_step` | what clicking a step in the grid does: shows it, sounds it, plays it next | — |
@@ -341,7 +341,8 @@ empty step is. Each change is one undo entry.
 
 ### The rest
 
-- **`play`, `stop`:** no input. `play` starts from the start.
+- **`play`, `pause`, `stop`:** no input. `play` starts from the start, or
+  plays a paused sequence on from where it was paused.
 - **`set_actions`:** any of `hold`, `sync`, `flip` and `transpose` (true or
   false), and `sync_voice` (1 to 4).
 - **`select_step`:** `{ step, audition }`. It shows the step in the step
@@ -431,7 +432,7 @@ at a time.
 | File | Holds |
 |---|---|
 | `app/src/webmcp/modelContext.ts` | the WebMCP types; `modelContextOf(document)`; `registerTools(context, tools, signal)`, which logs a refused tool rather than failing the rest. The only code that knows the browser's API |
-| `app/src/webmcp/tools.ts` | `createTools(stores, view)`: `edit()`, which makes an undo entry and skips no-ops; `get_sequence`, `play`, `stop`, `set_actions`, `select_step`, `undo`, `redo` and `clear_sequence` |
+| `app/src/webmcp/tools.ts` | `createTools(stores, view)`: `edit()`, which makes an undo entry and skips no-ops; `get_sequence`, `play`, `pause`, `stop`, `set_actions`, `select_step`, `undo`, `redo` and `clear_sequence` |
 | `app/src/webmcp/steps.ts`, `voices.ts`, `sequencer.ts` | `set_steps`, `set_voices` and `set_sequencer` |
 | `app/src/webmcp/modulations.ts`, `stepMenu.ts`, `recording.ts` | `set_modulations`, `step_menu` and `set_recording` |
 | `app/src/webmcp/tool.ts` | the `tool()` wrapper, which parses input, refuses unknown fields and turns errors into `{ error }`; the JSON Schema builders; `ToolView` and `ToolContext` |

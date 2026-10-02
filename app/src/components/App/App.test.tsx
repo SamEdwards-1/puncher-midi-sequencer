@@ -26,14 +26,36 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Step 64" })).toBeInTheDocument()
   })
 
-  it("toggles play and stop", () => {
+  it("plays, pauses and plays on, and stops", () => {
     const rootStore = createStore()
     render(<App rootStore={rootStore} />)
+    const audition = () => screen.getByRole("switch", { name: "Audition step" })
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "Play" }))
     expect(rootStore.player.isPlaying).toBe(true)
+    // Stop comes in to Pause's left
+    const pause = screen.getByRole("button", { name: "Pause" })
+    const stop = screen.getByRole("button", { name: "Stop" })
+    expect(stop.compareDocumentPosition(pause)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(audition()).toBeDisabled()
+
+    fireEvent.click(pause)
+    expect(rootStore.player.isPaused).toBe(true)
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument()
+    // still no auditioning until it is stopped
+    expect(audition()).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }))
+    expect(rootStore.player.isPaused).toBe(false)
+    expect(rootStore.player.isPlaying).toBe(true)
+
     fireEvent.click(screen.getByRole("button", { name: "Stop" }))
     expect(rootStore.player.isPlaying).toBe(false)
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
+    expect(audition()).toBeEnabled()
   })
 
   it("records what is played on the chosen step", () => {

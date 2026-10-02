@@ -246,6 +246,86 @@ describe("SequencerPlayer", () => {
     expect(all.sent).toHaveLength(sentAfterStop)
   })
 
+  describe("pause", () => {
+    it("holds the step and the playhead where they were, silenced", () => {
+      player.play()
+      // step 1 lands at 1050 ms and lasts 500 ms
+      runFor(250)
+      player.pause()
+
+      expect(player.isPaused).toBe(true)
+      expect(player.isPlaying).toBe(true)
+      expect(ticker.isRunning).toBe(false)
+      expect(all.ofType(0xb0)).toHaveLength(32)
+      const sentAtPause = all.sent.length
+
+      clock.time += 5000
+      ticker.tick()
+      expect(player.position).toBe(0)
+      expect(player.playhead(0)).toBeCloseTo(0.4)
+      // it still sounds, for the playhead to stay up
+      expect(player.sounding()).toBe(true)
+      // nothing to record onto while it stands still
+      expect(player.stepProgress()).toBeNull()
+      expect(all.sent).toHaveLength(sentAtPause)
+    })
+
+    it("plays on from the beat it was held at, with what was sent ahead", () => {
+      player.play()
+      // at 1500 ms the lookahead has sent step 2's note, due at 1550
+      runFor(500)
+      expect(all.ofType(0x90).map((message) => message.time)).toEqual([
+        1050, 1550,
+      ])
+      player.pause()
+      expect(player.playhead(0)).toBeCloseTo(0.9)
+
+      clock.time = 3000
+      const before = all.sent.length
+      player.play()
+      expect(player.isPaused).toBe(false)
+      // it waits out the start delay where it was held
+      expect(player.playhead(0)).toBeCloseTo(0.9)
+
+      runFor(900)
+      // the 50 ms start delay, then the 50 ms left of step 1
+      const resumed = all.sent.slice(before).filter((m) => m.data[0] === 0x90)
+      expect(resumed.map((message) => message.time)).toEqual([3100, 3600])
+      expect(resumed.map((message) => message.data[1])).toEqual([62, 60])
+      expect(player.playhead(player.step ?? -1)).toBeCloseTo(0.6)
+    })
+
+    it("stops from paused, and plays from the start after", () => {
+      player.play()
+      runFor(600)
+      player.pause()
+      player.stop()
+      expect(player.isPaused).toBe(false)
+      expect(player.isPlaying).toBe(false)
+      expect(player.position).toBeNull()
+
+      clock.time += 1000
+      const before = all.sent.length
+      player.play()
+      runFor(75)
+      expect(player.position).toBe(0)
+      expect(all.sent.slice(before).find((m) => m.data[0] === 0x90)).toEqual(
+        expect.objectContaining({ data: [0x90, 60, expect.any(Number)] }),
+      )
+    })
+
+    it("does nothing while stopped, or paused already", () => {
+      player.pause()
+      expect(player.isPaused).toBe(false)
+      player.play()
+      runFor(100)
+      player.pause()
+      const sent = all.sent.length
+      player.pause()
+      expect(all.sent).toHaveLength(sent)
+    })
+  })
+
   it("panics without playing", () => {
     player.panic()
     expect(all.ofType(0xb0)).toHaveLength(32)
@@ -1144,6 +1224,38 @@ describe("SequencerPlayer", () => {
 
       player.stop()
       expect(clockBytesSent().at(-1)?.data).toEqual([0xfc])
+    })
+
+    it("stops on a pause, and continues on from the tick it got to", () => {
+      player.setSendClock(true)
+      player.play()
+      // held half a beat in, on tick 12, at 1300 ms
+      runFor(300)
+      player.pause()
+      expect(clockBytesSent().at(-1)?.data).toEqual([0xfc])
+
+      clock.time = 3000
+      const before = all.sent.length
+      player.play()
+      runFor(500)
+      const sent = all.sent
+        .slice(before)
+        .filter((message) => message.data[0] >= 0xf8)
+      expect(sent[0]).toEqual(expect.objectContaining({ data: [0xfb] }))
+      expect(sent[0].time).toBe(3000)
+      // tick 13 lands a 24th of a beat after the start delay, at 3050 ms
+      const ticks = sent.filter((message) => message.data[0] === 0xf8)
+      expect(ticks[0].time).toBeCloseTo(3050 + 500 / 24, 6)
+      for (let index = 1; index < ticks.length; index++) {
+        const gap = (ticks[index].time ?? 0) - (ticks[index - 1].time ?? 0)
+        expect(gap).toBeCloseTo(500 / 24, 6)
+      }
+      // a stop already went out with the pause
+      player.pause()
+      player.stop()
+      expect(
+        all.sent.filter((message) => message.data[0] === 0xfc),
+      ).toHaveLength(2)
     })
 
     it("stays quiet unless it is asked for", () => {

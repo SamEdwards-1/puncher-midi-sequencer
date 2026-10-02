@@ -1,3 +1,4 @@
+import PauseIcon from "mdi-react/PauseIcon"
 import PlayIcon from "mdi-react/PlayIcon"
 import RecordIcon from "mdi-react/RecordIcon"
 import StopIcon from "mdi-react/StopIcon"
@@ -11,23 +12,32 @@ import { ToolbarButton } from "../ui/Button"
 import { Stepper } from "../ui/Stepper"
 
 export const TransportControls: FC = () => {
-  const { isPlaying, play, stop } = usePlayer()
+  const { isPlaying, isPaused, play, pause, stop } = usePlayer()
   const { isRecording, toggleRecording } = useRecorder()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
   const tempo = usePatchSelector((patch) => patch.tempo)
+  // Pause in Play's place while the sequence moves; Play then plays on
+  const running = isPlaying && !isPaused
 
   return (
     <div className="flex items-center gap-2">
+      {/* to Play's left, so Play stays where it was */}
+      {isPlaying && (
+        <ToolbarButton type="button" onClick={stop}>
+          <StopIcon size={16} />
+          <Localized name="sequencer-stop" />
+        </ToolbarButton>
+      )}
       <ToolbarButton
         type="button"
-        active={isPlaying}
-        onClick={isPlaying ? stop : play}
+        active={running}
+        onClick={running ? pause : play}
       >
-        {isPlaying ? (
+        {running ? (
           <>
-            <StopIcon size={16} />
-            <Localized name="sequencer-stop" />
+            <PauseIcon size={16} />
+            <Localized name="sequencer-pause" />
           </>
         ) : (
           <>

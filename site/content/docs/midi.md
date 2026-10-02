@@ -32,7 +32,7 @@ If the browser blocks access, allow MIDI devices in the site's browser permissio
 
 ## MIDI clock {#clock}
 
-PUNCHER can send MIDI clock, start, and stop to every ticked output. Clock sends 24 ticks per beat. You can disable this in **Settings → MIDI**.
+PUNCHER can send MIDI clock, start, and stop to every ticked output. Pausing sends stop, and playing on sends continue. Clock sends 24 ticks per beat. You can disable this in **Settings → MIDI**.
 
 It can also follow the **tempo** of clock received on an enabled input. Incoming start and stop messages are ignored: you still control PUNCHER's transport.
 
