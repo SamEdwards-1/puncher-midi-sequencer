@@ -1,9 +1,12 @@
 import {
   addEnvelope,
   createDefaultPatch,
+  DEFAULT_ACCENT_AMOUNT,
   Engine,
   ModulationTarget,
   PatchJSON,
+  setStep,
+  updateEnvelope,
 } from "@midiseq/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
@@ -13,7 +16,7 @@ import {
   ManualTicker,
 } from "../test/fakes"
 import { OutputRouter } from "./OutputRouter"
-import { RoundJob } from "./RoundPreviewer"
+import { playJob, RoundJob } from "./RoundPreviewer"
 import { SequencerPlayer } from "./SequencerPlayer"
 
 // 120 BPM: one beat every 500 ms, one quarter-note voice at half gate
@@ -674,11 +677,15 @@ describe("SequencerPlayer", () => {
 
     describe("played ahead in their own time", () => {
       let previewer: ManualRoundPreviewer
+      let patch: PatchJSON
       let deferred: SequencerPlayer
+      const notesShown = () =>
+        deferred.roundNotes?.notes.map((note) => note.note)
 
       beforeEach(() => {
         previewer = new ManualRoundPreviewer()
-        deferred = new SequencerPlayer(driftingPatch(), new OutputRouter(), {
+        patch = driftingPatch()
+        deferred = new SequencerPlayer(patch, new OutputRouter(), {
           now: clock.now,
           ticker,
           seed: 1,
@@ -738,6 +745,259 @@ describe("SequencerPlayer", () => {
         expect(deferred.roundNotes?.notes.map((note) => note.start)).toEqual([
           0.25,
         ])
+      })
+
+      it("are not played again for an edit none of them hears", () => {
+        deferred.play()
+        // step 1 lands at 1550 ms, so it is on its way behind step 0
+        runFor(500)
+        expect(previewer.takeAll().map(({ id }) => id)).toEqual([0, 1])
+        const wakes = previewer.wakes
+
+        const unheard: PatchJSON[] = [
+          { ...patch, name: "Renamed" },
+          { ...patch, tempo: 90 },
+          {
+            ...patch,
+            modOuts: patch.modOuts.map((out) => ({ ...out, enabled: true })),
+          },
+          {
+            ...patch,
+            voices: patch.voices.map((voice) => ({ ...voice, program: 5 })),
+          },
+          // a CC that drives nothing, on a step with notes already
+          addEnvelope(patch, 0, {
+            cc: 1,
+            channel: 1,
+            points: [{ time: 0, value: 10 }],
+          }),
+        ]
+        for (const edit of unheard) {
+          deferred.setPatch(edit)
+          expect(previewer.take()).toBeNull()
+        }
+        expect(previewer.wakes).toBe(wakes)
+        expect(deferred.roundStats.report()).toMatchObject({
+          replays: 0,
+          unheard: 5,
+          requested: 2,
+        })
+
+        // the next round on its way is played with the patch the worker
+        // already has
+        runFor(500)
+        const next = previewer.take()
+        expect(next?.id).toBe(2)
+        expect(next?.patch).toBe(patch)
+      })
+
+      it("are played again for an edit they hear, the sounding one first", () => {
+        deferred.play()
+        runFor(500)
+        previewer.takeAll()
+
+        const heard: PatchJSON[] = [
+          setStep(patch, 1, { notes: [67] }),
+          {
+            ...patch,
+            voices: patch.voices.map((voice, index) =>
+              index === 0 ? { ...voice, pace: "16th" } : voice,
+            ),
+          },
+          { ...patch, syncVoices: true },
+          // the first points on a step without notes, which take the
+          // recorded loop on to it
+          addEnvelope(patch, 3, {
+            cc: 1,
+            channel: 1,
+            points: [{ time: 0, value: 10 }],
+          }),
+        ]
+        heard.forEach((edit, index) => {
+          deferred.setPatch(edit)
+          const replays = previewer.takeAll()
+          expect(replays.map(({ id, revision }) => [id, revision])).toEqual([
+            [0, index + 1],
+            [1, index + 1],
+          ])
+          expect(replays.every((job) => job.patch === edit)).toBe(true)
+        })
+        expect(deferred.roundStats.report()).toMatchObject({
+          replays: 4,
+          unheard: 0,
+        })
+      })
+
+      it("hear an envelope on a CC that drives a setting, not one on any other", () => {
+        deferred.play()
+        runFor(100)
+        previewer.takeAll()
+        const edit = (edited: PatchJSON) => {
+          deferred.setPatch(edited)
+          return previewer.takeAll().length
+        }
+
+        const modulated: PatchJSON = {
+          ...patch,
+          modulations: [
+            {
+              target: { kind: "voice", voice: 0, setting: "pace" },
+              cc: 3,
+              from: "4th",
+              to: "16th",
+            },
+          ],
+        }
+        expect(edit(modulated)).toBe(1)
+        const driving = addEnvelope(modulated, 0, {
+          cc: 3,
+          channel: 1,
+          points: [{ time: 0, value: 0 }],
+        })
+        expect(edit(driving)).toBe(1)
+        const [{ id }] = driving.steps[0].envelopes
+        const other = addEnvelope(driving, 0, {
+          cc: 74,
+          channel: 1,
+          points: [{ time: 0, value: 20 }],
+        })
+        expect(edit(other)).toBe(0)
+        expect(
+          edit(
+            updateEnvelope(other, 0, id, { points: [{ time: 0, value: 127 }] }),
+          ),
+        ).toBe(1)
+      })
+
+      it("are played again for a new accent amount, not for the same one", () => {
+        deferred.play()
+        runFor(100)
+        previewer.takeAll()
+
+        deferred.setAccentAmount(DEFAULT_ACCENT_AMOUNT)
+        expect(previewer.take()).toBeNull()
+        deferred.setAccentAmount(30)
+        expect(previewer.takeAll()).toEqual([
+          expect.objectContaining({ id: 0, accentAmount: 30 }),
+        ])
+      })
+
+      it("are each played with what was held and selected as it was reached", () => {
+        deferred.play()
+        runFor(100)
+        previewer.takeAll()
+        deferred.setAction("hold", true)
+        deferred.setSelectedVoice(2)
+        deferred.setPatch({ ...patch, name: "Renamed" })
+        expect(previewer.take()).toBeNull()
+
+        // the next round, reached at 1550 ms, which Hold keeps on step 0
+        runFor(400)
+        const held = previewer.take() as RoundJob
+        expect(held.from.actions.hold).toBe(true)
+        expect(held.from.selectedVoice).toBe(2)
+        previewer.finish(held)
+        runFor(100)
+        expect(deferred.roundNotes?.step).toBe(0)
+        expect(deferred.roundNotes?.notes).toEqual(playJob(held).notes)
+      })
+
+      it("show the latest played while an edit's replay is on its way, and never go back", () => {
+        deferred.play()
+        runFor(100)
+        const before = previewer.take() as RoundJob
+        deferred.setPatch(setStep(patch, 0, { notes: [67] }))
+        const after = previewer.take() as RoundJob
+
+        // played before the edit, they show until those after it come back
+        previewer.finish(before)
+        expect(notesShown()).toEqual([60, 60])
+        previewer.finish(after)
+        expect(notesShown()).toEqual([67, 67])
+        previewer.finish(before)
+        expect(notesShown()).toEqual([67, 67])
+        expect(deferred.roundStats.report()).toMatchObject({
+          stale: 1,
+          current: 1,
+          dropped: 1,
+        })
+      })
+
+      it("keep to one replay a round, however many edits come while one plays", () => {
+        deferred.play()
+        runFor(500)
+        const underWay = previewer.take() as RoundJob
+        let edited = patch
+        for (let note = 61; note <= 110; note++) {
+          edited = setStep(edited, 0, { notes: [note] })
+          deferred.setPatch(edited)
+        }
+
+        const replays = previewer.takeAll()
+        expect(replays.map(({ id, revision }) => [id, revision])).toEqual([
+          [0, 50],
+          [1, 50],
+        ])
+        expect(replays.every((job) => job.patch === edited)).toBe(true)
+        previewer.finish(underWay)
+        expect(notesShown()).toEqual([60, 60])
+        for (const job of replays) {
+          previewer.finish(job)
+        }
+        expect(notesShown()).toEqual([110, 110])
+      })
+
+      it("hand a round lost with its worker out again, until it has gone by", () => {
+        deferred.play()
+        runFor(100)
+        const job = previewer.take() as RoundJob
+        expect(previewer.take()).toBeNull()
+
+        previewer.lose(job)
+        expect(previewer.take()).toMatchObject({
+          id: job.id,
+          revision: job.revision,
+        })
+        deferred.stop()
+        previewer.lose(job)
+        expect(previewer.take()).toBeNull()
+        expect(deferred.roundStats.report()).toMatchObject({
+          requested: 2,
+          lost: 2,
+        })
+      })
+
+      it("come back to nothing once stopped, nor to the rounds played after", () => {
+        deferred.play()
+        runFor(100)
+        const late = previewer.take() as RoundJob
+        deferred.stop()
+        previewer.finish(late)
+        expect(deferred.isPlaying).toBe(false)
+        expect(deferred.roundNotes).toBeNull()
+        expect(previewer.take()).toBeNull()
+
+        deferred.play()
+        runFor(100)
+        previewer.finish(late)
+        expect(deferred.roundNotes).toBeNull()
+        const fresh = previewer.take() as RoundJob
+        expect(fresh.id).not.toBe(late.id)
+        previewer.finish(fresh)
+        expect(deferred.roundNotes?.step).toBe(0)
+      })
+
+      it("come back to nothing once disposed", () => {
+        deferred.play()
+        runFor(100)
+        const late = previewer.take() as RoundJob
+        deferred.dispose()
+        expect(previewer.disposed).toBe(true)
+
+        previewer.finish(late)
+        deferred.play()
+        expect(deferred.isPlaying).toBe(false)
+        expect(deferred.roundNotes).toBeNull()
       })
     })
   })

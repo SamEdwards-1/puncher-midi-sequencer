@@ -316,7 +316,9 @@ const sameEach = <T>(a: T[], b: T[], same: (x: T, y: T) => boolean) =>
  * envelope on a CC that drives no setting — though not whether a step has
  * points at all, which a recorded loop reaches to. Everything else is
  * compared by reference, so an edit that rebuilds a part the same is taken
- * as a change.
+ * as a change. The engine reads what it passes over only to send CCs, so a
+ * round played on from anywhere in the sequence (see playRound) plays
+ * alike in both patches too.
  */
 export const previewsAlike = (a: PatchJSON, b: PatchJSON): boolean => {
   if (!sameBut(a, b, ["name", "tempo", "modOuts", "voices", "steps"])) {

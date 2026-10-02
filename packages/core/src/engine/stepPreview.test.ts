@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { createDefaultPatch } from "../entities/defaults"
-import { EnvelopeJSON, PatchJSON, StepJSON } from "../entities/types"
+import {
+  EnvelopeJSON,
+  PatchJSON,
+  StepJSON,
+  VoiceIndex,
+} from "../entities/types"
 import { DEFAULT_ACCENT_AMOUNT } from "../entities/velocity"
-import { Engine } from "./Engine"
+import { Engine, EngineActions } from "./Engine"
 import { createRng } from "./rng"
 import {
   NoteCollision,
@@ -10,6 +15,7 @@ import {
   oneStepPatch,
   playRound,
   previewStep,
+  previewsAlike,
   StepNote,
   StepPreviews,
   stepNotes,
@@ -678,5 +684,102 @@ describe("the sequencer's next round", () => {
     const round = playRound(engine)
     expect(engine.nextStepBeat).toBe(round.beat + round.length)
     expect(playRound(engine).step).toBe(1)
+  })
+
+  // A round is played from the engine as it was, chances rolled, actions
+  // held and voice selected; the patch it is played with is the one thing
+  // left to compare.
+  it("plays alike from anywhere in the sequence, in patches that preview alike", () => {
+    const patch: PatchJSON = {
+      ...driftingPatch(),
+      transposeAmt: 5,
+      modulations: [
+        {
+          target: { kind: "voice", voice: 0, setting: "pace" },
+          cc: 30,
+          from: "4th",
+          to: "16th",
+        },
+      ],
+    }
+    // the second step ramps voice 1's pace, sends a CC driving nothing, and
+    // may jump back
+    patch.steps[1] = {
+      ...patch.steps[1],
+      jump: { rule: { kind: "chance", pct: 50 }, dest: 0, normal: null },
+      envelopes: [
+        {
+          id: 1,
+          cc: 30,
+          channel: 1,
+          points: [
+            { time: 0, value: 0 },
+            { time: 1, value: 127 },
+          ],
+        },
+        { id: 2, cc: 1, channel: 1, points: [{ time: 0, value: 64 }] },
+      ],
+    }
+    patch.voices[1] = { ...patch.voices[1], enabled: true, pace: "16th" }
+    const redrawn = (envelope: number, value: number): PatchJSON => ({
+      ...patch,
+      steps: patch.steps.map((step, index) =>
+        index === 1
+          ? {
+              ...step,
+              envelopes: step.envelopes.map((each, at) =>
+                at === envelope
+                  ? { ...each, points: [{ time: 0.5, value }] }
+                  : each,
+              ),
+            }
+          : step,
+      ),
+    })
+    const alike: PatchJSON[] = [
+      { ...patch, name: "Renamed", tempo: 61 },
+      {
+        ...patch,
+        modOuts: patch.modOuts.map((out) => ({ ...out, enabled: true })),
+      },
+      {
+        ...patch,
+        voices: patch.voices.map((voice) => ({ ...voice, program: 12 })),
+      },
+      redrawn(1, 0),
+      redrawn(1, 127),
+    ]
+    // the envelope driving the pace, which the comparison tells apart
+    const heard = redrawn(0, 127)
+    expect(previewsAlike(patch, heard)).toBe(false)
+
+    const actions: Partial<EngineActions>[] = [
+      { hold: true },
+      { hold: false, sync: true },
+      { sync: false, flip: true },
+      { flip: false, transpose: true },
+      { transpose: false },
+    ]
+    const engine = new Engine(patch, { seed: 3 })
+    engine.start(0)
+    let heardApart = 0
+    for (let count = 0; count < 30; count++) {
+      engine.setActions(actions[count % actions.length])
+      engine.selectedVoice = (count % 2) as VoiceIndex
+      const from = engine.snapshot()
+      const playedWith = (each: PatchJSON) =>
+        playRound(new Engine(each, { from, accentAmount: 30 }))
+      const round = playedWith(patch)
+      for (const each of alike) {
+        expect(previewsAlike(patch, each)).toBe(true)
+        expect(playedWith(each)).toEqual(round)
+      }
+      if (JSON.stringify(playedWith(heard)) !== JSON.stringify(round)) {
+        heardApart++
+      }
+      playRound(engine)
+    }
+    // and what it does tell apart plays apart
+    expect(heardApart).toBeGreaterThan(0)
   })
 })

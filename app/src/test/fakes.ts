@@ -1,9 +1,9 @@
 import { MIDISink } from "../services/MIDISink"
 import {
   CreateRoundPreviewer,
-  PlayedRound,
   playJob,
   RoundJob,
+  RoundQueue,
 } from "../services/RoundPreviewer"
 import { Ticker } from "../services/Ticker"
 
@@ -53,23 +53,45 @@ export class ManualTicker implements Ticker {
 // Plays rounds ahead only when told to, as a worker would in its own time.
 export class ManualRoundPreviewer {
   wakes = 0
-  private next: () => RoundJob | null = () => null
-  private played: (round: PlayedRound) => void = () => {}
+  disposed = false
+  private queue: RoundQueue = {
+    next: () => null,
+    played: () => {},
+    lost: () => {},
+  }
 
-  readonly create: CreateRoundPreviewer = (next, played) => {
-    this.next = next
-    this.played = played
-    return { wake: () => this.wakes++, dispose: () => {} }
+  readonly create: CreateRoundPreviewer = (queue) => {
+    this.queue = queue
+    return {
+      wake: () => this.wakes++,
+      dispose: () => {
+        this.disposed = true
+      },
+    }
   }
 
   // the next round the player wants played, without playing it yet
   take(): RoundJob | null {
-    return this.next()
+    return this.queue.next()
+  }
+
+  // every round the player wants played, without playing any of them yet
+  takeAll(): RoundJob[] {
+    const jobs: RoundJob[] = []
+    for (let job = this.take(); job !== null; job = this.take()) {
+      jobs.push(job)
+    }
+    return jobs
   }
 
   // hands back what a round taken earlier played
   finish(job: RoundJob) {
-    this.played(playJob(job))
+    this.queue.played(playJob(job))
+  }
+
+  // hands back a round taken earlier unplayed, as a failed worker does
+  lose(job: RoundJob) {
+    this.queue.lost(job)
   }
 }
 

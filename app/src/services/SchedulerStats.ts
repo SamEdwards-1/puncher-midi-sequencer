@@ -1,3 +1,5 @@
+import { Samples } from "./Samples"
+
 /** How the scheduler has kept up, over its last few thousand ticks. */
 export interface SchedulerReport {
   ticks: number
@@ -19,17 +21,13 @@ export interface SchedulerReport {
   behind: number
 }
 
-// about a minute of ticks
-const KEPT = 2400
-
 /**
  * Measures the scheduler as it plays, cheaply enough to leave on, so how it
  * keeps up can be read from the console on the device in question:
  * `midiseq.player.stats.report()`, and `.reset()` before trying something.
  */
 export class SchedulerStats {
-  private readonly durations = new Float64Array(KEPT)
-  private ticks = 0
+  private readonly durations = new Samples()
   private lastStart: number | null = null
   private maxGap = 0
   private late = 0
@@ -39,8 +37,7 @@ export class SchedulerStats {
   private behind = 0
 
   tick(start: number, end: number) {
-    this.durations[this.ticks % KEPT] = end - start
-    this.ticks++
+    this.durations.add(end - start)
     if (this.lastStart !== null) {
       this.maxGap = Math.max(this.maxGap, start - this.lastStart)
     }
@@ -67,7 +64,7 @@ export class SchedulerStats {
   }
 
   reset() {
-    this.ticks = 0
+    this.durations.reset()
     this.lastStart = null
     this.maxGap = 0
     this.late = 0
@@ -78,19 +75,9 @@ export class SchedulerStats {
   }
 
   report(): SchedulerReport {
-    const kept = this.durations
-      .slice(0, Math.min(this.ticks, KEPT))
-      .sort((a, b) => a - b)
-    const at = (fraction: number) =>
-      kept.length === 0
-        ? 0
-        : kept[Math.min(kept.length - 1, Math.floor(fraction * kept.length))]
     return {
-      ticks: this.ticks,
-      p50: at(0.5),
-      p95: at(0.95),
-      p99: at(0.99),
-      max: at(1),
+      ticks: this.durations.count,
+      ...this.durations.spread(),
       maxGap: this.maxGap,
       late: this.late,
       maxLate: this.maxLate,
