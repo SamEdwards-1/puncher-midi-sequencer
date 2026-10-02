@@ -11,9 +11,11 @@ import {
   clearStep,
   deleteStep,
   editPattern,
+  envelopeValues,
   freeVoiceChannel,
   insertStep,
   nextFreeCC,
+  pasteEnvelopeValues,
   pasteStep,
   removeEnvelope,
   removeModulation,
@@ -247,6 +249,50 @@ describe("patch commands", () => {
     expect(removeEnvelope(updated, 3, envelope.id).steps[3].envelopes).toEqual(
       [],
     )
+  })
+
+  it("copy an envelope's values onto another CC, on another step", () => {
+    const ramp = [
+      { time: 0, value: 0 },
+      { time: 2, value: 127 },
+    ]
+    const patch = addEnvelope(createDefaultPatch(), 3, {
+      cc: 74,
+      channel: 1,
+      shape: "ramps",
+      points: ramp,
+    })
+    const values = envelopeValues(patch.steps[3].envelopes[0])
+    expect(values).toEqual({ shape: "ramps", points: ramp })
+
+    // a step without that CC gets one, on the lane's own CC and channel
+    const added = pasteEnvelopeValues(patch, 5, 1, 2, values)
+    expect(added.steps[5].envelopes).toEqual([
+      expect.objectContaining({ cc: 1, channel: 2, ...values }),
+    ])
+    expect(added.steps[5].envelopes[0].id).not.toBe(
+      patch.steps[3].envelopes[0].id,
+    )
+
+    // one with it has its values replaced, keeping its id
+    const flatOn5 = addEnvelope(patch, 5, {
+      cc: 1,
+      channel: 2,
+      points: flat(10),
+    })
+    const [existing] = flatOn5.steps[5].envelopes
+    const replaced = pasteEnvelopeValues(flatOn5, 5, 1, 2, values)
+    expect(replaced.steps[5].envelopes).toEqual([
+      { id: existing.id, cc: 1, channel: 2, ...values },
+    ])
+    // the copy is its own: the source's points are not shared
+    expect(replaced.steps[5].envelopes[0].points).not.toBe(ramp)
+  })
+
+  it("read an envelope saved without a shape as ramps when copied", () => {
+    expect(
+      envelopeValues({ id: 1, cc: 1, channel: 1, points: flat(5) }).shape,
+    ).toBe("ramps")
   })
 
   it("give each envelope its own id across the patch", () => {

@@ -3,6 +3,7 @@ import {
   createDefaultStep,
   createDefaultVoice,
 } from "../entities/defaults"
+import { envelopeShape } from "../entities/envelope"
 import {
   modulationCC,
   modulationForCC,
@@ -14,6 +15,7 @@ import {
 import { ScaleJSON } from "../entities/scale"
 import {
   EnvelopeJSON,
+  EnvelopeShape,
   JumpJSON,
   MAX_NOTES_PER_STEP,
   ModOutJSON,
@@ -362,6 +364,39 @@ export const updateEnvelope = (
       envelope.id === id ? { ...envelope, ...changes } : envelope,
     ),
   })
+
+/**
+ * What an envelope's values are, apart from the CC they go to: copied from
+ * one CC lane, they paste into any other, on any step.
+ */
+export type EnvelopeValues = Pick<EnvelopeJSON, "points"> & {
+  shape: EnvelopeShape
+}
+
+export const envelopeValues = (envelope: EnvelopeJSON): EnvelopeValues => ({
+  shape: envelopeShape(envelope),
+  points: envelope.points,
+})
+
+/**
+ * Puts values onto a step's CC: over the envelope it has for that CC and
+ * channel, or as a new one where it has none.
+ */
+export const pasteEnvelopeValues = (
+  patch: PatchJSON,
+  index: StepIndex,
+  cc: number,
+  channel: number,
+  values: EnvelopeValues,
+): PatchJSON => {
+  const existing = patch.steps[index].envelopes.find(
+    (envelope) => envelope.cc === cc && envelope.channel === channel,
+  )
+  const copy = { shape: values.shape, points: [...values.points] }
+  return existing === undefined
+    ? addEnvelope(patch, index, { cc, channel, ...copy })
+    : updateEnvelope(patch, index, existing.id, copy)
+}
 
 /**
  * Takes an envelope off a step. Where it was the last envelope for a CC

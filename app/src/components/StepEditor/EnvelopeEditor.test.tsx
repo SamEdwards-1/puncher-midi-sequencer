@@ -88,6 +88,52 @@ describe("the envelope editor", () => {
       expect(envelopes()).toEqual([])
       expect(tab("CC 74")).toBeNull()
     })
+
+    const valuesItem = (name: string) => {
+      if (screen.queryByRole("menu", { name: "CC values" }) === null) {
+        click("CC values")
+      }
+      return screen.getByRole("button", { name })
+    }
+
+    it("copies a CC's values into another CC, on this step or another", () => {
+      setup(ramp, (start) =>
+        addEnvelope(start, 0, {
+          cc: 10,
+          channel: 1,
+          points: [{ time: 0, value: 0 }],
+        }),
+      )
+      // nothing copied yet
+      expect(valuesItem("Paste values")).toBeDisabled()
+      fireEvent.click(valuesItem("Copy values"))
+      expect(screen.queryByRole("menu", { name: "CC values" })).toBeNull()
+
+      // over another CC's values, shape and all
+      fireEvent.click(screen.getByRole("tab", { name: "CC 10" }))
+      fireEvent.click(valuesItem("Paste values"))
+      expect(envelopes()[1]).toMatchObject({
+        cc: 10,
+        channel: 1,
+        shape: "ramps",
+        points: ramp,
+      })
+
+      // onto a step without the CC, which gets it
+      fireEvent.click(screen.getByRole("button", { name: "Step 2" }))
+      fireEvent.click(valuesItem("Paste values"))
+      expect(patch().steps[1].envelopes).toMatchObject([
+        { cc: 10, channel: 1, shape: "ramps", points: ramp },
+      ])
+    })
+
+    it("clears the open CC's values from the step, keeping the CC", () => {
+      setup()
+      fireEvent.click(valuesItem("Clear values from this step"))
+      expect(envelopes()).toMatchObject([{ cc: 74, points: [] }])
+      expect(tab("CC 74")).toBeInTheDocument()
+      expect(valuesItem("Clear values from this step")).toBeDisabled()
+    })
   })
 
   describe("channels", () => {
