@@ -6,7 +6,7 @@ import {
 } from "@midiseq/core"
 import { fireEvent, screen } from "@testing-library/react"
 import RootStore from "../stores/RootStore"
-import { ManualTicker } from "./fakes"
+import { immediateStepWork, ManualTicker } from "./fakes"
 
 // The envelope editor's tests, in several files so they run side by side.
 
@@ -77,6 +77,7 @@ export const startStore = (
     ticker: new ManualTicker(),
     // settings such as the accent amount start fresh for every test
     storage: null,
+    stepWork: immediateStepWork(),
   })
   let start: PatchJSON = { ...createDefaultPatch(), pace: "4th" }
   if (shape !== null) {

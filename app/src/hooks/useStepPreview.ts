@@ -1,4 +1,6 @@
 import { previewsAlike, StepIndex, StepPreview } from "@midiseq/core"
+import { useEffect, useSyncExternalStore } from "react"
+import { ShownStepPreview } from "../services/StepWork"
 import { useAccentAmount } from "./useAccentAmount"
 import { useMobxSelector } from "./useMobxSelector"
 import { usePatchSelector } from "./usePatch"
@@ -20,11 +22,11 @@ const sameLive = (a: StepPreview | null, b: StepPreview | null) =>
  * shared by everything showing the step, and made only while the step is
  * not sounding.
  */
-export function useStepPreview(step: StepIndex): StepPreview {
+export function useStepPreview(step: StepIndex): ShownStepPreview {
   // the patch as far as a preview hears it, so an edit none would hear —
   // the tempo, say — passes this by
   const patch = usePatchSelector((patch) => patch, [], previewsAlike)
-  const { player, stepPreviews } = useStores()
+  const { player, stepWork } = useStores()
   const { accentAmount } = useAccentAmount()
   // woken by the rounds on this step, and not by those on the others
   const live = useMobxSelector(
@@ -37,5 +39,9 @@ export function useStepPreview(step: StepIndex): StepPreview {
     [player, step],
     sameLive,
   )
-  return live ?? stepPreviews.get(patch, step, { accentAmount })
+  useSyncExternalStore(stepWork.subscribe, stepWork.snapshot)
+  useEffect(() => {
+    if (live === null) stepWork.requestPreview(patch, step, accentAmount)
+  }, [stepWork, patch, step, accentAmount, live])
+  return live ?? stepWork.readPreview(patch, step, accentAmount)
 }

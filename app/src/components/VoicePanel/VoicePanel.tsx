@@ -516,10 +516,22 @@ const Patterns: FC<{
   return (
     <section
       aria-label={localized["sequencer-voice-patterns"]}
+      aria-busy={preview.status === "pending"}
       // 0.75rem each side, the right less the panel's scrollbar, though
       // never less than the 0.25rem a band hangs past its dots
       className="flex flex-col gap-[1.1rem] border-t border-divider pr-[max(0.25rem,calc(0.75rem-var(--scrollbar-gutter,0px)))] pt-3 pl-3"
     >
+      {preview.status !== undefined && (
+        <span className="text-small text-fg-tertiary">
+          {
+            localized[
+              preview.status === "pending"
+                ? "sequencer-preview-pending"
+                : "sequencer-preview-unavailable"
+            ]
+          }
+        </span>
+      )}
       {VOICES.map((voiceIndex) => {
         const voice = voices[voiceIndex]
         // The dots the voice reaches while the sequencer sits on one step:

@@ -1,4 +1,4 @@
-import { StepPreviews, withPatchName } from "@midiseq/core"
+import { withPatchName } from "@midiseq/core"
 import { AudioRenderer, workerAudioRenderer } from "../services/AudioRenderer"
 import { AutoSaveService } from "../services/AutoSaveService"
 import { ClockFollower } from "../services/ClockFollower"
@@ -7,6 +7,7 @@ import { MIDIInput } from "../services/MIDIInput"
 import { MIDIRecorder } from "../services/MIDIRecorder"
 import { OutputRouter } from "../services/OutputRouter"
 import { SequencerPlayer } from "../services/SequencerPlayer"
+import { StepWork } from "../services/StepWork"
 import { Ticker } from "../services/Ticker"
 import { AudioExportSettingsStore } from "./AudioExportSettingsStore"
 import { ExportSettingsStore } from "./ExportSettingsStore"
@@ -38,6 +39,7 @@ export interface RootStoreOptions {
   soundFonts?: SoundFontStore
   autoSave?: AutoSaveService
   audioRenderer?: AudioRenderer
+  stepWork?: StepWork
 }
 
 export default class RootStore {
@@ -55,7 +57,7 @@ export default class RootStore {
   readonly recorder: MIDIRecorder
   readonly player: SequencerPlayer
   // what the step in the editor plays, shared by the panels showing it
-  readonly stepPreviews = new StepPreviews()
+  readonly stepWork: StepWork
   readonly synthStore: SynthStore
   readonly soundFonts: SoundFontStore
   readonly fileService: FileService
@@ -64,6 +66,7 @@ export default class RootStore {
   readonly audioRenderer: AudioRenderer
 
   private readonly ownsSynthStore: boolean
+  private readonly ownsStepWork: boolean
   private readonly unregisterReactions: () => void
   // what init started, to stop again
   private stopResumeOnGesture: (() => void) | null = null
@@ -71,6 +74,8 @@ export default class RootStore {
   private disposed = false
 
   constructor(options: RootStoreOptions = {}) {
+    this.ownsStepWork = options.stepWork === undefined
+    this.stepWork = options.stepWork ?? new StepWork()
     this.midiDeviceStore = new MIDIDeviceStore(
       options.requestMIDIAccess,
       options.storage,
@@ -91,7 +96,12 @@ export default class RootStore {
     this.player = new SequencerPlayer(
       this.sequencerStore.patch,
       this.outputRouter,
-      { ticker: options.ticker, now: options.now },
+      {
+        ticker: options.ticker,
+        now: options.now,
+        prepareStepEvents: (patch, step, accentAmount) =>
+          this.stepWork.prepareEvents(patch, step, accentAmount),
+      },
     )
     this.clockFollower = new ClockFollower(options.now)
     this.ownsSynthStore = options.synthStore === undefined
@@ -143,6 +153,9 @@ export default class RootStore {
     this.recorder.dispose()
     this.unregisterReactions()
     this.player.dispose()
+    if (this.ownsStepWork) {
+      this.stepWork.dispose()
+    }
     this.midiInput.dispose()
     this.midiDeviceStore.dispose()
     this.stopResumeOnGesture?.()

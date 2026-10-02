@@ -46,6 +46,11 @@ export interface SequencerPlayerOptions {
   seed?: number
   // how much of the engine's work one tick does at most: see renderRounds
   renderBudget?: number
+  prepareStepEvents?: (
+    patch: PatchJSON,
+    step: StepIndex,
+    accentAmount: number,
+  ) => Promise<EngineEvent[] | null>
 }
 
 /**
@@ -225,6 +230,8 @@ export class SequencerPlayer {
   // the last clock tick handed to the router, counted from the start
   private clockSent = -1
   private disposed = false
+  private previewRequest = 0
+  private readonly prepareStepEvents?: SequencerPlayerOptions["prepareStepEvents"]
 
   constructor(
     patch: PatchJSON,
@@ -253,6 +260,7 @@ export class SequencerPlayer {
     this.lookaheadMs = options.lookaheadMs ?? LOOKAHEAD_MS
     this.startDelayMs = options.startDelayMs ?? START_DELAY_MS
     this.renderBudget = options.renderBudget ?? TICK_RENDER_BUDGET
+    this.prepareStepEvents = options.prepareStepEvents
     this.engine = new Engine(patch, {
       seed: options.seed ?? Math.floor(Math.random() * 2 ** 32),
     })
@@ -331,14 +339,40 @@ export class SequencerPlayer {
     }
 
     this.endPreview(this.now())
+    const request = ++this.previewRequest
+    if (this.prepareStepEvents !== undefined) {
+      void this.prepareStepEvents(patch, step, this.accentAmount).then(
+        (events) => {
+          if (
+            events === null ||
+            this.disposed ||
+            this.isPlaying ||
+            request !== this.previewRequest ||
+            this.patch !== patch
+          )
+            return
+          this.startStepPreview(step, patch, events)
+        },
+        () => {},
+      )
+      return
+    }
+    this.startStepPreview(
+      step,
+      patch,
+      stepEvents(patch, step, { accentAmount: this.accentAmount }),
+    )
+  }
+
+  private startStepPreview(
+    step: number,
+    patch: PatchJSON,
+    prepared: EngineEvent[],
+  ) {
     const msPerBeat = 60000 / patch.tempo
     const lengthBeats = paceBeats(stepPace(patch, step))
-    // Finding the first pass over a step may take time on a dense patch.
-    // Start both the sound and the playhead after that work, from one clock
-    // reading, so the picture does not run ahead of the notes.
-    const events = stepEvents(patch, step, {
-      accentAmount: this.accentAmount,
-    }).filter((event) => this.sends(event))
+    // Anchor time only after preparation, so the playhead follows the sound.
+    const events = prepared.filter((event) => this.sends(event))
     const now = this.now()
     const start = now + this.router.minimumLeadMs(now)
     this.preview = {
@@ -509,6 +543,7 @@ export class SequencerPlayer {
     if (amount === this.accentAmount) {
       return
     }
+    this.previewRequest++
     this.accentAmount = amount
     this.engine.accentAmount = amount
     this.replayRounds()
@@ -591,6 +626,7 @@ export class SequencerPlayer {
     if (this.isPlaying || this.disposed) {
       return
     }
+    this.previewRequest++
     const now = this.now()
     this.tempo = this.patch.tempo
     this.anchorTime =
@@ -616,7 +652,11 @@ export class SequencerPlayer {
   }
 
   stop = () => {
+    this.previewRequest++
     if (!this.isPlaying) {
+      this.endPreview(this.now())
+      this.ticker.stop()
+      this.stats.idle()
       return
     }
     this.ticker.stop()
@@ -647,6 +687,7 @@ export class SequencerPlayer {
   }
 
   panic = () => {
+    this.previewRequest++
     if (this.isPlaying) {
       this.stop()
       return
@@ -668,6 +709,7 @@ export class SequencerPlayer {
     if (this.disposed) {
       return
     }
+    this.previewRequest++
     // the ticker only runs while one of them is sounding; the panic stops it
     if (this.isPlaying || this.preview !== null) {
       this.panic()

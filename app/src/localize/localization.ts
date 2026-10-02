@@ -1,5 +1,7 @@
 export default {
   en: {
+    "sequencer-preview-pending": "Preparing preview…",
+    "sequencer-preview-unavailable": "Preview unavailable",
     "sequencer-app-name": "midiseq",
     "sequencer-panel": "Sequencer",
     "sequencer-grid": "Grid",

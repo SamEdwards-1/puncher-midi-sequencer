@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { App } from "../components/App/App"
 import RootStore from "../stores/RootStore"
 import { dragFrom, ramp, X, Y } from "../test/envelopeEditor"
-import { FakeClock, ManualTicker } from "../test/fakes"
+import { FakeClock, immediateStepWork, ManualTicker } from "../test/fakes"
 import { makeScale } from "../theory/scales"
 
 let rootStore: RootStore
@@ -20,7 +20,7 @@ let ticker: ManualTicker
 
 // how many times a step's preview has been made, each a play of the
 // sequence up to it
-const made = () => rootStore.stepPreviews.made
+const made = () => rootStore.stepWork.made
 const patch = () => rootStore.sequencerStore.patch
 const edit = (change: (patch: PatchJSON) => PatchJSON) =>
   act(() => {
@@ -67,6 +67,7 @@ beforeEach(() => {
     ticker,
     now: clock.now,
     storage: null,
+    stepWork: immediateStepWork(),
   })
   let start: PatchJSON = { ...createDefaultPatch(), pace: "4th" }
   start = setStepNotes(start, 0, [60])

@@ -2,7 +2,7 @@ import { addEnvelope, createDefaultPatch, PatchJSON } from "@midiseq/core"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
-import { FakeClock, ManualTicker } from "../../test/fakes"
+import { FakeClock, immediateStepWork, ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -62,6 +62,7 @@ const setup = ({ audition }: { audition: boolean }) => {
     ticker,
     now: clock.now,
     storage: null,
+    stepWork: immediateStepWork(),
   })
   let patch: PatchJSON = { ...createDefaultPatch(), pace: "4th" }
   for (const index of [0, 2]) {
@@ -86,6 +87,7 @@ describe("the envelope editor's playhead", () => {
 
   it("crosses a clicked step as it sounds, then goes", async () => {
     setup({ audition: true })
+    await act(async () => {})
     // the click in setup sounded step 1, and the clock hasn't moved since
     expect(shownAt()).toBe(0)
     expect(x()).toBeCloseTo(X(0))

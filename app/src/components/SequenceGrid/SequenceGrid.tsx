@@ -271,7 +271,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const [mode, setMode] = useGridMode()
   const [preview, setPreview] = usePreviewOnClick()
   // a step dragged out of the browser lands as its MIDI file
-  const dragStep = useStepMidiDrag()
+  const stepMidi = useStepMidiDrag()
 
   const size = useMobxSelector(
     () => sequencerStore.patch.size,
@@ -560,7 +560,10 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                       setMenu({ index, at: menuPoint(event) })
                     }}
                     draggable
-                    onDragStart={(event) => dragStep(index, event)}
+                    onPointerEnter={() => stepMidi.prepare(index)}
+                    onPointerDown={() => stepMidi.prepare(index)}
+                    onFocus={() => stepMidi.prepare(index)}
+                    onDragStart={(event) => stepMidi.drag(index, event)}
                   >
                     {index + 1}
                   </button>

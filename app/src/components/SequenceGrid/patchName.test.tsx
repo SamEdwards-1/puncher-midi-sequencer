@@ -1,5 +1,6 @@
 import { createDefaultPatch, createFile, serializeFile } from "@midiseq/core"
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -9,7 +10,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
-import { ManualTicker } from "../../test/fakes"
+import { immediateStepWork, ManualTicker } from "../../test/fakes"
 import { editItem, fileItem } from "../../test/menus"
 import { App } from "../App/App"
 
@@ -50,6 +51,7 @@ const setup = (fileService?: FileService) => {
     ticker: new ManualTicker(),
     fileService,
     storage: null,
+    stepWork: immediateStepWork(),
   })
   rootStore.sequencerStore.patch = {
     ...createDefaultPatch(),
@@ -147,7 +149,7 @@ describe("the patch's name", () => {
     expect(rootStore.sequencerStore.isSaved).toBe(true)
   })
 
-  it("starts the name of a step dragged out as MIDI", () => {
+  it("starts the name of a step dragged out as MIDI", async () => {
     setup()
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test/1")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
@@ -158,7 +160,10 @@ describe("the patch's name", () => {
       setData: (type: string, value: string) => data.set(type, value),
     }
 
-    fireEvent.dragStart(grid().getByRole("button", { name: "Step 3" }), {
+    const step = grid().getByRole("button", { name: "Step 3" })
+    fireEvent.pointerEnter(step)
+    await act(async () => {})
+    fireEvent.dragStart(step, {
       dataTransfer,
     })
     expect(data.get("DownloadURL")).toBe(
@@ -166,13 +171,16 @@ describe("the patch's name", () => {
     )
   })
 
-  it("leaves out what a file's name can't hold", () => {
+  it("leaves out what a file's name can't hold", async () => {
     setup()
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test/1")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
     rootStore.sequencerStore.patch = { ...patch(), name: "A/B: take?" }
     const data = new Map<string, string>()
-    fireEvent.dragStart(grid().getByRole("button", { name: "Step 1" }), {
+    const step = grid().getByRole("button", { name: "Step 1" })
+    fireEvent.pointerEnter(step)
+    await act(async () => {})
+    fireEvent.dragStart(step, {
       dataTransfer: {
         setData: (type: string, value: string) => data.set(type, value),
       },
