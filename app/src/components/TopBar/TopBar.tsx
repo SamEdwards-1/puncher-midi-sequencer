@@ -40,12 +40,8 @@ export const TopBar: FC<{ columns: Columns }> = ({ columns }) => {
             // grid's content does, 1rem in from its column's edge. No gap or
             // padding, which would move the columns off the editor's.
             cn("grid", THREE_COLUMN_TRACKS)
-          : columns === "two"
-            ? // the grid's column ends at the right of the window
-              "flex justify-between gap-2 px-4"
-            : // three columns, the outer two equal, so the transport sits in
-              // the middle of the bar whatever is to its left
-              "grid grid-cols-[minmax(max-content,1fr)_auto_1fr] gap-2 px-4",
+          : // the transport ends at the right of the window
+            "flex justify-between gap-2 px-4",
       )}
     >
       {columns === "three" ? (
