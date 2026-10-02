@@ -8,6 +8,7 @@ import {
   sameTarget,
   setModulation,
 } from "@midiseq/core"
+import { trackModulations } from "../services/analytics"
 import { describeModulation, modulationLabel } from "./describe"
 import {
   InputError,
@@ -140,7 +141,8 @@ export const modulationsTool = ({ stores, view, edit }: ToolContext) =>
       ["modulations"],
     ),
     run: (input) => {
-      let patch = stores.sequencerStore.patch
+      const before = stores.sequencerStore.patch
+      let patch = before
       const edited: ModulationTarget[] = []
       const removed: string[] = []
       const warnings: string[] = []
@@ -224,6 +226,7 @@ export const modulationsTool = ({ stores, view, edit }: ToolContext) =>
       }
 
       edit(patch)
+      trackModulations(before, patch, "agent")
       // a voice's gear is in the Voices panel, shown as a click on the
       // voice's tab shows it, which Sync follows
       const voice = edited.flatMap((target) =>

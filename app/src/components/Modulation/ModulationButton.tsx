@@ -25,6 +25,7 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatch, usePatchSelector } from "../../hooks/usePatch"
 import { useSelectedStep } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { trackModulationSet } from "../../services/analytics"
 import { TONICS } from "../../theory/scales"
 import { Button } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -123,6 +124,8 @@ const ModulationPopover: FC<{
   const showModulation = useShowModulation()
   const [step] = useSelectedStep()
   const popup = useRef<HTMLDivElement>(null)
+  // the changes made while it is open count as one edit
+  const editTracked = useRef(false)
   const existing = modulationOf(patch, target)
   // What isn't in the patch: a modulation still to be given, or a change to
   // one that can't land, its CC being another's. Until there is one, what
@@ -154,6 +157,10 @@ const ModulationPopover: FC<{
     setDraft(null)
     // a run of steps on the CC number is one edit
     editModulation(next, `modulation-${JSON.stringify(target)}`)
+    if (!editTracked.current) {
+      editTracked.current = true
+      trackModulationSet(next, "edit", "editor")
+    }
   }
 
   // below the gear, nudged back inside the window once its size is known

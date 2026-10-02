@@ -45,6 +45,7 @@ import {
 import { useCallback } from "react"
 import { useLandGrid, useShowGridEdit } from "../hooks/useSequencerView"
 import { useStores } from "../hooks/useStores"
+import { track, trackModulations } from "../services/analytics"
 
 /**
  * Every edit records the patch for undo first, then replaces it. A key marks
@@ -87,6 +88,7 @@ export function usePatchEditor() {
         recorder.setRecording(false)
         apply(importMidi(sequencerStore.patch, midi, options))
         landGrid()
+        track("midi_import")
       },
       [apply, recorder, sequencerStore, landGrid],
     ),
@@ -276,8 +278,11 @@ export function usePatchEditor() {
       [apply, sequencerStore],
     ),
     removeModulation: useCallback(
-      (target: ModulationTarget) =>
-        apply(removeModulation(sequencerStore.patch, target)),
+      (target: ModulationTarget) => {
+        const before = sequencerStore.patch
+        apply(removeModulation(before, target))
+        trackModulations(before, sequencerStore.patch, "editor")
+      },
       [apply, sequencerStore],
     ),
   }

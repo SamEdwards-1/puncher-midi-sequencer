@@ -5,6 +5,7 @@ import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
+import { track } from "../../services/analytics"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import {
   SOUNDFONT_EXTENSIONS,
@@ -47,6 +48,7 @@ export const SoundFontSettings: FC = () => {
     setAddError(null)
     try {
       await soundFonts.add(file.name, await file.arrayBuffer())
+      track("soundfont_add")
     } catch (error) {
       setAddError(error instanceof Error ? error.message : String(error))
     } finally {

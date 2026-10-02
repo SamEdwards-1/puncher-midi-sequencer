@@ -3,6 +3,7 @@
 import { ArrowUpRight, AudioLines } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { track } from "../lib/analytics"
 import { appUrl } from "../lib/config"
 
 export type NavItem = { slug: string; title: string; group: string }
@@ -40,7 +41,11 @@ export function Navigation({
             ))}
         </div>
       ))}
-      <a href={appUrl} className="nav-launch">
+      <a
+        href={appUrl}
+        className="nav-launch"
+        onClick={() => track("launch_app", { link_location: "navigation" })}
+      >
         Back to making music <ArrowUpRight size={15} />
       </a>
     </nav>

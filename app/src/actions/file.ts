@@ -26,6 +26,7 @@ import type { AudioRenderProgress } from "../audio/audioExport"
 import { useAccentAmount } from "../hooks/useAccentAmount"
 import { useStores } from "../hooks/useStores"
 import { AudioRenderCancelled, AudioRenderJob } from "../services/AudioRenderer"
+import { track, trackFailure } from "../services/analytics"
 import {
   isGone,
   MIDI_FILE,
@@ -71,6 +72,7 @@ const attempt = async <T>(
   try {
     return await run()
   } catch (error) {
+    trackFailure(what, error)
     complain(what, error)
     return null
   }
@@ -94,6 +96,8 @@ const attemptRecent = async <T>(
   try {
     return await run()
   } catch (error) {
+    // what was being done, without the file's name
+    trackFailure(`open a recent ${kind} file`, error)
     if (isGone(error)) {
       window.alert(
         `Couldn't find ${recent.name}. It may have been moved or deleted.`,
@@ -153,8 +157,9 @@ export function useFileActions() {
     [fileService, recentFiles],
   )
 
+  // `source` says whether the file was picked or was a recent one
   const loadText = useCallback(
-    (opened: { name: string; text: string }) => {
+    (opened: { name: string; text: string }, source: "picker" | "recent") => {
       const result = parseFile(opened.text)
       if (!result.ok) {
         window.alert(`Couldn't open that file. ${result.error}`)
@@ -166,17 +171,19 @@ export function useFileActions() {
         opened.name,
       )
       remember(opened.name)
+      track("patch_open", { source })
     },
     [load, remember],
   )
 
   const saved = useCallback(
-    (name: string | null) => {
+    (name: string | null, method: "save" | "save_as") => {
       if (name !== null) {
         sequencerStore.fileName = name
         sequencerStore.isSaved = true
         autoSave.clear()
         remember(name)
+        track("patch_save", { method })
       }
     },
     [sequencerStore, autoSave, remember],
@@ -187,6 +194,7 @@ export function useFileActions() {
       if (confirmDiscard()) {
         endTake()
         load(withPatchName(createDefaultPatch()), null)
+        track("patch_new")
       }
     }, [confirmDiscard, endTake, load]),
 
@@ -197,7 +205,7 @@ export function useFileActions() {
       endTake()
       const opened = await attempt("open a file", () => fileService.open())
       if (opened !== null) {
-        loadText(opened)
+        loadText(opened, "picker")
       }
     }, [confirmDiscard, endTake, fileService, loadText]),
 
@@ -212,7 +220,7 @@ export function useFileActions() {
           fileService.reopen(recent.handle),
         )
         if (opened !== null) {
-          loadText(opened)
+          loadText(opened, "recent")
         }
       },
       [confirmDiscard, endTake, fileService, recentFiles, loadText],
@@ -227,7 +235,7 @@ export function useFileActions() {
           nameFor(sequencerStore.fileName, sequencerStore.patch.name),
         ),
       )
-      saved(name)
+      saved(name, "save")
     }, [endTake, sequencerStore, fileService, saved]),
 
     saveAs: useCallback(async () => {
@@ -239,7 +247,7 @@ export function useFileActions() {
           nameFor(sequencerStore.fileName, sequencerStore.patch.name),
         ),
       )
-      saved(name)
+      saved(name, "save_as")
     }, [endTake, sequencerStore, fileService, saved]),
   }
 }
@@ -256,13 +264,16 @@ export function usePatternFileActions() {
   return {
     exportPatterns: useCallback(async () => {
       const text = serializePatterns(createPatternsFile(sequencerStore.patch))
-      await attempt("export the patterns", () =>
+      const name = await attempt("export the patterns", () =>
         fileService.saveCopy(
           text,
           patternsNameFor(sequencerStore.fileName, sequencerStore.patch.name),
           PATTERNS_FILE,
         ),
       )
+      if (name !== null) {
+        track("patterns_export")
+      }
     }, [sequencerStore, fileService]),
 
     importPatterns: useCallback(async () => {
@@ -278,6 +289,7 @@ export function usePatternFileActions() {
         return
       }
       replacePatterns(result.voices)
+      track("patterns_import")
     }, [fileService, replacePatterns]),
   }
 }
@@ -383,21 +395,29 @@ export function useMidiExport() {
         accentAmount,
         seed: freshSeed(),
       })
-      return attempt("export MIDI", () =>
+      const name = await attempt("export MIDI", () =>
         fileService.saveCopy(
           bytes,
           midiNameFor(sequencerStore.fileName, patch.name),
           MIDI_FILE,
         ),
       )
+      if (name !== null) {
+        track("midi_export", { scope: "sequence", method: "file" })
+      }
+      return name
     }, [sequencerStore, fileService, exportSettings, accentAmount]),
 
     exportStep: useCallback(
       async (step: StepIndex) => {
         const { bytes, name } = stepFile(step)
-        return attempt("export the step as MIDI", () =>
+        const written = await attempt("export the step as MIDI", () =>
           fileService.saveCopy(bytes, name, MIDI_FILE),
         )
+        if (written !== null) {
+          track("midi_export", { scope: "step", method: "file" })
+        }
+        return written
       },
       [stepFile, fileService],
     ),
@@ -489,7 +509,11 @@ export function useAudioRender() {
           return null
         }
         onStatus({ phase: "saving" })
-        return attempt("save the audio", () => file.close())
+        const kept = await attempt("save the audio", () => file.close())
+        if (kept !== null) {
+          track("audio_export", { format: settings.format })
+        }
+        return kept
       })()
       return {
         done,

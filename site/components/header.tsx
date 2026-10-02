@@ -13,6 +13,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
+import { track } from "../lib/analytics"
 import { appUrl, githubUrl } from "../lib/config"
 import { Navigation } from "./navigation"
 
@@ -30,6 +31,9 @@ export function Header({ index }: { index: SearchDoc[] }) {
   const searchDialog = useRef<HTMLDialogElement>(null)
   const menuDialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
+  // The last search counted. A search is counted as the dialog closes, once
+  // the reader is done typing, and not again when reopened unchanged.
+  const counted = useRef("")
   const [query, setQuery] = useState("")
   const [mode, setMode] = useState("light")
   const [skin, setSkin] = useState("moss")
@@ -69,6 +73,7 @@ export function Header({ index }: { index: SearchDoc[] }) {
     document.documentElement.dataset[key] = value
     if (key === "mode") setMode(value)
     else setSkin(value)
+    track("theme_change", { setting: key, value })
     try {
       localStorage.setItem(`puncher-docs-${key}`, value)
     } catch {
@@ -130,7 +135,11 @@ export function Header({ index }: { index: SearchDoc[] }) {
             <Link href="/" className="support-link">
               Support
             </Link>
-            <a href={appUrl} className="launch-link">
+            <a
+              href={appUrl}
+              className="launch-link"
+              onClick={() => track("launch_app", { link_location: "header" })}
+            >
               Launch app <ArrowUpRight size={15} />
             </a>
             <a
@@ -169,6 +178,15 @@ export function Header({ index }: { index: SearchDoc[] }) {
         onClick={(event) => {
           if (event.target === event.currentTarget)
             searchDialog.current?.close()
+        }}
+        onClose={() => {
+          const term = query.trim()
+          if (term === "" || term === counted.current) return
+          counted.current = term
+          track("search", {
+            search_term: term.slice(0, 100),
+            result_count: results.length,
+          })
         }}
       >
         <div className="search-inner">
