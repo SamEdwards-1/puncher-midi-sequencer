@@ -217,6 +217,10 @@ step plays. The **+** adds one, on the channel of the tab it's pressed from.
 In **Edit**, click the line to add a point, or double-click anywhere; drag a
 point, or drag the line to raise it; click a point to delete it. In **Draw**
 (press **B** with the graph focused), drag to paint values across the grid.
+In **Erase**, the mouse becomes an eraser: click a point to delete it, or drag
+across several. On a stepped line either end of a step, its point or the
+corner where it jumps on, erases the step, and the line steps again without
+it.
 Points snap to the **Grid**, 1/4 to 1/32 or triplets, unless you hold **Alt**.
 Point at the line, or drag, and the value there shows beside the mouse. A CC
 envelope **Steps** — each value holds until the next point, then jumps, as a

@@ -147,6 +147,38 @@ export const hitPoint = (
   return found
 }
 
+/**
+ * The vertex of the line as drawn under (x, y), if one is within `radius`,
+ * by the point it belongs to. Stepped, a jump's other end is a vertex too:
+ * one of the `stepCorners`.
+ */
+export const hitVertex = (
+  points: EnvelopePointJSON[],
+  plot: Plot,
+  x: number,
+  y: number,
+  shape: EnvelopeShape = "ramps",
+  radius = 7,
+): number | null => {
+  const vertices = [
+    ...points.map((point, index) => ({ ...point, index })),
+    ...(shape === "steps" ? stepCorners(points) : []),
+  ]
+  let found: number | null = null
+  let nearest = radius
+  for (const vertex of vertices) {
+    const distance = Math.hypot(
+      toX(plot, vertex.time) - x,
+      toY(plot, vertex.value) - y,
+    )
+    if (distance <= nearest) {
+      nearest = distance
+      found = vertex.index
+    }
+  }
+  return found
+}
+
 // The segment of the line under (x, y), if one is within `tolerance`.
 export const hitSegment = (
   points: EnvelopePointJSON[],
@@ -181,14 +213,18 @@ const px = (value: number) => Math.round(value * 100) / 100
 /**
  * Where a stepped line turns to rise or fall: at each point's time, at the
  * value held before it. Shown as handles in their own right, as Live shows
- * both ends of a jump, though only the point after it moves.
+ * both ends of a jump, though only the point after it moves. Each belongs
+ * to the point whose value it is held at, `index`, as the flat stretch
+ * between them does.
  */
-export const stepCorners = (points: EnvelopePointJSON[]): EnvelopePointJSON[] =>
+export const stepCorners = (
+  points: EnvelopePointJSON[],
+): (EnvelopePointJSON & { index: number })[] =>
   points.slice(1).flatMap((point, index) => {
     const before = points[index]
     return point.value === before.value
       ? []
-      : [{ time: point.time, value: before.value }]
+      : [{ time: point.time, value: before.value, index }]
   })
 
 // The line across the whole step, flat before the first point and after the

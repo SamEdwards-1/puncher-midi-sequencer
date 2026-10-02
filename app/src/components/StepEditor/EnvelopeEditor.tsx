@@ -9,6 +9,7 @@ import {
 import CloseIcon from "mdi-react/CloseIcon"
 import CursorDefaultOutlineIcon from "mdi-react/CursorDefaultOutlineIcon"
 import DotsVerticalIcon from "mdi-react/DotsVerticalIcon"
+import EraserIcon from "mdi-react/EraserIcon"
 import PencilIcon from "mdi-react/PencilIcon"
 import SlopeUphillIcon from "mdi-react/SlopeUphillIcon"
 import SquareWaveIcon from "mdi-react/SquareWaveIcon"
@@ -162,6 +163,10 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
           ({ cc, channel }) => cc === lane.cc && channel === lane.channel,
         ) ?? null)
       : null
+  // The eraser is for envelope points; a velocity lane, which has none, is
+  // edited as usual until a CC is open again.
+  const activeTool =
+    lane.kind === "velocity" && tool === "erase" ? "edit" : tool
   const laneChannel =
     lane.kind === "velocity" ? voices[lane.voice].channel : lane.channel
 
@@ -468,8 +473,8 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
               <Button
                 type="button"
                 size="sm"
-                active={tool === "edit"}
-                aria-pressed={tool === "edit"}
+                active={activeTool === "edit"}
+                aria-pressed={activeTool === "edit"}
                 // "Edit" alone is the menu in the bar
                 aria-label={localized["sequencer-envelope-edit-tool"]}
                 title={localized["sequencer-envelope-edit"]}
@@ -481,14 +486,29 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
               <Button
                 type="button"
                 size="sm"
-                active={tool === "draw"}
-                aria-pressed={tool === "draw"}
+                active={activeTool === "draw"}
+                aria-pressed={activeTool === "draw"}
                 title={`${localized["sequencer-envelope-draw"]} (B)`}
                 onClick={() => setTool("draw")}
               >
                 <PencilIcon size={14} />
                 <Localized name="sequencer-envelope-draw" />
               </Button>
+              {/* velocities are notes', not points, so there is nothing to
+                  erase on that lane */}
+              {lane.kind === "cc" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  active={activeTool === "erase"}
+                  aria-pressed={activeTool === "erase"}
+                  title={localized["sequencer-envelope-erase-hint"]}
+                  onClick={() => setTool("erase")}
+                >
+                  <EraserIcon size={14} />
+                  <Localized name="sequencer-envelope-erase" />
+                </Button>
+              )}
             </ButtonGroup>
             {lane.kind === "cc" && envelope !== null && (
               <ButtonGroup>

@@ -165,6 +165,27 @@ export const removePoint = (
 ): EnvelopePointJSON[] => points.filter((_, current) => current !== index)
 
 /**
+ * Rubs out a point. Stepped, its value goes and the one before holds on in
+ * its place, so the point after it, if that holds the same value, is left
+ * changing nothing — no step, only a handle on a flat line — and goes too.
+ */
+export const erasePoint = (
+  points: EnvelopePointJSON[],
+  index: number,
+  shape: EnvelopeShape = "ramps",
+): EnvelopePointJSON[] => {
+  const next = removePoint(points, index)
+  const before = next[index - 1]
+  const after = next[index]
+  return shape === "steps" &&
+    before !== undefined &&
+    after !== undefined &&
+    after.value === before.value
+    ? removePoint(next, index)
+    : next
+}
+
+/**
  * Lays `stroke` — points painted between `from` and `to` — over the
  * envelope, replacing whatever was there. The shape either side is kept by
  * pinning the old value at both ends, so the painted stretch joins it with a

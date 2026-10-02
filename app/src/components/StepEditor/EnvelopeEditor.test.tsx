@@ -339,6 +339,79 @@ describe("the envelope editor", () => {
     })
   })
 
+  describe("erasing", () => {
+    const useErase = () => click("Erase")
+    const three: EnvelopePointJSON[] = [
+      { time: 0.25, value: 32 },
+      { time: 0.5, value: 64 },
+      { time: 0.75, value: 96 },
+    ]
+
+    it("deletes the point clicked, and only that one", () => {
+      setup(three)
+      useErase()
+      clickAt(X(0.5), Y(64))
+      expect(points()).toEqual([three[0], three[2]])
+      // the line and empty space add nothing
+      clickAt(X(0.4), Y(48))
+      clickAt(X(0.6), Y(100))
+      expect(points()).toEqual([three[0], three[2]])
+    })
+
+    it("sweeps up the points a drag crosses, as one undo entry", () => {
+      setup(three)
+      const before = patch()
+      useErase()
+      dragFrom(
+        [X(0.2), Y(32)],
+        [
+          [X(0.25), Y(32)],
+          [X(0.5), Y(64)],
+        ],
+      )
+      expect(points()).toEqual([three[2]])
+      fireEvent.click(editItem("Undo"))
+      expect(patch()).toBe(before)
+    })
+
+    it("does not step over a point in a quick stroke", () => {
+      setup(three)
+      useErase()
+      // one move from before the first point to past the last
+      dragFrom([X(0.1), Y(40)], [[X(0.9), Y(40)]])
+      expect(points()).toEqual([three[0], three[1], three[2]])
+      // and along the line through all three, in the one move
+      dragFrom([X(0.2), Y(26)], [[X(0.8), Y(102)]])
+      expect(points()).toEqual([])
+    })
+
+    it("shows the tool as chosen, and B goes back to drawing and editing", () => {
+      setup(three)
+      useErase()
+      expect(screen.getByRole("button", { name: "Erase" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      )
+      expect(frame()).toHaveAttribute("data-tool", "erase")
+      // the system's pointer gives way to an eraser drawn where the mouse is,
+      // its rubbing edge on the spot
+      const eraser = () => svg().querySelector("[data-eraser-cursor]")
+      expect(svg().style.cursor).toBe("none")
+      expect(eraser()).toBeNull()
+      fireEvent.mouseMove(svg(), { clientX: 100, clientY: 50 })
+      expect(eraser()).toHaveAttribute("transform", "translate(94 32)")
+      fireEvent.mouseLeave(svg())
+      expect(eraser()).toBeNull()
+
+      frame().focus()
+      fireEvent.keyDown(frame(), { code: "KeyB" })
+      expect(frame()).toHaveAttribute("data-tool", "draw")
+      fireEvent.mouseMove(svg(), { clientX: 100, clientY: 50 })
+      expect(eraser()).toBeNull()
+      expect(svg().style.cursor).toBe("crosshair")
+    })
+  })
+
   describe("drawing", () => {
     const useDraw = () => click("Draw")
 

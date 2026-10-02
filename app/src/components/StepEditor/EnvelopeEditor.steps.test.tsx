@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   centreX,
   click,
+  clickAt,
   dragFrom,
   envelopes,
   openEditor,
@@ -233,6 +234,30 @@ describe("clicking between steps", () => {
       click("Ramps")
       expect(envelopes()[0].shape).toBe("ramps")
       expect(line()).toBe(ramped)
+    })
+
+    it("erases a step by either end, stepping again without it", () => {
+      const peak: EnvelopePointJSON[] = [
+        { time: 0.25, value: 32 },
+        { time: 0.5, value: 96 },
+        { time: 0.75, value: 32 },
+      ]
+      setup(peak)
+      click("Steps")
+      click("Erase")
+      const lit = (handle: string) =>
+        svg().querySelector(handle)?.getAttribute("fill") ===
+        "var(--midiseq-envelope)"
+      // the eraser over the 96's far corner lights it with its point
+      fireEvent.mouseMove(svg(), { clientX: X(0.75), clientY: Y(96) })
+      expect(lit('[data-corner="1"]')).toBe(true)
+      expect(lit('[data-point="1"]')).toBe(true)
+      expect(lit('[data-corner="0"]')).toBe(false)
+
+      clickAt(X(0.75), Y(96))
+      // the 96 goes, and the 32 after it would hold what is held already
+      expect(points()).toEqual([peak[0]])
+      expect(svg().querySelectorAll("[data-corner]")).toHaveLength(0)
     })
 
     it("steps a CC drawn onto a step that had none", () => {
