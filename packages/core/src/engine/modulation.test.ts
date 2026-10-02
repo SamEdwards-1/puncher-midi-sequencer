@@ -331,7 +331,7 @@ describe("modulation as the sequence plays", () => {
     expect(notes[4].note).toBe(65)
   })
 
-  it("fits what Transpose moves by the modulated fit", () => {
+  it("fits what Transpose moves by the voice's modulated fit", () => {
     patch.scale = {
       tonic: 0,
       name: "major",
@@ -341,7 +341,7 @@ describe("modulation as the sequence plays", () => {
     patch.transposeAmt = 1
     modulate(
       {
-        target: { kind: "sequencer", setting: "transposeFit" },
+        target: { kind: "voice", voice: 0, setting: "transposeFit" },
         cc: 3,
         from: "up",
         to: "down",

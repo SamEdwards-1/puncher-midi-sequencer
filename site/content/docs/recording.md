@@ -12,7 +12,7 @@ order: 11
 3. Arm **Record**, then select the starting step.
 4. Play a chord or enter notes one at a time.
 
-The target advances only after the step reaches its note limit. Repeating a key already in the step does not add another copy. With a scale selected, recorded notes fit upward to that scale.
+The target advances only after the step reaches its note limit. Repeating a key already in the step does not add another copy. With a scale selected, recorded notes fit to it as the Sequencer panel's **Recording fit** says.
 
 ## Record controller movements {#record-controllers}
 

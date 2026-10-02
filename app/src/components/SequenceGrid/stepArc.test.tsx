@@ -2,7 +2,7 @@ import { createDefaultPatch } from "@midiseq/core"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
-import { FakeClock, ManualTicker } from "../../test/fakes"
+import { FakeClock, immediateStepWork, ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -34,6 +34,7 @@ const setup = () => {
     ticker,
     now: clock.now,
     storage: null,
+    stepWork: immediateStepWork(),
   })
   rootStore.sequencerStore.patch = {
     ...createDefaultPatch(),

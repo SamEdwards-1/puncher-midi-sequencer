@@ -47,6 +47,11 @@ const settle = () => act(() => new Promise((done) => setTimeout(done, 0)))
 describe("the SoundFont settings", () => {
   const open = async () => {
     const storage = memoryStorage()
+    // the synth left unchosen, so a test can choose it
+    storage.setItem(
+      "midiseq.midiOutputs",
+      JSON.stringify({ all: [], voices: [null, null, null, null] }),
+    )
     const context = {
       state: "suspended",
       currentTime: 0,

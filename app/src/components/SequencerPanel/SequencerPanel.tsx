@@ -305,7 +305,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           </ModulatedField>
 
           <ModulatedField
-            label={localized["sequencer-transpose-fit"]}
+            label={localized["sequencer-record-fit"]}
             target={target("transposeFit")}
           >
             {(shown) => (

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import { MIDIDeviceStore } from "./MIDIDeviceStore"
+import { noOutputsChosen } from "../test/fakes"
+import { BUILTIN_OUTPUT, MIDIDeviceStore } from "./MIDIDeviceStore"
 
 const fakeOutput = (id: string, name: string, state = "connected") =>
   ({ id, name, state, send: vi.fn(), clear: vi.fn() }) as unknown as MIDIOutput
@@ -38,7 +39,7 @@ describe("MIDIDeviceStore", () => {
     const access = fakeAccess([loop, synth])
     const store = new MIDIDeviceStore(
       async () => access as unknown as MIDIAccess,
-      memoryStorage(),
+      noOutputsChosen(),
     )
     await store.requestMIDIAccess()
 
@@ -63,7 +64,7 @@ describe("MIDIDeviceStore", () => {
     const access = fakeAccess([fakeOutput("a", "midiseq out")])
     const store = new MIDIDeviceStore(
       async () => access as unknown as MIDIAccess,
-      memoryStorage(),
+      noOutputsChosen(),
     )
     await store.requestMIDIAccess()
     store.toggleOutput("midiseq out", true)
@@ -79,8 +80,19 @@ describe("MIDIDeviceStore", () => {
     expect(store.assignment.all).toEqual([replugged])
   })
 
-  it("remembers the chosen port names", () => {
+  it("starts with the built-in synth the first time", () => {
     const storage = memoryStorage()
+    const first = new MIDIDeviceStore(null, storage)
+    expect(first.outputNames.all).toEqual([BUILTIN_OUTPUT])
+
+    // unticked, it stays unticked
+    first.toggleOutput(BUILTIN_OUTPUT, false)
+    const second = new MIDIDeviceStore(null, storage)
+    expect(second.outputNames.all).toEqual([])
+  })
+
+  it("remembers the chosen port names", () => {
+    const storage = noOutputsChosen()
     const first = new MIDIDeviceStore(null, storage)
     first.setVoiceOutput(2, "Synth")
     first.toggleOutput("midiseq out", true)

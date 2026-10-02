@@ -30,6 +30,7 @@ import {
   toBeatTimes,
   toStepTimes,
   updateEnvelope,
+  VoiceDot,
   VoiceIndex,
   valueAt,
 } from "@midiseq/core"
@@ -42,6 +43,7 @@ import {
   MouseEvent as ReactMouseEvent,
   RefObject,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -49,8 +51,14 @@ import {
 } from "react"
 import { usePatchGesture } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
+import { useMobxSelector } from "../../hooks/useMobxSelector"
 import { usePatchSelector } from "../../hooks/usePatch"
-import { useEnvelopeGrid, useEnvelopeTool } from "../../hooks/useSequencerView"
+import {
+  useEnvelopeGrid,
+  useEnvelopeTool,
+  useHoveredDot,
+  useSetPointedNoteDot,
+} from "../../hooks/useSequencerView"
 import { useStepPreview } from "../../hooks/useStepPreview"
 import { useStores } from "../../hooks/useStores"
 import { useLocalization } from "../../localize/useLocalization"
@@ -61,6 +69,7 @@ import { EnvelopeRuler, RULER_HEIGHT } from "./EnvelopeRuler"
 import {
   areaPath,
   cellAt,
+  hitBar,
   hitPoint,
   hitSegment,
   hitVertex,
@@ -232,7 +241,10 @@ const axisStops = (
 /**
  * One step's CC envelope, or its notes' velocities, over a piano roll of the
  * notes the step plays. The notes follow the voices — pace, pattern,
- * ratchets, length, rule — and can't be touched here.
+ * ratchets, length, rule — and can't be touched here. Pointing at one, or at
+ * its lollipop, draws it in the text's colour and has the Voices panel mark
+ * the dot that played it, unless the sequence is running; pointing at a dot
+ * there brings its notes up out of a velocity lane's dimmed ones.
  *
  * An envelope is edited as in Live, drawn as in Signal's control pane. Edit:
  * click the line to add a point on it, double-click anywhere to place one,
@@ -262,7 +274,7 @@ export const EnvelopeGraph: FC<{
   lane: GraphLane
   height?: number
 }> = ({ step, lane, height = GRAPH_HEIGHT }) => {
-  const { sequencerStore } = useStores()
+  const { sequencerStore, player } = useStores()
   // what the graph reads of the patch, each part on its own, so an edit
   // that changes none of them passes it by
   const voices = usePatchSelector((patch) => patch.voices)
@@ -274,6 +286,14 @@ export const EnvelopeGraph: FC<{
     lane.kind === "velocity" && chosenTool === "erase" ? "edit" : chosenTool
   const [gridBeats] = useEnvelopeGrid()
   const { accentAmount } = useAccentAmount()
+  // the sequence moving on, Play pressed and not paused since
+  const running = useMobxSelector(
+    () => player.isPlaying && !player.isPaused,
+    [player],
+  )
+  const setPointedNoteDot = useSetPointedNoteDot()
+  // the pattern dot under the mouse in the Voices panel
+  const [hoveredDot] = useHoveredDot()
   const localized = useLocalization()
   const frame = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -380,6 +400,16 @@ export const EnvelopeGraph: FC<{
   )
   const keyHeight = (height - 2 * PAD) / rows.length
   const keyY = (note: number) => PAD + (rowOf.get(note) ?? 0) * keyHeight
+  // each note's bar in the roll, where it is drawn and pointed at
+  const bars = notes
+    .filter((note) => rowOf.has(note.note))
+    .map((note) => ({
+      note,
+      x: toX(plot, note.start),
+      y: keyY(note.note) + 0.5,
+      width: Math.max(1, toX(plot, note.end) - toX(plot, note.start)),
+      height: Math.max(1, keyHeight - 1),
+    }))
   // the envelope's line; a velocity lane has lollipops instead
   const points: EnvelopePointJSON[] = envelopePoints
   const span = { x: width - 2 * PAD, y: height - 2 * PAD }
@@ -871,6 +901,68 @@ export const EnvelopeGraph: FC<{
     }
   })()
 
+  // The note pointed at, whose dot the Voices panel marks, and its bar in
+  // the roll, if it has one: the lollipop hovered on a velocity lane, or
+  // else a note in the roll — though none under the envelope's point or
+  // line, which have the mouse, none while a stroke is drawn or erased, and
+  // none while the sequence runs, its notes coming and going under the mouse.
+  const pointedNote = ((): (VoiceDot & { bar: number | null }) | null => {
+    if (running || pointer === null || (dragging && tool !== "edit")) {
+      return null
+    }
+    if (lane.kind === "velocity" && hover.point !== null) {
+      const point = velocities[hover.point]
+      if (point === undefined) {
+        return null
+      }
+      // the lollipop's own note, from its dot and starting with it
+      const bar = bars.findIndex(
+        ({ note }) =>
+          note.voice === point.voice &&
+          note.dot === point.dot &&
+          note.start === point.time,
+      )
+      return {
+        voice: point.voice,
+        dot: point.dot,
+        bar: bar === -1 ? null : bar,
+      }
+    }
+    if (hover.point !== null || hover.segment !== null) {
+      return null
+    }
+    const bar = hitBar(bars, pointer.x, pointer.y)
+    if (bar === null) {
+      return null
+    }
+    const { voice, dot } = bars[bar].note
+    return { voice, dot, bar }
+  })()
+
+  // The bars as drawn, any that stand out over the rest: the one pointed at,
+  // in the text's colour, which stands off the roll in every theme, and the
+  // notes of the dot under the mouse in the Voices panel, which a velocity
+  // lane leaves undimmed.
+  const shownBars = bars
+    .map((bar, index) => ({
+      ...bar,
+      pointedAt: index === pointedNote?.bar,
+      lit:
+        hoveredDot !== null &&
+        bar.note.voice === hoveredDot.voice &&
+        bar.note.dot === hoveredDot.dot,
+    }))
+    .sort((a, b) => Number(a.pointedAt || a.lit) - Number(b.pointedAt || b.lit))
+  const pointedVoice = pointedNote?.voice
+  const pointedDot = pointedNote?.dot
+  useEffect(() => {
+    if (pointedVoice === undefined || pointedDot === undefined) {
+      return
+    }
+    setPointedNoteDot({ voice: pointedVoice, dot: pointedDot })
+    return () => setPointedNoteDot(null)
+  }, [pointedVoice, pointedDot, setPointedNoteDot])
+
   // the modulated setting's values, where they are ruled and named
   const stopSpacing =
     stops.length > 1 ? span.y / (stops.length - 1) : Number.POSITIVE_INFINITY
@@ -1006,26 +1098,32 @@ export const EnvelopeGraph: FC<{
               />
             ))}
 
-            {notes
-              .filter((note) => rowOf.has(note.note))
-              .map((note) => (
-                <rect
-                  key={`${note.voice}-${note.note}-${note.start}`}
-                  data-note={note.note}
-                  data-voice={note.voice}
-                  x={toX(plot, note.start)}
-                  y={keyY(note.note) + 0.5}
-                  width={Math.max(
-                    1,
-                    toX(plot, note.end) - toX(plot, note.start),
-                  )}
-                  height={Math.max(1, keyHeight - 1)}
-                  rx={2}
-                  fill={`var(--midiseq-voice-${note.voice})`}
-                  // faded under lollipops, whose stems they would pass for
-                  fillOpacity={lane.kind === "velocity" ? 0.25 : undefined}
-                />
-              ))}
+            {shownBars.map(({ note, x, y, width, height, pointedAt, lit }) => (
+              <rect
+                key={`${note.voice}-${note.note}-${note.start}`}
+                data-note={note.note}
+                data-voice={note.voice}
+                data-pointed={pointedAt || undefined}
+                data-lit={lit || undefined}
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                rx={2}
+                fill={
+                  pointedAt
+                    ? "var(--midiseq-fg)"
+                    : `var(--midiseq-voice-${note.voice})`
+                }
+                // faded under lollipops, whose stems they would pass for,
+                // all but those standing out
+                fillOpacity={
+                  lane.kind === "velocity" && !pointedAt && !lit
+                    ? 0.25
+                    : undefined
+                }
+              />
+            ))}
 
             {lane.kind === "velocity" &&
               [lane.voice].map((voice) => {

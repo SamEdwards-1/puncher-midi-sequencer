@@ -2,11 +2,15 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
 import { opened } from "../../test/dialogs"
-import { ManualTicker } from "../../test/fakes"
+import { ManualTicker, noOutputsChosen } from "../../test/fakes"
 import { App } from "../App/App"
 
 const createStore = () =>
-  new RootStore({ requestMIDIAccess: null, ticker: new ManualTicker() })
+  new RootStore({
+    requestMIDIAccess: null,
+    ticker: new ManualTicker(),
+    storage: noOutputsChosen(),
+  })
 
 const status = () => screen.queryByRole("status")
 

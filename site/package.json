@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "node scripts/serve.mjs dev",
     "build": "next build",
-    "start": "node scripts/serve.mjs start",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test tests/content.test.mjs",
     "test:smoke": "node --test tests/smoke.test.mjs"

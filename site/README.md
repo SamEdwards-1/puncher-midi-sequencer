@@ -19,18 +19,22 @@ The support site starts at http://localhost:3001. If that port is occupied, the 
 npm run build --workspace site
 npm run typecheck --workspace site
 npm test --workspace site
-npm run start --workspace site
+npm run dev --workspace site
 # In a second terminal, while the site is running:
 npm run test:smoke --workspace site
 ```
 
-`test` validates guide URLs, section anchors, cross-references, and screenshot files. `test:smoke` checks all rendered routes, local links, images, and the 404 response. Set `SITE_TEST_URL` to test a different port. The site uses self-hosted font packages; a production build does not fetch fonts from Google.
+`test` validates guide URLs, section anchors, cross-references, and screenshot files. `test:smoke` checks all rendered routes, local links, images, and the 404 response. Set `SITE_TEST_URL` to test a different port. The site uses self-hosted font packages; a production build does not fetch fonts from Google. A production build writes static files to `site/out`.
 
 ## Configure the app link
 
-Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_APP_URL` to the sequencer URL. It defaults to `http://localhost:3000`. Set the production URL before building: Next.js includes it in the browser bundle at build time. The GitHub URL lives in `lib/config.ts`.
+Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_APP_URL` to the sequencer URL if needed. It defaults to `http://localhost:3000` in development and `/edit` in production. Next.js includes the URL in the browser bundle at build time. The GitHub URL lives in `lib/config.ts`.
 
-Deploy this workspace as a Next.js application. Install dependencies from the monorepo root and build with `npm run build --workspace site`. All documentation routes are prerendered; the Next.js server handles image optimization. No publishing credentials or hosting service are required for local development.
+## Publish the docs and editor together
+
+From the repository root, run `npm run build:publish`. This builds the Next.js documentation as static HTML and the Vite editor with an `/edit/` asset base, then assembles both into `dist/publish`. The docs live at `/` and `/docs/*`; the editor lives at `/edit`. Deploy `dist/publish` as one static site.
+
+For Cloudflare Pages, connect the repository with its root as the build directory, use `npm run build:publish` as the build command, and set `dist/publish` as the output directory. Attach `punchermidi.app` to that Pages project. An apex domain on Pages requires Cloudflare nameservers, so add the domain to Cloudflare and change its nameservers at GoDaddy. Keep any existing email or other DNS records when moving DNS. The default production app link is `/edit`; set `NEXT_PUBLIC_APP_URL` at build time only if the editor URL changes. No publishing credentials or hosting service are required for local development.
 
 ## Design system and skins
 

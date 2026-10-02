@@ -63,6 +63,11 @@ describe("the settings dialog", () => {
   const open = async () => {
     now = 1000
     storage = memoryStorage()
+    // routed only as each test ticks, rather than to the first run's synth
+    storage.setItem(
+      "midiseq.midiOutputs",
+      JSON.stringify({ all: [], voices: [null, null, null, null] }),
+    )
     rootStore = new RootStore({
       ticker: new ManualTicker(),
       storage,
@@ -130,24 +135,57 @@ describe("the settings dialog", () => {
     expect(storage.getItem("midiseq.midiModulationCCs")).toBe("false")
   })
 
-  it("shows a voice's instrument only while the built-in synth plays it", async () => {
+  it("lets a voice's instrument be changed only while the built-in synth plays it", async () => {
     const dialog = await openMIDI()
     const instrument = () =>
-      within(screen.getByRole("region", { name: "Voices" })).queryByLabelText(
+      within(screen.getByRole("region", { name: "Voices" })).getByLabelText(
         "Instrument",
       )
-    expect(instrument()).toBeNull()
+    expect(instrument()).toBeDisabled()
 
     fireEvent.click(dialog.getByRole("checkbox", { name: "Built-in synth" }))
-    expect(instrument()).not.toBeNull()
+    expect(instrument()).toBeEnabled()
     fireEvent.click(dialog.getByRole("checkbox", { name: "Built-in synth" }))
-    expect(instrument()).toBeNull()
+    expect(instrument()).toBeDisabled()
 
     // the selected voice, the first, given the synth for its own
     fireEvent.change(dialog.getByLabelText(/Voice 1/), {
       target: { value: "Built-in synth" },
     })
-    expect(instrument()).not.toBeNull()
+    expect(instrument()).toBeEnabled()
+  })
+
+  it("mutes the built-in synth from beside a voice's instrument", async () => {
+    const dialog = await openMIDI()
+    const synth = dialog.getByRole("checkbox", { name: "Built-in synth" })
+    fireEvent.click(synth)
+    const mute = () =>
+      within(screen.getByRole("region", { name: "Voices" })).getByRole(
+        "button",
+        { name: "Mute the built-in synth" },
+      )
+    expect(mute()).toHaveAttribute("aria-pressed", "false")
+
+    // unticked as the dialog would, and still there to unmute it
+    fireEvent.click(mute())
+    expect(midi().outputNames.all).toEqual([])
+    expect(synth).not.toBeChecked()
+    expect(mute()).toHaveAttribute("aria-pressed", "true")
+    expect(mute()).toHaveAttribute(
+      "title",
+      "Toggle built-in synth MIDI output setting",
+    )
+    // with nothing to play it, the instrument can't be changed
+    const instrument = () =>
+      within(screen.getByRole("region", { name: "Voices" })).getByLabelText(
+        "Instrument",
+      )
+    expect(instrument()).toBeDisabled()
+
+    fireEvent.click(mute())
+    expect(midi().outputNames.all).toEqual(["Built-in synth"])
+    expect(synth).toBeChecked()
+    expect(instrument()).toBeEnabled()
   })
 
   it("keeps a port of its own for a voice", async () => {
