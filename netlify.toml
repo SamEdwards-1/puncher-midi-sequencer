@@ -1,0 +1,8 @@
+# The docs at /, the editor at /edit: the editor is built for an /edit/
+# asset base, so publishing its own build at the root leaves a blank page.
+[build]
+  command = "npm run build:publish"
+  publish = "dist/publish"
+
+[build.environment]
+  NODE_VERSION = "22"
