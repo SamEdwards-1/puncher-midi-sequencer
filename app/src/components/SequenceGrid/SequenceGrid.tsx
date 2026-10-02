@@ -350,8 +350,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const position = useMobxGetter(player, "position")
   const target = useMobxGetter(recorder, "target")
   const isRecording = useMobxGetter(recorder, "isRecording")
-  // Audition step is off while the sequence plays: a click then picks the
-  // step to play next rather than sounding it over the sequence
+  // Audition step is off while the sequence plays, paused or not, until it
+  // is stopped: a click then picks the step to play next rather than
+  // sounding it over the sequence
   const isPlaying = useMobxGetter(player, "isPlaying")
   // an auditioned step shows as the sequence's playing step does
   const auditioned = useAuditioned()

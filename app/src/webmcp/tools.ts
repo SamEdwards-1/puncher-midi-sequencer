@@ -96,6 +96,7 @@ export const createTools = (
     const status = sound()
     return {
       playing: player.isPlaying,
+      ...(player.isPaused && { paused: true }),
       // the grid position sounding, whose step Flip can swap for another
       step: player.position === null ? null : player.position + 1,
       recording: recorder.isRecording,
@@ -148,18 +149,35 @@ export const createTools = (
       name: "play",
       title: "Play",
       description:
-        "Starts the sequence playing from its start, to the outputs ticked in Settings → MIDI. Returns what is playing, and why nothing would be heard, if anything is in the way.",
+        "Starts the sequence playing from its start, or a paused one from where it was paused, to the outputs ticked in Settings → MIDI. Returns what is playing, and why nothing would be heard, if anything is in the way.",
       input: NO_INPUT,
       run: () => {
-        const already = player.isPlaying
+        const paused = player.isPaused
+        const already = player.isPlaying && !paused
         player.play()
         const status = sound()
         return {
           playing: true,
           ...(already && { note: "It was playing already" }),
+          ...(paused && { note: "It plays on from where it was paused" }),
           tempo: sequencerStore.patch.tempo,
           ...(status !== null && { sound: status }),
         }
+      },
+    }),
+
+    tool({
+      name: "pause",
+      title: "Pause",
+      description:
+        "Pauses the playing sequence where it is, silencing anything sounding; play then plays on from there. Selecting a step still sounds nothing until it is stopped.",
+      input: NO_INPUT,
+      run: () => {
+        if (!player.isPlaying) {
+          return { playing: false, note: "It wasn't playing" }
+        }
+        player.pause()
+        return { playing: true, paused: true }
       },
     }),
 
