@@ -232,41 +232,6 @@ describe("preview on click", () => {
   })
 })
 
-describe("marking rests and skips", () => {
-  // the modes sit in the sequencer's panel, not the grid's
-  const clickMode = (name: "Rest" | "Skip") =>
-    fireEvent.click(
-      within(screen.getByRole("region", { name: "Sequencer" })).getByRole(
-        "button",
-        { name },
-      ),
-    )
-
-  it("marks and unmarks steps while the mode is on", () => {
-    setup()
-    clickMode("Rest")
-    click("Step 2")
-    click("Step 3")
-    expect(patch().steps[1].state).toBe("rest")
-    expect(patch().steps[2].state).toBe("rest")
-
-    // clicking a marked step takes the mark off again
-    click("Step 2")
-    expect(patch().steps[1].state).toBe("normal")
-
-    clickMode("Rest")
-    click("Step 4")
-    expect(patch().steps[3].state).toBe("normal")
-  })
-
-  it("marks skips", () => {
-    setup()
-    clickMode("Skip")
-    click("Step 6")
-    expect(patch().steps[5].state).toBe("skip")
-  })
-})
-
 describe("action buttons", () => {
   it("holds an action while the button is down", () => {
     setup()

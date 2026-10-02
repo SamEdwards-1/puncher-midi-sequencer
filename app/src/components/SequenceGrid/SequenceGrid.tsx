@@ -297,7 +297,7 @@ const useSize = (ref: RefObject<HTMLElement | null>) => {
 export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const { sequencerStore, player, recorder } = useStores()
   const localized = useLocalization()
-  const { editJump, editStepState } = usePatchEditor()
+  const { editJump } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const [preview, setPreview] = usePreviewOnClick()
   // a step dragged out of the browser lands as its MIDI file
@@ -363,15 +363,10 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const edit = useEditShown(stepCount(size))
 
   const onStepClick = (index: number) => {
-    // a mode takes over the click: set a jump target, or mark rests and skips
+    // a mode takes over the click: set a jump target
     if (mode === "dest" || mode === "normal") {
       editJump(selected, { [mode]: index })
       setMode(null)
-      return
-    }
-    if (mode === "rest" || mode === "skip") {
-      const current = sequencerStore.patch.steps[index].state
-      editStepState(index, current === mode ? "normal" : mode)
       return
     }
 
