@@ -23,6 +23,7 @@ import ArrowExpandUpIcon from "mdi-react/ArrowExpandUpIcon"
 import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import HeadphonesIcon from "mdi-react/HeadphonesIcon"
+import MusicNoteIcon from "mdi-react/MusicNoteIcon"
 import VolumeHighIcon from "mdi-react/VolumeHighIcon"
 import VolumeOffIcon from "mdi-react/VolumeOffIcon"
 import { comparer } from "mobx"
@@ -34,6 +35,8 @@ import { useActions } from "../../hooks/useActions"
 import { useMobxGetter, useMobxSelector } from "../../hooks/useMobxSelector"
 import { usePatchSelector } from "../../hooks/usePatch"
 import {
+  useHoveredDot,
+  usePointedNoteDot,
   useSelectedLane,
   useSelectedStep,
   useSelectedVoice,
@@ -168,6 +171,16 @@ const dotClass = (
     dot.condition !== "always" && CONDITION_MARK,
   )
 }
+
+/**
+ * The colour of the music note a dot shows while a note it played is pointed
+ * at in the piano roll, picked to stand out from what lies under it: the
+ * on-surface colour on a filled dot, as a ratchet count has, and otherwise
+ * the text's — a hollow dot's outline leaves the panel showing through, and
+ * one off is the steps' grey.
+ */
+const noteMarkClass = (dot: PatternStepJSON) =>
+  dot.on && dot.probability >= 100 ? "text-on-surface" : "text-fg"
 
 // `header` is left off when the panel sits under a tab that names it.
 export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
@@ -481,11 +494,16 @@ const Patterns: FC<{
     })
     return at
   }, [collisions])
-  // the dot under the mouse, whose collisions bob wherever they're marked
-  const [hovered, setHovered] = useState<string | null>(null)
+  // the dot under the mouse, whose collisions bob wherever they're marked,
+  // and whose notes come up out of the piano roll's dimmed ones
+  const [hoveredDot, setHoveredDot] = useHoveredDot()
   const bouncing = new Set(
-    hovered === null ? [] : (collisionsAt.get(hovered) ?? []),
+    hoveredDot === null
+      ? []
+      : (collisionsAt.get(`${hoveredDot.voice}:${hoveredDot.dot}`) ?? []),
   )
+  // the dot that played the note pointed at in the piano roll
+  const pointedNoteDot = usePointedNoteDot()
 
   // Editing a dot brings its voice up: its tab in the fields above, and its
   // Velocity tab in the step editor if a Velocity tab is what is open there.
@@ -637,6 +655,9 @@ const Patterns: FC<{
                   const accent = shownAccent(voice.velocity, accentAmount, dot)
                   const collided =
                     collisionsAt.get(`${voiceIndex}:${dotIndex}`) ?? []
+                  const pointed =
+                    pointedNoteDot?.voice === voiceIndex &&
+                    pointedNoteDot.dot === dotIndex
                   return (
                     <button
                       // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
@@ -659,11 +680,17 @@ const Patterns: FC<{
                       data-collisions={
                         collided.length > 0 ? collided.join(" ") : undefined
                       }
-                      className={dotClass(
-                        dot,
-                        accent,
-                        dotIndex >= voice.patternLength,
-                        editing,
+                      className={cn(
+                        dotClass(
+                          dot,
+                          accent,
+                          // past the pattern's end, though a step
+                          // lengthening it may play it: whole while marked
+                          dotIndex >= voice.patternLength && !pointed,
+                          editing,
+                        ),
+                        // a quick bounce as its music note appears
+                        pointed && "dot-pulse",
                       )}
                       style={{ gridRow: 1, gridColumn: dotIndex + 1 }}
                       title={[
@@ -688,9 +715,9 @@ const Patterns: FC<{
                         focusVoice(voiceIndex)
                       }}
                       onMouseEnter={() =>
-                        setHovered(`${voiceIndex}:${dotIndex}`)
+                        setHoveredDot({ voice: voiceIndex, dot: dotIndex })
                       }
-                      onMouseLeave={() => setHovered(null)}
+                      onMouseLeave={() => setHoveredDot(null)}
                       onContextMenu={(event) => {
                         event.preventDefault()
                         focusVoice(voiceIndex)
@@ -701,7 +728,23 @@ const Patterns: FC<{
                         })
                       }}
                     >
-                      {dot.ratchet > 1 ? dot.ratchet : ""}
+                      {pointed ? (
+                        // in place of any ratchet count while it shows
+                        <span
+                          aria-hidden
+                          data-note-mark
+                          className={cn(
+                            "absolute inset-0 flex items-center justify-center",
+                            noteMarkClass(dot),
+                          )}
+                        >
+                          <MusicNoteIcon size="85%" />
+                        </span>
+                      ) : dot.ratchet > 1 ? (
+                        dot.ratchet
+                      ) : (
+                        ""
+                      )}
                       {collided.length > 0 && (
                         // above the dot and clear of the band's line, one
                         // chevron per collision it is in, each in that

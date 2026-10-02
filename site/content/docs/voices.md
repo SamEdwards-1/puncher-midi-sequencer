@@ -40,7 +40,7 @@ Dots show their settings: ratchets carry a number, low-probability dots are holl
 
 By default, voice patterns continue across sequencer steps. With a bar-long step and an eighth-note voice, step 1 uses dots 1–8 and step 2 uses dots 9–16 of a sixteen-dot pattern. **Sync voices** resets the patterns at every step instead.
 
-An outline marks the dots used by the selected or sounding step. The piano roll and velocity lanes show the same notes. Small chevrons mark simultaneous notes of the same pitch in different voices; hover to see which voices collide.
+An outline marks the dots used by the selected or sounding step. The piano roll and velocity lanes show the same notes. While the sequence is stopped or paused, hover a note in the piano roll, or its lollipop in a velocity lane, to highlight it and bounce a music note onto the dot that played it. Hover a dot to bring its notes forward in a velocity lane, where the others stay dimmed. Small chevrons mark simultaneous notes of the same pitch in different voices; hover to see which voices collide.
 
 ## Reuse a set of voices {#reuse-patterns}
 
