@@ -14,7 +14,7 @@ describe("OutputStatus", () => {
     const rootStore = createStore()
     render(<App rootStore={rootStore} />)
 
-    expect(status()).toHaveTextContent(/pick an output in MIDI/)
+    expect(status()).toHaveTextContent(/Pick an output in MIDI settings/)
 
     act(() => {
       rootStore.midiDeviceStore.toggleOutput("loopMIDI Port", true)
@@ -57,11 +57,51 @@ describe("OutputStatus", () => {
     expect(text()).not.toMatch(/record from/)
 
     fireEvent.click(screen.getByRole("button", { name: "Record" }))
-    expect(text()).toMatch(/tick a MIDI input in Settings/)
+    expect(text()).toMatch(/Tick a MIDI input in Settings/)
 
     act(() => {
       rootStore.midiDeviceStore.toggleInput("Keystation", true)
     })
     expect(text()).not.toMatch(/record from/)
+  })
+
+  it("stays dismissed until something else is wrong", () => {
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+
+    act(() => {
+      rootStore.synthStore.state = "loading"
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }))
+    expect(status()).toBeNull()
+
+    act(() => {
+      rootStore.synthStore.state = "error"
+      rootStore.synthStore.error = "Couldn't fetch the SoundFont (503)"
+    })
+    expect(status()).toHaveTextContent(/SoundFont \(503\)/)
+  })
+
+  it("opens the MIDI settings from the nothing-routed warning", () => {
+    // the routing the tests above chose is saved
+    localStorage.clear()
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Open settings" }))
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeVisible()
+    expect(rootStore.settingsTab.tab).toBe("midi")
+  })
+
+  it("comes back when play is pressed with still nothing routed", () => {
+    localStorage.clear()
+    const rootStore = createStore()
+    render(<App rootStore={rootStore} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }))
+    expect(status()).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }))
+    expect(status()).toHaveTextContent(/Nothing is routed/)
   })
 })

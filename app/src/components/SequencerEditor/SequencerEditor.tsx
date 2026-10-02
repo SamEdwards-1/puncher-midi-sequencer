@@ -7,11 +7,13 @@ import {
   useSidePane,
 } from "../../hooks/useSequencerView"
 import { useLocalization } from "../../localize/useLocalization"
+import { OutputStatus } from "../MIDIOutputs/OutputStatus"
 import { SequenceGrid } from "../SequenceGrid/SequenceGrid"
 import { SequencerPanel } from "../SequencerPanel/SequencerPanel"
 import { TopBar } from "../TopBar/TopBar"
 import { cn } from "../ui/cn"
 import { VoicePanel } from "../VoicePanel/VoicePanel"
+import { THREE_COLUMN_TRACKS, TWO_COLUMN_TRACKS } from "./layout"
 
 // Narrower than this, the sequencer's settings give up their own column and
 // share the voices'; narrower still, everything shares one.
@@ -25,16 +27,16 @@ export const SequencerEditor: FC = () => {
 
   return (
     <div className="flex min-h-0 grow flex-col bg-background">
-      <TopBar />
+      <TopBar columns={three ? "three" : two ? "two" : "one"} />
       {three ? (
-        <div className="grid min-h-0 grow grid-cols-[minmax(calc(16rem-25px),calc(20rem-25px))_1fr_minmax(calc(18rem+100px),calc(22rem+100px))]">
+        <div className={cn("grid min-h-0 grow", THREE_COLUMN_TRACKS)}>
           <SequencerPanel />
           <SequenceGrid />
           <VoicePanel />
         </div>
       ) : two ? (
         // the settings on the left, the grid on the right
-        <div className="grid min-h-0 grow grid-cols-[minmax(calc(18rem+100px),calc(22rem+100px))_1fr]">
+        <div className={cn("grid min-h-0 grow", TWO_COLUMN_TRACKS)}>
           <Panes panes={["sequencer", "voices"]} className="border-r" />
           <SequenceGrid />
         </div>
@@ -46,6 +48,7 @@ export const SequencerEditor: FC = () => {
           />
         </div>
       )}
+      <OutputStatus />
     </div>
   )
 }

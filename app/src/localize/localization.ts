@@ -393,10 +393,12 @@ export default {
     "sequencer-midi-enable-hint":
       "midiseq needs your permission to use MIDI devices.",
     "sequencer-no-input":
-      "Nothing to record from — tick a MIDI input in Settings",
+      "Nothing to record from. Tick a MIDI input in Settings.",
     "sequencer-no-output":
-      "Nothing is routed — pick an output in MIDI to hear this",
+      "Nothing is routed. Pick an output in MIDI settings to hear this.",
+    "sequencer-status-open-settings": "Open settings",
     "sequencer-synth-loading": "Starting the built-in sound…",
+    "sequencer-status-dismiss": "Dismiss",
     "sequencer-synth-error": "The built-in sound didn't start:",
     "sequencer-soundfont-hint":
       "The sounds the built-in synth plays. Add your own SF2, SF3 or DLS files.",
