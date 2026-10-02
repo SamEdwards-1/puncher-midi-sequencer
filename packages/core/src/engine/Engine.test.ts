@@ -590,9 +590,24 @@ describe("Engine", () => {
         expect(played(1.9, true)).toEqual([62, 64])
       })
 
-      it("plays a note that doesn't move as written", () => {
+      it("fits a voice's notes as it says when its transpose is 0", () => {
         patch.steps[0].notes = [61]
-        expect(played(0.9)).toEqual([61])
+        const fitted = (fit: ScaleFit) => {
+          patch.voices[0].transposeFit = fit
+          return played(0.9)
+        }
+        expect(fitted("up")).toEqual([62])
+        expect(fitted("down")).toEqual([60])
+        expect(fitted("exclude")).toEqual([])
+        expect(fitted("ignore")).toEqual([61])
+      })
+
+      it("leaves a note Transpose doesn't move as the voice gave it", () => {
+        patch.steps[0].notes = [61]
+        patch.voices[0].transposeFit = "ignore"
+        patch.transposeAmt = 0
+        patch.transposeFit = "exclude"
+        expect(played(0.9, true)).toEqual([61])
       })
     })
 

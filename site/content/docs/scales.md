@@ -13,7 +13,7 @@ The step editor marks notes outside the scale in red, but does not change notes 
 
 ## Fit notes to the scale {#scale-fit}
 
-Recorded notes move up to the nearest scale note. Transposed notes use the **Scale fit** setting associated with the transposition.
+Recorded notes move up to the nearest scale note. Each voice fits every note it plays with its own **Scale fit** setting, even with a pitch offset of 0. Notes the sequencer's Transpose moves use the sequencer's **Scale fit**.
 
 | Fit | Result |
 | --- | --- |

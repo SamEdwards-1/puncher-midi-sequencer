@@ -746,12 +746,10 @@ export class Engine {
     }
 
     const { scale, transposeFit, transposeAmt } = this.sequencerAt(beat)
-    const moved = this.transposed(
-      picked.note,
-      voice.transposeAmt,
-      voice.transposeFit,
-      scale,
-    )
+    // a voice fits all its notes, moved or not
+    const voiced = clamp(picked.note + voice.transposeAmt, 0, 127)
+    const moved =
+      scale === null ? voiced : fitToScale(scale, voiced, voice.transposeFit)
     const note =
       moved !== null &&
       this.actionAt({ kind: "action", setting: "transpose" }, beat)
@@ -831,9 +829,9 @@ export class Engine {
     )
   }
 
-  // A note moved by its voice's transpose or by Transpose. A note that moves is
-  // fitted to the scale as that move's fit says, or null where the fit
-  // leaves it out; one that stays plays as written, in the scale or not.
+  // A note moved by Transpose. A note that moves is fitted to the scale as
+  // Transpose's fit says, or null where the fit leaves it out; one that stays
+  // plays as the voice gave it.
   private transposed(
     note: number,
     semitones: number,
