@@ -9,7 +9,7 @@ import {
   stepPace,
 } from "../entities/modulation"
 import { onPaceGrid, PACE_GRID, paceBeats } from "../entities/paces"
-import { fitToScale, ScaleFit, ScaleJSON } from "../entities/scale"
+import { fitToScale } from "../entities/scale"
 import {
   ActionTarget,
   Direction,
@@ -745,16 +745,21 @@ export class Engine {
       return
     }
 
-    const { scale, transposeFit, transposeAmt } = this.sequencerAt(beat)
-    // a voice fits all its notes, moved or not
-    const voiced = clamp(picked.note + voice.transposeAmt, 0, 127)
-    const moved =
-      scale === null ? voiced : fitToScale(scale, voiced, voice.transposeFit)
+    // moved by the voice's transpose, and Transpose's while it is on, then
+    // fitted to the scale as the voice says, moved or not; the sequencer's
+    // own fit is for recording
+    const { scale, transposeAmt } = this.sequencerAt(beat)
+    const transposing = this.actionAt(
+      { kind: "action", setting: "transpose" },
+      beat,
+    )
+    const moved = clamp(
+      picked.note + voice.transposeAmt + (transposing ? transposeAmt : 0),
+      0,
+      127,
+    )
     const note =
-      moved !== null &&
-      this.actionAt({ kind: "action", setting: "transpose" }, beat)
-        ? this.transposed(moved, transposeAmt, transposeFit, scale)
-        : moved
+      scale === null ? moved : fitToScale(scale, moved, voice.transposeFit)
     if (note === null) {
       return
     }
@@ -827,21 +832,6 @@ export class Engine {
       beat,
       events,
     )
-  }
-
-  // A note moved by Transpose. A note that moves is fitted to the scale as
-  // Transpose's fit says, or null where the fit leaves it out; one that stays
-  // plays as the voice gave it.
-  private transposed(
-    note: number,
-    semitones: number,
-    fit: ScaleFit,
-    scale: ScaleJSON | null,
-  ): number | null {
-    const moved = clamp(note + semitones, 0, 127)
-    return semitones === 0 || scale === null
-      ? moved
-      : fitToScale(scale, moved, fit)
   }
 
   // Extra sustain contributed by the hold dots that follow this one.

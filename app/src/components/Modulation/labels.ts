@@ -87,8 +87,9 @@ export const modulationValueLabel = (
   }
 }
 
-// each setting's field, as it is labelled — but for the fits, which are
-// all "Scale fit" beside the Transpose they go with, named for it here
+// each setting's field, as it is labelled — but for a voice's fit, "Scale
+// fit" beside the Transpose it goes with, named for it here; the
+// sequencer's is its Recording fit
 const FIELDS: Record<ModulationTarget["setting"], LocalizationKey> = {
   size: "sequencer-size",
   direction: "sequencer-direction",
@@ -121,7 +122,13 @@ export const modulationTargetLabel = (
       : target.kind === "action"
         ? localized["sequencer-actions"]
         : localized["sequencer-panel"]
-  } · ${localized[FIELDS[target.setting]]}`
+  } · ${
+    localized[
+      target.kind === "sequencer" && target.setting === "transposeFit"
+        ? "sequencer-record-fit"
+        : FIELDS[target.setting]
+    ]
+  }`
 
 // shorter, for a lane's tab
 const TABS: Record<ModulationTarget["setting"], LocalizationKey> = {

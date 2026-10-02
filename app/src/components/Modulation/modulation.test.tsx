@@ -137,7 +137,7 @@ describe("modulating a setting", () => {
     for (const setting of [
       "Pace",
       "Scale",
-      "Transpose fit",
+      "Recording fit",
       "Size",
       "Direction",
       "Loop",
