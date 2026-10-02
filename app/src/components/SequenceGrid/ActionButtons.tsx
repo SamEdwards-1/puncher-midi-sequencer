@@ -1,7 +1,7 @@
 import { ActionTarget, EngineActions } from "@midiseq/core"
 import type { MdiReactIconComponentType } from "mdi-react"
 import FlipHorizontalIcon from "mdi-react/FlipHorizontalIcon"
-import PauseIcon from "mdi-react/PauseIcon"
+import HandBackRightIcon from "mdi-react/HandBackRightIcon"
 import SwapVerticalIcon from "mdi-react/SwapVerticalIcon"
 import SyncIcon from "mdi-react/SyncIcon"
 import { FC, memo, PointerEvent, useEffect } from "react"
@@ -26,7 +26,7 @@ const ACTIONS: {
   key: string
   icon: MdiReactIconComponentType
 }[] = [
-  { action: "hold", key: "KeyH", icon: PauseIcon },
+  { action: "hold", key: "KeyH", icon: HandBackRightIcon },
   { action: "sync", key: "KeyY", icon: SyncIcon },
   { action: "flip", key: "KeyF", icon: FlipHorizontalIcon },
   { action: "transpose", key: "KeyT", icon: SwapVerticalIcon },
