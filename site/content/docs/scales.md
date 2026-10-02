@@ -9,11 +9,14 @@ order: 7
 
 Set the tonic and scale in the Sequencer panel. The tags below offer up to four scales that fit the stored notes, plus **Chromatic** for no scale constraint. The wand selects the best match.
 
-The step editor marks notes outside the scale in red, but does not change notes entered by hand. The envelope editor's keyboard also marks the scale's keys.
+The step editor marks notes outside the scale in red, but does not change notes entered by hand; each voice fits them as it plays. The envelope editor's keyboard also marks the scale's keys.
 
 ## Fit notes to the scale {#scale-fit}
 
-Recorded notes move up to the nearest scale note. Transposed notes use the **Scale fit** setting associated with the transposition.
+Two fit settings decide what happens to notes outside the scale, at different times:
+
+- **Recording fit** (Sequencer panel) — applies only to notes coming in while you [record](/docs/recording#record-notes). It never changes playback.
+- **Scale fit** (each voice) — applies to every note the voice plays, after its pitch offset and the sequencer's Transpose. It applies even when neither moves the note, so steps entered by hand with notes outside the scale are fitted too.
 
 | Fit | Result |
 | --- | --- |

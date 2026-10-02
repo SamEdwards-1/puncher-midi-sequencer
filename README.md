@@ -148,7 +148,7 @@ Down the left are the sequencer's own settings:
   semitones either way — and its **Scale fit** (see [Scales](#scales)).
 - **Mark** — **Rest** and **Skip**, for marking steps in the grid.
 
-<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Step notes, Scale, the detected scales, Transpose, Scale fit and Mark">
+<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Step notes, Scale, the detected scales, Transpose, Recording fit and Mark">
 
 ### Scales
 
@@ -159,11 +159,11 @@ them. The step editor then draws the scale's keys beside the notes and
 shows any note outside it in red; notes entered by hand are let be, only
 marked. The envelope editor's keyboard tints the keys in it.
 
-Notes you record are fitted to it — moved up to the nearest note in it,
-unless an import chose otherwise — and so is a note that a voice's
-**Transpose**, or the sequencer's, moves out of it, as the **Scale fit**
-under each says: **Up** or **Down** to the nearest note in it, **Exclude** to
-leave the note out, or **Ignore** to play it anyway.
+Notes you record are fitted to it as the sequencer's **Recording fit** says, and
+every note a voice plays — after its **Transpose** and the sequencer's — as
+the voice's **Scale fit** says, whether or not either moved it: **Up** or
+**Down** to the nearest note in it, **Exclude** to leave the note out, or
+**Ignore** to play it anyway.
 
 The ten are major, minor, dorian, phrygian, lydian, mixolydian, harmonic
 minor, the major and minor pentatonics, and minor blues — so that a

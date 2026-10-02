@@ -572,27 +572,47 @@ describe("Engine", () => {
         expect(fitted("ignore")).toEqual([61, 63])
       })
 
-      it("fits the notes Transpose moves out of it as the patch says", () => {
+      it("fits the notes Transpose moves out of it as the voice says", () => {
+        // the sequencer's fit is for recording, so it is set against the
+        // voice's to show it goes unused
         patch.transposeAmt = 3
-        patch.transposeFit = "up"
+        patch.transposeFit = "ignore"
+        patch.voices[0].transposeFit = "up"
         // D# up to E, F stays
         expect(played(1.9, true)).toEqual([64, 65])
-        patch.transposeFit = "exclude"
+        patch.voices[0].transposeFit = "exclude"
         expect(played(1.9, true)).toEqual([65])
       })
 
-      it("fits the voice's transpose and then Transpose, each its own way", () => {
+      it("fits once the voice's transpose and Transpose have both moved it", () => {
         patch.voices[0].transposeAmt = 1
         patch.voices[0].transposeFit = "down"
         patch.transposeAmt = 1
-        patch.transposeFit = "up"
-        // C# down to C, then C# up to D; D# down to D, then D# up to E
+        // C up two to D stays; D up two to E stays
         expect(played(1.9, true)).toEqual([62, 64])
+        // up three: D# down to D, F stays
+        patch.transposeAmt = 2
+        expect(played(1.9, true)).toEqual([62, 65])
       })
 
-      it("plays a note that doesn't move as written", () => {
+      it("fits a voice's notes as it says when its transpose is 0", () => {
         patch.steps[0].notes = [61]
-        expect(played(0.9)).toEqual([61])
+        const fitted = (fit: ScaleFit) => {
+          patch.voices[0].transposeFit = fit
+          return played(0.9)
+        }
+        expect(fitted("up")).toEqual([62])
+        expect(fitted("down")).toEqual([60])
+        expect(fitted("exclude")).toEqual([])
+        expect(fitted("ignore")).toEqual([61])
+      })
+
+      it("lets a voice that ignores the scale play outside it", () => {
+        patch.steps[0].notes = [61]
+        patch.voices[0].transposeFit = "ignore"
+        patch.transposeAmt = 2
+        patch.transposeFit = "exclude"
+        expect(played(0.9, true)).toEqual([63])
       })
     })
 

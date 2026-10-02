@@ -76,6 +76,24 @@ describe("MIDIRecorder", () => {
     expect(recorder.target).toBe(1)
   })
 
+  it("fits notes to the scale as the sequencer's Recording fit says", () => {
+    // the scale's own fit is the import's, so it is set against the
+    // sequencer's to show it goes unused
+    const scale = {
+      tonic: 0,
+      name: "major",
+      steps: [0, 2, 4, 5, 7, 9, 11],
+      fit: "ignore" as const,
+    }
+    store.patch = { ...store.patch, scale, transposeFit: "down" }
+    play(noteOn(61), noteOn(64))
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+
+    store.patch = { ...store.patch, transposeFit: "exclude" }
+    play(noteOn(66))
+    expect(store.patch.steps[0].notes).toEqual([60, 64])
+  })
+
   it("carries what won't fit onto the next step", () => {
     play(noteOn(67), noteOn(60), noteOn(64), noteOn(71), noteOn(72))
 

@@ -196,10 +196,11 @@ export class MIDIRecorder {
   }
 
   private record(played: number) {
-    // fitted to the patch's scale, as its fit says; a note the fit leaves
-    // out is not written at all
-    const { scale } = this.sequencerStore.patch
-    const note = scale === null ? played : fitToScale(scale, played, scale.fit)
+    // fitted to the patch's scale, as the sequencer's Scale fit says; a note
+    // the fit leaves out is not written at all
+    const { scale, transposeFit } = this.sequencerStore.patch
+    const note =
+      scale === null ? played : fitToScale(scale, played, transposeFit)
     if (note === null) {
       return
     }
