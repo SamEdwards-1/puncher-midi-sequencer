@@ -369,8 +369,12 @@ export class Engine {
     // Hold keeps the phase moving but never advances the step, which goes on
     // as long as it lasts each time round, its envelopes starting over with
     // it. Hold and Flip are read as the step ends, so a step's envelope has
-    // them as it leaves it.
-    if (this.actionAt({ kind: "action", setting: "hold" }, beat)) {
+    // them as it leaves it. Held before the sequence starts, the first step
+    // still lands, for Hold to keep.
+    if (
+      !runtime.pendingFirstStep &&
+      this.actionAt({ kind: "action", setting: "hold" }, beat)
+    ) {
       const held = runtime.envelope?.step
       const lengthBeats = paceBeats(
         held === undefined ? patch.pace : stepPace(patch, held),
