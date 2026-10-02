@@ -71,9 +71,9 @@ export function useShowGridEdit() {
 
 /**
  * What a click on the grid does. Normally it selects a step; a mode makes it
- * set a jump target instead, or mark steps as rests or skips.
+ * set a jump target instead.
  */
-export type GridMode = "dest" | "normal" | "rest" | "skip"
+export type GridMode = "dest" | "normal"
 const gridModeAtom = atom<GridMode | null>(null)
 
 export function useGridMode() {

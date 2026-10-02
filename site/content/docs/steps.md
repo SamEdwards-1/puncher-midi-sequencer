@@ -21,7 +21,7 @@ Use **+ Add note**, then type or step a note name. `G#5` sets pitch and octave; 
 
 ## Rests and skips {#rests-and-skips}
 
-A **Rest** takes time but plays no notes. Its CC envelopes still run. A **Skip** is not visited. Choose the step's type in the editor, or enable **Rest** or **Skip** beside **Mark**, then click grid steps to mark or unmark them. Press the marking button again to finish.
+A **Rest** takes time but plays no notes. Its CC envelopes still run. A **Skip** is not visited. Choose the step's type in the editor.
 
 ## Set the route and timing {#sequencer-settings}
 
