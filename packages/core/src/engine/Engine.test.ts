@@ -502,6 +502,19 @@ describe("Engine", () => {
       expect(positions(engine.render(3.1).events)).toEqual([1])
     })
 
+    it("hold held from the start lands the first step and keeps it", () => {
+      const engine = new Engine(patch)
+      engine.setActions({ hold: true })
+      engine.start(0)
+      const held = engine.render(2.9).events
+
+      expect(positions(held)).toEqual([0])
+      expect(notesOn(held)).toEqual([60, 60, 60])
+
+      engine.setActions({ hold: false })
+      expect(positions(engine.render(3.1).events)).toEqual([1])
+    })
+
     it("flip swaps the grid axes", () => {
       patch.steps[8].notes = [67]
       const engine = new Engine(patch)
