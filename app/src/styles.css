@@ -438,6 +438,21 @@
     }
   }
 
+  /* The dot that played the note pointed at in the piano roll: one quick
+     swell and settle as its music note appears, to draw the eye. It moves
+     `transform`, apart from the `scale` an accent sets, so an accented dot
+     swells from its own size; swollen, it sits above its neighbours. */
+  .dot-pulse {
+    z-index: 1;
+    animation: midiseq-dot-pulse 720ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot-pulse {
+      animation: none;
+    }
+  }
+
   /* A range input's track and thumb are reachable only through vendor
      pseudo-elements, which utilities can't name. */
   .slider {
@@ -492,6 +507,24 @@
   }
   50% {
     transform: translateY(-2px);
+  }
+}
+
+@keyframes midiseq-dot-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  65% {
+    transform: scale(0.94);
+  }
+  85% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 

@@ -207,6 +207,47 @@ export const hitSegment = (
   return found
 }
 
+/** A note's bar in the piano roll, where it is drawn. */
+export interface Bar {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * The bar under (x, y), if one is. A bar narrower or shorter than `least`
+ * reaches out to that much across, so a short note on a crowded roll can
+ * still be pointed at. Where bars overlap under the point the later one
+ * wins, as it is drawn on top; failing any under it, the nearest reaching it.
+ */
+export const hitBar = (
+  bars: Bar[],
+  x: number,
+  y: number,
+  least = 6,
+): number | null => {
+  let found: number | null = null
+  let nearest = Number.POSITIVE_INFINITY
+  bars.forEach((bar, index) => {
+    // how far the point lies off the bar, sideways and up or down
+    const offX = Math.max(bar.x - x, x - (bar.x + bar.width), 0)
+    const offY = Math.max(bar.y - y, y - (bar.y + bar.height), 0)
+    if (
+      offX > Math.max(0, (least - bar.width) / 2) ||
+      offY > Math.max(0, (least - bar.height) / 2)
+    ) {
+      return
+    }
+    const distance = Math.hypot(offX, offY)
+    if (distance <= nearest) {
+      nearest = distance
+      found = index
+    }
+  })
+  return found
+}
+
 // hundredths of a pixel are plenty, and keep float noise out of the path
 const px = (value: number) => Math.round(value * 100) / 100
 

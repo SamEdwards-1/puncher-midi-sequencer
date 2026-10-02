@@ -3,6 +3,7 @@ import {
   PatternStepJSON,
   StepJSON,
   StepState,
+  VoiceDot,
   VoiceIndex,
 } from "@midiseq/core"
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai"
@@ -108,6 +109,28 @@ export function useEnvelopeGrid() {
 
 export function useSelectedLane() {
   return useAtom(selectedLaneAtom)
+}
+
+// The pattern dot that played the note pointed at in the envelope editor's
+// piano roll, for the Voices panel to mark; null while none is pointed at,
+// and while the sequence runs.
+const pointedNoteDotAtom = atom<VoiceDot | null>(null)
+
+export function usePointedNoteDot() {
+  return useAtomValue(pointedNoteDotAtom)
+}
+
+export function useSetPointedNoteDot() {
+  return useSetAtom(pointedNoteDotAtom)
+}
+
+// The pattern dot under the mouse in the Voices panel: its collisions bob
+// wherever they are marked, and its notes come up out of the piano roll's
+// dimmed ones.
+const hoveredDotAtom = atom<VoiceDot | null>(null)
+
+export function useHoveredDot() {
+  return useAtom(hoveredDotAtom)
 }
 
 // Asks for the envelope editor to be brought into view: set when a lane is

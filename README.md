@@ -306,8 +306,12 @@ with a bar-long step and 8th-note voices, step 1 plays dots 1–8 and step 2
 dots 9–16. The outline around the dots in each pattern row marks the ones the
 step plays: while playing, the step sounding; while stopped, the step in the
 editor, as the sequence would first reach it. The piano roll and its Velocity
-lanes show the same notes. **Sync voices** starts every step from the first
-dots instead.
+lanes show the same notes. Stopped or paused, point at one, or at its
+lollipop, and the note turns the colour of the text while the dot that played
+it bounces and shows a music note, which stands out on a hollow dot as on a
+filled one. Point at a dot instead and, on a Velocity tab, where the roll's
+notes are dimmed, its own come up at full strength. **Sync voices** starts
+every step from the first dots instead.
 
 **Collisions.** When two or more voices sound the same note at the same time
 on the step in the editor, the dots that played it get a small downward

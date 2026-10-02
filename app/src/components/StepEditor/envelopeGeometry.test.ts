@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   areaPath,
   cellAt,
+  hitBar,
   hitPoint,
   hitSegment,
   hitVertex,
@@ -111,6 +112,38 @@ describe("envelope geometry", () => {
     // and nothing well away from the line
     expect(hitSegment(ramp, plot, toX(plot, 0.5), toY(plot, 10))).toBeNull()
     expect(hitSegment([], plot, 50, 50)).toBeNull()
+  })
+
+  it("finds the note under the mouse, the later of two overlapping", () => {
+    const bars = [
+      { x: 10, y: 20, width: 40, height: 10 },
+      { x: 30, y: 20, width: 40, height: 10 },
+    ]
+    expect(hitBar(bars, 15, 25)).toBe(0)
+    // where they overlap, the one drawn on top
+    expect(hitBar(bars, 40, 25)).toBe(1)
+    // and nothing past their ends, or above or below them
+    expect(hitBar(bars, 75, 25)).toBeNull()
+    expect(hitBar(bars, 40, 35)).toBeNull()
+    expect(hitBar([], 40, 25)).toBeNull()
+  })
+
+  it("reaches out from a note too short or thin to point at exactly", () => {
+    // a pixel wide and two high, so it reaches 2.5 sideways and 2 up or down
+    const sliver = [{ x: 50, y: 50, width: 1, height: 2 }]
+    expect(hitBar(sliver, 50.5, 48)).toBe(0)
+    expect(hitBar(sliver, 50.5, 47)).toBeNull()
+    expect(hitBar(sliver, 53.5, 51)).toBe(0)
+    expect(hitBar(sliver, 54, 51)).toBeNull()
+    // between two thin rows, the nearer
+    const rows = [
+      { x: 0, y: 10, width: 40, height: 3 },
+      { x: 0, y: 14, width: 40, height: 3 },
+    ]
+    expect(hitBar(rows, 20, 13.4)).toBe(0)
+    expect(hitBar(rows, 20, 13.7)).toBe(1)
+    // a bar big enough to point at reaches no further than itself
+    expect(hitBar([{ x: 0, y: 10, width: 40, height: 8 }], 20, 9)).toBeNull()
   })
 
   it("draws the line flat to both ends of the step", () => {
