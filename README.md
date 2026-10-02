@@ -114,9 +114,7 @@ sounds; turn it off to keep one step open while you edit.
 <img src="screenshots/grid.png" width="483" alt="The grid's first two rows: jumps from 3 to 6, 8 to 1 and 12 to 14 as pairs of coloured dots, step 8 selected, step 11 a rest and step 15 a skip">
 
 A step can be a **Rest** — visited, but silent bar its CCs — or a **Skip**,
-never visited. Set it in the step editor, or press **Rest** or **Skip** beside
-**Mark** and click steps in the grid to mark or unmark them, until it's
-pressed again.
+never visited. Set it in the step editor.
 Any step can be dragged out of the grid as a MIDI file (see [Files](#files)).
 
 The grid and the step editor scroll together: as you scroll down, the grid
@@ -146,9 +144,8 @@ Down the left are the sequencer's own settings:
 - **Scale** and the detected scales under it — see [Scales](#scales).
 - **Transpose** — how far the **Transpose** action moves new notes, up to 24
   semitones either way — and its **Scale fit** (see [Scales](#scales)).
-- **Mark** — **Rest** and **Skip**, for marking steps in the grid.
 
-<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Step notes, Scale, the detected scales, Transpose, Recording fit and Mark">
+<img src="screenshots/sequencer.png" width="295" alt="The sequencer's settings: Size, Pace, Direction, Loop, Sync voices, Step notes, Scale, the detected scales, Transpose and Recording fit">
 
 ### Scales
 

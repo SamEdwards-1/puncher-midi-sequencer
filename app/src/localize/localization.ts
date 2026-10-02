@@ -261,7 +261,6 @@ export default {
     "sequencer-preview": "Audition step",
     "sequencer-patch-name": "Patch name",
     "sequencer-patch-rename": "Rename the patch",
-    "sequencer-mark": "Mark",
     "sequencer-jump-rule": "Rule",
     "sequencer-jump-dest": "Destination",
     "sequencer-jump-normal": "Normal",

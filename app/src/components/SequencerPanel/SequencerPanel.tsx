@@ -17,7 +17,6 @@ import { comparer } from "mobx"
 import { FC, useEffect, useMemo, useRef } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
-import { useGridMode } from "../../hooks/useSequencerView"
 import { Localized, useLocalization } from "../../localize/useLocalization"
 import {
   guessScales,
@@ -27,9 +26,9 @@ import {
 } from "../../theory/scales"
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
-import { Button, IconButton } from "../ui/Button"
+import { IconButton } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
-import { ButtonField, Field, FieldGroup, Fields } from "../ui/Field"
+import { Field, Fields } from "../ui/Field"
 import { Panel, PanelHeader } from "../ui/Panel"
 import { Stepper } from "../ui/Stepper"
 import { Toggle } from "../ui/Toggle"
@@ -92,7 +91,6 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
     comparer.shallow,
   )
   const { editSequencer, editScale } = usePatchEditor()
-  const [mode, setMode] = useGridMode()
   const localized = useLocalization()
   // found from every note the steps hold, among the scales offered here
   const guesses = useMemo(
@@ -234,7 +232,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           )}
         </ModulatedField>
 
-        <FieldGroup>
+        <div className="mt-3">
           {/* two selects, each with a name of its own, offering the scales a
               modulation can reach */}
           <ModulatedField
@@ -315,30 +313,7 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
               />
             )}
           </ModulatedField>
-        </FieldGroup>
-
-        <ButtonField label={localized["sequencer-mark"]}>
-          {/* these turn grid clicks into marking rests or skips until
-              switched off again */}
-          <div className="flex gap-[0.4rem]">
-            <Button
-              type="button"
-              size="field"
-              active={mode === "rest"}
-              onClick={() => setMode(mode === "rest" ? null : "rest")}
-            >
-              <Localized name="sequencer-step-state-rest" />
-            </Button>
-            <Button
-              type="button"
-              size="field"
-              active={mode === "skip"}
-              onClick={() => setMode(mode === "skip" ? null : "skip")}
-            >
-              <Localized name="sequencer-step-state-skip" />
-            </Button>
-          </div>
-        </ButtonField>
+        </div>
       </Fields>
     </Panel>
   )
