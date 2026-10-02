@@ -24,6 +24,7 @@ import ChevronDownIcon from "mdi-react/ChevronDownIcon"
 import ChevronRightIcon from "mdi-react/ChevronRightIcon"
 import HeadphonesIcon from "mdi-react/HeadphonesIcon"
 import MusicNoteIcon from "mdi-react/MusicNoteIcon"
+import VolumeHighIcon from "mdi-react/VolumeHighIcon"
 import VolumeOffIcon from "mdi-react/VolumeOffIcon"
 import { comparer } from "mobx"
 import { CSSProperties, FC, memo, ReactNode, useMemo, useState } from "react"
@@ -192,12 +193,14 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
   const localized = useLocalization()
   const voice = voices[selected]
   // An instrument only means something to the built-in synth: the voice
-  // reaches it when it is one of the outputs, or the voice's own.
+  // reaches it when it is one of the outputs, or the voice's own. Otherwise
+  // it is shown but can't be changed.
   const { midiDeviceStore } = useStores()
   const outputNames = useMobxGetter(midiDeviceStore, "outputNames")
+  // the built-in synth's tick among the outputs in MIDI settings
+  const builtInOn = outputNames.all.includes(BUILTIN_OUTPUT)
   const playsBuiltIn =
-    outputNames.all.includes(BUILTIN_OUTPUT) ||
-    outputNames.voices[selected] === BUILTIN_OUTPUT
+    builtInOn || outputNames.voices[selected] === BUILTIN_OUTPUT
   // a setting of the voice's that a CC can drive
   const target = (setting: VoiceSetting) =>
     ({ kind: "voice", voice: selected, setting }) as const
@@ -355,15 +358,34 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           />
         </Field>
 
-        {playsBuiltIn && (
-          <Field label={localized["sequencer-voice-instrument"]}>
-            <ComboBox
-              value={voice.program}
-              options={INSTRUMENT_OPTIONS}
-              onChange={(program) => editVoice(selected, { program })}
-            />
-          </Field>
-        )}
+        <Field label={localized["sequencer-voice-instrument"]}>
+          <div className="flex min-w-0 items-center gap-1">
+            <div className="grid min-w-0 flex-1">
+              <ComboBox
+                value={voice.program}
+                options={INSTRUMENT_OPTIONS}
+                // muted, it has nothing to play the instrument
+                disabled={!playsBuiltIn}
+                onChange={(program) => editVoice(selected, { program })}
+              />
+            </div>
+            <IconButton
+              aria-label={localized["sequencer-synth-mute"]}
+              aria-pressed={!builtInOn}
+              title={localized["sequencer-synth-mute-hint"]}
+              active={!builtInOn}
+              onClick={() =>
+                midiDeviceStore.toggleOutput(BUILTIN_OUTPUT, !builtInOn)
+              }
+            >
+              {builtInOn ? (
+                <VolumeHighIcon size={16} />
+              ) : (
+                <VolumeOffIcon size={16} />
+              )}
+            </IconButton>
+          </div>
+        </Field>
 
         <ModulatedField
           label={localized["sequencer-voice-pattern-length"]}

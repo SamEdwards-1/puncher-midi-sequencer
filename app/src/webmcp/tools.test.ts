@@ -9,7 +9,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { BUILTIN_OUTPUT } from "../stores/MIDIDeviceStore"
 import RootStore from "../stores/RootStore"
-import { ManualTicker } from "../test/fakes"
+import { ManualTicker, noOutputsChosen } from "../test/fakes"
 import { soundStatus } from "./describe"
 import {
   ModelContext,
@@ -45,7 +45,7 @@ const start = (from: PatchJSON = createDemoPatch()) => {
   rootStore = new RootStore({
     requestMIDIAccess: null,
     ticker: new ManualTicker(),
-    storage: null,
+    storage: noOutputsChosen(),
   })
   rootStore.sequencerStore.patch = from
   view = {
