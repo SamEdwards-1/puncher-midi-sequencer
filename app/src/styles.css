@@ -351,7 +351,63 @@
     animation: midiseq-step-fall 560ms both;
   }
 
+  /* The step playing, or auditioned, grows a little as it starts, bouncing
+     out to its larger size as a dropped ball settles, and is back to its
+     own size the moment it is over: the transition is the playing step's
+     alone. It scales by `scale`, apart from the `transform` the bounces
+     above move, so the two never cut each other short. */
+  .step-playing {
+    scale: 1.12;
+    transition: scale 400ms
+      linear(
+        0,
+        0.005 2.5%,
+        0.019 5%,
+        0.043 7.5%,
+        0.076 10%,
+        0.118 12.5%,
+        0.17 15%,
+        0.232 17.5%,
+        0.303 20%,
+        0.383 22.5%,
+        0.473 25%,
+        0.572 27.5%,
+        0.681 30%,
+        0.799 32.5%,
+        1 36.4%,
+        0.91 40%,
+        0.86 42.5%,
+        0.819 45%,
+        0.788 47.5%,
+        0.766 50%,
+        0.754 52.5%,
+        0.75 54.5%,
+        0.757 57.5%,
+        0.772 60%,
+        0.798 62.5%,
+        0.833 65%,
+        0.877 67.5%,
+        0.931 70%,
+        1 72.7%,
+        0.973 75%,
+        0.952 77.5%,
+        0.941 80%,
+        0.938 81.8%,
+        0.945 85%,
+        0.962 87.5%,
+        1 90.9%,
+        0.988 93.2%,
+        0.984 95.5%,
+        0.988 97.7%,
+        1
+      );
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    .step-playing {
+      transition: none;
+    }
+
     .step-fall {
       display: none;
     }
