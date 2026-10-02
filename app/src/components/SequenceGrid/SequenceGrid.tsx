@@ -561,6 +561,8 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                                 ? "text-fg"
                                 : "text-fg-secondary",
                           ),
+                      selected === index &&
+                        (active ? "font-bold" : "font-bold text-theme"),
                       isRecording && target === index
                         ? "border-record"
                         : selected === index
