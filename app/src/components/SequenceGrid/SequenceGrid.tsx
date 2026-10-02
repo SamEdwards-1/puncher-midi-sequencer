@@ -34,6 +34,7 @@ import {
 import { Toggle } from "../ui/Toggle"
 import { ActionButtons, ActionIcons } from "./ActionButtons"
 import { PatchName } from "./PatchName"
+import { StepArc } from "./StepArc"
 import { StepMenu } from "./StepMenu"
 
 const STEP_FACE =
@@ -234,6 +235,35 @@ const useArrivals = (count: number): ReadonlyMap<number, Arrival> => {
   return arrivals
 }
 
+/**
+ * The step a click is auditioning, from when it starts sounding until it is
+ * over or cut short; null the rest of the time, and while the sequence
+ * plays, which shows its own step. When it ends goes by the clock rather
+ * than anything observable, so it is watched each frame while it sounds.
+ */
+const useAuditioned = (): number | null => {
+  const { player } = useStores()
+  const preview = useMobxGetter(player, "preview")
+  const isPlaying = useMobxGetter(player, "isPlaying")
+  const [sounding, setSounding] = useState(false)
+  useEffect(() => {
+    if (preview === null || isPlaying) {
+      setSounding(false)
+      return
+    }
+    let frame = 0
+    const check = () => {
+      setSounding(player.playhead(preview.step) !== null)
+      if (player.sounding()) {
+        frame = requestAnimationFrame(check)
+      }
+    }
+    check()
+    return () => cancelAnimationFrame(frame)
+  }, [player, preview, isPlaying])
+  return sounding && preview !== null && !isPlaying ? preview.step : null
+}
+
 // The smallest the grid shrinks to as the column scrolls: eight steps of
 // about 30px, comfortably big enough to hit and read.
 const MIN_GRID = 288
@@ -323,6 +353,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   // Audition step is off while the sequence plays: a click then picks the
   // step to play next rather than sounding it over the sequence
   const isPlaying = useMobxGetter(player, "isPlaying")
+  // an auditioned step shows as the sequence's playing step does
+  const auditioned = useAuditioned()
+  const playing = isPlaying ? position : auditioned
   const [selected, setSelected] = useSelectedStep()
   const landing = useLanding(stepCount(size))
   const arrivals = useArrivals(stepCount(size))
@@ -482,7 +515,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                 const state =
                   mark[1] === "r" ? "rest" : mark[1] === "s" ? "skip" : "normal"
                 const hasNotes = mark[0] === "n"
-                const active = position === index
+                const active = playing === index
                 // an empty step is only its ring, a step with notes filled in
                 const hollow = state === "normal" && !hasNotes && !active
                 const arrival = arrivals.get(index)
@@ -538,6 +571,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                       source !== undefined && SOURCE_MARK,
                       dest !== undefined && DEST_MARK,
                       bounce?.className,
+                      active && "step-playing",
                     )}
                     style={
                       {
@@ -563,6 +597,7 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                     onDragStart={(event) => dragStep(index, event)}
                   >
                     {index + 1}
+                    {active && <StepArc />}
                   </button>
                 )
               })}
