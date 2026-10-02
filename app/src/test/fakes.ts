@@ -123,3 +123,31 @@ export class FakeClock {
 // The start of a SoundFont, or with another kind, some other RIFF file.
 export const soundBank = (kind = "sfbk") =>
   new TextEncoder().encode(`RIFF\0\0\0\0${kind}rest`).buffer as ArrayBuffer
+
+/**
+ * Storage remembering that no output was chosen, where a first run would
+ * start with the built-in synth: for tests about nothing being routed, or
+ * that route only what they tick.
+ */
+export const noOutputsChosen = (): Storage => {
+  const data = new Map<string, string>([
+    [
+      "midiseq.midiOutputs",
+      JSON.stringify({ all: [], voices: [null, null, null, null] }),
+    ],
+  ])
+  return {
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => {
+      data.set(key, value)
+    },
+    removeItem: (key) => {
+      data.delete(key)
+    },
+    clear: () => data.clear(),
+    key: () => null,
+    get length() {
+      return data.size
+    },
+  }
+}

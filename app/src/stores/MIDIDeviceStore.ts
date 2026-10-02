@@ -53,7 +53,8 @@ const loadOutputNames = (storage: Storage | null): OutputNames => {
   }
   const saved = read(storage, STORAGE_KEY)
   if (saved === null || typeof saved !== "object") {
-    return empty
+    // nothing chosen yet, so the first run is heard without a port
+    return { ...empty, all: [BUILTIN_OUTPUT] }
   }
   const { all, voices } = saved as { all: unknown; voices: unknown }
   return {
