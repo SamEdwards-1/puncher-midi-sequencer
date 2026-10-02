@@ -37,9 +37,10 @@ export const Toast: FC<{
       "fixed bottom-4 left-4 z-40 flex max-w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border py-2 pl-4 pr-2 text-small leading-5 text-white shadow-[0_1rem_3rem_var(--midiseq-shadow)]",
       // visibility flips at the end of the slide down, the start of the up
       "motion-safe:transition-[translate,visibility] motion-safe:duration-200 motion-safe:ease-out",
+      // starting from below the window's edge when it first appears
       open
-        ? "visible translate-y-0 starting:translate-y-[calc(100%+2rem)]"
-        : "invisible translate-y-[calc(100%+2rem)]",
+        ? "visible [translate:0_0] starting:[translate:0_calc(100%+2rem)]"
+        : "invisible [translate:0_calc(100%+2rem)]",
       TONES[tone],
     )}
   >
