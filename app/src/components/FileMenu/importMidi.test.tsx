@@ -16,6 +16,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker } from "../../test/fakes"
 import { editItem, fileItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -106,9 +107,7 @@ const setup = (tracks = groove()) => {
 
 const openImport = async () => {
   fireEvent.click(fileItem("Import MIDI…"))
-  await waitFor(() =>
-    expect(screen.getByRole("dialog", { name: /Import MIDI/ })).toBeTruthy(),
-  )
+  await opened(/Import MIDI/)
 }
 
 beforeEach(() => {
@@ -164,9 +163,7 @@ describe("importing MIDI", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
 
     release()
-    await waitFor(() =>
-      expect(screen.getByRole("dialog", { name: /Import MIDI/ })).toBeTruthy(),
-    )
+    await opened(/Import MIDI/)
     expect(reading()).toBeUndefined()
   })
 
@@ -412,8 +409,8 @@ describe("importing MIDI", () => {
   it("starts from the defaults in Settings → MIDI Import", async () => {
     setup()
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-    fireEvent.click(screen.getByRole("button", { name: "MIDI Import" }))
-    const settings = within(screen.getByRole("dialog", { name: "Settings" }))
+    const settings = within(await opened("Settings"))
+    fireEvent.click(settings.getByRole("button", { name: "MIDI Import" }))
     fireEvent.click(
       settings.getByRole("checkbox", { name: "Leave out the drum channel" }),
     )

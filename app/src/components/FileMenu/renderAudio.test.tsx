@@ -20,6 +20,7 @@ import { FileService } from "../../services/FileService"
 import { MemorySoundFontStorage } from "../../services/SoundFontStorage"
 import RootStore from "../../stores/RootStore"
 import { SoundFontStore } from "../../stores/SoundFontStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker, soundBank } from "../../test/fakes"
 import { fileItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -109,7 +110,7 @@ const dialog = () =>
 const button = (name: string) => dialog().getByRole("button", { name })
 const radio = (name: string) => dialog().getByRole("radio", { name })
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.spyOn(window, "alert").mockImplementation(() => {})
   saving = fakeSaving()
   rendering = fakeRenderer()
@@ -133,6 +134,7 @@ beforeEach(() => {
   rootStore.sequencerStore.fileName = "Bassline.midiseq.json"
   render(<App rootStore={rootStore} />)
   fireEvent.click(fileItem("Render Audio…"))
+  await opened("Render Audio")
 })
 
 describe("rendering audio", () => {

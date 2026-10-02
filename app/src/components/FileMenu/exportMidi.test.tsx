@@ -10,6 +10,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
+import { opened } from "../../test/dialogs"
 import { immediateStepWork, ManualTicker } from "../../test/fakes"
 import { fileItem } from "../../test/menus"
 import { App } from "../App/App"
@@ -45,7 +46,7 @@ let saving: ReturnType<typeof fakeSaving>
 const dialog = () => within(screen.getByRole("dialog", { name: "Export MIDI" }))
 const box = (name: string) => dialog().getByRole("checkbox", { name })
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.spyOn(window, "alert").mockImplementation(() => {})
   saving = fakeSaving()
   rootStore = new RootStore({
@@ -80,6 +81,7 @@ beforeEach(() => {
   rootStore.sequencerStore.fileName = "Bassline.midiseq.json"
   render(<App rootStore={rootStore} />)
   fireEvent.click(fileItem("Export MIDI…"))
+  await opened("Export MIDI")
 })
 
 describe("exporting MIDI", () => {
@@ -337,8 +339,9 @@ describe("the export settings", () => {
     fireEvent.click(dialog().getByRole("button", { name: "Cancel" }))
   })
 
-  it("shows the export's options in Settings, shared with the dialogs", () => {
+  it("shows the export's options in Settings, shared with the dialogs", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    await opened("Settings")
     fireEvent.click(screen.getByRole("button", { name: "MIDI Export" }))
     const settings = within(screen.getByRole("dialog", { name: "Settings" }))
     fireEvent.click(settings.getByRole("checkbox", { name: "Voice 1" }))

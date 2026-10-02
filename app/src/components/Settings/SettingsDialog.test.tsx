@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import RootStore from "../../stores/RootStore"
+import { opened } from "../../test/dialogs"
 import { ManualTicker } from "../../test/fakes"
 import { generatedThemes } from "../../theme/Theme"
 import { App } from "../App/App"
@@ -73,7 +74,7 @@ describe("the settings dialog", () => {
     })
     render(<App rootStore={rootStore} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-    return within(screen.getByRole("dialog", { name: "Settings" }))
+    return within(await opened("Settings"))
   }
 
   // most of these are about MIDI, a tab away from where the dialog opens

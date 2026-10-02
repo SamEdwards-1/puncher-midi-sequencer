@@ -1,5 +1,5 @@
 import { PreparedMidi } from "@midiseq/core"
-import { FC, useState } from "react"
+import { FC, lazy, Suspense, useState } from "react"
 import { useFileActions, useMidiFileLoader } from "../../actions/file"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useSelectedStep } from "../../hooks/useSequencerView"
@@ -8,9 +8,24 @@ import { Localized, useLocalization } from "../../localize/useLocalization"
 import { RecentFile } from "../../services/RecentFilesStorage"
 import { Loading } from "../ui/Loading"
 import { MenuBarMenu, MenuDivider, MenuGroup, MenuItem } from "../ui/Menu"
-import { ExportMidiDialog } from "./ExportMidiDialog"
-import { ImportMidiDialog } from "./ImportMidiDialog"
-import { RenderAudioDialog } from "./RenderAudioDialog"
+
+// opened from the menu, so loaded the first time they are rather than with
+// the page
+const ExportMidiDialog = lazy(() =>
+  import("./ExportMidiDialog").then(({ ExportMidiDialog }) => ({
+    default: ExportMidiDialog,
+  })),
+)
+const ImportMidiDialog = lazy(() =>
+  import("./ImportMidiDialog").then(({ ImportMidiDialog }) => ({
+    default: ImportMidiDialog,
+  })),
+)
+const RenderAudioDialog = lazy(() =>
+  import("./RenderAudioDialog").then(({ RenderAudioDialog }) => ({
+    default: RenderAudioDialog,
+  })),
+)
 
 export const FileMenu: FC = () => {
   const { newPatch, open, openRecent, save, saveAs } = useFileActions()
@@ -120,20 +135,22 @@ export const FileMenu: FC = () => {
           label={`${localized["sequencer-import-loading"]} ${importing.name}…`}
         />
       )}
-      {importing?.status === "ready" && (
-        <ImportMidiDialog
-          name={importing.name}
-          prepared={importing.prepared}
-          onClose={() => setImporting(null)}
-        />
-      )}
-      {exporting !== null && (
-        <ExportMidiDialog
-          step={exporting.kind === "step" ? exporting.step : undefined}
-          onClose={() => setExporting(null)}
-        />
-      )}
-      {rendering && <RenderAudioDialog onClose={() => setRendering(false)} />}
+      <Suspense fallback={null}>
+        {importing?.status === "ready" && (
+          <ImportMidiDialog
+            name={importing.name}
+            prepared={importing.prepared}
+            onClose={() => setImporting(null)}
+          />
+        )}
+        {exporting !== null && (
+          <ExportMidiDialog
+            step={exporting.kind === "step" ? exporting.step : undefined}
+            onClose={() => setExporting(null)}
+          />
+        )}
+        {rendering && <RenderAudioDialog onClose={() => setRendering(false)} />}
+      </Suspense>
     </>
   )
 }

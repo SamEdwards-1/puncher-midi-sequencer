@@ -47,10 +47,11 @@ export default defineConfig(async () => {
     plugins: [
       react(),
       tailwindcss(),
-      // The async step coordinator adds a small main-thread cost while its
-      // simulation and MIDI work stay in a separate worker bundle.
+      // a few percent over the build of 2026-10-01, once the WebMCP tools and
+      // the menus' dialogs were left to load when used: 722.1 kB of
+      // first-download code, 224.5 kB gzipped
       bundleBudget({
-        initial: { bytes: 815_000, gzip: 253_000 },
+        initial: { bytes: 745_000, gzip: 232_000 },
         notInitial: [
           "@breezystack/lamejs",
           "wav-encoder",
