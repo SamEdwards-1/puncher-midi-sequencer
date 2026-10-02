@@ -327,7 +327,7 @@ const UNSAFE_IN_FILE_NAME = /[\\/:*?"<>|]/g
 
 // The patch "Velvet Heron" exports its step 3 as "Velvet Heron step 3.mid";
 // one with no name goes by its file's, "Bassline step 3.mid"
-const stepMidiNameFor = (
+export const stepMidiNameFor = (
   fileName: string | null,
   patchName: string,
   step: number,
@@ -347,8 +347,7 @@ const freshSeed = () => Math.floor(Math.random() * 2 ** 32)
  * worked out at once and in silence, as a performance would go — chance and
  * the random rules rolled afresh, accents moving velocities by this
  * machine's amount. Written as a copy, leaving the patch's own file alone.
- * `stepFile` makes a step's file there and then, for dragging out of the
- * browser, where nothing can wait.
+ * `stepFile` makes a step's file for the File menu's explicit export action.
  */
 export function useMidiExport() {
   const { sequencerStore, fileService, exportSettings } = useStores()

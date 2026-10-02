@@ -3,9 +3,11 @@ import {
   createDefaultPatch,
   DEFAULT_ACCENT_AMOUNT,
   Engine,
+  EngineEvent,
   ModulationTarget,
   PatchJSON,
   setStep,
+  stepEvents,
   updateEnvelope,
 } from "@midiseq/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -178,6 +180,37 @@ describe("SequencerPlayer", () => {
     runFor(100)
     const velocities = all.ofType(0x90).map((message) => message.data[2])
     expect(velocities).toEqual([94, 94])
+  })
+
+  it("anchors a prepared audition after the worker reply and ignores superseded clicks", async () => {
+    const patch = makePatch()
+    const requests: ((events: EngineEvent[] | null) => void)[] = []
+    const router = new OutputRouter()
+    const sink = new FakeSink()
+    const delayed = new SequencerPlayer(patch, router, {
+      now: clock.now,
+      ticker: new ManualTicker(),
+      prepareStepEvents: () => new Promise((resolve) => requests.push(resolve)),
+    })
+    delayed.setOutputs({ all: [sink], voices: [null, null, null, null] })
+    delayed.previewStep(0)
+    delayed.previewStep(1)
+    requests[0](stepEvents(patch, 0))
+    await Promise.resolve()
+    expect(sink.ofType(0x90)).toHaveLength(0)
+    clock.time = 1200
+    requests[1](stepEvents(patch, 1))
+    await Promise.resolve()
+    expect(delayed.preview?.time).toBe(1200)
+    expect(sink.ofType(0x90)[0].data[1]).toBe(62)
+
+    delayed.previewStep(0)
+    delayed.panic()
+    const afterPanic = sink.sent.length
+    requests[2](stepEvents(patch, 0))
+    await Promise.resolve()
+    expect(sink.sent).toHaveLength(afterPanic)
+    delayed.dispose()
   })
 
   it("follows a tempo change from the current beat", () => {

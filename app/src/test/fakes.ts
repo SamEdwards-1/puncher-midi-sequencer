@@ -5,7 +5,26 @@ import {
   RoundJob,
   RoundQueue,
 } from "../services/RoundPreviewer"
+import { StepWork, StepWorkJob, StepWorkResult } from "../services/StepWork"
+import { runStepWork } from "../services/stepWorkRunner"
 import { Ticker } from "../services/Ticker"
+
+/** Complete worker requests immediately in UI tests that inspect settled views. */
+export const immediateStepWork = () =>
+  new StepWork(() => {
+    const worker = {
+      onmessage: null as ((event: MessageEvent<StepWorkResult>) => void) | null,
+      onerror: null,
+      onmessageerror: null,
+      postMessage(job: StepWorkJob) {
+        this.onmessage?.({
+          data: runStepWork(job),
+        } as MessageEvent<StepWorkResult>)
+      },
+      terminate() {},
+    }
+    return worker as unknown as Worker
+  })
 
 export interface SentMessage {
   data: number[]

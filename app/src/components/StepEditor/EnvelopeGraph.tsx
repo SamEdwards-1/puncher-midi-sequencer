@@ -356,7 +356,8 @@ export const EnvelopeGraph: FC<{
     () => gridTimes(stepBeats, gridBeats),
     [stepBeats, gridBeats],
   )
-  const { notes } = useStepPreview(step)
+  const preview = useStepPreview(step)
+  const { notes } = preview
   const velocities =
     lane.kind === "velocity" ? velocityPoints(notes, lane.voice) : []
   // every other voice's notes, dimmed behind the voice on show
@@ -930,6 +931,7 @@ export const EnvelopeGraph: FC<{
           ref={frame}
           role="application"
           aria-label={localized["sequencer-envelope"]}
+          aria-busy={preview.status === "pending"}
           // biome-ignore lint/a11y/noNoninteractiveTabindex: B switches tools while the graph has focus
           tabIndex={0}
           data-tool={tool}

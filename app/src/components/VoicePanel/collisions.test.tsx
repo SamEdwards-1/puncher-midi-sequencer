@@ -2,7 +2,7 @@ import { createDefaultPatch, PatchJSON } from "@midiseq/core"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 import RootStore from "../../stores/RootStore"
-import { ManualTicker } from "../../test/fakes"
+import { immediateStepWork, ManualTicker } from "../../test/fakes"
 import { App } from "../App/App"
 
 let rootStore: RootStore
@@ -32,6 +32,7 @@ beforeEach(() => {
     requestMIDIAccess: null,
     ticker: new ManualTicker(),
     storage: null,
+    stepWork: immediateStepWork(),
   })
   const patch = createDefaultPatch()
   patch.pace = "4th"

@@ -10,7 +10,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FileService } from "../../services/FileService"
 import RootStore from "../../stores/RootStore"
-import { ManualTicker } from "../../test/fakes"
+import { immediateStepWork, ManualTicker } from "../../test/fakes"
 import { fileItem } from "../../test/menus"
 import { App } from "../App/App"
 
@@ -53,6 +53,7 @@ beforeEach(() => {
     ticker: new ManualTicker(),
     fileService: saving.service,
     storage: null,
+    stepWork: immediateStepWork(),
   })
   let patch = createDefaultPatch()
   patch.pace = "4th"
@@ -275,7 +276,7 @@ describe("exporting a step", () => {
     expect(String.fromCharCode(...bytes.slice(0, 4))).toBe("MThd")
   })
 
-  it("drags a step out as its MIDI file, with no dialog", () => {
+  it("drags a prepared step out as its MIDI file, with no dialog", async () => {
     const created: Blob[] = []
     vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
       created.push(blob as Blob)
@@ -288,7 +289,10 @@ describe("exporting a step", () => {
       setData: (type: string, value: string) => data.set(type, value),
     }
 
-    fireEvent.dragStart(screen.getByRole("button", { name: "Step 2" }), {
+    const step = screen.getByRole("button", { name: "Step 2" })
+    fireEvent.pointerEnter(step)
+    await act(async () => {})
+    fireEvent.dragStart(step, {
       dataTransfer,
     })
     expect(data.get("DownloadURL")).toBe(
@@ -297,6 +301,34 @@ describe("exporting a step", () => {
     expect(created[0].type).toBe("audio/midi")
     expect(dataTransfer.effectAllowed).toBe("copy")
     expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("waits for current step bytes instead of dragging an older patch", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test/current")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
+    const step = screen.getByRole("button", { name: "Step 2" })
+    const data = new Map<string, string>()
+    const transfer = {
+      setData: (type: string, value: string) => data.set(type, value),
+      effectAllowed: "all",
+    }
+    expect(fireEvent.dragStart(step, { dataTransfer: transfer })).toBe(false)
+    expect(data.has("DownloadURL")).toBe(false)
+    await act(async () => {})
+
+    act(() => {
+      rootStore.sequencerStore.patch = {
+        ...rootStore.sequencerStore.patch,
+        name: "New version",
+      }
+    })
+    expect(fireEvent.dragStart(step, { dataTransfer: transfer })).toBe(false)
+    expect(data.has("DownloadURL")).toBe(false)
+    await act(async () => {})
+    fireEvent.dragStart(step, { dataTransfer: transfer })
+    expect(data.get("DownloadURL")).toBe(
+      "audio/midi:New version step 2.mid:blob:test/current",
+    )
   })
 })
 
