@@ -132,6 +132,8 @@ describe("step editor", () => {
 
   it("shows no scale's keys without a scale", () => {
     setup([61])
+    // a scale is found from the notes at first; chromatic takes it away
+    click("Chromatic")
     expect(document.querySelector("[data-scale-keys]")).toBeNull()
     expect(screen.queryByRole("img", { name: "Not in the scale" })).toBeNull()
   })
