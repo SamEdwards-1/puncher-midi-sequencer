@@ -406,6 +406,8 @@ export default {
     "sequencer-synth-loading": "Starting the built-in sound…",
     "sequencer-status-dismiss": "Dismiss",
     "sequencer-synth-error": "The built-in sound didn't start:",
+    "sequencer-synth-mute": "Mute the built-in synth",
+    "sequencer-synth-mute-hint": "Toggle built-in synth MIDI output setting",
     "sequencer-soundfont-hint":
       "The sounds the built-in synth plays. Add your own SF2, SF3 or DLS files.",
     "sequencer-soundfont-list": "SoundFonts",
