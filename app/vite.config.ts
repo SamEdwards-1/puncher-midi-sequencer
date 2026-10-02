@@ -36,7 +36,7 @@ const findPort = async (from: number): Promise<number> => {
   return from
 }
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   // A port handed to us is used exactly as given: whatever set it is about to
   // open a browser there. Ours is only a preference.
   const chosen = process.env.PORT
@@ -44,6 +44,7 @@ export default defineConfig(async () => {
     chosen === undefined ? await findPort(DEFAULT_PORT) : Number(chosen)
 
   return {
+    base: command === "build" ? "/edit/" : "/",
     plugins: [
       react(),
       tailwindcss(),

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "turbo run dev --parallel",
     "build": "turbo run build",
+    "build:publish": "npm run build --workspace app && npm run build --workspace site && node scripts/assemble-publish.mjs",
     "test": "turbo run test",
     "test:all": "turbo run test:all",
     "typecheck": "turbo run typecheck",
