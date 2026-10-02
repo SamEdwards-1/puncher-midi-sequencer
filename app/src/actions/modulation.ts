@@ -12,6 +12,7 @@ import {
   useSelectedStep,
 } from "../hooks/useSequencerView"
 import { useStores } from "../hooks/useStores"
+import { trackModulations } from "../services/analytics"
 
 /**
  * Opens a setting's modulation in the envelope editor, on the step in the
@@ -37,6 +38,7 @@ export function useShowModulation() {
       if (next !== before) {
         history.push()
         sequencerStore.patch = next
+        trackModulations(before, next, "editor")
       }
       const cc = modulationOf(next, target)?.cc
       if (cc === undefined) {

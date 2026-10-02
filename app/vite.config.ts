@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { bundleBudget } from "./scripts/bundleBudget.ts"
+import { tagManager } from "./scripts/tagManager.ts"
 
 // the app's own types are the browser's; the dev server needs PORT
 declare const process: { env: Record<string, string | undefined> }
@@ -48,6 +49,7 @@ export default defineConfig(async ({ command }) => {
     plugins: [
       react(),
       tailwindcss(),
+      tagManager("GTM-TGX7SPN4"),
       // a few percent over the build of 2026-10-01, once the WebMCP tools and
       // the menus' dialogs were left to load when used: 722.1 kB of
       // first-download code, 224.5 kB gzipped

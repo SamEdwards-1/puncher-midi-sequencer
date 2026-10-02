@@ -1,12 +1,15 @@
 import { configure } from "mobx"
 import { createRoot } from "react-dom/client"
 import { App } from "./components/App/App"
+import { trackUncaughtErrors } from "./services/analytics"
 import RootStore from "./stores/RootStore"
 import "./styles.css"
 
 configure({
   enforceActions: "never",
 })
+
+trackUncaughtErrors(window)
 
 const rootStore = new RootStore()
 rootStore.init()

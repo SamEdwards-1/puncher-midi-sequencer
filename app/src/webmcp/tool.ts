@@ -1,4 +1,5 @@
 import { PatchJSON, StepIndex, StepJSON, VoiceIndex } from "@midiseq/core"
+import { track } from "../services/analytics"
 import type RootStore from "../stores/RootStore"
 import { InputError, readFields } from "./input"
 import { ModelContextTool, ToolAnnotations } from "./modelContext"
@@ -137,6 +138,7 @@ export const tool = ({ input, run, ...spec }: ToolSpec): ModelContextTool => ({
   ...spec,
   inputSchema: input,
   execute: async (raw) => {
+    track("webmcp_tool", { tool_name: spec.name })
     try {
       return run(readFields(parsed(raw), "The input", fieldsOf(input)))
     } catch (error) {

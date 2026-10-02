@@ -36,6 +36,10 @@ From the repository root, run `npm run build:publish`. This builds the Next.js d
 
 For Cloudflare Pages, connect the repository with its root as the build directory, use `npm run build:publish` as the build command, and set `dist/publish` as the output directory. Attach `punchermidi.app` to that Pages project. An apex domain on Pages requires Cloudflare nameservers, so add the domain to Cloudflare and change its nameservers at GoDaddy. Keep any existing email or other DNS records when moving DNS. The default production app link is `/edit`; set `NEXT_PUBLIC_APP_URL` at build time only if the editor URL changes. No publishing credentials or hosting service are required for local development.
 
+## Analytics
+
+A production build loads the Google Tag Manager container set in `lib/config.ts` on every page; `npm run dev` doesn't. Search, editor launches, theme changes, and enlarged screenshots are pushed to its data layer through `lib/analytics.ts`. [ANALYTICS.md](../ANALYTICS.md) lists the events and how the container is set up.
+
 ## Design system and skins
 
 `app/globals.css` defines the skin contract at the top of the file. Components use semantic tokens exposed to Tailwind through `@theme inline`:

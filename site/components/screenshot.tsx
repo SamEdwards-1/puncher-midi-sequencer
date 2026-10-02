@@ -3,6 +3,7 @@
 import { Expand, X } from "lucide-react"
 import Image from "next/image"
 import { useRef } from "react"
+import { track } from "../lib/analytics"
 import { screenshots } from "../lib/screenshots"
 
 export function Screenshot({
@@ -21,7 +22,10 @@ export function Screenshot({
         type="button"
         className="screenshot-button"
         aria-label={`Enlarge screenshot: ${caption}`}
-        onClick={() => dialog.current?.showModal()}
+        onClick={() => {
+          dialog.current?.showModal()
+          track("screenshot_open", { screenshot: src })
+        }}
       >
         <Image
           src={screenshots[src]}

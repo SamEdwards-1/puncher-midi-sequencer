@@ -1,6 +1,7 @@
 import { StepIndex, sequenceCCs } from "@midiseq/core"
 import { DragEvent, useCallback, useEffect, useRef } from "react"
 import { exportOptionsFor, stepMidiNameFor } from "../actions/file"
+import { track } from "../services/analytics"
 import { MIDI_FILE } from "../services/FileService"
 import { useStores } from "./useStores"
 
@@ -132,6 +133,7 @@ export function useStepMidiDrag() {
       last.current = url
       transfer.effectAllowed = "copy"
       transfer.setData("DownloadURL", `${type}:${name}:${url}`)
+      track("midi_export", { scope: "step", method: "drag" })
     },
     [identity, prepare],
   )

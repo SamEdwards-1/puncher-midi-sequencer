@@ -614,6 +614,11 @@ out. Run the ones for what you've changed with, say,
 - `app` — the React app: MobX for the patch, jotai for view state, Tailwind
   for styling, the services that talk to Web MIDI, and the built-in synth.
 
+Production builds of the docs and the editor load Google Tag Manager, which
+passes what is done in them on to Google Analytics; development builds and
+tests don't. [ANALYTICS.md](ANALYTICS.md) lists the events and how the
+container is set up.
+
 The engine works in floating-point beats and hands the player timestamped
 events; the player schedules about 100 ms ahead, ticked from a Web Worker, so
 playback keeps time even when the tab is in the background. The notes each

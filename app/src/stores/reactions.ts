@@ -4,6 +4,7 @@ import { MIDISink } from "../services/MIDISink"
 import { OutputAssignment } from "../services/OutputRouter"
 import { BUILTIN_OUTPUT } from "./MIDIDeviceStore"
 import type RootStore from "./RootStore"
+import { registerUsageReactions } from "./usageReactions"
 
 // Same ports in the same slots, so a hot-plug of an unrelated device doesn't
 // disturb playback.
@@ -14,7 +15,8 @@ const sameAssignment = (a: OutputAssignment, b: OutputAssignment) =>
 
 /**
  * Wires the stores and services together, and returns what unwires them
- * again: every reaction, and the listener on the MIDI input.
+ * again: every reaction, the listener on the MIDI input, and what tells
+ * analytics of their use.
  */
 export const registerReactions = (rootStore: RootStore): (() => void) => {
   const {
@@ -28,7 +30,7 @@ export const registerReactions = (rootStore: RootStore): (() => void) => {
     soundFonts,
     synthStore,
   } = rootStore
-  const disposers: (() => void)[] = []
+  const disposers: (() => void)[] = [registerUsageReactions(rootStore)]
 
   // Outputs are ports, except where the built-in sound was chosen; that slot
   // gets the synth once it has loaded.
