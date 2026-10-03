@@ -389,7 +389,10 @@ export default {
     "sequencer-output-none": "None",
     "sequencer-output-disconnected": "disconnected",
     "sequencer-midi-unsupported":
-      "This browser doesn't support Web MIDI. Use Chrome or Edge.",
+      "This browser doesn't support Web MIDI. Use Chrome, Edge, Opera or Firefox.",
+    "sequencer-midi-unsupported-toast":
+      "This browser doesn't support Web MIDI, so it can't reach your MIDI devices. The built-in synth still plays.",
+    "sequencer-midi-unsupported-browsers": "Supported browsers",
     "sequencer-midi-error": "Couldn't access MIDI:",
     "sequencer-midi-permission-hint":
       "The browser blocked MIDI. Allow MIDI devices in this site's settings (the icon at the left of the address bar), then try again.",

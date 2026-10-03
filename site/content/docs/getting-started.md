@@ -2,12 +2,12 @@
 title: Your first sequence
 group: Start here
 description: Set up a sound, enter a chord, and let four voices play it their own way.
-order: 1
+order: 2
 ---
 
 ## Before you start {#before-you-start}
 
-Open PUNCHER in Chrome or Edge. You can use the built-in synth without a MIDI keyboard or external instrument. The first time you enable it, the app downloads a SoundFont and keeps it in your browser.
+Open PUNCHER in a browser that [supports Web MIDI](/docs/introduction#browser-support), such as Chrome, Edge, Opera, or Firefox. You can use the built-in synth without a MIDI keyboard or external instrument. The first time you enable it, the app downloads a SoundFont and keeps it in your browser.
 
 PUNCHER has two clocks to think about: the sequencer moves between **steps**, while each **voice** plays notes from the current step at its own pace. A step can hold up to four notes. Those notes are the material; the voices decide how to play them.
 

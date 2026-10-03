@@ -2,7 +2,7 @@
 title: Scales & transposition
 group: Build a sequence
 description: Choose a tonal center and decide what happens to notes outside it.
-order: 7
+order: 8
 ---
 
 ## Choose a scale {#choose-a-scale}

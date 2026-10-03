@@ -78,3 +78,18 @@ export const ToastAction: FC<{ children: ReactNode; onClick: () => void }> = ({
     {children}
   </button>
 )
+
+/** A toast's action that goes somewhere else: a page in a new tab. */
+export const ToastLink: FC<{ children: ReactNode; href: string }> = ({
+  children,
+  href,
+}) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    className="whitespace-nowrap font-semibold text-white underline underline-offset-2 hover:text-white/80"
+  >
+    {children}
+  </a>
+)
