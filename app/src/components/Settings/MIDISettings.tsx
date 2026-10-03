@@ -3,7 +3,12 @@ import { FC } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
+import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import { Button } from "../ui/Button"
 import { Checkbox } from "../ui/Checkbox"
 import { Select } from "../ui/Select"
@@ -24,6 +29,7 @@ const Section: FC<{ name: string; children: React.ReactNode }> = ({
 
 export const MIDISettings: FC = () => {
   const localized = useLocalization()
+  const format = useFormat()
   const { synthStore } = useStores()
   const synthState = useMobxGetter(synthStore, "state")
   const synthError = useMobxGetter(synthStore, "error")
@@ -53,10 +59,14 @@ export const MIDISettings: FC = () => {
     ...chosen.filter((name) => !connected.includes(name)),
   ]
 
-  const label = (name: string, connected: string[]) =>
-    connected.includes(name)
-      ? name
-      : `${name} (${localized["sequencer-output-disconnected"]})`
+  // the built-in synth is saved by its English name, and shown by its own
+  const label = (name: string, connected: string[]) => {
+    const shown =
+      name === BUILTIN_OUTPUT ? localized["sequencer-builtin-synth"] : name
+    return connected.includes(name)
+      ? shown
+      : format("sequencer-output-disconnected", { name: shown })
+  }
 
   /** Shown until the browser has handed MIDI over. */
   const access = () => {

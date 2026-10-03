@@ -14,7 +14,11 @@ import { CSSProperties, FC, HTMLAttributes, memo, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { scaleLabel } from "../../theory/scales"
 import { ScaleKeys } from "../Scale/ScaleKeys"
 import { Button, ButtonGroup, IconButton } from "../ui/Button"
@@ -89,6 +93,7 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
   )
   const { copiedStep, setCopiedStep } = useCopiedStep()
   const localized = useLocalization()
+  const format = useFormat()
   const {
     editStepState,
     addNote,
@@ -252,7 +257,9 @@ export const StepEditor: FC<{ column?: Column }> = memo(({ column }) => {
                     </span>
                   )}
                   <IconButton
-                    aria-label={`${localized["sequencer-step-remove-note"]} ${position + 1}`}
+                    aria-label={format("sequencer-step-remove-note-of", {
+                      note: position + 1,
+                    })}
                     title={localized["sequencer-step-remove-note"]}
                     onClick={() => removeNote(selected, position)}
                   >

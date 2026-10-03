@@ -2,7 +2,7 @@ import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch } from "../../hooks/usePatch"
 import { useCopiedStep, useSelectedStep } from "../../hooks/useSequencerView"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import { Localized, useFormat } from "../../localize/useLocalization"
 import { ContextMenu, MenuDivider, MenuItem, Point } from "../ui/Menu"
 
 /**
@@ -21,7 +21,7 @@ export const StepMenu: FC<{
   const { copiedStep, setCopiedStep } = useCopiedStep()
   const [, setSelected] = useSelectedStep()
   const { paste, clearStepContent, insertStep, deleteStep } = usePatchEditor()
-  const localized = useLocalization()
+  const format = useFormat()
 
   const insert = (at: number) => {
     insertStep(at)
@@ -30,7 +30,7 @@ export const StepMenu: FC<{
 
   return (
     <ContextMenu
-      label={`${localized["sequencer-step"]} ${index + 1}`}
+      label={format("sequencer-step-number", { step: index + 1 })}
       at={at}
       onClose={onClose}
     >

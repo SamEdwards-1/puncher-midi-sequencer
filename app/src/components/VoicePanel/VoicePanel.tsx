@@ -44,9 +44,13 @@ import {
 } from "../../hooks/useSequencerView"
 import { useStepPreview } from "../../hooks/useStepPreview"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Format,
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
-import { RULE_LABELS } from "../Modulation/labels"
 import { ModulatedField } from "../Modulation/ModulatedField"
 import { FitSelect } from "../Scale/ScalePicker"
 import { ButtonGroup, IconButton } from "../ui/Button"
@@ -67,11 +71,6 @@ const PACE_OPTIONS = PACES.map((pace) => ({
 const INSTRUMENT_OPTIONS = GM_PROGRAMS.map((label, value) => ({
   value,
   label,
-}))
-
-const RULE_OPTIONS = VOICE_RULES.map((rule) => ({
-  value: rule,
-  label: RULE_LABELS[rule],
 }))
 
 const TAB =
@@ -100,14 +99,18 @@ const collisionColor = (index: number) =>
 const describeCollision = (
   collision: NoteCollision,
   voice: VoiceIndex,
-  localized: Record<string, string>,
+  format: Format,
 ): string => {
   const others = [
     ...new Set(
       collision.dots.map((dot) => dot.voice).filter((other) => other !== voice),
     ),
   ].map((other) => other + 1)
-  return `${localized["sequencer-dot-collision"]} ${noteNumberToName(collision.note)} · ${localized["sequencer-voice"]} ${others.join(", ")}`
+  return format("sequencer-dot-collision", {
+    note: noteNumberToName(collision.note),
+    count: others.length,
+    voices: others.join(", "),
+  })
 }
 
 // Points the `voice` colour at one voice's, for the element and whatever is
@@ -135,7 +138,13 @@ const describe = (
       ? `${localized["sequencer-dot-ratchet"]} ${dot.ratchet}x`
       : null,
     dot.probability < 100 ? `${dot.probability}%` : null,
-    dot.condition === "always" ? null : dot.condition,
+    dot.condition === "always"
+      ? null
+      : dot.condition === "last"
+        ? localized["sequencer-dot-last"]
+        : dot.condition === "notLast"
+          ? localized["sequencer-dot-not-last"]
+          : dot.condition,
   ].filter((part) => part !== null)
   return parts.join(" · ")
 }
@@ -295,7 +304,10 @@ export const VoicePanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <ComboBox
               value={shown(voice.rule)}
-              options={RULE_OPTIONS}
+              options={VOICE_RULES.map((rule) => ({
+                value: rule,
+                label: localized[`sequencer-rule-${rule}`],
+              }))}
               onChange={(rule) => editVoice(selected, { rule })}
             />
           )}
@@ -515,6 +527,7 @@ const Patterns: FC<{
   }
   const { exportPatterns, importPatterns } = usePatternFileActions()
   const localized = useLocalization()
+  const format = useFormat()
   const [options, setOptions] = useState<{
     voiceIndex: VoiceIndex
     dotIndex: number
@@ -590,7 +603,9 @@ const Patterns: FC<{
         return (
           <fieldset
             key={voiceIndex}
-            aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-pattern"]}`}
+            aria-label={format("sequencer-voice-pattern", {
+              voice: voiceIndex + 1,
+            })}
             aria-current={voiceIndex === selected}
             data-enabled={voice.enabled}
             data-reach={reach}
@@ -605,7 +620,9 @@ const Patterns: FC<{
             >
               <button
                 type="button"
-                aria-label={`${localized["sequencer-voice-select"]} ${voiceIndex + 1}`}
+                aria-label={format("sequencer-voice-select", {
+                  voice: voiceIndex + 1,
+                })}
                 aria-pressed={voiceIndex === selected}
                 className="flex h-5 w-5 flex-none items-center justify-center rounded text-tiny text-voice hover:bg-highlight hover:brightness-125"
                 onClick={() => onSelect(voiceIndex)}
@@ -663,7 +680,10 @@ const Patterns: FC<{
                       // biome-ignore lint/suspicious/noArrayIndexKey: a dot's index is its position in the pattern
                       key={dotIndex}
                       type="button"
-                      aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+                      aria-label={format("sequencer-voice-dot-of", {
+                        voice: voiceIndex + 1,
+                        dot: dotIndex + 1,
+                      })}
                       data-on={dot.on}
                       data-beyond={dotIndex >= voice.patternLength}
                       data-reached={reached(dotIndex)}
@@ -704,7 +724,7 @@ const Patterns: FC<{
                           describeCollision(
                             collisions[index],
                             voiceIndex,
-                            localized,
+                            format,
                           ),
                         ),
                       ]
@@ -865,15 +885,18 @@ const VoiceButtons: FC<{
   onSolo: (voice: VoiceIndex) => void
 }> = ({ voice, muted, soloed, onMute, onSolo }) => {
   const localized = useLocalization()
+  const format = useFormat()
   const buttons = [
     {
       label: localized["sequencer-voice-mute"],
+      named: "sequencer-voice-mute-of" as const,
       on: muted,
       onClick: onMute,
       icon: <VolumeOffIcon size={16} />,
     },
     {
       label: localized["sequencer-voice-solo"],
+      named: "sequencer-voice-solo-of" as const,
       on: soloed,
       onClick: onSolo,
       icon: <HeadphonesIcon size={16} />,
@@ -882,14 +905,14 @@ const VoiceButtons: FC<{
   return (
     // the select button's width and the gap after it
     <ButtonGroup className="ml-7 self-start">
-      {buttons.map(({ label, on, onClick, icon }) => (
+      {buttons.map(({ label, named, on, onClick, icon }) => (
         // square, so not a Button: its padding would crowd the icon
         <button
           key={label}
           type="button"
           data-active={on}
           aria-pressed={on}
-          aria-label={`${label} ${localized["sequencer-voice"]} ${voice + 1}`}
+          aria-label={format(named, { voice: voice + 1 })}
           title={label}
           className={cn(
             "flex w-[1.7rem] items-center justify-center",

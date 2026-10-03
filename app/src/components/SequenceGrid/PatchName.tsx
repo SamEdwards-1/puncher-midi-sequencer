@@ -2,7 +2,7 @@ import { FC, useRef, useState } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { useMobxSelector } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
-import { useLocalization } from "../../localize/useLocalization"
+import { useFormat, useLocalization } from "../../localize/useLocalization"
 
 /**
  * The patch's name, in the grid's bar where its title would be. A click
@@ -13,6 +13,7 @@ export const PatchName: FC = () => {
   const { sequencerStore } = useStores()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
+  const format = useFormat()
   const name = useMobxSelector(
     () => sequencerStore.patch.name,
     [sequencerStore],
@@ -71,7 +72,7 @@ export const PatchName: FC = () => {
     <button
       type="button"
       title={localized["sequencer-patch-rename"]}
-      aria-label={`${localized["sequencer-patch-name"]}: ${name}`}
+      aria-label={format("sequencer-patch-name-of", { name })}
       onClick={start}
       className="-mx-[0.3rem] block max-w-full cursor-text truncate rounded-sm border border-transparent px-[0.3rem] text-left font-semibold text-title text-fg hover:border-divider"
     >

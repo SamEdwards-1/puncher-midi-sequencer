@@ -10,7 +10,16 @@ import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { usePatch } from "../../hooks/usePatch"
 import { useSettings } from "../../hooks/useSettings"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  LANGUAGE_NAMES,
+  LANGUAGES,
+  Language,
+} from "../../localize/localization"
+import {
+  Localized,
+  useCurrentLanguage,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { IMPORT_SNAPS } from "../../stores/ImportSettingsStore"
 import { SETTINGS_TABS } from "../../stores/SettingsTabStore"
 import { THEME_MODES, ThemeKind, themesOfKind } from "../../theme/Theme"
@@ -34,10 +43,27 @@ const parseAmount = (text: string) => {
 
 const GeneralSettings: FC = () => {
   const { accentAmount, setAccentAmount } = useAccentAmount()
+  const { setLanguage } = useSettings()
+  // the browser's until one is chosen here
+  const language = useCurrentLanguage()
   const localized = useLocalization()
 
   return (
     <div className="flex flex-col gap-3 text-body text-fg-secondary">
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: the select is the row */}
+      <label className={ROW}>
+        {localized["sequencer-language"]}
+        <Select
+          value={language}
+          onChange={(event) => setLanguage(event.target.value as Language)}
+        >
+          {LANGUAGES.map((each) => (
+            <option key={each} value={each} lang={each}>
+              {LANGUAGE_NAMES[each]}
+            </option>
+          ))}
+        </Select>
+      </label>
       <div className={ROW}>
         <span>{localized["sequencer-accent-amount"]}</span>
         <div className="flex items-center gap-3">

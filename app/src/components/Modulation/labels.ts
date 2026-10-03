@@ -1,4 +1,6 @@
 import {
+  Direction,
+  LoopMode,
   ModulationTarget,
   ModulationValue,
   PACE_LABELS,
@@ -13,27 +15,6 @@ import { scaleLabel } from "../../theory/scales"
 
 type Localized = Record<LocalizationKey, string>
 
-export const RULE_LABELS: Record<VoiceRule, string> = {
-  nth: "Nth",
-  lowest: "Lowest",
-  highest: "Highest",
-  random: "Random",
-  up: "Up",
-  down: "Down",
-  updown: "Up / Down",
-  downup: "Down / Up",
-  "updown+": "Up / Down +",
-  "downup+": "Down / Up +",
-  rise: "Rise",
-  fall: "Fall",
-  outsidein: "Outside In",
-  insideout: "Inside Out",
-  ends: "Ends",
-  shuffle: "Shuffle",
-  walk: "Walk",
-  norepeat: "No Repeat",
-}
-
 /** One of a setting's values as its field shows it: "8th D", "35%", "+7". */
 export const modulationValueLabel = (
   target: ModulationTarget,
@@ -46,27 +27,13 @@ export const modulationValueLabel = (
     case "length":
       return `${Math.round((value as number) * 100)}%`
     case "rule":
-      return RULE_LABELS[value as VoiceRule]
+      return localized[`sequencer-rule-${value as VoiceRule}`]
     case "transposeAmt":
       return (value as number) > 0 ? `+${value}` : String(value)
     case "direction":
-      return (
-        {
-          fwd: "Forwards",
-          bwd: "Backwards",
-          fwdbwd: "Fwd / Bwd",
-          bwdfwd: "Bwd / Fwd",
-          random: "Random",
-          "random+": "Random+",
-        } as Record<string, string>
-      )[String(value)]
+      return localized[`sequencer-direction-${value as Direction}`]
     case "loop":
-      return (
-        { recorded: "Recorded", all: "All", custom: "Custom" } as Record<
-          string,
-          string
-        >
-      )[String(value)]
+      return localized[`sequencer-loop-${value as LoopMode}`]
     case "transposeFit":
       return localized[`sequencer-scale-fit-${value as ScaleFit}`]
     case "patternLength":

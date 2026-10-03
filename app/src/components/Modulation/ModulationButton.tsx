@@ -24,7 +24,11 @@ import { useShowModulation } from "../../actions/modulation"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatch, usePatchSelector } from "../../hooks/usePatch"
 import { useSelectedStep } from "../../hooks/useSequencerView"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { trackModulationSet } from "../../services/analytics"
 import { TONICS } from "../../theory/scales"
 import { Button } from "../ui/Button"
@@ -57,6 +61,7 @@ export const ModulationButton: FC<{
   className?: string
 }> = ({ target, className }) => {
   const localized = useLocalization()
+  const format = useFormat()
   // the setting's own modulation, which most edits leave as it was; a
   // target comes new with each render, so it goes by what it says
   const modulation = usePatchSelector(
@@ -65,7 +70,9 @@ export const ModulationButton: FC<{
   )
   const button = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const name = `${localized["sequencer-modulation-settings"]}: ${modulationTargetLabel(target, localized)}`
+  const name = format("sequencer-modulation-settings", {
+    target: modulationTargetLabel(target, localized),
+  })
 
   return (
     <>
@@ -78,7 +85,7 @@ export const ModulationButton: FC<{
         title={
           modulation === undefined
             ? name
-            : `${localized["sequencer-modulation-by"]} ${modulation.cc}`
+            : format("sequencer-modulation-by", { cc: modulation.cc })
         }
         data-modulated={modulation !== undefined}
         className={cn(
@@ -120,6 +127,7 @@ const ModulationPopover: FC<{
 }> = ({ target, anchor, onClose }) => {
   const patch = usePatch()
   const localized = useLocalization()
+  const format = useFormat()
   const { editModulation, removeModulation } = usePatchEditor()
   const showModulation = useShowModulation()
   const [step] = useSelectedStep()
@@ -216,7 +224,7 @@ const ModulationPopover: FC<{
     <div
       ref={popup}
       role="dialog"
-      aria-label={`${localized["sequencer-modulation"]}: ${title}`}
+      aria-label={format("sequencer-modulation-of", { target: title })}
       data-modulation-popover
       className="fixed z-30 flex w-72 flex-col gap-2 rounded-lg border border-popup-border bg-background-secondary px-3 pt-3 pb-3 text-body text-fg-secondary shadow-[0_1rem_3rem_var(--midiseq-shadow)]"
       style={{ left: at.x, top: at.y }}
@@ -236,7 +244,7 @@ const ModulationPopover: FC<{
         <div className="flex min-w-0 items-center gap-2">
           <div className="w-28 flex-none">
             <Stepper
-              label={`${title} ${localized["sequencer-modulation-cc"]}`}
+              label={format("sequencer-modulation-cc-of", { target: title })}
               value={shown.cc}
               min={0}
               max={127}
@@ -268,38 +276,34 @@ const ModulationPopover: FC<{
       </div>
 
       <div className="text-small text-fg-tertiary" data-modulation-count>
-        {count}{" "}
-        {count === 1
-          ? localized["sequencer-modulation-value"]
-          : localized["sequencer-modulation-values"]}{" "}
-        · CC 0–127
+        {format("sequencer-modulation-values", { count })} · CC 0–127
       </div>
       {existing !== undefined && (
         <div className="text-small text-fg-tertiary" data-modulation-steps>
           {onSteps.length === 0 ? (
             <Localized name="sequencer-modulation-on-none" />
           ) : (
-            `${localized["sequencer-modulation-on"]} ${
-              onSteps.length === 1
-                ? localized["sequencer-modulation-step"]
-                : localized["sequencer-modulation-steps"]
-            } ${onSteps.map((index) => index + 1).join(", ")}`
+            format("sequencer-modulation-on", {
+              count: onSteps.length,
+              steps: onSteps.map((index) => index + 1).join(", "),
+            })
           )}
         </div>
       )}
       {clash !== undefined && (
         <div className="text-small text-error" role="alert">
-          CC {shown.cc}: <Localized name="sequencer-modulation-taken" />{" "}
-          {modulationTargetLabel(clash.target, localized)}
+          {format("sequencer-modulation-taken", {
+            cc: shown.cc,
+            target: modulationTargetLabel(clash.target, localized),
+          })}
         </div>
       )}
       {existing === undefined && clash === undefined && onSteps.length > 0 && (
         <div className="text-small text-yellow">
-          CC {shown.cc}: <Localized name="sequencer-modulation-on-steps" />{" "}
-          {onSteps.length}{" "}
-          {onSteps.length === 1
-            ? localized["sequencer-modulation-step"]
-            : localized["sequencer-modulation-steps"]}
+          {format("sequencer-modulation-on-steps", {
+            cc: shown.cc,
+            count: onSteps.length,
+          })}
         </div>
       )}
       <p className="m-0 text-small text-fg-tertiary">
@@ -333,7 +337,7 @@ const ModulationPopover: FC<{
               size="sm"
               onClick={() => showModulation(target)}
             >
-              <Localized name="sequencer-modulation-show" /> {step + 1}
+              {format("sequencer-modulation-show", { step: step + 1 })}
             </Button>
             <div className="grow" />
             <Button

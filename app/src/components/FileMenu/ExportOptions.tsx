@@ -9,7 +9,11 @@ import { CSSProperties, FC, ReactNode } from "react"
 import { exportsCC } from "../../actions/file"
 import { useExportSettings } from "../../hooks/useExportSettings"
 import { usePatch } from "../../hooks/usePatch"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { ccKey, MAX_EXPORT_PASSES } from "../../stores/ExportSettingsStore"
 import { modulationTargetLabel } from "../Modulation/labels"
 import { Button } from "../ui/Button"
@@ -52,6 +56,7 @@ export const ExportOptions: FC<{
   const patch = usePatch()
   const settings = useExportSettings()
   const localized = useLocalization()
+  const format = useFormat()
   const excluded = new Set(settings.excludedCCs)
   // a CC driving a setting, and nothing else, while those are left out
   const leftOut = (each: SequenceCC) =>
@@ -74,10 +79,11 @@ export const ExportOptions: FC<{
         : CC_NAMES[cc],
       steps.length === 0
         ? null
-        : `${steps.length} ${localized[steps.length === 1 ? "sequencer-export-step" : "sequencer-export-steps"]}`,
-      ...mods.map(
-        (source) =>
-          `${localized["sequencer-export-mod"]} ${localized[`sequencer-mod-${source}`]}`,
+        : format("sequencer-steps-count", { count: steps.length }),
+      ...mods.map((source) =>
+        format("sequencer-export-mod", {
+          source: localized[`sequencer-mod-${source}`],
+        }),
       ),
     ].filter((part) => part !== null)
     return modulation === undefined ? (
@@ -113,7 +119,7 @@ export const ExportOptions: FC<{
                 disabled={!voice.enabled}
                 note={
                   voice.enabled
-                    ? `${localized["sequencer-step-cc-channel-short"]} ${voice.channel} · ${gmProgramName(voice.program)}`
+                    ? `${format("sequencer-channel-short", { channel: voice.channel })} · ${gmProgramName(voice.program)}`
                     : localized["sequencer-export-voice-off"]
                 }
                 onChange={(on) => settings.setVoice(index, on)}
@@ -149,7 +155,7 @@ export const ExportOptions: FC<{
             {ccs.map((each) => (
               <Checkbox
                 key={ccKey(each)}
-                label={`CC ${each.cc} · ${localized["sequencer-step-cc-channel-short"]} ${each.channel}`}
+                label={`CC ${each.cc} · ${format("sequencer-channel-short", { channel: each.channel })}`}
                 checked={!leftOut(each) && !excluded.has(ccKey(each))}
                 disabled={leftOut(each)}
                 note={describeCC(each)}
