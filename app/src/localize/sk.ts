@@ -473,7 +473,10 @@ const sk: Translation = {
   "sequencer-output-disconnected": "{name} (odpojený)",
   "sequencer-builtin-synth": "Vstavaný syntetizátor",
   "sequencer-midi-unsupported":
-    "Tento prehliadač nepodporuje Web MIDI. Použite Chrome alebo Edge.",
+    "Tento prehliadač nepodporuje Web MIDI. Použite Chrome, Edge, Operu alebo Firefox.",
+  "sequencer-midi-unsupported-toast":
+    "Tento prehliadač nepodporuje Web MIDI, takže sa nedostane k vašim MIDI zariadeniam. Vstavaný syntetizátor však hrá ďalej.",
+  "sequencer-midi-unsupported-browsers": "Podporované prehliadače",
   "sequencer-midi-error": "Nepodarilo sa získať prístup k MIDI:",
   "sequencer-midi-permission-hint":
     "Prehliadač zablokoval MIDI. Povoľte MIDI zariadenia v nastaveniach tejto stránky (ikona vľavo v paneli s adresou) a skúste to znova.",

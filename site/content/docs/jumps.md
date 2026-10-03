@@ -2,7 +2,7 @@
 title: Conditional jumps
 group: Build a sequence
 description: Repeat a phrase, take a detour, or let chance choose the next step.
-order: 6
+order: 7
 ---
 
 ## Add a jump {#add-a-jump}

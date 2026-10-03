@@ -2,7 +2,7 @@
 title: Velocity & CC envelopes
 group: Shape the performance
 description: Shape individual hits and draw controller changes across a step.
-order: 8
+order: 9
 ---
 
 ## Edit note velocity {#velocity}

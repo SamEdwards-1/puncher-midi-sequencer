@@ -238,10 +238,11 @@ describe("App", () => {
   it("explains when Web MIDI is unavailable", async () => {
     render(<App rootStore={createStore()} />)
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-    await opened("Settings")
+    const settings = await opened("Settings")
     fireEvent.click(screen.getByRole("button", { name: "MIDI" }))
+    // the toast says so too, over the app
     expect(
-      screen.getByText(/This browser doesn't support Web MIDI/),
+      within(settings).getByText(/This browser doesn't support Web MIDI/),
     ).toBeInTheDocument()
   })
 })

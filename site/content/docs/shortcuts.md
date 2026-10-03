@@ -2,7 +2,7 @@
 title: Keyboard shortcuts
 group: Reference
 description: Common editing commands and the keys used during a performance.
-order: 14
+order: 15
 ---
 
 ## Editing and files {#editing}

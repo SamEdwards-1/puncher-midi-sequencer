@@ -2,7 +2,7 @@
 title: Modulation
 group: Shape the performance
 description: Use a step's envelope to change voice settings, sequencer settings, or performance actions.
-order: 9
+order: 10
 ---
 
 ## Connect an envelope to a setting {#bind-a-setting}

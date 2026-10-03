@@ -2,7 +2,7 @@
 title: Steps & the grid
 group: Build a sequence
 description: Enter notes, set the loop, and choose how the sequencer travels through the grid.
-order: 4
+order: 5
 ---
 
 ## Select a step {#select-a-step}
@@ -18,10 +18,6 @@ Audition step also makes the editor follow playback. Turn it off to keep a parti
 Use **+ Add note**, then type or step a note name. `G#5` sets pitch and octave; `D` keeps the existing octave. The editor can transpose one note or the whole chord by a semitone or octave. **Copy**, **Paste**, and **Clear** apply to the selected step.
 
 **Step notes** sets the active note limit, from 1 to 4. Lowering it dims and silences extra notes without deleting them. **Trim to limit** removes those extras.
-
-## Rests and skips {#rests-and-skips}
-
-A **Rest** takes time but plays no notes. Its CC envelopes still run. A **Skip** is not visited. Choose the step's type in the editor.
 
 ## Set the route and timing {#sequencer-settings}
 

@@ -2,7 +2,7 @@
 title: Export MIDI or audio
 group: Files & recording
 description: Take a performance into your DAW, export a single step, or render a finished audio file.
-order: 13
+order: 14
 ---
 
 ## Export the sequence as MIDI {#export-midi}

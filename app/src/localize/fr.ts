@@ -473,7 +473,10 @@ const fr: Translation = {
   "sequencer-output-disconnected": "{name} (déconnecté)",
   "sequencer-builtin-synth": "Synthé intégré",
   "sequencer-midi-unsupported":
-    "Ce navigateur ne prend pas en charge Web MIDI. Utilisez Chrome ou Edge.",
+    "Ce navigateur ne prend pas en charge Web MIDI. Utilisez Chrome, Edge, Opera ou Firefox.",
+  "sequencer-midi-unsupported-toast":
+    "Ce navigateur ne prend pas en charge Web MIDI et ne peut donc pas accéder à vos appareils MIDI. Le synthé intégré joue toujours.",
+  "sequencer-midi-unsupported-browsers": "Navigateurs compatibles",
   "sequencer-midi-error": "Impossible d’accéder au MIDI :",
   "sequencer-midi-permission-hint":
     "Le navigateur a bloqué le MIDI. Autorisez les appareils MIDI dans les paramètres de ce site (l’icône à gauche de la barre d’adresse), puis réessayez.",

@@ -463,7 +463,10 @@ const ja: Translation = {
   "sequencer-output-disconnected": "{name}（未接続）",
   "sequencer-builtin-synth": "内蔵シンセ",
   "sequencer-midi-unsupported":
-    "このブラウザーは Web MIDI に対応していません。Chrome または Edge を使ってください。",
+    "このブラウザーは Web MIDI に対応していません。Chrome、Edge、Opera、Firefox のいずれかを使ってください。",
+  "sequencer-midi-unsupported-toast":
+    "このブラウザーは Web MIDI に対応していないため、MIDI デバイスを使えません。内蔵シンセは引き続き鳴らせます。",
+  "sequencer-midi-unsupported-browsers": "対応ブラウザー",
   "sequencer-midi-error": "MIDI にアクセスできませんでした:",
   "sequencer-midi-permission-hint":
     "ブラウザーが MIDI をブロックしました。このサイトの設定（アドレスバー左端のアイコン）で MIDI デバイスを許可してから、もう一度お試しください。",

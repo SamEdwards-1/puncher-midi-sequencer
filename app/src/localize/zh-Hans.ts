@@ -444,7 +444,10 @@ const zhHans: Translation = {
   "sequencer-output-disconnected": "{name}（已断开）",
   "sequencer-builtin-synth": "内置合成器",
   "sequencer-midi-unsupported":
-    "此浏览器不支持 Web MIDI。请使用 Chrome 或 Edge。",
+    "此浏览器不支持 Web MIDI。请使用 Chrome、Edge、Opera 或 Firefox。",
+  "sequencer-midi-unsupported-toast":
+    "此浏览器不支持 Web MIDI，无法连接你的 MIDI 设备。内置合成器仍可播放。",
+  "sequencer-midi-unsupported-browsers": "支持的浏览器",
   "sequencer-midi-error": "无法访问 MIDI：",
   "sequencer-midi-permission-hint":
     "浏览器阻止了 MIDI。请在此网站的设置中允许 MIDI 设备（地址栏左侧的图标），然后重试。",
