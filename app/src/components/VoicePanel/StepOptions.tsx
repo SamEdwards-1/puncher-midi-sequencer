@@ -262,6 +262,7 @@ export const StepOptions: FC<StepOptionsProps> = ({
         <Field label={localized["sequencer-dot-condition"]}>
           <Select
             value={dot.condition}
+            title={localized[`sequencer-dot-condition-${dot.condition}-hint`]}
             onChange={(event) =>
               change({ condition: event.target.value as PatternCondition })
             }

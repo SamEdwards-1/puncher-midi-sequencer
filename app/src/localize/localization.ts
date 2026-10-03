@@ -291,6 +291,24 @@ export default {
     "sequencer-dot-always": "Always",
     "sequencer-dot-last": "Last",
     "sequencer-dot-not-last": "Not last",
+    "sequencer-dot-condition-always-hint":
+      "Always: plays every time the pattern reaches this dot",
+    "sequencer-dot-condition-2:2-hint":
+      "2:2: silent on the first loop, plays on the second of every two (loops 2, 4, 6…)",
+    "sequencer-dot-condition-3:3-hint":
+      "3:3: silent on loops 1 and 2, plays on the third of every three (loops 3, 6, 9…)",
+    "sequencer-dot-condition-4:4-hint":
+      "4:4: silent on loops 1 to 3, plays on the fourth of every four (loops 4, 8, 12…)",
+    "sequencer-dot-condition-1x-hint":
+      "1x: plays one loop, skips the next, and so on (loops 1, 3, 5…)",
+    "sequencer-dot-condition-2x-hint":
+      "2x: plays two loops in a row, then skips the third (loops 1, 2, 4, 5…)",
+    "sequencer-dot-condition-3x-hint":
+      "3x: plays three loops in a row, then skips the fourth (loops 1, 2, 3, 5…)",
+    "sequencer-dot-condition-last-hint":
+      "Last: plays only if the dot just before played — not if it failed its probability, was skipped by its condition or was off",
+    "sequencer-dot-condition-notLast-hint":
+      "Not last: plays only if the dot just before didn't — a fallback for when it fails its probability or condition",
     "sequencer-dot-reset": "Reset dot",
     "sequencer-dot-copy": "Copy",
     "sequencer-dot-paste": "Paste",

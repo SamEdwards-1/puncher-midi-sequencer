@@ -18,8 +18,10 @@ export interface VoiceRuntime {
   patternIndex: number
   // created on the first note, when the note count is known
   cursor: RuleCursor | null
+  // by dot, how many passes of the pattern have reached it
   conditionCounts: number[]
-  lastCondition: boolean | null
+  // whether the voice's previous dot played a note; null before its first
+  lastPlayed: boolean | null
   activeNote: ActiveNote | null
 }
 
@@ -56,7 +58,7 @@ export const createVoiceRuntime = (): VoiceRuntime => ({
   patternIndex: 0,
   cursor: null,
   conditionCounts: Array.from({ length: MAX_PATTERN_LENGTH }, () => 0),
-  lastCondition: null,
+  lastPlayed: null,
   activeNote: null,
 })
 
