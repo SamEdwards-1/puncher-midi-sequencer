@@ -36,7 +36,6 @@ export function Header({ index }: { index: SearchDoc[] }) {
   const counted = useRef("")
   const [query, setQuery] = useState("")
   const [mode, setMode] = useState("light")
-  const [skin, setSkin] = useState("moss")
 
   useEffect(() => {
     // Persistent chrome can make Next's automatic scroll detection keep the old
@@ -49,7 +48,6 @@ export function Header({ index }: { index: SearchDoc[] }) {
 
   useEffect(() => {
     setMode(document.documentElement.dataset.mode || "light")
-    setSkin(document.documentElement.dataset.skin || "moss")
     const open = () => {
       searchDialog.current?.showModal()
       input.current?.focus()
@@ -69,13 +67,12 @@ export function Header({ index }: { index: SearchDoc[] }) {
     }
   }, [])
 
-  const setTheme = (key: "mode" | "skin", value: string) => {
-    document.documentElement.dataset[key] = value
-    if (key === "mode") setMode(value)
-    else setSkin(value)
-    track("theme_change", { setting: key, value })
+  const changeMode = (value: string) => {
+    document.documentElement.dataset.mode = value
+    setMode(value)
+    track("theme_change", { setting: "mode", value })
     try {
-      localStorage.setItem(`puncher-docs-${key}`, value)
+      localStorage.setItem("puncher-docs-mode", value)
     } catch {
       /* Theme still works if storage is unavailable. */
     }
@@ -113,11 +110,17 @@ export function Header({ index }: { index: SearchDoc[] }) {
     <>
       <header className="site-header">
         <div className="header-inner">
-          <Link href="/" aria-label="PUNCHER support home" className="brand">
-            <span className="brand-logo" />
+          <div className="brand">
+            <Link
+              href="/"
+              aria-label="PUNCHER support home"
+              className="brand-logo"
+            />
             <span className="brand-divider" />
-            <span className="brand-label">Field guide</span>
-          </Link>
+            <Link href="/docs/introduction" className="brand-label">
+              Field guide
+            </Link>
+          </div>
           <button
             type="button"
             className="header-search"
@@ -153,9 +156,7 @@ export function Header({ index }: { index: SearchDoc[] }) {
             <button
               type="button"
               className="icon-button"
-              onClick={() =>
-                setTheme("mode", mode === "dark" ? "light" : "dark")
-              }
+              onClick={() => changeMode(mode === "dark" ? "light" : "dark")}
               aria-label={`Switch to ${mode === "dark" ? "light" : "dark"} mode`}
             >
               {mode === "dark" ? <Sun size={19} /> : <Moon size={19} />}
@@ -265,29 +266,7 @@ export function Header({ index }: { index: SearchDoc[] }) {
           items={index}
           onNavigate={() => menuDialog.current?.close()}
         />
-        <label className="skin-control">
-          Site accent
-          <select
-            aria-label="Site accent"
-            value={skin}
-            onChange={(event) => setTheme("skin", event.target.value)}
-          >
-            <option value="moss">Moss</option>
-            <option value="iris">Iris</option>
-          </select>
-        </label>
       </dialog>
-      <div className="skin-switcher">
-        <label htmlFor="site-skin">Accent</label>
-        <select
-          id="site-skin"
-          value={skin}
-          onChange={(event) => setTheme("skin", event.target.value)}
-        >
-          <option value="moss">Moss</option>
-          <option value="iris">Iris</option>
-        </select>
-      </div>
     </>
   )
 }

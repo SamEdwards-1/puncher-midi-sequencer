@@ -2,12 +2,12 @@
 title: Troubleshooting
 group: Reference
 description: Check the signal path, recording filters, and playback rules when something sounds wrong.
-order: 15
+order: 16
 ---
 
 ## There is no sound {#no-sound}
 
-1. Read the status at the right of the app bar.
+1. Read the note in the bottom-left corner of the app, if there is one.
 2. Check **Settings → MIDI → Outputs**. Enable the built-in synth or the intended MIDI port.
 3. If using the synth, wait for its SoundFont to load, then click Play.
 4. Make sure a voice is enabled, has active pattern dots, and reads a step with notes. Check its velocity.
@@ -19,7 +19,7 @@ A rest intentionally plays no notes. A scale fit of Exclude can also silence out
 
 Connect the device or start the virtual port utility before checking **Settings → MIDI**. Allow MIDI access in the browser's site permissions. If PUNCHER reports blocked access, use **Try again** after changing that permission.
 
-For a predictable setup, use Chrome or Edge. A browser cannot create a virtual MIDI port for you.
+Use a browser that [supports Web MIDI](/docs/introduction#browser-support). Safari needs an [extension](/docs/midi#safari). A browser cannot create a virtual MIDI port for you: use [loopMIDI](/docs/midi#loopmidi) on Windows or the [IAC Driver](/docs/midi#macos) on a Mac.
 
 ## Recording does not advance {#recording}
 

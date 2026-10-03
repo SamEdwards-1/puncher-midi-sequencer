@@ -2,7 +2,7 @@
 title: Record a performance
 group: Files & recording
 description: Fill steps from a MIDI keyboard and capture controller movements as envelopes.
-order: 11
+order: 12
 ---
 
 ## Record notes {#record-notes}

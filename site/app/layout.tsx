@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Header } from "../components/header"
+import { ScrollingMark } from "../components/scrolling-mark"
 import { tagManagerId } from "../lib/config"
 import { docs } from "../lib/docs"
 import "./globals.css"
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     "Learn PUNCHER, the browser MIDI step sequencer. Guides to independent voices, conditional jumps, modulation, recording, and export.",
 }
 
-const themeScript = `(function(){try{var m=localStorage.getItem('puncher-docs-mode');var s=localStorage.getItem('puncher-docs-skin');document.documentElement.dataset.mode=m==='dark'||m==='light'?m:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.skin=s==='iris'?'iris':'moss'}catch(e){}})()`
+const themeScript = `(function(){try{var m=localStorage.getItem('puncher-docs-mode');document.documentElement.dataset.mode=m==='dark'||m==='light'?m:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.skin='moss'}catch(e){}})()`
 
 // Google Tag Manager's own loader, as its install instructions give it
 const tagManagerScript = (id: string) =>
@@ -65,6 +66,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <Header index={searchIndex} />
+        <ScrollingMark />
         {children}
       </body>
     </html>

@@ -2,7 +2,7 @@
 title: Patches & MIDI import
 group: Files & recording
 description: Keep an editable patch or use an existing MIDI file as material for a sequence.
-order: 12
+order: 13
 ---
 
 ## Save an editable patch {#patch-files}

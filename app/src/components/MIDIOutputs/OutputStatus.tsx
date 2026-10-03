@@ -5,20 +5,25 @@ import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
 import { useStores } from "../../hooks/useStores"
 import { Localized, useLocalization } from "../../localize/useLocalization"
-import { Toast, ToastAction, ToastTone } from "../ui/Toast"
+import { Toast, ToastAction, ToastLink, ToastTone } from "../ui/Toast"
+
+// The docs' list of browsers with Web MIDI, and what to do in Safari
+const BROWSER_SUPPORT_URL =
+  "https://www.punchermidi.app/docs/introduction#browser-support"
 
 /**
  * Why nothing is happening, said in a toast rather than inside the
  * settings. Recording with no input ticked, a sequence with nowhere to play
  * and a SoundFont still loading all look exactly like a broken sequencer from
- * the outside.
+ * the outside. So does a browser without Web MIDI, which can't reach a single
+ * port.
  */
 export const OutputStatus: FC = () => {
   const { synthStore, recorder, settingsTab } = useStores()
   const state = useMobxGetter(synthStore, "state")
   const error = useMobxGetter(synthStore, "error")
   const recordingError = useMobxGetter(recorder, "recordingError")
-  const { outputNames, inputNames } = useMIDIDevice()
+  const { isSupported, outputNames, inputNames } = useMIDIDevice()
   const { isRecording } = useRecorder()
   const { isPlaying } = usePlayer()
   const localized = useLocalization()
@@ -30,23 +35,27 @@ export const OutputStatus: FC = () => {
       setDismissed(null)
     }
   }, [isPlaying])
+  // the browser won't change while the app is open, so once is enough
+  const [unsupportedDismissed, setUnsupportedDismissed] = useState(false)
 
   const routed =
     outputNames.all.length > 0 ||
     outputNames.voices.some((name) => name !== null)
 
   const kind =
-    recordingError !== null
-      ? "recording-error"
-      : isRecording && inputNames.length === 0
-        ? "no-input"
-        : state === "loading"
-          ? "synth-loading"
-          : state === "error"
-            ? "synth-error"
-            : routed
-              ? null
-              : "no-output"
+    !isSupported && !unsupportedDismissed
+      ? "midi-unsupported"
+      : recordingError !== null
+        ? "recording-error"
+        : isRecording && inputNames.length === 0
+          ? "no-input"
+          : state === "loading"
+            ? "synth-loading"
+            : state === "error"
+              ? "synth-error"
+              : routed
+                ? null
+                : "no-output"
 
   const open = kind !== null && kind !== dismissed
   // what it said last, kept while it slides away
@@ -63,7 +72,7 @@ export const OutputStatus: FC = () => {
   const tone: ToastTone =
     shown === "synth-loading"
       ? "info"
-      : shown === "no-input"
+      : shown === "no-input" || shown === "midi-unsupported"
         ? "warning"
         : "error"
 
@@ -76,13 +85,23 @@ export const OutputStatus: FC = () => {
           <ToastAction onClick={() => settingsTab.show("midi")}>
             <Localized name="sequencer-status-open-settings" />
           </ToastAction>
+        ) : shown === "midi-unsupported" ? (
+          <ToastLink href={BROWSER_SUPPORT_URL}>
+            <Localized name="sequencer-midi-unsupported-browsers" />
+          </ToastLink>
         ) : undefined
       }
       title={recordingError ?? undefined}
       dismissLabel={localized["sequencer-status-dismiss"]}
-      onDismiss={() => setDismissed(shown)}
+      onDismiss={() =>
+        shown === "midi-unsupported"
+          ? setUnsupportedDismissed(true)
+          : setDismissed(shown)
+      }
     >
-      {shown === "recording-error" ? (
+      {shown === "midi-unsupported" ? (
+        <Localized name="sequencer-midi-unsupported-toast" />
+      ) : shown === "recording-error" ? (
         recordingError
       ) : shown === "no-input" ? (
         <Localized name="sequencer-no-input" />

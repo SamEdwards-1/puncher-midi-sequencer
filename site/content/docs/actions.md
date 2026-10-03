@@ -2,7 +2,7 @@
 title: Performance actions
 group: Shape the performance
 description: Hold a step, change the route, or shift the notes while the sequence plays.
-order: 10
+order: 11
 ---
 
 ## The four actions {#actions}

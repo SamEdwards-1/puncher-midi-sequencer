@@ -5,9 +5,10 @@ import { opened } from "../../test/dialogs"
 import { ManualTicker, noOutputsChosen } from "../../test/fakes"
 import { App } from "../App/App"
 
-const createStore = () =>
+// a browser with Web MIDI, still deciding whether to hand it over
+const createStore = ({ midi = true } = {}) =>
   new RootStore({
-    requestMIDIAccess: null,
+    requestMIDIAccess: midi ? () => new Promise<MIDIAccess>(() => {}) : null,
     ticker: new ManualTicker(),
     storage: noOutputsChosen(),
   })
@@ -96,6 +97,23 @@ describe("OutputStatus", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open settings" }))
     expect(await opened("Settings")).toBeVisible()
     expect(rootStore.settingsTab.tab).toBe("midi")
+  })
+
+  it("says when the browser has no Web MIDI, until dismissed", () => {
+    const rootStore = createStore({ midi: false })
+    render(<App rootStore={rootStore} />)
+
+    expect(status()).toHaveTextContent(/doesn't support Web MIDI/)
+    expect(
+      screen.getByRole("link", { name: "Supported browsers" }),
+    ).toHaveAttribute("href", expect.stringContaining("#browser-support"))
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }))
+    expect(status()).not.toHaveTextContent(/Web MIDI/)
+
+    // the browser is no different for pressing play
+    fireEvent.click(screen.getByRole("button", { name: "Play" }))
+    expect(status()).not.toHaveTextContent(/Web MIDI/)
   })
 
   it("comes back when play is pressed with still nothing routed", () => {
