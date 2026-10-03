@@ -7,7 +7,7 @@ order: 6
 
 ## Four independent voices {#independent-voices}
 
-Each voice has its own pace, gate length, note rule, pitch offset, velocity, MIDI channel, and rhythm pattern. With the built-in synth enabled, it also has an instrument.
+Each voice has its own pace, gate length, note rule, transposition, velocity, MIDI channel, and rhythm pattern. With the built-in synth enabled, it also has an instrument.
 
 The sequencer chooses the current chord. At each active pattern dot, a voice chooses one note from that chord using its **Rule**. With no notes, it is silent. With one note, every rule chooses that note.
 

@@ -35,7 +35,7 @@ Press **Play**. The voice cycles through C, E, and G as its active pattern dots 
 
 ## 4. Add a second voice {#add-a-second-voice}
 
-Enable **Voice 2**. Choose **Lowest**, set its pace to **4th** (a quarter note), and lower its pitch with the voice's **Offset** control. Give it a different instrument and a sparse pattern.
+Enable **Voice 2**. Choose **Lowest**, set its pace to **4th** (a quarter note), and lower its pitch with the voice's **Transpose** control. Give it a different instrument and a sparse pattern.
 
 Voice 1 now plays an arpeggio while Voice 2 returns to the bottom note. Both read the same step. Add notes to steps 2–4 to hear the voices follow a chord progression.
 
