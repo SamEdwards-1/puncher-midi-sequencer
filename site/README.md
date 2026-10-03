@@ -38,7 +38,7 @@ For Cloudflare Pages, connect the repository with its root as the build director
 
 ## Analytics
 
-A production build loads the Google Tag Manager container set in `lib/config.ts` on every page; `npm run dev` doesn't. Search, editor launches, theme changes, and enlarged screenshots are pushed to its data layer through `lib/analytics.ts`. [ANALYTICS.md](../ANALYTICS.md) lists the events and how the container is set up.
+A production build loads the Google Tag Manager container set in `lib/config.ts` on every page; `npm run dev` doesn't. Search, editor launches, theme changes, and enlarged screenshots are pushed to its data layer through `lib/analytics.ts`.
 
 ## Design system and skins
 

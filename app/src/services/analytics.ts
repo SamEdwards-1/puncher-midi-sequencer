@@ -9,8 +9,7 @@ import {
  * What is done in the editor, told to Google Tag Manager, which passes it on
  * to Google Analytics. Only the published build loads Tag Manager (see
  * scripts/tagManager.ts); developing or testing, there is no data layer, and
- * nothing is told. ANALYTICS.md lists each event and how Tag Manager sends
- * it on.
+ * nothing is told.
  *
  * Nothing a person makes goes out: no file, patch or device names, only what
  * kind of thing was done.

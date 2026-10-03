@@ -1,7 +1,7 @@
 // What readers do in the docs, told to Google Tag Manager as the editor tells
 // it (see app/src/services/analytics.ts), for Google Analytics. Only a
 // production build loads Tag Manager; developing, there is no data layer and
-// nothing is told. ANALYTICS.md at the repository root lists the events.
+// nothing is told.
 
 type EventParams = Record<string, string | number | boolean>
 

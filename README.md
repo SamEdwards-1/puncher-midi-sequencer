@@ -616,8 +616,8 @@ out. Run the ones for what you've changed with, say,
 
 Production builds of the docs and the editor load Google Tag Manager, which
 passes what is done in them on to Google Analytics; development builds and
-tests don't. [ANALYTICS.md](ANALYTICS.md) lists the events and how the
-container is set up.
+tests don't. The events are pushed through `app/src/services/analytics.ts`
+and `site/lib/analytics.ts`.
 
 The engine works in floating-point beats and hands the player timestamped
 events; the player schedules about 100 ms ahead, ticked from a Web Worker, so
