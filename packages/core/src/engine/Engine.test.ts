@@ -794,6 +794,46 @@ describe("Engine", () => {
       // dot 1 only plays on its second visit
       expect(beatsOf(engine.render(3.9).events, "noteOn")).toEqual([0, 2, 3])
     })
+
+    it("counts a loop that a dot had nothing to play on", () => {
+      patch.voices[0].patternLength = 2
+      patch.voices[0].pattern[1].condition = "2:2"
+      patch.steps[1].notes = []
+
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(beatsOf(engine.render(1.9).events, "noteOn")).toEqual([0])
+      // the second loop is the one 2:2 plays on, notes or not the first time
+      const edited = structuredClone(patch)
+      edited.steps[1].notes = [62]
+      engine.setPatch(edited)
+      expect(beatsOf(engine.render(3.9).events, "noteOn")).toEqual([2, 3])
+    })
+
+    it("reads Last and Not last from the dot just before, even an off one", () => {
+      patch.voices[0].patternLength = 3
+      patch.voices[0].pattern[1].on = false
+      const play = (condition: "last" | "notLast") => {
+        const played = structuredClone(patch)
+        played.voices[0].pattern[2].condition = condition
+        const engine = new Engine(played)
+        engine.start(0)
+        return beatsOf(engine.render(2.9).events, "noteOn")
+      }
+
+      expect(play("last")).toEqual([0])
+      expect(play("notLast")).toEqual([0, 2])
+    })
+
+    it("reads Last as played through a hold dot", () => {
+      patch.voices[0].patternLength = 3
+      patch.voices[0].pattern[1].articulation = "hold"
+      patch.voices[0].pattern[2].condition = "last"
+
+      const engine = new Engine(patch)
+      engine.start(0)
+      expect(beatsOf(engine.render(2.9).events, "noteOn")).toEqual([0, 2])
+    })
   })
 
   it("keeps a dotted pace drifting against the straight grid", () => {

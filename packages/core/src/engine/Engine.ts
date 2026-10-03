@@ -704,6 +704,13 @@ export class Engine {
     // on from within it
     const patternIndex = runtime.patternIndex % voice.patternLength
     runtime.patternIndex = (patternIndex + 1) % voice.patternLength
+    // Every visit is a pass of the pattern through this dot, played or not,
+    // so the cycle conditions count loops of the pattern; and Last and Not
+    // last read whether the dot just before played a note.
+    const pass = runtime.conditionCounts[patternIndex]
+    runtime.conditionCounts[patternIndex] = pass + 1
+    const lastPlayed = runtime.lastPlayed
+    runtime.lastPlayed = false
     if (!voice.enabled) {
       return
     }
@@ -721,17 +728,15 @@ export class Engine {
     }
 
     // A hold dot plays nothing: the note before it was already scheduled to
-    // sustain through this dot.
+    // sustain through this dot, so it has played if that note did.
     if (patternStep.articulation === "hold") {
+      runtime.lastPlayed = lastPlayed
       return
     }
 
-    const visitCount = runtime.conditionCounts[patternIndex]
-    runtime.conditionCounts[patternIndex] = visitCount + 1
     const passed =
       evalProbability(patternStep.probability, this.rng) &&
-      evalCondition(patternStep.condition, visitCount, runtime.lastCondition)
-    runtime.lastCondition = passed
+      evalCondition(patternStep.condition, pass, lastPlayed)
     if (!passed) {
       return
     }
@@ -763,6 +768,7 @@ export class Engine {
     if (note === null) {
       return
     }
+    runtime.lastPlayed = true
     const velocity = playedVelocity(
       voice.velocity,
       this.accentAmount,
