@@ -189,9 +189,9 @@ export default function Home() {
                 <span className="eyebrow">CONTROL / MOVEMENT</span>
                 <h3>Supports full MIDI CC automation.</h3>
                 <p>
-                  Draw and edit envelopes to modulate the sequencer&apos;s settings.
-                  Or you can create arbitrary CC envelopes to send along in your
-                  MIDI routing.
+                  Draw and edit envelopes to modulate the sequencer&apos;s
+                  settings. Or you can create arbitrary CC envelopes to send
+                  along in your MIDI routing.
                 </p>
                 <Link href="/docs/modulation" className="text-link">
                   Work with modulation <ArrowRight size={16} />

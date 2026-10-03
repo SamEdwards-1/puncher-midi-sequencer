@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import type { screenshots } from "./screenshots"
 
@@ -27,14 +27,23 @@ function parseDoc(filename: string): { doc: Doc; order: number } {
   const metadata = Object.fromEntries(
     frontmatter[1].split(/\r?\n/).map((line) => {
       const separator = line.indexOf(":")
-      if (separator < 0) throw new Error(`${filename}: invalid frontmatter line: ${line}`)
+      if (separator < 0)
+        throw new Error(`${filename}: invalid frontmatter line: ${line}`)
       return [line.slice(0, separator), line.slice(separator + 1).trim()]
     }),
   )
   const { title, group, description } = metadata
   const order = Number(metadata.order)
-  if (!title || !group || !description || !Number.isInteger(order) || order < 1) {
-    throw new Error(`${filename}: title, group, description, and positive order are required`)
+  if (
+    !title ||
+    !group ||
+    !description ||
+    !Number.isInteger(order) ||
+    order < 1
+  ) {
+    throw new Error(
+      `${filename}: title, group, description, and positive order are required`,
+    )
   }
 
   const markdown = frontmatter[2]
@@ -46,7 +55,9 @@ function parseDoc(filename: string): { doc: Doc; order: number } {
     const start = heading.index + heading[0].length
     const end = headings[index + 1]?.index ?? markdown.length
     let body = markdown.slice(start, end).trim()
-    const screenshot = body.match(/(?:^|\n\n)!\[([^\]\n]+)\]\(\/screenshots\/([a-z0-9-]+\.png)\)$/)
+    const screenshot = body.match(
+      /(?:^|\n\n)!\[([^\]\n]+)\]\(\/screenshots\/([a-z0-9-]+\.png)\)$/,
+    )
     const section: Section = { id: heading[2], title: heading[1], body }
     if (screenshot) {
       body = body.slice(0, screenshot.index).trim()
