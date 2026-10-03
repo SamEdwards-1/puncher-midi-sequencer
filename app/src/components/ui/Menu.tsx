@@ -63,10 +63,15 @@ export const MenuBarMenu: FC<{
         <ChevronDownIcon size={16} />
       </button>
       {open && (
+        // as wide as its longest item, not the title it hangs from, so a
+        // longer language's items don't wrap
         <div
           role="menu"
           aria-label={label}
-          className={cn("absolute top-[calc(100%+0.25rem)] left-0 z-20", LIST)}
+          className={cn(
+            "absolute top-[calc(100%+0.25rem)] left-0 z-20 w-max",
+            LIST,
+          )}
         >
           {children(close)}
         </div>

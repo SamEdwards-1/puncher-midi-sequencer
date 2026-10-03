@@ -107,6 +107,8 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
   const font = useMobxGetter(soundFonts, "selected")
   const { settings, set } = useAudioExportSettings()
   const localized = useLocalization()
+  // the SoundFont's name sits inside the hint, in a colour of its own
+  const [before, after] = localized["sequencer-render-hint"].split("{font}")
   const render = useAudioRender()
   const [name, setName] = useState(() =>
     exportBaseNameFor(sequencerStore.fileName, patch.name),
@@ -176,9 +178,9 @@ export const RenderAudioDialog: FC<{ onClose: () => void }> = ({ onClose }) => {
       ) : (
         <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 text-body text-fg-secondary">
           <p className="m-0 text-small text-fg-tertiary">
-            <Localized name="sequencer-render-hint" />{" "}
-            <span className="text-fg-secondary">{font.name}</span>.{" "}
-            <Localized name="sequencer-render-hint-rest" />
+            {before}
+            <span className="text-fg-secondary">{font.name}</span>
+            {after}
           </p>
 
           <Row label={<Localized name="sequencer-render-name" />}>

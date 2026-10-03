@@ -3,6 +3,7 @@ import {
   MIDI_EXTENSION,
   PATTERNS_EXTENSION,
 } from "@midiseq/core"
+import { LocalizedError } from "../localize/messages"
 
 export interface OpenedFile {
   name: string
@@ -117,7 +118,7 @@ const allowReading = async (handle: FileSystemFileHandle) => {
     return
   }
   if ((await asking.requestPermission?.(read)) !== "granted") {
-    throw new Error("The browser wasn't allowed to read it.")
+    throw new LocalizedError("sequencer-error-read-denied")
   }
 }
 

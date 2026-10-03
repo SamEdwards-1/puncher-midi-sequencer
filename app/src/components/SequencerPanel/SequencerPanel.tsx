@@ -38,20 +38,16 @@ const PACE_OPTIONS = PACES.map((pace) => ({
   label: PACE_LABELS[pace],
 }))
 
-const DIRECTIONS: { value: Direction; label: string }[] = [
-  { value: "fwd", label: "Forwards" },
-  { value: "bwd", label: "Backwards" },
-  { value: "fwdbwd", label: "Fwd / Bwd" },
-  { value: "bwdfwd", label: "Bwd / Fwd" },
-  { value: "random", label: "Random" },
-  { value: "random+", label: "Random+" },
+const DIRECTIONS: Direction[] = [
+  "fwd",
+  "bwd",
+  "fwdbwd",
+  "bwdfwd",
+  "random",
+  "random+",
 ]
 
-const LOOP_MODES: { value: LoopMode; label: string }[] = [
-  { value: "recorded", label: "Recorded" },
-  { value: "all", label: "All" },
-  { value: "custom", label: "Custom" },
-]
+const LOOP_MODES: LoopMode[] = ["recorded", "all", "custom"]
 
 // a setting of the sequencer's that a CC can drive
 const target = (setting: SequencerSetting) =>
@@ -166,7 +162,10 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <ComboBox
               value={shown(settings.direction)}
-              options={DIRECTIONS}
+              options={DIRECTIONS.map((value) => ({
+                value,
+                label: localized[`sequencer-direction-${value}`],
+              }))}
               onChange={(direction) => editSequencer({ direction })}
             />
           )}
@@ -179,7 +178,10 @@ export const SequencerPanel: FC<{ header?: boolean; className?: string }> = ({
           {(shown) => (
             <ComboBox
               value={shown(settings.loop.mode)}
-              options={LOOP_MODES}
+              options={LOOP_MODES.map((value) => ({
+                value,
+                label: localized[`sequencer-loop-${value}`],
+              }))}
               onChange={(mode) =>
                 editSequencer({ loop: { ...settings.loop, mode } })
               }

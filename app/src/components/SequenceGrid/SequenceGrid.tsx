@@ -21,7 +21,11 @@ import {
 } from "../../hooks/useSequencerView"
 import { useStepMidiDrag } from "../../hooks/useStepMidiDrag"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { StepEditor } from "../StepEditor/StepEditor"
 import { cn } from "../ui/cn"
 import { menuPoint, Point } from "../ui/Menu"
@@ -297,6 +301,7 @@ const useSize = (ref: RefObject<HTMLElement | null>) => {
 export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
   const { sequencerStore, player, recorder } = useStores()
   const localized = useLocalization()
+  const format = useFormat()
   const { editJump } = usePatchEditor()
   const [mode, setMode] = useGridMode()
   const [preview, setPreview] = usePreviewOnClick()
@@ -531,7 +536,9 @@ export const SequenceGrid: FC<{ className?: string }> = ({ className }) => {
                     // biome-ignore lint/suspicious/noArrayIndexKey: a step's index is its identity in the grid
                     key={index}
                     type="button"
-                    aria-label={`${localized["sequencer-step"]} ${index + 1}`}
+                    aria-label={format("sequencer-step-number", {
+                      step: index + 1,
+                    })}
                     data-has-notes={hasNotes}
                     data-state={state}
                     data-jump-source={source}

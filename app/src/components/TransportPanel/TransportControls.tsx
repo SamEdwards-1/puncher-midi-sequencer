@@ -7,7 +7,11 @@ import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { usePlayer } from "../../hooks/usePlayer"
 import { useRecorder } from "../../hooks/useRecorder"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { ToolbarButton } from "../ui/Button"
 import { Stepper } from "../ui/Stepper"
 
@@ -16,6 +20,7 @@ export const TransportControls: FC = () => {
   const { isRecording, toggleRecording } = useRecorder()
   const { editSequencer } = usePatchEditor()
   const localized = useLocalization()
+  const format = useFormat()
   const tempo = usePatchSelector((patch) => patch.tempo)
   // Pause in Play's place while the sequence moves; Play then plays on
   const running = isPlaying && !isPaused
@@ -61,7 +66,7 @@ export const TransportControls: FC = () => {
           value={tempo}
           min={20}
           max={400}
-          format={(value) => `${value} ${localized["sequencer-bpm"]}`}
+          format={(value) => format("sequencer-bpm-value", { bpm: value })}
           // typing "96", "96 BPM" or "96.4" all mean the same thing
           parse={(text) => {
             const number = Number.parseFloat(text.replace(/[^0-9.]/g, ""))

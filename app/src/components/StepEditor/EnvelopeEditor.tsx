@@ -36,7 +36,11 @@ import {
   useSelectedVoice,
 } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { modulationTabLabel, modulationTargetLabel } from "../Modulation/labels"
 import { Button, ButtonGroup, IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
@@ -120,6 +124,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
   // where the CC's values menu is open, under its button
   const [valuesMenu, setValuesMenu] = useState<Point | null>(null)
   const localized = useLocalization()
+  const format = useFormat()
   const { recorder } = useStores()
   const recorded = useMobxGetter(recorder, "recordedLane")
 
@@ -201,7 +206,7 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
         ? `${localized["sequencer-step-cc"]} ${cc}`
         : modulationTabLabel(modulation.target, localized)
     return step.envelopes.filter((each) => each.cc === cc).length > 1
-      ? `${name} · ${localized["sequencer-step-cc-channel-short"]} ${channel}`
+      ? `${name} · ${format("sequencer-channel-short", { channel })}`
       : name
   }
   const modulation =
@@ -218,7 +223,9 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
   )
   const removes =
     modulation !== undefined && envelopesOnCC === 1
-      ? `${localized["sequencer-step-remove-cc-modulation"]} ${modulationTargetLabel(modulation.target, localized)}`
+      ? format("sequencer-step-remove-cc-modulation", {
+          target: modulationTargetLabel(modulation.target, localized),
+        })
       : localized["sequencer-step-remove-cc"]
 
   // a CC modulating one of a voice's settings has the voice's dot, as the
@@ -296,7 +303,9 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
             <div className="w-40 flex-none">
               <Labelled label={localized["sequencer-voice-velocity"]}>
                 <Stepper
-                  label={`${localized["sequencer-voice"]} ${lane.voice + 1} ${localized["sequencer-voice-velocity"].toLowerCase()}`}
+                  label={format("sequencer-voice-velocity-of", {
+                    voice: lane.voice + 1,
+                  })}
                   value={voices[lane.voice].velocity}
                   min={1}
                   max={127}
@@ -351,8 +360,9 @@ export const EnvelopeEditor: FC<{ step: number; column?: Column }> = ({
                 CC_NAMES[lane.cc]
               ) : (
                 <span className="text-envelope">
-                  <Localized name="sequencer-modulation-modulates" />{" "}
-                  {modulationTargetLabel(modulation.target, localized)}
+                  {format("sequencer-modulation-modulates", {
+                    target: modulationTargetLabel(modulation.target, localized),
+                  })}
                 </span>
               )}
               {envelope === null && (

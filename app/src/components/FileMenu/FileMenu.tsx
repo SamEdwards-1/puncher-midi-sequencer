@@ -4,7 +4,11 @@ import { useFileActions, useMidiFileLoader } from "../../actions/file"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useSelectedStep } from "../../hooks/useSequencerView"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { RecentFile } from "../../services/RecentFilesStorage"
 import { Loading } from "../ui/Loading"
 import { MenuBarMenu, MenuDivider, MenuGroup, MenuItem } from "../ui/Menu"
@@ -33,6 +37,7 @@ export const FileMenu: FC = () => {
   const recentPatches = useMobxGetter(recentFiles, "patch")
   const recentMidi = useMobxGetter(recentFiles, "midi")
   const localized = useLocalization()
+  const format = useFormat()
   // the whole sequence, or the step in the editor when it was asked for
   const [exporting, setExporting] = useState<
     { kind: "sequence" } | { kind: "step"; step: number } | null
@@ -132,7 +137,7 @@ export const FileMenu: FC = () => {
       </MenuBarMenu>
       {importing?.status === "loading" && (
         <Loading
-          label={`${localized["sequencer-import-loading"]} ${importing.name}…`}
+          label={format("sequencer-import-loading", { name: importing.name })}
         />
       )}
       <Suspense fallback={null}>

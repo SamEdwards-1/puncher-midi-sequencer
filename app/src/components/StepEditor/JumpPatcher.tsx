@@ -5,7 +5,11 @@ import { FC } from "react"
 import { usePatchEditor } from "../../actions/patch"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { useGridMode, useSelectedStep } from "../../hooks/useSequencerView"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  LocalizationKey,
+  Localized,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { IconButton } from "../ui/Button"
 import { cn } from "../ui/cn"
 import { BLEED_RIGHT, GUTTER_RIGHT } from "../ui/Panel"
@@ -13,9 +17,13 @@ import { Select } from "../ui/Select"
 
 const VALUE = "font-mono text-fg"
 
-// The rules a jump can follow, flattened for a select.
-const RULES: { value: string; label: string }[] = [
-  { value: "always", label: "Always" },
+// The rules a jump can follow, flattened for a select: words to translate,
+// or notation that reads the same in every language.
+const RULES: ({ value: string } & (
+  | { key: LocalizationKey }
+  | { label: string }
+))[] = [
+  { value: "always", key: "sequencer-jump-always" },
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({
     value: `times:${n}`,
     label: `${n}x`,
@@ -28,8 +36,8 @@ const RULES: { value: string; label: string }[] = [
     value: `chance:${pct}`,
     label: `${pct}%`,
   })),
-  { value: "last", label: "Last" },
-  { value: "notLast", label: "Not last" },
+  { value: "last", key: "sequencer-jump-last" },
+  { value: "notLast", key: "sequencer-jump-not-last" },
 ]
 
 const ruleValue = (rule: JumpRule): string => {
@@ -94,8 +102,8 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
       <span>{label}</span>
       <span className={VALUE}>{value === null ? emptyLabel : value + 1}</span>
       <IconButton
-        aria-label={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
-        title={`${localized["sequencer-jump-pick"]} ${label.toLowerCase()}`}
+        aria-label={localized[`sequencer-jump-pick-${kind}`]}
+        title={localized[`sequencer-jump-pick-${kind}`]}
         aria-pressed={mode === kind}
         active={mode === kind}
         onClick={() => setMode(mode === kind ? null : kind)}
@@ -133,9 +141,9 @@ export const JumpPatcher: FC<{ onRemove: () => void }> = ({ onRemove }) => {
               editJump(selected, { rule: parseRule(event.target.value) })
             }
           >
-            {RULES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
+            {RULES.map((rule) => (
+              <option key={rule.value} value={rule.value}>
+                {"key" in rule ? localized[rule.key] : rule.label}
               </option>
             ))}
           </Select>

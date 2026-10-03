@@ -28,7 +28,7 @@ import {
   VoiceIndex,
   VoiceRule,
 } from "@midiseq/core"
-import { RULE_LABELS } from "../components/Modulation/labels"
+import localization from "../localize/localization"
 import { makeScale, SEQUENCER_SCALE_CHOICES, TONICS } from "../theory/scales"
 
 /**
@@ -165,7 +165,7 @@ export const readPace = (value: unknown, what = "pace") =>
 
 const RULE_CHOICES: Choice<VoiceRule>[] = VOICE_RULES.map((rule) => ({
   value: rule,
-  names: [rule, RULE_LABELS[rule]],
+  names: [rule, localization.en[`sequencer-rule-${rule}`]],
 }))
 
 export const RULE_NAMES = namesOf(RULE_CHOICES)

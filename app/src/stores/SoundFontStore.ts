@@ -1,4 +1,5 @@
 import { action, computed, makeObservable, observable } from "mobx"
+import { LocalizedError } from "../localize/messages"
 import {
   defaultSoundFontStorage,
   SoundFontStorage,
@@ -84,7 +85,9 @@ export const withoutCreationDate = (data: ArrayBuffer): ArrayBuffer => {
 const defaultFetch = async (url: string) => {
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`Couldn't fetch the SoundFont (${response.status})`)
+    throw new LocalizedError("sequencer-error-soundfont-fetch", {
+      status: response.status,
+    })
   }
   return response.arrayBuffer()
 }
@@ -142,7 +145,7 @@ export class SoundFontStore {
    */
   add = async (name: string, data: ArrayBuffer) => {
     if (!isSoundBank(data)) {
-      throw new Error(`${name} isn't a SoundFont`)
+      throw new LocalizedError("sequencer-error-not-soundfont", { name })
     }
     const id = await this.fonts.add(name, data)
     await this.refresh()
@@ -172,7 +175,7 @@ export class SoundFontStore {
     if (id !== FACTORY_SOUNDFONT.id) {
       const data = await this.fonts.load(id)
       if (data === null) {
-        throw new Error("That SoundFont is no longer saved")
+        throw new LocalizedError("sequencer-error-soundfont-gone")
       }
       return data
     }

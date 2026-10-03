@@ -36,7 +36,11 @@ import { usePatchEditor } from "../../actions/patch"
 import { useImportSettings } from "../../hooks/useImportSettings"
 import { usePatch } from "../../hooks/usePatch"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { IMPORT_SNAPS, ImportSnap } from "../../stores/ImportSettingsStore"
 import { guessScales } from "../../theory/scales"
 import { FitButtons, ScaleGuesses, ScaleSelects } from "../Scale/ScalePicker"
@@ -116,6 +120,7 @@ const Parts: FC<{
   onAll: (on: boolean) => void
 }> = memo(({ sources, chosen, heard, onToggle, onAll }) => {
   const localized = useLocalization()
+  const format = useFormat()
   return (
     <Section
       label={localized["sequencer-import-parts"]}
@@ -158,10 +163,10 @@ const Parts: FC<{
               style={{ "--source": sourceColour(index) } as CSSProperties}
             >
               <Checkbox
-                label={`${source.name === "" ? `${localized["sequencer-import-track"]} ${source.track + 1}` : source.name} · ${localized["sequencer-step-cc-channel-short"]} ${source.channel}`}
+                label={`${source.name === "" ? format("sequencer-import-track", { track: source.track + 1 }) : source.name} · ${format("sequencer-channel-short", { channel: source.channel })}`}
                 checked={chosen.has(sourceKey(source))}
                 note={[
-                  `${source.notes} ${localized["sequencer-import-notes"]}`,
+                  format("sequencer-import-notes", { count: source.notes }),
                   `${noteNumberToName(source.low)}–${noteNumberToName(source.high)}`,
                   ...(source.channel === DRUM_CHANNEL
                     ? [localized["sequencer-import-drums"]]
@@ -190,6 +195,7 @@ const Controllers: FC<{
   onAll: (on: boolean) => void
 }> = memo(({ ccs, chosen, allowed, onToggle, onAll }) => {
   const localized = useLocalization()
+  const format = useFormat()
   const open = ccs.filter(allowed)
   const all = open.length > 0 && open.every((each) => chosen.has(ccKey(each)))
   const some = open.some((each) => chosen.has(ccKey(each)))
@@ -219,7 +225,7 @@ const Controllers: FC<{
           {ccs.map((each) => (
             <Checkbox
               key={ccKey(each)}
-              label={`CC ${each.cc} · ${localized["sequencer-step-cc-channel-short"]} ${each.channel}`}
+              label={`CC ${each.cc} · ${format("sequencer-channel-short", { channel: each.channel })}`}
               checked={allowed(each) && chosen.has(ccKey(each))}
               disabled={!allowed(each)}
               note={[
@@ -227,7 +233,7 @@ const Controllers: FC<{
                 CC_NAMES[each.cc] === "Undefined"
                   ? null
                   : CC_NAMES[each.cc],
-                `${each.changes} ${localized["sequencer-import-changes"]}`,
+                format("sequencer-import-changes", { count: each.changes }),
                 allowed(each) ? null : localized["sequencer-import-filtered"],
               ]
                 .filter((part) => part !== null)
@@ -250,12 +256,15 @@ const Filter: FC<{
   onChange: (changes: Partial<MIDIFilterJSON>) => void
 }> = memo(({ filter, open, onOpen, onChange }) => {
   const localized = useLocalization()
+  const format = useFormat()
   const channels =
     filter.channels.length === ALL_CHANNELS.length
       ? localized["sequencer-import-all-channels"]
       : filter.channels.length === 0
         ? localized["sequencer-import-no-channels"]
-        : `${localized["sequencer-step-cc-channel-short"]} ${filter.channels.join(", ")}`
+        : format("sequencer-channel-short", {
+            channel: filter.channels.join(", "),
+          })
   const notes =
     filter.noteLow === MIN_NOTE_NUMBER && filter.noteHigh === MAX_NOTE_NUMBER
       ? localized["sequencer-import-all-notes"]
@@ -302,6 +311,7 @@ export const ImportMidiDialog: FC<{
   const { midiDeviceStore } = useStores()
   const { importMidi } = usePatchEditor()
   const localized = useLocalization()
+  const format = useFormat()
   const { midi, sources, ccs } = prepared
 
   const beatsPerBar =
@@ -472,12 +482,12 @@ export const ImportMidiDialog: FC<{
     () => ({
       start: localized["sequencer-import-start"],
       end: localized["sequencer-import-end"],
-      bar: localized["sequencer-import-bar"],
-      preview: `${localized["sequencer-import-preview"]}: ${name}`,
+      bar: (bar: string) => format("sequencer-import-bar", { bar }),
+      preview: format("sequencer-import-preview", { name }),
       low: localized["sequencer-import-note-low"],
       high: localized["sequencer-import-note-high"],
     }),
-    [localized, name],
+    [localized, format, name],
   )
 
   // what the options come to, said beside them, and all there is to see of
@@ -486,38 +496,52 @@ export const ImportMidiDialog: FC<{
     chosen.has(sourceKey(source)),
   ).length
   const optionsSummary = [
-    `${chosenCount} ${localized["sequencer-import-of"]} ${sources.length} ${localized[sources.length === 1 ? "sequencer-import-track-count" : "sequencer-import-tracks-count"]}`,
+    format("sequencer-import-tracks-chosen", {
+      chosen: chosenCount,
+      count: sources.length,
+    }),
     ...(ccs.length === 0
       ? []
-      : [
-          `${options.ccs.length} ${localized[options.ccs.length === 1 ? "sequencer-step-cc" : "sequencer-export-ccs"]}`,
-        ]),
-    `${notesPerStep} ${localized[notesPerStep === 1 ? "sequencer-import-note-a-step" : "sequencer-import-notes-a-step"]}`,
-    `${localized["sequencer-import-from"]} ${fromStep + 1}`,
+      : [format("sequencer-ccs-count", { count: options.ccs.length })]),
+    format("sequencer-import-notes-a-step", { count: notesPerStep }),
+    format("sequencer-import-from", { step: fromStep + 1 }),
     ...(size === patch.size
       ? []
-      : [`${size} ${localized["sequencer-export-steps"]}`]),
+      : [format("sequencer-steps-count", { count: size })]),
     ...(loop ? [localized["sequencer-import-looping"]] : []),
     ...(minVelocity > 1
       ? [`${localized["sequencer-import-min-velocity"]} ${minVelocity}`]
       : []),
     ...(options.bpm === null
       ? []
-      : [`${Math.round(options.bpm)} ${localized["sequencer-bpm"]}`]),
+      : [format("sequencer-bpm-value", { bpm: Math.round(options.bpm) })]),
   ].join(" · ")
 
   const summary =
     plan.filled === 0
       ? localized["sequencer-import-nothing"]
-      : `${localized["sequencer-import-fills"]} ${plan.firstStep + 1}–${plan.firstStep + plan.filled} ${localized["sequencer-import-of"]} ${steps}` +
-        (loop && dealt > 0 && plan.filled > dealt
-          ? ` · ${localized["sequencer-import-round"]} ${Math.round((plan.filled / dealt) * 10) / 10}×`
-          : "") +
-        ` · ${dealt} ${localized[dealt === 1 ? "sequencer-export-step" : "sequencer-export-steps"]} ${localized["sequencer-import-of"]} ${notesPerStep} ${localized[notesPerStep === 1 ? "sequencer-import-note" : "sequencer-import-notes"]}`
+      : [
+          format("sequencer-import-fills", {
+            first: plan.firstStep + 1,
+            last: plan.firstStep + plan.filled,
+            total: steps,
+          }),
+          ...(loop && dealt > 0 && plan.filled > dealt
+            ? [
+                format("sequencer-import-round", {
+                  times: Math.round((plan.filled / dealt) * 10) / 10,
+                }),
+              ]
+            : []),
+          format("sequencer-import-dealt", {
+            steps: dealt,
+            notes: notesPerStep,
+          }),
+        ].join(" · ")
 
   return (
     <Dialog
-      title={`${localized["sequencer-import-midi"]}: ${name}`}
+      title={format("sequencer-import-midi", { name })}
       closeLabel={localized["sequencer-export-cancel"]}
       onClose={onClose}
       footer={
@@ -559,7 +583,7 @@ export const ImportMidiDialog: FC<{
             <FitButtons scale={scale} onScale={setScale} />
             {scale !== null && (
               <span className="text-fg-tertiary" data-scale-summary>
-                {`${plan.shifted} ${localized["sequencer-scale-moved"]} · ${offScale} ${localized["sequencer-scale-left-out"]}`}
+                {`${format("sequencer-scale-moved", { count: plan.shifted })} · ${format("sequencer-scale-left-out", { count: offScale })}`}
               </span>
             )}
           </div>
@@ -577,7 +601,7 @@ export const ImportMidiDialog: FC<{
             <span data-import-summary className={plan.cut ? "text-yellow" : ""}>
               {summary}
               {plan.cut &&
-                ` · ${cut} ${localized[cut === 1 ? "sequencer-import-note" : "sequencer-import-notes"]} ${localized["sequencer-import-dont-fit"]}`}
+                ` · ${format("sequencer-import-dont-fit", { count: cut })}`}
             </span>
             {/* biome-ignore lint/a11y/noLabelWithoutControl: the select is inside */}
             <label className="flex items-center gap-2">
@@ -715,7 +739,7 @@ export const ImportMidiDialog: FC<{
                     data-quiet-count
                   >
                     {minVelocity > 1
-                      ? `${quiet} ${localized[quiet === 1 ? "sequencer-import-note" : "sequencer-import-notes"]} ${localized["sequencer-import-quiet"]}`
+                      ? format("sequencer-import-quiet", { count: quiet })
                       : localized["sequencer-import-min-velocity-note"]}
                   </p>
                 </Section>
@@ -731,7 +755,9 @@ export const ImportMidiDialog: FC<{
                   note={
                     midi.bpm === null
                       ? localized["sequencer-import-no-tempo"]
-                      : `${Math.round(midi.bpm)} ${localized["sequencer-bpm"]}`
+                      : format("sequencer-bpm-value", {
+                          bpm: Math.round(midi.bpm),
+                        })
                   }
                   onChange={setFileTempo}
                 />

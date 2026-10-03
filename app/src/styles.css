@@ -94,6 +94,19 @@
   --midiseq-logo: #fbbbd1;
 }
 
+/* Inter has no Japanese or Chinese, so those languages name the system
+   fonts that do, rather than leave the browser to pick one per character. */
+:root:lang(ja) {
+  --midiseq-font:
+    Inter, -apple-system, BlinkMacSystemFont, Avenir, Lato, "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
+}
+:root:lang(zh-Hans) {
+  --midiseq-font:
+    Inter, -apple-system, BlinkMacSystemFont, Avenir, Lato, "PingFang SC",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
 :root[data-theme="light"] {
   --midiseq-theme: #007acc;
   --midiseq-on-surface: #ffffff;

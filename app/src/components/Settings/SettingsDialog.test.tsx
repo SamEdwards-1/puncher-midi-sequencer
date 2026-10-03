@@ -1,5 +1,14 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import fr from "../../localize/fr"
+import ja from "../../localize/ja"
 import RootStore from "../../stores/RootStore"
 import { opened } from "../../test/dialogs"
 import { ManualTicker } from "../../test/fakes"
@@ -363,6 +372,67 @@ describe("the settings dialog", () => {
     })
   })
 
+  describe("language", () => {
+    const language = (dialog: ReturnType<typeof within>) =>
+      dialog.getByRole("combobox", { name: "Language" }) as HTMLSelectElement
+
+    afterEach(() => {
+      Object.defineProperty(globalThis.navigator, "language", {
+        value: "en",
+        writable: true,
+      })
+    })
+
+    // first, while nothing is chosen
+    it("starts in the browser's language", async () => {
+      Object.defineProperty(globalThis.navigator, "language", {
+        value: "ja-JP",
+        writable: true,
+      })
+      storage = memoryStorage()
+      rootStore = new RootStore({ ticker: new ManualTicker(), storage })
+      render(<App rootStore={rootStore} />)
+      await waitFor(() => expect(document.documentElement.lang).toBe("ja"))
+      fireEvent.click(
+        screen.getByRole("button", { name: ja["sequencer-settings"] }),
+      )
+      const dialog = within(await opened(ja["sequencer-settings"]))
+      expect(
+        (
+          dialog.getByRole("combobox", {
+            name: ja["sequencer-language"],
+          }) as HTMLSelectElement
+        ).value,
+      ).toBe("ja")
+    })
+
+    it("offers each language by its own name, and speaks the one chosen", async () => {
+      const dialog = await open()
+      expect(language(dialog).value).toBe("en")
+      expect(
+        within(language(dialog))
+          .getAllByRole("option")
+          .map((option) => option.textContent),
+      ).toEqual(["English", "Français", "Slovenčina", "日本語", "简体中文"])
+
+      fireEvent.change(language(dialog), { target: { value: "fr" } })
+      expect(document.documentElement.lang).toBe("fr")
+      expect(
+        dialog.getByRole("button", { name: fr["sequencer-settings-general"] }),
+      ).toBeInTheDocument()
+      expect(
+        JSON.parse(localStorage.getItem("midiseq.settings") ?? "{}").language,
+      ).toBe("fr")
+
+      // back, for the tests after
+      fireEvent.change(
+        dialog.getByRole("combobox", { name: fr["sequencer-language"] }),
+        { target: { value: "en" } },
+      )
+      expect(document.documentElement.lang).toBe("en")
+    })
+  })
+
   describe("theme", () => {
     const THEME_KEY = "midiseq.theme"
     const themeTab = async () => {
@@ -426,7 +496,7 @@ describe("the settings dialog", () => {
       expect(dialog.queryByRole("combobox", { name: "Light theme" })).toBeNull()
 
       fireEvent.click(dialog.getByRole("button", { name: "General" }))
-      expect(dialog.queryByRole("combobox")).toBeNull()
+      expect(dialog.queryByRole("combobox", { name: /theme/ })).toBeNull()
     })
 
     it("goes light, and offers the light themes instead", async () => {

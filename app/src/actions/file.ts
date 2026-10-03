@@ -25,6 +25,11 @@ import { useCallback } from "react"
 import type { AudioRenderProgress } from "../audio/audioExport"
 import { useAccentAmount } from "../hooks/useAccentAmount"
 import { useStores } from "../hooks/useStores"
+import {
+  errorMessage,
+  formatInPage,
+  LocalizationKey,
+} from "../localize/messages"
 import { AudioRenderCancelled, AudioRenderJob } from "../services/AudioRenderer"
 import { track, trackFailure } from "../services/analytics"
 import {
@@ -66,7 +71,7 @@ const midiNameFor = (fileName: string | null, patchName: string) =>
 // A picker or a write that fails would otherwise leave a click that did
 // nothing at all.
 const attempt = async <T>(
-  what: string,
+  what: Attempt,
   run: () => Promise<T>,
 ): Promise<T | null> => {
   try {
@@ -78,10 +83,30 @@ const attempt = async <T>(
   }
 }
 
-const complain = (what: string, error: unknown) => {
-  const reason = error instanceof Error ? ` ${error.message}` : ""
-  window.alert(`Couldn't ${what}.${reason}`)
-}
+// What each attempt is called in analytics, and what it says on failing.
+const FAILURES = {
+  "open a file": "sequencer-failed-open-file",
+  "save the patch": "sequencer-failed-save-patch",
+  "export the patterns": "sequencer-failed-export-patterns",
+  "import patterns": "sequencer-failed-import-patterns",
+  "export MIDI": "sequencer-failed-export-midi",
+  "export the step as MIDI": "sequencer-failed-export-step",
+  "save the audio": "sequencer-failed-save-audio",
+  "load the SoundFont": "sequencer-failed-load-soundfont",
+  "render the audio": "sequencer-failed-render-audio",
+  "open the MIDI file": "sequencer-failed-open-midi",
+  "read the MIDI file": "sequencer-failed-read-midi",
+} as const satisfies Record<string, LocalizationKey>
+type Attempt = keyof typeof FAILURES
+
+// "Couldn't save the patch.", then why, if there's more to say
+const alertFailure = (failed: string, error: unknown) =>
+  window.alert(
+    error instanceof Error ? `${failed} ${errorMessage(error)}` : failed,
+  )
+
+const complain = (what: Attempt, error: unknown) =>
+  alertFailure(formatInPage(FAILURES[what]), error)
 
 /**
  * A recent file read again: a file since moved or deleted comes off its
@@ -99,12 +124,13 @@ const attemptRecent = async <T>(
     // what was being done, without the file's name
     trackFailure(`open a recent ${kind} file`, error)
     if (isGone(error)) {
-      window.alert(
-        `Couldn't find ${recent.name}. It may have been moved or deleted.`,
-      )
+      window.alert(formatInPage("sequencer-recent-gone", { name: recent.name }))
       await recentFiles.remove(kind, recent)
     } else {
-      complain(`open ${recent.name}`, error)
+      alertFailure(
+        formatInPage("sequencer-failed-open-recent", { name: recent.name }),
+        error,
+      )
     }
     return null
   }
@@ -142,7 +168,7 @@ export function useFileActions() {
   const confirmDiscard = useCallback(
     () =>
       sequencerStore.isSaved ||
-      window.confirm("This patch has unsaved changes. Discard them?"),
+      window.confirm(formatInPage("sequencer-confirm-discard")),
     [sequencerStore],
   )
 
@@ -162,7 +188,9 @@ export function useFileActions() {
     (opened: { name: string; text: string }, source: "picker" | "recent") => {
       const result = parseFile(opened.text)
       if (!result.ok) {
-        window.alert(`Couldn't open that file. ${result.error}`)
+        window.alert(
+          `${formatInPage("sequencer-failed-read-patch")} ${result.error}`,
+        )
         return
       }
       // Older unnamed patches use their filename, including recent files.
@@ -285,7 +313,9 @@ export function usePatternFileActions() {
       }
       const result = parsePatternsFile(opened.text)
       if (!result.ok) {
-        window.alert(`Couldn't import those patterns. ${result.error}`)
+        window.alert(
+          `${formatInPage("sequencer-failed-read-patterns")} ${result.error}`,
+        )
         return
       }
       replacePatterns(result.voices)
@@ -589,7 +619,9 @@ export function useMidiFileLoader() {
       }
       const result = readMidiFile(bytes)
       if (!result.ok) {
-        window.alert(`Couldn't import that file. ${result.error}`)
+        window.alert(
+          `${formatInPage("sequencer-failed-read-midi-file")} ${result.error}`,
+        )
         return null
       }
       if (handle !== null) {

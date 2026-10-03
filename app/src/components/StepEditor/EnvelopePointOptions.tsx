@@ -8,7 +8,7 @@ import {
 import CloseIcon from "mdi-react/CloseIcon"
 import { FC, useMemo } from "react"
 import { usePatchEditor } from "../../actions/patch"
-import { useLocalization } from "../../localize/useLocalization"
+import { useFormat, useLocalization } from "../../localize/useLocalization"
 import { modulationValueLabel } from "../Modulation/labels"
 import { IconButton } from "../ui/Button"
 import { ComboBox } from "../ui/ComboBox"
@@ -41,6 +41,7 @@ export const EnvelopePointOptions: FC<EnvelopePointOptionsProps> = ({
 }) => {
   const { editEnvelopePoints } = usePatchEditor()
   const localized = useLocalization()
+  const format = useFormat()
   const { popup, at } = usePopup(requestedAt, onClose)
   const point = envelope.points[index]
   const options = useMemo(
@@ -66,7 +67,9 @@ export const EnvelopePointOptions: FC<EnvelopePointOptionsProps> = ({
     )
 
   const label = `${localized["sequencer-envelope-point"]} ${index + 1}`
-  const valueLabel = `${label} ${localized["sequencer-envelope-point-value"].toLowerCase()}`
+  const valueLabel = format("sequencer-envelope-point-value-of", {
+    point: index + 1,
+  })
 
   return (
     <div

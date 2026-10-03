@@ -4,7 +4,12 @@ import { ChangeEvent, FC, useId, useState } from "react"
 import { useMIDIDevice } from "../../hooks/useMIDIDevice"
 import { useMobxGetter } from "../../hooks/useMobxSelector"
 import { useStores } from "../../hooks/useStores"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import { errorMessage } from "../../localize/messages"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { track } from "../../services/analytics"
 import { BUILTIN_OUTPUT } from "../../stores/MIDIDeviceStore"
 import {
@@ -29,8 +34,9 @@ export const SoundFontSettings: FC = () => {
   const synthError = useMobxGetter(synthStore, "error")
   const { outputNames } = useMIDIDevice()
   const localized = useLocalization()
+  const format = useFormat()
   const [adding, setAdding] = useState(false)
-  const [addError, setAddError] = useState<string | null>(null)
+  const [addError, setAddError] = useState<unknown>(null)
 
   const inUse = [...outputNames.all, ...outputNames.voices].includes(
     BUILTIN_OUTPUT,
@@ -50,7 +56,7 @@ export const SoundFontSettings: FC = () => {
       await soundFonts.add(file.name, await file.arrayBuffer())
       track("soundfont_add")
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : String(error))
+      setAddError(error)
     } finally {
       setAdding(false)
     }
@@ -118,7 +124,8 @@ export const SoundFontSettings: FC = () => {
         </label>
         {addError !== null && (
           <p className={MESSAGE}>
-            <Localized name="sequencer-soundfont-add-error" /> {addError}
+            <Localized name="sequencer-soundfont-add-error" />{" "}
+            {errorMessage(addError, format)}
           </p>
         )}
       </div>
@@ -138,8 +145,8 @@ const SoundFontRow: FC<{
   onSelect: () => void
   onRemove: () => void
 }> = ({ file, selected, loading, onSelect, onRemove }) => {
-  const localized = useLocalization()
-  const remove = `${localized["sequencer-soundfont-remove"]} ${file.name}`
+  const format = useFormat()
+  const remove = format("sequencer-soundfont-remove", { name: file.name })
   const creditId = useId()
   const { credit } = file
 
@@ -181,7 +188,7 @@ const SoundFontRow: FC<{
           id={creditId}
           className="m-0 pb-1 pl-[calc(1.75rem+2px)] text-small text-fg-tertiary"
         >
-          {localized["sequencer-soundfont-by"]} {credit.author} ·{" "}
+          {format("sequencer-soundfont-by", { author: credit.author })} ·{" "}
           <a
             href={credit.licenceUrl}
             target="_blank"

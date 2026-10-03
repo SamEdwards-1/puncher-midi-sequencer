@@ -15,7 +15,11 @@ import { usePatchEditor } from "../../actions/patch"
 import { useAccentAmount } from "../../hooks/useAccentAmount"
 import { usePatchSelector } from "../../hooks/usePatch"
 import { useCopiedDot } from "../../hooks/useSequencerView"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Field, Fields } from "../ui/Field"
 import { Select } from "../ui/Select"
@@ -71,6 +75,7 @@ export const StepOptions: FC<StepOptionsProps> = ({
     [voiceIndex],
   )
   const localized = useLocalization()
+  const format = useFormat()
   // opened from a right-click, nudged inside the window, and closed on a
   // click elsewhere or on Escape
   const { popup, at } = usePopup(requestedAt, onClose)
@@ -82,7 +87,10 @@ export const StepOptions: FC<StepOptionsProps> = ({
     <div
       ref={popup}
       role="dialog"
-      aria-label={`${localized["sequencer-voice"]} ${voiceIndex + 1} ${localized["sequencer-voice-dot"]} ${dotIndex + 1}`}
+      aria-label={format("sequencer-voice-dot-of", {
+        voice: voiceIndex + 1,
+        dot: dotIndex + 1,
+      })}
       // over the panel, not beside its scrollbar, so its gutters are whole
       className="fixed z-20 max-h-[calc(100vh-1rem)] w-60 overflow-y-auto rounded-lg border border-popup-border bg-background-secondary px-3 pt-1 pb-3 shadow-[0_1rem_3rem_var(--midiseq-shadow)] [--scrollbar-gutter:0px]"
       style={{ left: at.x, top: at.y }}

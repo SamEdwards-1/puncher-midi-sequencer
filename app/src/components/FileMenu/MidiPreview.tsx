@@ -159,7 +159,7 @@ export const MidiPreview: FC<{
   labels: {
     start: string
     end: string
-    bar: string
+    bar: (bar: string) => string
     preview: string
     low: string
     high: string
@@ -465,7 +465,7 @@ export const MidiPreview: FC<{
           aria-valuemin={0}
           aria-valuemax={totalBeats}
           aria-valuenow={beat}
-          aria-valuetext={`${labels.bar} ${barLabel(beat)}`}
+          aria-valuetext={labels.bar(barLabel(beat))}
           data-handle={part}
           className="cursor-ew-resize outline-none focus-visible:[&>path]:stroke-fg"
           onMouseDown={drag(part)}

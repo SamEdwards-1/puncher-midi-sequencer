@@ -10,7 +10,11 @@ import { FC, useMemo } from "react"
 import { exportOptionsFor, useMidiExport } from "../../actions/file"
 import { useExportSettings } from "../../hooks/useExportSettings"
 import { usePatch } from "../../hooks/usePatch"
-import { Localized, useLocalization } from "../../localize/useLocalization"
+import {
+  Localized,
+  useFormat,
+  useLocalization,
+} from "../../localize/useLocalization"
 import { Button } from "../ui/Button"
 import { Dialog } from "../ui/Dialog"
 import { ExportOptions } from "./ExportOptions"
@@ -24,8 +28,7 @@ const clock = (seconds: number) => {
 }
 
 // bars to two places at most, and no trailing zeros
-const bars = (beats: number) =>
-  String(Math.round((beats / BEATS_PER_BAR) * 100) / 100)
+const bars = (beats: number) => Math.round((beats / BEATS_PER_BAR) * 100) / 100
 
 /**
  * A MIDI export of the whole sequence, or of `step` alone, with its options
@@ -40,6 +43,7 @@ export const ExportMidiDialog: FC<{
   const settings = useExportSettings()
   const { exportSequence, exportStep } = useMidiExport()
   const localized = useLocalization()
+  const format = useFormat()
   const ccs = useMemo(
     () => sequenceCCs(patch, step === undefined ? undefined : [step]),
     [patch, step],
@@ -60,7 +64,7 @@ export const ExportMidiDialog: FC<{
       title={
         step === undefined
           ? localized["sequencer-export-midi"]
-          : `${localized["sequencer-export-step-midi"]} ${step + 1}`
+          : format("sequencer-export-step-midi", { step: step + 1 })
       }
       closeLabel={localized["sequencer-export-cancel"]}
       onClose={onClose}
@@ -99,9 +103,11 @@ export const ExportMidiDialog: FC<{
           passes={step === undefined}
           after={
             <span className="text-small text-fg-tertiary" data-export-length>
-              {steps} {localized["sequencer-export-steps"]} · {bars(beats)}{" "}
-              {localized["sequencer-export-bars"]} ·{" "}
-              {clock((beats * 60) / patch.tempo)}
+              {[
+                format("sequencer-steps-count", { count: steps }),
+                format("sequencer-export-bars", { count: bars(beats) }),
+                clock((beats * 60) / patch.tempo),
+              ].join(" · ")}
             </span>
           }
         />
